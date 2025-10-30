@@ -1,48 +1,66 @@
 # Ratsinformations-Analysetool Melle
 
-## **Projektbeschreibung**
+## Projektvision
+Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen aus dem Ratsinformationssystem der Stadt Melle automatisch einsammeln, analysieren und verständlich aufbereiten.** Vergangene Sitzungen sollen journalistisch zusammengefasst und kommende Sitzungen strukturiert vorbereitet werden, damit Politik, Verwaltung und Öffentlichkeit einen schnellen, transparenten Überblick erhalten.
 
-Dieses Projekt dient der automatisierten **Erfassung, Analyse und Zusammenfassung kommunalpolitischer Informationen** aus dem Ratsinformationssystem der Stadt Melle ([session.melle.info](https://session.melle.info/bi/info.asp)).  
-Ziel ist es, vergangene Sitzungen journalistisch aufzubereiten und zukünftige Sitzungen für Kommunalpolitiker strukturiert vorzubereiten – mit Fokus auf Transparenz, Nachvollziehbarkeit und moderner KI-Unterstützung.
+## Leitprinzipien für die Umsetzung
+- **Technologieoffenheit:** Programmiersprache, Frameworks und Infrastruktur sind frei wählbar. Bewährt haben sich Skriptsprachen (z. B. Python, JavaScript/TypeScript) ebenso wie kompilierte Sprachen (z. B. Go, Rust), solange sie Webzugriffe, Datenhaltung und optionale KI-Anbindungen unterstützen.
+- **Modularer Aufbau:** Funktionen wie Datenerfassung, Analyse, Speicherung und Darstellung sollen klar getrennt sein, damit einzelne Module unabhängig weiterentwickelt oder ausgetauscht werden können.
+- **Nachvollziehbarkeit & Transparenz:** Alle gewonnenen Daten, Zwischenschritte und Analyseergebnisse müssen dauerhaft nachvollziehbar, versionierbar und für Dritte überprüfbar sein.
+- **Erweiterbarkeit:** Die Lösung soll sich leicht auf andere Kommunen oder Informationsquellen übertragen lassen und Platz für zusätzliche Auswertungen oder Visualisierungen bieten.
 
-Das Projekt arbeitet mit **Python** und **Streamlit**, nutzt Web-Scraping zur Datenerfassung und kann über ein einfaches Dashboard Daten anzeigen, filtern und analysieren.
+## Kernfunktionen (geplant)
+1. **Datengewinnung aus dem Ratsinformationssystem**
+   - Regelmäßiger Abruf von Sitzungsterminen samt Metadaten (Gremium, Datum, Links).
+   - Sammeln der zugehörigen Vorlagen, Beschlussdokumente und Protokolle.
+2. **Dokumentenaufbereitung**
+   - Normalisieren von Dateiformaten (HTML, PDF, Text) und Extrahieren relevanter Inhalte.
+   - Strukturierte Ablage in einer revisionssicheren Ordner- oder Datenbankstruktur.
+3. **Analyse & Zusammenfassung**
+   - Einbindung eines Analysemoduls (z. B. regelbasiert oder KI-gestützt), das Texte bewertet, verdichtet und thematisch einordnet.
+   - Ausgabe verständlicher Kurzfassungen, Schlagworte und möglicher Auswirkungen.
+4. **Darstellung & Zugriff**
+   - Benutzeroberfläche oder API für Recherche, Filterung und Export der Daten.
+   - Optionale Dashboards für Trends, Themencluster oder Zeitleisten.
+5. **Qualitätssicherung & Betrieb**
+   - Logging, Monitoring und Fehlerbehandlung für stabile Abläufe.
+   - Werkzeuge zum Aufräumen veralteter Daten und zum Planen automatischer Läufe.
 
----
+## Mögliche Architekturbausteine
+- **Crawler- oder Fetch-Komponente:** Holt Termine und Dokumente. Umsetzung möglich als CLI-Skript, Serverless-Funktion oder Microservice.
+- **Speicherschicht:** Wahlweise Dateien, relationale Datenbank, Dokumentenspeicher oder Data Lake – je nach Skalierungsbedarf.
+- **Analyse-Service:** Kann lokal laufen (Open-Source-Modelle) oder über externe KI-APIs angebunden werden. Schnittstellen sollten austauschbar gestaltet sein.
+- **Darstellungs-Frontend:** Web-Anwendung (z. B. React, Vue, Svelte, Streamlit, Django, Flask, FastAPI, Next.js) oder native App. Auch reine API-Ausgaben sind möglich, wenn andere Systeme die Visualisierung übernehmen.
+- **Automatisierung:** Zeitgesteuerte Jobs (Cron, Cloud Scheduler, GitHub Actions) oder Event-Trigger, die neue Sitzungen und Analysen anstoßen.
 
-## **Ziele des Projekts**
+## Datenhaltung & Transparenz
+- Alle Eingänge (Rohdaten, Metadaten, Analyseergebnisse) sollten versioniert werden, z. B. über Git, Datenbankrevisionen oder unveränderbare Log-Dateien.
+- Verlinkungen auf Originaldokumente erleichtern die Überprüfung.
+- Klare Namenskonventionen und Metadaten helfen bei der späteren Suche nach Sitzungen, Gremien oder Themenfeldern.
 
-1. **Vergangene Sitzungen journalistisch zusammenfassen**  
-   - Automatisierte Erfassung von Beschlüssen und Anträgen.  
-   - Erstellung verständlicher Kurzfassungen mit KI-Unterstützung.  
-   - Einordnung der Themen nach Bedeutung, Gremium und Beschlusslage.
+## Taskliste auf dem Weg zum Ziel
+1. **Grundlagen schaffen**
+   - Projektstruktur und Repository-Regeln festlegen (z. B. Ordner, Namenskonventionen, Dokumentationsformate).
+   - Anforderungen, Datenschutz- und Nutzungsbedingungen der Zielseiten prüfen.
+2. **Datenerfassung konzipieren und implementieren**
+   - Zielseiten analysieren (HTML-Strukturen, Pagination, Detail-Links).
+   - Crawler/Fetch-Logik umsetzen, inklusive Fehlerbehandlung und Tests mit Beispielterminen.
+   - Strategie zur Speicherung der Rohdaten definieren.
+3. **Dokumentenverarbeitung ausbauen**
+   - Parser für Vorlagen und Beschlüsse entwickeln (HTML, PDF, ggf. weitere Formate).
+   - Normalisierte Datenstruktur mit Metadaten entwerfen und implementieren.
+4. **Analysemodul entwickeln**
+   - Kriterien für Zusammenfassungen, Tonalität und Bewertung festlegen.
+   - KI- oder regelbasierte Analyse integrieren; Schnittstellen so gestalten, dass verschiedene Modelle getestet werden können.
+5. **Benutzerzugang gestalten**
+   - Anforderungen an UI oder API definieren (Zielgruppen, Filter, Exportformate).
+   - Prototyp für Darstellung/Interaktion umsetzen und mit Testdaten befüllen.
+6. **Betrieb & Qualitätssicherung sicherstellen**
+   - Logging, Monitoring und Alarmierung einrichten.
+   - Automatisierung (Zeitpläne, Deployments) definieren und testen.
+   - Dokumentation, Tests und Onboarding-Unterlagen pflegen.
+7. **Evaluation & Erweiterung**
+   - Feedback von Pilotnutzer:innen einholen und Verbesserungen priorisieren.
+   - Erweiterungen für zusätzliche Kommunen, Visualisierungen oder Schnittstellen planen.
 
-2. **Zukünftige Sitzungen für Kommunalpolitiker aufbereiten**  
-   - Zusammenfassung der Tagesordnungspunkte.  
-   - Erkennung relevanter Themen (z. B. Klima, Wohnen, Verkehr, Bildung).  
-   - Bereitstellung einer KI-gestützten Voranalyse zu möglichen Auswirkungen.
-
-3. **Technische Transparenz schaffen**  
-   - Strukturiertes Speichern der Ratsdokumente in nachvollziehbarer Ordnerstruktur.  
-   - Zentrale Datenbasis für spätere Visualisierungen, Zeitverläufe oder Presserecherchen.  
-
----
-
-## **Funktionsumfang (geplant)**
-
-### **1. Sitzungskalender auslesen**
-- Automatisches Abrufen des Sitzungskalenders von möglichen Seiten
-  `https://session.melle.info/bi/si010.asp` oder `https://session.melle.info/bi/info.asp` oder`https://session.melle.info/bi/si0040.asp?__cmandant=2`
-- Identifizieren der aktuellen Sitzungswoche (vegleich mit aktuellem Datum)
-- Extraktion folgender Informationen:
-  - Gremium (z. B. Rat, Ausschuss, Ortsrat)
-  - Sitzungsdatum
-  - Sitzungsnummer / URL
-- Ablage in JSON oder SQLite-Datenbank.
-
-### **2. Vorlagenübersicht auslesen**
-- Zu jeder Sitzung werden die zugehörigen **Vorlagen (Anträge, Beschlüsse, Mitteilungen)** gesammelt.  
-- Erfassung von:
-  - Titel, Nummer, Status, Datum, Antragsteller, Gremium  
-  - Volltext oder Link zur Beschlussvorlage (HTML/PDF)
-- Speicherung in einer strukturierten Ordnerhierarchie:
-
+Diese Taskliste kann iterativ abgearbeitet werden. Ergebnisse und Learnings jedes Schritts sollten dokumentiert werden, um spätere Anpassungen zu erleichtern und Transparenz gegenüber allen Stakeholdern zu gewährleisten.
