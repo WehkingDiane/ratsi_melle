@@ -40,8 +40,8 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 
 ## Taskliste auf dem Weg zum Ziel
 1. **Grundlagen schaffen**
-   - Projektstruktur und Repository-Regeln festlegen (z. B. Ordner, Namenskonventionen, Dokumentationsformate).
-   - Anforderungen, Datenschutz- und Nutzungsbedingungen der Zielseiten prüfen.
+   - ✅ Projektstruktur und Repository-Regeln sind in `docs/repository_guidelines.md` dokumentiert.
+   - ✅ Erste Prüfung von Anforderungen, Datenschutz- und Nutzungsbedingungen inklusive weiterer To-dos in `docs/data_access_review.md` festgehalten.
 2. **Datenerfassung konzipieren und implementieren**
    - Zielseiten analysieren (HTML-Strukturen, Pagination, Detail-Links).
    - Crawler/Fetch-Logik umsetzen, inklusive Fehlerbehandlung und Tests mit Beispielterminen.
