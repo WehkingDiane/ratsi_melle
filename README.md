@@ -30,8 +30,9 @@ Das Projekt arbeitet mit **Python** und **Streamlit**, nutzt Web-Scraping zur Da
 ## **Funktionsumfang (geplant)**
 
 ### **1. Sitzungskalender auslesen**
-- Automatisches Abrufen des Sitzungskalenders von  
-  `https://session.melle.info/bi/si010.asp`.
+- Automatisches Abrufen des Sitzungskalenders von möglichen Seiten
+  `https://session.melle.info/bi/si010.asp` oder `https://session.melle.info/bi/info.asp` oder`https://session.melle.info/bi/si0040.asp?__cmandant=2`
+- Identifizieren der aktuellen Sitzungswoche (vegleich mit aktuellem Datum)
 - Extraktion folgender Informationen:
   - Gremium (z. B. Rat, Ausschuss, Ortsrat)
   - Sitzungsdatum
