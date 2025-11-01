@@ -47,6 +47,12 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
    - **Abruflogik konzipieren:** Datenflüsse, Fehlerfälle und Wiederholungsstrategien modellieren, inklusive Zeitplanung für Abrufe, Latenzanforderungen und Grenzen der Zielsysteme.
    - **Abrufkomponente implementieren:** Skript- oder Service-Module entwickeln, die Termine und Dokumente laden, Netzwerkfehler protokollieren, Wiederholungen auslösen und anhand repräsentativer Testfälle mit Mock- oder Live-Daten verifiziert werden.
    - **Speicherkonzept ausarbeiten:** Dateiformate, Verzeichnis- bzw. Datenbankschemata, Versionierung sowie Aufbewahrungsfristen der Rohdaten definieren und in einem Architektur- oder Betriebshandbuch dokumentieren.
+
+   **Stand Task 2 (aktuell):**
+
+   - Die recherchierten Seiten und Parameter sind in `docs/data_fetching_concept.md` dokumentiert.
+   - Der `SessionNetClient` unter `src/fetching/` lädt Monatsübersichten, Sitzungsdetails und verknüpfte Dokumente und legt Rohdaten unter `data/raw/` ab.
+   - Das CLI-Skript `scripts/fetch_sessions.py` kapselt die Abruflogik. Beispielaufruf: `python scripts/fetch_sessions.py 2024 --months 5 6`.
 3. **Dokumentenverarbeitung ausbauen**
    - Parser für Vorlagen und Beschlüsse entwickeln (HTML, PDF, ggf. weitere Formate).
    - Normalisierte Datenstruktur mit Metadaten entwerfen und implementieren.
