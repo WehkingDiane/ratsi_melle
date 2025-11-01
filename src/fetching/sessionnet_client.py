@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 import logging
 from pathlib import Path
@@ -34,6 +34,7 @@ class SessionNetClient:
     base_url: str = "https://sessionnet.krz.de/melle/bi/"
     timeout: int = 30
     storage_root: Path = Path("data/raw")
+    session: requests.Session = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         self.session = requests.Session()
