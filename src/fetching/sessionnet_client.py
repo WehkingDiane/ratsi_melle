@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 import logging
 from pathlib import Path
 from typing import Iterable, List, Optional
@@ -31,7 +31,7 @@ class FetchingError(RuntimeError):
 class SessionNetClient:
     """Client capable of crawling the SessionNet HTML pages."""
 
-    base_url: str = "https://sessionnet.krz.de/melle/bi/"
+    base_url: str = "https://session.melle.info/bi"
     timeout: int = 30
     storage_root: Path = Path("data/raw")
     session: requests.Session = field(init=False, repr=False)
@@ -39,6 +39,7 @@ class SessionNetClient:
     def __post_init__(self) -> None:
         self.session = requests.Session()
         self.session.headers.update(DEFAULT_HEADERS)
+        self.base_url = self.base_url.rstrip("/") + "/"
         self.storage_root = Path(self.storage_root)
         self.storage_root.mkdir(parents=True, exist_ok=True)
 
@@ -48,11 +49,11 @@ class SessionNetClient:
         """Fetch overview page for a given month and parse session references."""
 
         LOGGER.info("Fetching session overview for %04d-%02d", year, month)
-        response = self._get("si010.asp", params={"MM": f"{month:02d}", "YY": str(year)})
+        response = self._get("si0040.asp", params={"month": f"{month:02d}", "year": str(year)})
         content = response.text
         filename = self._build_month_filename(year, month)
         self._write_raw(filename, content)
-        sessions = self._parse_overview(content)
+        sessions = self._parse_overview(content, year, month)
         LOGGER.info("Parsed %d session references", len(sessions))
         return sessions
 
@@ -84,61 +85,76 @@ class SessionNetClient:
 
     # ------------------------------------------------------------------
     # Parsing helpers
-    def _parse_overview(self, html: str) -> List[SessionReference]:
+    def _parse_overview(self, html: str, year: int, month: int) -> List[SessionReference]:
         soup = BeautifulSoup(html, "html.parser")
-        table = soup.find("table")
+        table = soup.select_one("table#smc_page_si0040_contenttable1")
         if table is None:
             LOGGER.warning("Overview page did not contain a table")
             return []
 
         sessions: List[SessionReference] = []
-        for row in table.find_all("tr"):
-            cells = row.find_all("td")
-            if len(cells) < 4:
+        for row in table.select("tr"):
+            cell = row.select_one("td.silink")
+            if cell is None:
                 continue
 
-            detail_link = row.find("a", href=lambda value: value and "si005" in value)
-            if not detail_link:
+            link_tag = cell.select_one("a.smc-link-normal")
+            header_tag = cell.select_one("div.smc-el-h")
+
+            title_tag = link_tag or header_tag
+            title = title_tag.get_text(strip=True) if title_tag else None
+            if not title:
                 continue
 
-            committee = cells[0].get_text(strip=True)
-            meeting_name = detail_link.get_text(strip=True)
-            date_cell = cells[2].get_text(strip=True)
-            time_cell = cells[3].get_text(strip=True)
+            committee = header_tag.get_text(strip=True) if header_tag else title
 
-            try:
-                session_date = datetime.strptime(date_cell, "%d.%m.%Y").date()
-            except ValueError:
-                LOGGER.warning("Could not parse date %s for meeting %s", date_cell, meeting_name)
-                continue
-
-            detail_href = detail_link.get("href")
-            if detail_href is None:
+            detail_href = link_tag.get("href") if link_tag and link_tag.has_attr("href") else None
+            if not detail_href:
+                LOGGER.debug("Skipping event %s without detail link", title)
                 continue
 
             detail_url = self._absolute_url(detail_href)
             session_id = self._extract_session_id(detail_url)
 
-            agenda_link = row.find("a", href=lambda value: value and "to010" in value)
-            agenda_url = self._absolute_url(agenda_link.get("href")) if agenda_link and agenda_link.get("href") else None
+            day_tag = row.select_one("span.weekday")
+            session_date = self._parse_day_value(day_tag.get_text(strip=True) if day_tag else None, year, month)
+            if session_date is None:
+                LOGGER.warning("Could not parse date for meeting %s", title)
+                continue
 
-            docs_link = row.find("a", href=lambda value: value and "do010" in value)
-            documents_url = self._absolute_url(docs_link.get("href")) if docs_link and docs_link.get("href") else None
+            details = [li.get_text(strip=True) for li in cell.select("ul li")]
+            start_time = details[0] if details else None
+            location = details[1] if len(details) > 1 else None
 
             sessions.append(
                 SessionReference(
                     committee=committee,
-                    meeting_name=meeting_name,
+                    meeting_name=title,
                     session_id=session_id,
                     date=session_date,
-                    start_time=time_cell or None,
+                    start_time=start_time,
                     detail_url=detail_url,
-                    agenda_url=agenda_url,
-                    documents_url=documents_url,
+                    agenda_url=None,
+                    documents_url=None,
+                    location=location,
                 )
             )
 
         return sessions
+
+    def _parse_day_value(self, day_text: Optional[str], year: int, month: int) -> Optional[date]:
+        if not day_text:
+            return None
+
+        cleaned = "".join(ch for ch in day_text if ch.isdigit())
+        if not cleaned:
+            return None
+
+        try:
+            day_number = int(cleaned)
+            return date(year, month, day_number)
+        except ValueError:
+            return None
 
     def _parse_session_detail(self, reference: SessionReference, html: str) -> SessionDetail:
         soup = BeautifulSoup(html, "html.parser")

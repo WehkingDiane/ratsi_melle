@@ -39,6 +39,7 @@ class SessionReference:
     detail_url: str
     agenda_url: Optional[str] = None
     documents_url: Optional[str] = None
+    location: Optional[str] = None
 
 
 @dataclass(slots=True)

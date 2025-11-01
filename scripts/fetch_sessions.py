@@ -29,7 +29,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--base-url",
         dest="base_url",
-        default="https://sessionnet.krz.de/melle/bi/",
+        default="https://session.melle.info/bi",
         help="Override the SessionNet base URL.",
     )
     parser.add_argument(
