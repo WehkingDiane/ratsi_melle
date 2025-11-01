@@ -43,9 +43,9 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
    - ✅ Projektstruktur und Repository-Regeln sind in `docs/repository_guidelines.md` dokumentiert.
    - ✅ Erste Prüfung von Anforderungen, Datenschutz- und Nutzungsbedingungen inklusive weiterer To-dos in `docs/data_access_review.md` festgehalten.
 2. **Datenerfassung konzipieren und implementieren**
-   - Zielseiten analysieren (HTML-Strukturen, Pagination, Detail-Links).
-   - Crawler/Fetch-Logik umsetzen, inklusive Fehlerbehandlung und Tests mit Beispielterminen.
-   - Strategie zur Speicherung der Rohdaten definieren.
+   - Recherchieren, welche Übersichts-, Detail- und Downloadseiten regelmäßig abgefragt werden müssen, und ihre HTML-Strukturen dokumentieren (Navigation, Pagination, Parameter).
+   - Eine robuste Abrufkomponente entwickeln, die Termine und Dokumente lädt, Netzwerkfehler protokolliert, Wiederholungen ermöglicht und mit repräsentativen Beispieldaten getestet wird.
+   - Ein Speicherkonzept festlegen, das Dateiformate, Verzeichnis-/Datenbankschemata, Versionierung und Aufbewahrungsfristen der Rohdaten abbildet.
 3. **Dokumentenverarbeitung ausbauen**
    - Parser für Vorlagen und Beschlüsse entwickeln (HTML, PDF, ggf. weitere Formate).
    - Normalisierte Datenstruktur mit Metadaten entwerfen und implementieren.
