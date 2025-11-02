@@ -1,0 +1,44 @@
+MIT-Lizenz
+
+Copyright (c) 2024 ratsi_melle contributors
+
+Hiermit wird unentgeltlich jeder Person, die eine Kopie dieser Software und der
+zugehörigen Dokumentationen (die "Software") erhält, die Erlaubnis erteilt,
+sie uneingeschränkt zu nutzen, inklusive ohne Einschränkung des Rechts, sie zu
+verwenden, zu kopieren, zu verändern, zusammenzuführen, zu veröffentlichen,
+zu verbreiten, zu unterlizenzieren und/oder zu verkaufen, und Personen, denen
+die Software zur Verfügung gestellt wird, diese Rechte zu verschaffen, unter
+den folgenden Bedingungen:
+
+Der obige Urheberrechtsvermerk sowie dieser Erlaubnisvermerk sind in allen
+Kopien oder wesentlichen Teilen der Software beizulegen.
+
+Die Software wird ohne Gewährleistung, gleich ausdrücklich oder stillschweigend,
+bereitgestellt, einschließlich aber nicht beschränkt auf die Gewährleistung der
+Marktreife, der Eignung für einen bestimmten Zweck und der Nichtverletzung von
+Rechten Dritter. In keinem Fall sind die Autoren oder Urheberrechtsinhaber für
+irgendwelche Ansprüche, Schäden oder andere Verpflichtungen haftbar, sei es aus
+vertraglichen Ansprüchen, unerlaubter Handlung oder anderweitig, die aus, durch
+oder im Zusammenhang mit der Software oder der Nutzung oder anderen
+Verwendungen der Software entstehen.
+
+---
+
+Haftungsausschluss (KI-Integration):
+
+Diese Software stellt lediglich eine Schnittstelle (API-Anbindung) zu externen
+KI-Diensten bereit. Die tatsächliche Datenverarbeitung und Ergebnisgenerierung
+erfolgt ausschließlich durch diese externen Systeme, auf deren Betrieb und Inhalt
+der Autor dieser Software keinen Einfluss hat.
+
+Es wird keine Verantwortung oder Haftung für die Richtigkeit, Rechtmäßigkeit,
+Ethik oder Folgen der durch die angebundenen KI-Systeme erzeugten Inhalte übernommen.
+Die Nutzung der Software erfolgt auf eigenes Risiko. Nutzer sind verpflichtet,
+die geltenden Nutzungsbedingungen und rechtlichen Vorgaben der jeweiligen
+KI-Anbieter zu beachten.
+
+---
+
+Diese Software steht in keinem offiziellen Zusammenhang mit der Stadt Melle
+oder deren Institutionen. Alle verarbeiteten Informationen stammen aus
+öffentlich zugänglichen Quellen.
