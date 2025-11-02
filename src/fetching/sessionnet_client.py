@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Iterable, List, Optional
 from urllib.parse import parse_qs, urljoin, urlparse
 
+from hashlib import sha1
+
 from bs4 import BeautifulSoup
 import requests
 
@@ -72,14 +74,14 @@ class SessionNetClient:
 
         target_dir = self._build_session_directory(reference)
         target_dir.mkdir(parents=True, exist_ok=True)
-        for document in documents:
+        for index, document in enumerate(documents, start=1):
             try:
                 LOGGER.info("Downloading document %s", document.url)
                 response = self._get(document.url)
             except FetchingError:
                 LOGGER.exception("Failed to download document %s", document.url)
                 continue
-            filename = self._normalise_filename(document)
+            filename = self._normalise_filename(document, index=index)
             path = target_dir / filename
             path.write_bytes(response.content)
 
@@ -235,9 +237,15 @@ class SessionNetClient:
         path.write_text(content, encoding="utf-8")
 
     @staticmethod
-    def _normalise_filename(document: DocumentReference) -> str:
+    def _normalise_filename(document: DocumentReference, *, index: Optional[int] = None) -> str:
         slug = SessionNetClient._slugify(document.title or "document")
-        return f"{slug}.bin"
+        url_hash = sha1(document.url.encode("utf-8")).hexdigest()[:8]
+        unique_parts: List[str] = []
+        if index is not None:
+            unique_parts.append(f"{index:03d}")
+        unique_parts.append(url_hash)
+        unique_suffix = "-".join(unique_parts)
+        return f"{slug}-{unique_suffix}.bin"
 
     @staticmethod
     def _slugify(value: str) -> str:
