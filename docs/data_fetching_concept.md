@@ -4,28 +4,25 @@ Dieses Dokument beschreibt die Ergebnisse aus Task 2 der Projekt-Roadmap. Es f
 
 ## 1. Quellen und HTML-Strukturen
 
-Die Stadt Melle nutzt das **SessionNet**-System des Kommunalen Rechenzentrums Minden-Ravensberg/Lippe (KRZ). Der relevante Basis-Pfad lautet `https://sessionnet.krz.de/melle/bi/`. Wichtige Seiten:
+Die Stadt Melle betreibt eine eigene **SessionNet**-Installation unter `https://session.melle.info/bi/`. Wichtige Seiten:
 
 | Seite | Zweck | Parameter |
 | --- | --- | --- |
-| `si010.asp` | Monatsübersicht mit allen Sitzungen. Tabelle enthält je Zeile `Gremium`, `Sitzung` (Detail-Link), `Datum`, `Zeit`, `Ort` sowie Verweise auf Tagesordnung (`to010.asp`) und Dokumente (`do010.asp`). | `MM` (Monat, zweistellig), `YY` (Jahr, vierstellig) |
-| `si0050.asp` / `si0051.asp` | Detailansicht einer Sitzung, inkl. Meta-Informationen und Tagesordnungstabelle. Der Schlüsselparameter ist `SILFDNR`. | `SILFDNR`, optional `__ksinr` |
-| `to010.asp` | Öffentliche Tagesordnung als eigenständige Seite (Redundanz zur Detailseite). | `SILFDNR` |
-| `do010.asp` | Übersicht aller anhängigen Dokumente. | `SILFDNR` |
-| `vo0050.asp` | Detailansicht zu Vorlagen/Beschlussvorlagen. Liefert Links zu weiteren Dokumenten. | `VOLFDNR` |
-| `do0050.asp` | Download der eigentlichen Dateien (PDF, DOCX etc.). | `__ksinr`, `__kagnr`, `__kvonr` |
+| `si0040.asp` | Monatsübersicht aller öffentlichen Sitzungen. Zeilen enthalten den Sitzungsnamen, optional das Gremium sowie Zeit- und Ortsangaben. | `month` (zweistellig), `year` (vierstellig) |
+| `si0057.asp` | Detailansicht einer einzelnen Sitzung inkl. Tagesordnung und Dokumentverweisen. | `__ksinr` (Sitzungs-ID) |
+| `do*.asp` | Dokumentdownloads (z. B. `do0050.asp`) aus den Tagesordnungseinträgen. Der Client übernimmt die Parameter unverändert aus den Links. | variabel |
 
 ### HTML-Merkmale
 
-- **Übersicht (`si010.asp`)**: `<table class="tliste">` mit `<tr>`-Zeilen; Detail-Link ist ein `<a>`-Tag mit `href` `si0050.asp?...`. Agenda- und Dokument-Links enthalten `to010` bzw. `do010` im `href`.
-- **Tagesordnung**: In der Detailseite existiert eine Tabelle mit der Beschriftung/Titel „Tagesordnung“. Die Spalten umfassen TOP-Nummer, Betreff, Status und eine Zelle mit verlinkten Dokumenten (`do0050.asp`).
-- **Dokumente**: Links enden auf `do0050.asp?` und liefern die eigentliche Datei. Der Linktext entspricht dem Dokumenttitel; Dateiendungen sind nicht im Link ersichtlich und müssen aus dem HTTP-Header bestimmt werden.
+- **Übersicht (`si0040.asp`)**: `table#smc_page_si0040_contenttable1` enthält Zeilen mit `td.siday` (Tageszahl in `span.weekday`) und `td.silink`. Innerhalb von `td.silink` finden sich ein optionaler Gremiums-Header (`div.smc-el-h`), der Sitzungslink (`a.smc-link-normal`) sowie eine Liste `ul.smc-detail-list`, deren Einträge Zeit und Ort enthalten.
+- **Tagesordnung**: In der Detailansicht wird eine Tabelle gerendert, deren Klasse, ID oder `summary`-Attribut das Wort „Tagesordnung“ enthält. Spalten: TOP-Nummer, Betreff/Beschreibung, optional Status sowie ein Container mit Dokumentlinks.
+- **Dokumente**: Download-Links besitzen `href`-Attribute mit `do` im Pfad (z. B. `do0050.asp?...`). Der Linktext ist der Dokumenttitel; die finale Dateiendung ergibt sich aus dem HTTP-Header.
 
 ## 2. Abruflogik
 
-1. **Monatsweise Abfrage**: Für jeden Monat wird `si010.asp?MM=..&YY=..` geladen und unverändert abgespeichert. Daraus werden Sitzungsreferenzen extrahiert (Gremium, Sitzungstitel, Datum, Detail-Link, optionale Agenda-/Dokument-Links).
-2. **Detailabfrage**: Für jede Sitzung wird die Detailseite (`si0050.asp`) geladen. Die Tagesordnungstabelle wird geparst und zu einer strukturierten Liste von TOPs transformiert, inklusive der dort verlinkten Dokumente.
-3. **Dokumentdownloads**: Alle aus Tagesordnung oder Dokumentübersicht gefundenen `do0050.asp`-Links werden mit denselben Sitzungsschlüsseln heruntergeladen. Fehler (z. B. 404) werden geloggt, aber führen nicht zum Abbruch der gesamten Sitzungserfassung.
+1. **Monatsweise Abfrage**: Für jeden Monat wird `si0040.asp?month=..&year=..` geladen und unverändert abgespeichert. Daraus entstehen Sitzungsreferenzen mit Gremium, Titel, Datum, Startzeit, Ort und Detail-Link.
+2. **Detailabfrage**: Für jede Sitzung wird die Detailseite (`si0057.asp`) geladen. Die Tagesordnungstabelle wird geparst und zu einer strukturierten Liste von TOPs inklusive der verlinkten Dokumente transformiert.
+3. **Dokumentdownloads**: Alle in der Tagesordnung gefundenen Links mit `do*.asp` werden heruntergeladen. Fehler (z. B. 404) werden geloggt, führen aber nicht zum Abbruch der gesamten Sitzungserfassung.
 4. **Wiederholungsstrategien**: HTTP-Fehler werden durch Exception-Handling abgefangen; der Client kann erneut aufgerufen werden. Die CLI unterstützt Wiederholungen über erneutes Ausführen.
 
 ## 3. Speicherkonzept für Rohdaten
