@@ -23,7 +23,8 @@ Die Stadt Melle betreibt eine eigene **SessionNet**-Installation unter `https://
 
 1. **Monatsweise Abfrage**: Für jeden Monat wird `si0040.asp?month=..&year=..` geladen und unverändert abgespeichert. Daraus entstehen Sitzungsreferenzen mit Gremium, Titel, Datum, Startzeit, Ort und Detail-Link.
 2. **Detailabfrage**: Für jede Sitzung wird die Detailseite (`si0057.asp`) geladen. Die Tagesordnungstabelle wird geparst und zu einer strukturierten Liste von TOPs inklusive der verlinkten Dokumente transformiert.
-3. **Dokumentdownloads**: Alle in der Tagesordnung sowie im Sitzungs-Dokumentenpanel gefundenen Links mit `do*.asp` werden heruntergeladen. Fehler (z. B. 404) werden geloggt, führen aber nicht zum Abbruch der gesamten Sitzungserfassung.
+3. **Dokumentdownloads**: Alle in der Tagesordnung sowie im Sitzungs-Dokumentenpanel gefundenen Links mit `do*.asp` werden heruntergeladen. Innerhalb eines Prozesslaufs werden identische URLs nur einmal vom Server angefragt (lokaler Cache); Fehler (z. B. 404) werden geloggt, führen aber nicht zum Abbruch der gesamten Sitzungserfassung.
+4. **Request-Drosselung & Retries**: Jeder HTTP-Request wird standardmäßig auf 1 Anfrage/Sekunde begrenzt. Bei Fehlern greift eine exponentielle Retry-Strategie (Backoff), sodass auch größere Zeiträume ohne unnötig viele Doppelanfragen abgearbeitet werden können.
 4. **Wiederholungsstrategien**: HTTP-Fehler werden durch Exception-Handling abgefangen; der Client kann erneut aufgerufen werden. Die CLI unterstützt Wiederholungen über erneutes Ausführen.
 
 ## 3. Speicherkonzept für Rohdaten
@@ -38,7 +39,7 @@ Die Stadt Melle betreibt eine eigene **SessionNet**-Installation unter `https://
 - **Gespeicherte Artefakte**:
   - `YYYY-MM_overview.html` pro Monat im Jahresordner.
   - Einzelne Dokumente mit sprechendem Slug, laufender Nummer und entdeckter Dateiendung (z. B. `.pdf`), ergänzt um einen Hash-Anteil zur Entschärfung von Duplikaten.
-- **Metadaten**: Agenda und Dokumente werden programmatisch zu Python-Objekten (`SessionDetail`, `AgendaItem`, `DocumentReference`) verarbeitet. Zusätzlich enthält `manifest.json` Dateipfad, Titel, Kategorie, TOP-Zuordnung, Ursprungs-URL sowie den SHA1-Fingerprint, sodass spätere Verarbeitungsschritte ohne erneutes HTML-Parsen auskommen.
+- **Metadaten**: Agenda und Dokumente werden programmatisch zu Python-Objekten (`SessionDetail`, `AgendaItem`, `DocumentReference`) verarbeitet. Zusätzlich enthält `manifest.json` Dateipfad, Titel, Kategorie, TOP-Zuordnung, Ursprungs-URL, SHA1-Fingerprint sowie HTTP-Header (`content_type`, `content_disposition`, `content_length`), sodass spätere Verarbeitungsschritte ohne erneutes HTML-Parsen oder wiederholte Downloads auskommen.
 - **Versionierung**: Alle Rohdaten liegen innerhalb des Git-Repositories, werden aber über `.gitignore` von produktiven Downloads ausgeschlossen. Tests können mit Mock-Daten arbeiten.
 
 ## 4. Offene Punkte

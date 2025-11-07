@@ -10,6 +10,7 @@ import mimetypes
 from itertools import count
 import shutil
 from pathlib import Path
+import time
 from typing import Dict, Iterable, List, Optional, Tuple
 from urllib.parse import parse_qs, urljoin, urlparse
 
@@ -39,7 +40,12 @@ class SessionNetClient:
 
     base_url: str = "https://session.melle.info/bi"
     timeout: int = 30
+    min_request_interval: float = 1.0  # seconds
+    max_retries: int = 3
+    retry_backoff: float = 1.5
     storage_root: Path = Path("data/raw")
+    _last_request_ts: float = field(default=0.0, init=False, repr=False)
+    _document_cache: Dict[str, Tuple[bytes, Dict[str, str]]] = field(default_factory=dict, init=False, repr=False)
     session: requests.Session = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -88,18 +94,17 @@ class SessionNetClient:
         def _store_document(document: DocumentReference, scope_dir: Path) -> None:
             scope_dir.mkdir(parents=True, exist_ok=True)
             try:
-                LOGGER.info("Downloading document %s", document.url)
-                response = self._get(document.url)
+                content, headers = self._fetch_document_payload(document)
             except FetchingError:
                 LOGGER.exception("Failed to download document %s", document.url)
                 return
 
-            file_extension = self._detect_extension(document, response)
+            file_extension = self._detect_extension(document, headers)
             index = next(sequence)
             filename = self._normalise_filename(document, index=index, extension=file_extension)
             path = scope_dir / filename
-            path.write_bytes(response.content)
-            digest = sha1(response.content).hexdigest()
+            path.write_bytes(content)
+            digest = sha1(content).hexdigest()
             manifest_entries.append(
                 {
                     "title": document.title,
@@ -108,6 +113,9 @@ class SessionNetClient:
                     "url": document.url,
                     "path": str(path.relative_to(target_dir)),
                     "sha1": digest,
+                    "content_type": headers.get("Content-Type"),
+                    "content_disposition": headers.get("Content-Disposition"),
+                    "content_length": int(headers.get("Content-Length") or len(content)),
                 }
             )
 
@@ -280,14 +288,55 @@ class SessionNetClient:
 
     # ------------------------------------------------------------------
     # Internal helpers
+    def _fetch_document_payload(self, document: DocumentReference) -> Tuple[bytes, Dict[str, str]]:
+        cached = self._document_cache.get(document.url)
+        if cached:
+            LOGGER.debug("Reusing cached document %s", document.url)
+            return cached
+
+        LOGGER.info("Downloading document %s", document.url)
+        response = self._get(document.url)
+        headers = {k: v for k, v in response.headers.items()}
+        payload = (response.content, headers)
+        self._document_cache[document.url] = payload
+        return payload
+
+    def _respect_rate_limit(self) -> None:
+        if self.min_request_interval <= 0:
+            return
+        if self._last_request_ts <= 0:
+            return
+        elapsed = time.monotonic() - self._last_request_ts
+        delay = self.min_request_interval - elapsed
+        if delay > 0:
+            time.sleep(delay)
+
     def _get(self, path: str, params: Optional[dict] = None) -> requests.Response:
         url = path if path.startswith("http") else urljoin(self.base_url, path)
-        try:
-            response = self.session.get(url, params=params, timeout=self.timeout)
-            response.raise_for_status()
-            return response
-        except requests.RequestException as exc:  # pragma: no cover - thin wrapper
-            raise FetchingError(str(exc)) from exc
+        last_error: Optional[requests.RequestException] = None
+        backoff = 1.0
+        for attempt in range(1, self.max_retries + 1):
+            self._respect_rate_limit()
+            try:
+                response = self.session.get(url, params=params, timeout=self.timeout)
+                self._last_request_ts = time.monotonic()
+                response.raise_for_status()
+                return response
+            except requests.RequestException as exc:  # pragma: no cover - thin wrapper
+                self._last_request_ts = time.monotonic()
+                last_error = exc
+                if attempt >= self.max_retries:
+                    raise FetchingError(str(exc)) from exc
+                LOGGER.warning(
+                    "Request failed (%d/%d) for %s: %s",
+                    attempt,
+                    self.max_retries,
+                    url,
+                    exc,
+                )
+                time.sleep(backoff)
+                backoff *= self.retry_backoff
+        raise FetchingError(str(last_error)) from last_error
 
     def _absolute_url(self, href: str) -> str:
         if not href:
@@ -328,8 +377,8 @@ class SessionNetClient:
         directory = self._build_session_directory(reference)
         return directory / "session_detail.html"
 
-    def _detect_extension(self, document: DocumentReference, response: requests.Response) -> str:
-        content_type = response.headers.get("Content-Type")
+    def _detect_extension(self, document: DocumentReference, headers: Dict[str, str]) -> str:
+        content_type = headers.get("Content-Type")
         extension: Optional[str] = None
         if content_type:
             guessed = mimetypes.guess_extension(content_type.split(";")[0].strip())

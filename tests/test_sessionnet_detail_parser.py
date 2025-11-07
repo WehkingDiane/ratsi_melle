@@ -72,13 +72,19 @@ def test_download_documents_writes_manifest(tmp_path, monkeypatch):
     client = SessionNetClient(storage_root=tmp_path)
 
     class _Response:
-        def __init__(self, body: bytes):
+        def __init__(self, body: bytes, *, disposition: str):
             self.content = body
-            self.headers = {"Content-Type": "application/pdf"}
+            self.headers = {
+                "Content-Type": "application/pdf",
+                "Content-Disposition": disposition,
+                "Content-Length": str(len(body)),
+            }
 
     responses = {
-        "https://example.org/documents/vorlage": _Response(b"agenda"),
-        "https://example.org/documents/protokoll": _Response(b"session"),
+        "https://example.org/documents/vorlage": _Response(b"agenda", disposition="attachment; filename=vorlage.pdf"),
+        "https://example.org/documents/protokoll": _Response(
+            b"session", disposition="attachment; filename=protokoll.pdf"
+        ),
     }
 
     def fake_get(self, url, params=None):
@@ -97,7 +103,60 @@ def test_download_documents_writes_manifest(tmp_path, monkeypatch):
     paths = [entry["path"] for entry in manifest["documents"]]
     assert any(path.startswith("session-documents/") for path in paths)
     assert any(path.startswith("agenda/") for path in paths)
+    for entry in manifest["documents"]:
+        assert entry["content_type"] == "application/pdf"
+        assert entry["content_length"] > 0
+        assert entry["content_disposition"].startswith("attachment; filename=")
 
     agenda_dir = session_dir / "agenda"
     assert agenda_dir.exists()
     assert list(agenda_dir.rglob("*.pdf"))
+
+
+def test_download_documents_reuses_cache(tmp_path, monkeypatch):
+    reference = _sample_reference()
+    shared_url = "https://example.org/documents/shared"
+    detail = SessionDetail(
+        reference=reference,
+        agenda_items=[
+            AgendaItem(
+                number="Ö 1",
+                title="TOP 1",
+                documents=[DocumentReference(title="Protokoll", url=shared_url, on_agenda_item="Ö 1")],
+            ),
+            AgendaItem(
+                number="Ö 2",
+                title="TOP 2",
+                documents=[DocumentReference(title="Protokoll", url=shared_url, on_agenda_item="Ö 2")],
+            ),
+        ],
+        session_documents=[DocumentReference(title="Protokoll", url=shared_url)],
+        retrieved_at=datetime(2025, 10, 1, 12, 0, 0),
+        raw_html="",
+    )
+    client = SessionNetClient(storage_root=tmp_path)
+
+    call_count = 0
+
+    class _Response:
+        def __init__(self):
+            self.content = b"shared"
+            self.headers = {
+                "Content-Type": "application/pdf",
+                "Content-Disposition": "attachment; filename=shared.pdf",
+                "Content-Length": "6",
+            }
+
+    def fake_get(self, url, params=None):
+        nonlocal call_count
+        call_count += 1
+        return _Response()
+
+    monkeypatch.setattr(SessionNetClient, "_get", fake_get, raising=False)
+
+    client.download_documents(detail)
+
+    assert call_count == 1
+    manifest = (client._build_session_directory(reference) / "manifest.json").read_text(encoding="utf-8")
+    entries = json.loads(manifest)["documents"]
+    assert len(entries) == 3
