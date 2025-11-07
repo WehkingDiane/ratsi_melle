@@ -50,4 +50,4 @@ class SessionDetail:
     agenda_items: List[AgendaItem]
     retrieved_at: datetime
     raw_html: str
-
+    session_documents: List[DocumentReference] = field(default_factory=list)

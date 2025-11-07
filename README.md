@@ -38,6 +38,16 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 - Verlinkungen auf Originaldokumente erleichtern die Überprüfung.
 - Klare Namenskonventionen und Metadaten helfen bei der späteren Suche nach Sitzungen, Gremien oder Themenfeldern.
 
+## Rohdatenablage
+- `data/raw/<Jahr>/<Datum>_<Gremium>_<Sitzungs-ID>/` bildet den Sitzungsordner. Beispiel: `data/raw/2025/2025-10-08_Rat-der-Stadt-Melle_6770/`.
+- Jeder Sitzungsordner enthält:
+  - `session_detail.html` als unveränderte Detailseite.
+  - `session-documents/` für Bekanntmachungen, Protokolle etc., die auf Sitzungsebene veröffentlicht werden.
+  - `agenda/<TOP-Nummer>_<Kurzname>/` mit den Dokumenten je Tagesordnungspunkt.
+  - `manifest.json` mit Pfad, URL, Titel, Kategorie, TOP-Zuordnung und SHA1-Hash sämtlicher Dateien.
+- Monatsübersichten werden als `data/raw/<Jahr>/<Jahr>-<Monat>_overview.html` gespeichert.
+- Die tatsächlichen Dateien liegen zwar im Repository-Verzeichnis, werden aber per `.gitignore` von Commits ausgeschlossen, damit lokale Crawls das Repo nicht aufblähen.
+
 ## Taskliste auf dem Weg zum Ziel
 1. **Grundlagen schaffen**
    - ✅ Projektstruktur und Repository-Regeln sind in `docs/repository_guidelines.md` dokumentiert.
