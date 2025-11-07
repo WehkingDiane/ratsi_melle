@@ -13,7 +13,7 @@ import shutil
 from pathlib import Path
 import time
 from typing import Dict, Iterable, List, Optional, Tuple
-from urllib.parse import parse_qs, urljoin, urlparse
+from urllib.parse import parse_qs, urljoin, urlparse, unquote
 
 from hashlib import sha1
 
@@ -403,6 +403,27 @@ class SessionNetClient:
         base = "_".join(parts) if parts else "TOP"
         return self._slugify(base, max_length=120)
 
+    @staticmethod
+    def _filename_from_disposition(disposition: Optional[str]) -> Optional[str]:
+        if not disposition:
+            return None
+        for part in disposition.split(";")[1:]:
+            if "=" not in part:
+                continue
+            key, value = part.split("=", 1)
+            key = key.strip().lower()
+            value = value.strip().strip('"')
+            if key == "filename":
+                return value or None
+            if key == "filename*":
+                charset, _, remainder = value.partition("''")
+                encoded = remainder or value
+                try:
+                    return unquote(encoded, encoding=charset or "utf-8", errors="ignore")
+                except LookupError:
+                    return unquote(encoded)
+        return None
+
     def _detect_extension(self, document: DocumentReference, headers: Dict[str, str]) -> str:
         content_type = headers.get("Content-Type")
         extension: Optional[str] = None
@@ -410,6 +431,13 @@ class SessionNetClient:
             guessed = mimetypes.guess_extension(content_type.split(";")[0].strip())
             if guessed:
                 extension = guessed
+
+        if not extension or extension == ".bin":
+            filename = self._filename_from_disposition(headers.get("Content-Disposition"))
+            if filename:
+                suffix = Path(filename).suffix
+                if suffix:
+                    extension = suffix
 
         if not extension or extension == ".bin":
             parsed = urlparse(document.url)
