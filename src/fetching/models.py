@@ -24,6 +24,7 @@ class AgendaItem:
     number: str
     title: str
     status: Optional[str] = None
+    reporter: Optional[str] = None
     documents: List[DocumentReference] = field(default_factory=list)
 
 

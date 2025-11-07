@@ -39,10 +39,14 @@ def test_parse_session_detail_collects_documents(tmp_path):
     assert len(detail.agenda_items) == 3
     first_item = detail.agenda_items[0]
     assert first_item.number == "Ö 1"
+    assert first_item.title == "Genehmigung des Protokolls"
+    assert first_item.reporter == "Ratsvorsitzender Boßmann"
     assert [doc.title for doc in first_item.documents] == ["Vorlage Protokoll"]
     assert first_item.documents[0].on_agenda_item == "Ö 1"
 
     second_item = detail.agenda_items[1]
+    assert second_item.title == "Haushalt 2025"
+    assert second_item.reporter == "Fachbereich Finanzen"
     assert [doc.title for doc in second_item.documents] == ["Entwurf", "Anlage"]
 
 
@@ -53,7 +57,9 @@ def test_download_documents_writes_manifest(tmp_path, monkeypatch):
         agenda_items=[
             AgendaItem(
                 number="Ö 1",
-                title="Budget",
+                title="Genehmigung des Protokolls vom 25.06.2025 - Berichterstatter Ratsvorsitzender Boßmann",
+                status="beschlossen",
+                reporter="Ratsvorsitzender Boßmann",
                 documents=[
                     DocumentReference(
                         title="Vorlage",
@@ -61,7 +67,8 @@ def test_download_documents_writes_manifest(tmp_path, monkeypatch):
                         on_agenda_item="Ö 1",
                     )
                 ],
-            )
+            ),
+            AgendaItem(number="Ö 2", title="Haushalt 2026", status=None, documents=[]),
         ],
         session_documents=[
             DocumentReference(title="Protokoll", url="https://example.org/documents/protokoll", category="PR")
@@ -111,6 +118,17 @@ def test_download_documents_writes_manifest(tmp_path, monkeypatch):
     agenda_dir = session_dir / "agenda"
     assert agenda_dir.exists()
     assert list(agenda_dir.rglob("*.pdf"))
+    agenda_subdirs = [path.name for path in agenda_dir.iterdir() if path.is_dir()]
+    assert "Ö-1-Genehmigung-des-Protokolls-vom-25-06-2025" in agenda_subdirs
+    assert all("Berichterstatter" not in name for name in agenda_subdirs)
+
+    summary_path = session_dir / "agenda_summary.json"
+    assert summary_path.exists()
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert summary["agenda_items"][0]["reporter"] == "Ratsvorsitzender Boßmann"
+    assert summary["agenda_items"][0]["decision"] == "accepted"
+    assert summary["agenda_items"][1]["decision"] is None
+    assert summary["agenda_items"][1]["documents_present"] is False
 
 
 def test_download_documents_reuses_cache(tmp_path, monkeypatch):

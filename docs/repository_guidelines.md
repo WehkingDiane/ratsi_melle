@@ -48,6 +48,8 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 - Rohdaten bleiben unverändert in `data/raw/`. Eine Reproduzierbarkeit der Verarbeitungsschritte ist sicherzustellen.
 - Verarbeitete Daten in `data/processed/` enthalten Metadaten zur Herkunft (Sitzung, Quelle, Abrufzeit).
 - Sensible Inhalte (personenbezogene Daten, API-Schlüssel) werden nicht eingecheckt. Für Beispiele wird auf `*.template`-Dateien zurückgegriffen.
+- Unterordner unter `data/raw/.../agenda/` bestehen ausschließlich aus der TOP-Nummer und dem offiziellen Titel; Zusätze wie „Berichterstatter …“ werden beim Sluggen entfernt, damit identische Punkte unabhängig vom Reporter gleich heißen.
+- Jede Sitzung erzeugt zusätzlich zur Dokumenten-`manifest.json` eine `agenda_summary.json`, die Nummer, Titel, Reporter:in, Status, abgeleiteten Beschluss (`accepted`/`rejected`/`null`) sowie ein Flag für vorhandene Dokumente enthält. So lassen sich auch zukünftige Sitzungen mit noch unvollständigen Angaben nachträglich aktualisieren.
 
 ## Workflow-Erwartungen
 
