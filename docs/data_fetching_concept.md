@@ -16,25 +16,30 @@ Die Stadt Melle betreibt eine eigene **SessionNet**-Installation unter `https://
 
 - **Übersicht (`si0040.asp`)**: `table#smc_page_si0040_contenttable1` enthält Zeilen mit `td.siday` (Tageszahl in `span.weekday`) und `td.silink`. Innerhalb von `td.silink` finden sich ein optionaler Gremiums-Header (`div.smc-el-h`), der Sitzungslink (`a.smc-link-normal`) sowie eine Liste `ul.smc-detail-list`, deren Einträge Zeit und Ort enthalten.
 - **Tagesordnung**: In der Detailansicht wird eine Tabelle gerendert, deren Klasse, ID oder `summary`-Attribut das Wort „Tagesordnung“ enthält. Spalten: TOP-Nummer, Betreff/Beschreibung, optional Status sowie ein Container mit Dokumentlinks.
-- **Dokumente**: Download-Links besitzen `href`-Attribute mit `do` im Pfad (z. B. `do0050.asp?...`). Der Linktext ist der Dokumenttitel; die finale Dateiendung ergibt sich aus dem HTTP-Header.
+- **Dokumente**: Download-Links besitzen `href`-Attribute mit `do` im Pfad (z. B. `getfile.asp?id=...&type=do`). Über den Tagesordnungspunkten befindet sich zusätzlich ein Panel `div.smc-documents`, das allgemeine Dokumente der Sitzung (z. B. Bekanntmachungen, Beschlussübersichten) bereitstellt.
+- **Dateiendung**: Der Linktext liefert nur selten die Dateiendung. Diese wird daher aus `Content-Type`, Dateipfad oder – falls nötig – aus dem Dokumenttitel abgeleitet.
 
 ## 2. Abruflogik
 
 1. **Monatsweise Abfrage**: Für jeden Monat wird `si0040.asp?month=..&year=..` geladen und unverändert abgespeichert. Daraus entstehen Sitzungsreferenzen mit Gremium, Titel, Datum, Startzeit, Ort und Detail-Link.
 2. **Detailabfrage**: Für jede Sitzung wird die Detailseite (`si0057.asp`) geladen. Die Tagesordnungstabelle wird geparst und zu einer strukturierten Liste von TOPs inklusive der verlinkten Dokumente transformiert.
-3. **Dokumentdownloads**: Alle in der Tagesordnung gefundenen Links mit `do*.asp` werden heruntergeladen. Fehler (z. B. 404) werden geloggt, führen aber nicht zum Abbruch der gesamten Sitzungserfassung.
+3. **Dokumentdownloads**: Alle in der Tagesordnung sowie im Sitzungs-Dokumentenpanel gefundenen Links mit `do*.asp` werden heruntergeladen. Innerhalb eines Prozesslaufs werden identische URLs nur einmal vom Server angefragt (lokaler Cache); Fehler (z. B. 404) werden geloggt, führen aber nicht zum Abbruch der gesamten Sitzungserfassung.
+4. **Request-Drosselung & Retries**: Jeder HTTP-Request wird standardmäßig auf 1 Anfrage/Sekunde begrenzt. Bei Fehlern greift eine exponentielle Retry-Strategie (Backoff), sodass auch größere Zeiträume ohne unnötig viele Doppelanfragen abgearbeitet werden können.
 4. **Wiederholungsstrategien**: HTTP-Fehler werden durch Exception-Handling abgefangen; der Client kann erneut aufgerufen werden. Die CLI unterstützt Wiederholungen über erneutes Ausführen.
 
 ## 3. Speicherkonzept für Rohdaten
 
 - **Verzeichnisstruktur**: `data/raw/<Jahr>/<Datum>_<Gremium>_<Sitzungs-ID>/`.
   - Beispiel: `data/raw/2024/2024-05-14_Ausschuss-fuer-Umwelt_12345/`.
-  - Sonderzeichen werden bei der Ablage in Dateinamen durch Bindestriche ersetzt.
+  - Unterordner:
+    - `session_detail.html` mit dem Original-HTML.
+    - `session-documents/` für alle dokumente, die auf Sitzungsebene bereitgestellt werden.
+    - `agenda/<TOP-Nummer>_<Kurzname>/` für Dokumente je Tagesordnungspunkt.
+    - `manifest.json` als Metadatenindex aller abgelegten Dateien.
 - **Gespeicherte Artefakte**:
   - `YYYY-MM_overview.html` pro Monat im Jahresordner.
-  - `session_detail.html` innerhalb des Sitzungsordners.
-  - Heruntergeladene Dokumente als `*.bin`. Die binäre Endung wird beibehalten, bis Metadaten (z. B. `Content-Type`) für eine genaue Dateiendung ausgewertet werden können.
-- **Metadaten**: Agenda und Dokumente werden programmatisch zu Python-Objekten (`SessionDetail`, `AgendaItem`, `DocumentReference`) verarbeitet. Persistente Serialisierung (z. B. JSON) erfolgt erst in späteren Tasks.
+  - Einzelne Dokumente mit sprechendem Slug, laufender Nummer und entdeckter Dateiendung (z. B. `.pdf`), ergänzt um einen Hash-Anteil zur Entschärfung von Duplikaten.
+- **Metadaten**: Agenda und Dokumente werden programmatisch zu Python-Objekten (`SessionDetail`, `AgendaItem`, `DocumentReference`) verarbeitet. Zusätzlich enthält `manifest.json` Dateipfad, Titel, Kategorie, TOP-Zuordnung, Ursprungs-URL, SHA1-Fingerprint sowie HTTP-Header (`content_type`, `content_disposition`, `content_length`), sodass spätere Verarbeitungsschritte ohne erneutes HTML-Parsen oder wiederholte Downloads auskommen.
 - **Versionierung**: Alle Rohdaten liegen innerhalb des Git-Repositories, werden aber über `.gitignore` von produktiven Downloads ausgeschlossen. Tests können mit Mock-Daten arbeiten.
 
 ## 4. Offene Punkte

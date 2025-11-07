@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import UTC, date, datetime
+import json
 import logging
+import mimetypes
+from itertools import count
+import shutil
 from pathlib import Path
-from typing import Iterable, List, Optional
+import time
+from typing import Dict, Iterable, List, Optional, Tuple
 from urllib.parse import parse_qs, urljoin, urlparse
 
 from hashlib import sha1
@@ -35,7 +40,12 @@ class SessionNetClient:
 
     base_url: str = "https://session.melle.info/bi"
     timeout: int = 30
+    min_request_interval: float = 1.0  # seconds
+    max_retries: int = 3
+    retry_backoff: float = 1.5
     storage_root: Path = Path("data/raw")
+    _last_request_ts: float = field(default=0.0, init=False, repr=False)
+    _document_cache: Dict[str, Tuple[bytes, Dict[str, str]]] = field(default_factory=dict, init=False, repr=False)
     session: requests.Session = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -69,21 +79,60 @@ class SessionNetClient:
         self._write_raw(self._build_session_filename(reference), html)
         return session_detail
 
-    def download_documents(self, documents: Iterable[DocumentReference], reference: SessionReference) -> None:
-        """Download all referenced documents to the raw data directory."""
+    def download_documents(self, detail: SessionDetail) -> None:
+        """Download session-level and agenda documents into structured folders."""
 
-        target_dir = self._build_session_directory(reference)
+        target_dir = self._build_session_directory(detail.reference)
         target_dir.mkdir(parents=True, exist_ok=True)
-        for index, document in enumerate(documents, start=1):
+        for subdir in ("session-documents", "agenda"):
+            path = target_dir / subdir
+            if path.exists():
+                shutil.rmtree(path)
+        manifest_entries = []
+        sequence = count(1)
+
+        def _store_document(document: DocumentReference, scope_dir: Path) -> None:
+            scope_dir.mkdir(parents=True, exist_ok=True)
             try:
-                LOGGER.info("Downloading document %s", document.url)
-                response = self._get(document.url)
+                content, headers = self._fetch_document_payload(document)
             except FetchingError:
                 LOGGER.exception("Failed to download document %s", document.url)
+                return
+
+            file_extension = self._detect_extension(document, headers)
+            index = next(sequence)
+            filename = self._normalise_filename(document, index=index, extension=file_extension)
+            path = scope_dir / filename
+            path.write_bytes(content)
+            digest = sha1(content).hexdigest()
+            manifest_entries.append(
+                {
+                    "title": document.title,
+                    "category": document.category,
+                    "agenda_item": document.on_agenda_item,
+                    "url": document.url,
+                    "path": str(path.relative_to(target_dir)),
+                    "sha1": digest,
+                    "content_type": headers.get("Content-Type"),
+                    "content_disposition": headers.get("Content-Disposition"),
+                    "content_length": int(headers.get("Content-Length") or len(content)),
+                }
+            )
+
+        session_docs_dir = target_dir / "session-documents"
+        for document in detail.session_documents:
+            _store_document(document, session_docs_dir)
+
+        agenda_root = target_dir / "agenda"
+        for agenda_item in detail.agenda_items:
+            if not agenda_item.documents:
                 continue
-            filename = self._normalise_filename(document, index=index)
-            path = target_dir / filename
-            path.write_bytes(response.content)
+            slug = self._slugify(f"{agenda_item.number}_{agenda_item.title}", max_length=120)
+            agenda_dir = agenda_root / slug
+            for document in agenda_item.documents:
+                _store_document(document, agenda_dir)
+
+        self._write_manifest(target_dir, detail, manifest_entries)
 
     # ------------------------------------------------------------------
     # Parsing helpers
@@ -161,12 +210,7 @@ class SessionNetClient:
     def _parse_session_detail(self, reference: SessionReference, html: str) -> SessionDetail:
         soup = BeautifulSoup(html, "html.parser")
         agenda_items: List[AgendaItem] = []
-
-        agenda_table = soup.find("table", class_=lambda value: value and "Tagesordnung" in value)
-        if not agenda_table:
-            agenda_table = soup.find("table", id=lambda value: value and "Tagesordnung" in value)
-        if not agenda_table:
-            agenda_table = soup.find("table", attrs={"summary": "Tagesordnung"})
+        agenda_table = self._find_agenda_table(soup)
 
         if agenda_table:
             for row in agenda_table.find_all("tr"):
@@ -176,35 +220,135 @@ class SessionNetClient:
                 number = cells[0].get_text(strip=True)
                 title = cells[1].get_text(" ", strip=True)
                 status = cells[2].get_text(strip=True) if len(cells) > 2 else None
-                documents = list(self._parse_documents(cells[-1]))
+                documents = list(self._parse_documents(cells[-1], agenda_label=number or None))
                 agenda_items.append(AgendaItem(number=number, title=title, status=status, documents=documents))
 
-        retrieved_at = datetime.utcnow()
-        return SessionDetail(reference=reference, agenda_items=agenda_items, retrieved_at=retrieved_at, raw_html=html)
+        session_documents = list(self._parse_session_documents(soup))
 
-    def _parse_documents(self, container) -> Iterable[DocumentReference]:
+        retrieved_at = datetime.now(UTC)
+        return SessionDetail(
+            reference=reference,
+            agenda_items=agenda_items,
+            session_documents=session_documents,
+            retrieved_at=retrieved_at,
+            raw_html=html,
+        )
+
+    def _find_agenda_table(self, soup: BeautifulSoup):
+        agenda_table = soup.find("table", class_=lambda value: value and "Tagesordnung" in value)
+        if not agenda_table:
+            agenda_table = soup.find("table", id=lambda value: value and "Tagesordnung" in value)
+        if not agenda_table:
+            agenda_table = soup.find("table", attrs={"summary": "Tagesordnung"})
+        if not agenda_table:
+            agenda_table = soup.select_one("table.smctablesitzung")
+        if not agenda_table:
+            agenda_table = soup.select_one("table#smc_page_si0057_contenttable2")
+        return agenda_table
+
+    def _parse_session_documents(self, soup: BeautifulSoup) -> Iterable[DocumentReference]:
+        for block in soup.select("div.smc-documents div.smc-dg-ds-1"):
+            icon = block.select_one("div.smc-doc-icon i")
+            category_text = icon.get_text(strip=True) if icon else None
+            category = category_text or None
+            content = block.select_one("div.smc-doc-content")
+            if not content:
+                continue
+            yield from self._parse_documents(content, category=category)
+
+    def _parse_documents(
+        self,
+        container,
+        *,
+        agenda_label: Optional[str] = None,
+        category: Optional[str] = None,
+    ) -> Iterable[DocumentReference]:
+        collected: Dict[str, Tuple[DocumentReference, bool]] = {}
         for link in container.find_all("a"):
             href = link.get("href")
-            if not href or "do" not in href:
+            if not self._is_document_link(href):
                 continue
-            title = link.get_text(strip=True)
-            yield DocumentReference(title=title, url=self._absolute_url(href))
+            url = self._absolute_url(href)
+            title_text = link.get_text(strip=True)
+            title = title_text or link.get("title") or "Dokument"
+            has_visible_title = bool(title_text)
+            document = DocumentReference(title=title, url=url, category=category, on_agenda_item=agenda_label)
+            existing = collected.get(url)
+            if existing:
+                _, existing_has_title = existing
+                if existing_has_title:
+                    continue
+                if has_visible_title:
+                    collected[url] = (document, True)
+                continue
+            collected[url] = (document, has_visible_title)
+
+        for document, _ in collected.values():
+            yield document
 
     # ------------------------------------------------------------------
     # Internal helpers
+    def _fetch_document_payload(self, document: DocumentReference) -> Tuple[bytes, Dict[str, str]]:
+        cached = self._document_cache.get(document.url)
+        if cached:
+            LOGGER.debug("Reusing cached document %s", document.url)
+            return cached
+
+        LOGGER.info("Downloading document %s", document.url)
+        response = self._get(document.url)
+        headers = {k: v for k, v in response.headers.items()}
+        payload = (response.content, headers)
+        self._document_cache[document.url] = payload
+        return payload
+
+    def _respect_rate_limit(self) -> None:
+        if self.min_request_interval <= 0:
+            return
+        if self._last_request_ts <= 0:
+            return
+        elapsed = time.monotonic() - self._last_request_ts
+        delay = self.min_request_interval - elapsed
+        if delay > 0:
+            time.sleep(delay)
+
     def _get(self, path: str, params: Optional[dict] = None) -> requests.Response:
         url = path if path.startswith("http") else urljoin(self.base_url, path)
-        try:
-            response = self.session.get(url, params=params, timeout=self.timeout)
-            response.raise_for_status()
-            return response
-        except requests.RequestException as exc:  # pragma: no cover - thin wrapper
-            raise FetchingError(str(exc)) from exc
+        last_error: Optional[requests.RequestException] = None
+        backoff = 1.0
+        for attempt in range(1, self.max_retries + 1):
+            self._respect_rate_limit()
+            try:
+                response = self.session.get(url, params=params, timeout=self.timeout)
+                self._last_request_ts = time.monotonic()
+                response.raise_for_status()
+                return response
+            except requests.RequestException as exc:  # pragma: no cover - thin wrapper
+                self._last_request_ts = time.monotonic()
+                last_error = exc
+                if attempt >= self.max_retries:
+                    raise FetchingError(str(exc)) from exc
+                LOGGER.warning(
+                    "Request failed (%d/%d) for %s: %s",
+                    attempt,
+                    self.max_retries,
+                    url,
+                    exc,
+                )
+                time.sleep(backoff)
+                backoff *= self.retry_backoff
+        raise FetchingError(str(last_error)) from last_error
 
     def _absolute_url(self, href: str) -> str:
         if not href:
             return href
         return urljoin(self.base_url, href)
+
+    @staticmethod
+    def _is_document_link(href: Optional[str]) -> bool:
+        if not href:
+            return False
+        lower = href.lower()
+        return "type=do" in lower or "getfile.asp" in lower
 
     @staticmethod
     def _extract_session_id(detail_url: str) -> str:
@@ -233,6 +377,42 @@ class SessionNetClient:
         directory = self._build_session_directory(reference)
         return directory / "session_detail.html"
 
+    def _detect_extension(self, document: DocumentReference, headers: Dict[str, str]) -> str:
+        content_type = headers.get("Content-Type")
+        extension: Optional[str] = None
+        if content_type:
+            guessed = mimetypes.guess_extension(content_type.split(";")[0].strip())
+            if guessed:
+                extension = guessed
+
+        if not extension or extension == ".bin":
+            parsed = urlparse(document.url)
+            suffix = Path(parsed.path).suffix
+            if suffix and suffix.lower() not in {".asp"}:
+                extension = suffix
+
+        title = document.title or ""
+        if (not extension or extension == ".bin") and "pdf" in title.lower():
+            extension = ".pdf"
+
+        return extension or ".bin"
+
+    def _write_manifest(self, session_dir: Path, detail: SessionDetail, documents: List[dict]) -> None:
+        manifest = {
+            "session": {
+                "id": detail.reference.session_id,
+                "committee": detail.reference.committee,
+                "meeting_name": detail.reference.meeting_name,
+                "date": detail.reference.date.isoformat(),
+                "detail_url": detail.reference.detail_url,
+                "location": detail.reference.location,
+            },
+            "retrieved_at": detail.retrieved_at.isoformat() + "Z",
+            "documents": documents,
+        }
+        manifest_path = session_dir / "manifest.json"
+        manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+
     def _write_raw(self, path: Path, content: str) -> None:
         path.write_text(content, encoding="utf-8")
 
@@ -251,21 +431,32 @@ class SessionNetClient:
         }
 
     @staticmethod
-    def _normalise_filename(document: DocumentReference, *, index: Optional[int] = None) -> str:
-        slug = SessionNetClient._slugify(document.title or "document")
+    def _normalise_filename(
+        document: DocumentReference,
+        *,
+        index: Optional[int] = None,
+        extension: str = ".bin",
+    ) -> str:
+        slug = SessionNetClient._slugify(document.title or "document", max_length=100)
         url_hash = sha1(document.url.encode("utf-8")).hexdigest()[:8]
         unique_parts: List[str] = []
         if index is not None:
             unique_parts.append(f"{index:03d}")
         unique_parts.append(url_hash)
         unique_suffix = "-".join(unique_parts)
-        return f"{slug}-{unique_suffix}.bin"
+        suffix = extension if extension.startswith(".") else f".{extension}"
+        return f"{slug}-{unique_suffix}{suffix}"
 
     @staticmethod
-    def _slugify(value: str) -> str:
+    def _slugify(value: str, max_length: Optional[int] = None) -> str:
         safe = [c if c.isalnum() else "-" for c in value]
         slug = "".join(safe)
         while "--" in slug:
             slug = slug.replace("--", "-")
-        return slug.strip("-") or "document"
+        slug = slug.strip("-") or "document"
+        if max_length and len(slug) > max_length:
+            hash_suffix = sha1(slug.encode("utf-8")).hexdigest()[:6]
+            cutoff = max_length - len(hash_suffix) - 1
+            slug = f"{slug[:cutoff].rstrip('-')}-{hash_suffix}"
+        return slug
 

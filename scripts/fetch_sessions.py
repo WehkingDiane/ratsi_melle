@@ -46,8 +46,7 @@ def fetch_months(client: SessionNetClient, year: int, months: Iterable[int]) -> 
         references = client.fetch_month(year=year, month=month)
         for reference in references:
             detail = client.fetch_session(reference)
-            documents = [doc for item in detail.agenda_items for doc in item.documents]
-            client.download_documents(documents, reference)
+            client.download_documents(detail)
 
 
 def main() -> None:
