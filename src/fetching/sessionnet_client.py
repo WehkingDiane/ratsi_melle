@@ -314,7 +314,7 @@ class SessionNetClient:
 
         LOGGER.info("Downloading document %s", document.url)
         response = self._get(document.url)
-        headers = {k: v for k, v in response.headers.items()}
+        headers = response.headers.copy()  # keep case-insensitive access to header names
         payload = (response.content, headers)
         self._document_cache[document.url] = payload
         return payload
