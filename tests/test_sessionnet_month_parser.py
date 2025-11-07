@@ -40,3 +40,33 @@ def test_parse_month_page_extracts_events(tmp_path):
     assert third.date == date(2025, 10, 23)
     assert third.start_time == "18:00 Uhr"
     assert third.location == "Stadthalle Melle"
+
+
+def test_fetch_month_uses_extended_query_params(tmp_path, monkeypatch):
+    html = Path("tests/fixtures/si0040_oct2025.html").read_text(encoding="utf-8")
+    captured: dict = {}
+
+    def fake_get(self, path, params=None):
+        captured["path"] = path
+        captured["params"] = params
+
+        class _Response:
+            text = html
+
+        return _Response()
+
+    client = SessionNetClient(storage_root=tmp_path)
+    monkeypatch.setattr(SessionNetClient, "_get", fake_get, raising=False)
+
+    client.fetch_month(year=2025, month=10)
+
+    assert captured["path"] == "si0040.asp"
+    assert captured["params"] == {
+        "month": "10",
+        "year": "2025",
+        "__cjahr": "2025",
+        "__cmonat": "10",
+        "__cmandant": "2",
+        "__canz": "1",
+        "__cselect": "0",
+    }
