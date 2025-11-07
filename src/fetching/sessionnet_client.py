@@ -51,7 +51,7 @@ class SessionNetClient:
         """Fetch overview page for a given month and parse session references."""
 
         LOGGER.info("Fetching session overview for %04d-%02d", year, month)
-        response = self._get("si0040.asp", params={"month": f"{month:02d}", "year": str(year)})
+        response = self._get("si0040.asp", params=self._build_month_params(year, month))
         content = response.text
         filename = self._build_month_filename(year, month)
         self._write_raw(filename, content)
@@ -235,6 +235,20 @@ class SessionNetClient:
 
     def _write_raw(self, path: Path, content: str) -> None:
         path.write_text(content, encoding="utf-8")
+
+    @staticmethod
+    def _build_month_params(year: int, month: int) -> dict:
+        """Construct the parameter set required by the SessionNet overview page."""
+
+        return {
+            "month": f"{month:02d}",
+            "year": str(year),
+            "__cjahr": str(year),
+            "__cmonat": f"{month:02d}",
+            "__cmandant": "2",
+            "__canz": "1",
+            "__cselect": "0",
+        }
 
     @staticmethod
     def _normalise_filename(document: DocumentReference, *, index: Optional[int] = None) -> str:
