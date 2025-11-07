@@ -8,6 +8,7 @@ import json
 import logging
 import mimetypes
 from itertools import count
+import re
 import shutil
 from pathlib import Path
 import time
@@ -23,6 +24,11 @@ from .models import AgendaItem, DocumentReference, SessionDetail, SessionReferen
 
 
 LOGGER = logging.getLogger(__name__)
+
+
+REPORTER_SPLIT_RE = re.compile(r"(?:[-–—]\s*)?\bBerichterstatt[-\w()/]*:?\s*", re.IGNORECASE)
+ACCEPTED_DECISION_KEYWORDS = ("beschlossen", "angenommen", "zugestimmt")
+REJECTED_DECISION_KEYWORDS = ("abgelehnt", "zurückgestellt", "vertagt", "ohne beschluss")
 
 
 DEFAULT_HEADERS = {
@@ -127,12 +133,12 @@ class SessionNetClient:
         for agenda_item in detail.agenda_items:
             if not agenda_item.documents:
                 continue
-            slug = self._slugify(f"{agenda_item.number}_{agenda_item.title}", max_length=120)
-            agenda_dir = agenda_root / slug
+            agenda_dir = agenda_root / self._build_agenda_directory_name(agenda_item)
             for document in agenda_item.documents:
                 _store_document(document, agenda_dir)
 
         self._write_manifest(target_dir, detail, manifest_entries)
+        self._write_agenda_summary(target_dir, detail)
 
     # ------------------------------------------------------------------
     # Parsing helpers
@@ -218,10 +224,12 @@ class SessionNetClient:
                 if len(cells) < 2:
                     continue
                 number = cells[0].get_text(strip=True)
-                title = cells[1].get_text(" ", strip=True)
+                title, reporter = self._extract_title_and_reporter(cells[1])
                 status = cells[2].get_text(strip=True) if len(cells) > 2 else None
                 documents = list(self._parse_documents(cells[-1], agenda_label=number or None))
-                agenda_items.append(AgendaItem(number=number, title=title, status=status, documents=documents))
+                agenda_items.append(
+                    AgendaItem(number=number, title=title, status=status, reporter=reporter, documents=documents)
+                )
 
         session_documents = list(self._parse_session_documents(soup))
 
@@ -233,6 +241,16 @@ class SessionNetClient:
             retrieved_at=retrieved_at,
             raw_html=html,
         )
+
+    def _extract_title_and_reporter(self, cell) -> Tuple[str, Optional[str]]:
+        raw_text = cell.get_text("\n", strip=True)
+        title, reporter = self._split_title_and_reporter(raw_text)
+        if title:
+            return title, reporter
+
+        fallback_text = cell.get_text(" ", strip=True)
+        title, reporter = self._split_title_and_reporter(fallback_text)
+        return title or fallback_text or "Tagesordnungspunkt", reporter
 
     def _find_agenda_table(self, soup: BeautifulSoup):
         agenda_table = soup.find("table", class_=lambda value: value and "Tagesordnung" in value)
@@ -377,6 +395,14 @@ class SessionNetClient:
         directory = self._build_session_directory(reference)
         return directory / "session_detail.html"
 
+    def _build_agenda_directory_name(self, agenda_item: AgendaItem) -> str:
+        title = agenda_item.title or ""
+        cleaned_title, _ = self._split_title_and_reporter(title)
+        cleaned_title = cleaned_title or title or "TOP"
+        parts = [part for part in (agenda_item.number, cleaned_title) if part]
+        base = "_".join(parts) if parts else "TOP"
+        return self._slugify(base, max_length=120)
+
     def _detect_extension(self, document: DocumentReference, headers: Dict[str, str]) -> str:
         content_type = headers.get("Content-Type")
         extension: Optional[str] = None
@@ -407,11 +433,40 @@ class SessionNetClient:
                 "detail_url": detail.reference.detail_url,
                 "location": detail.reference.location,
             },
-            "retrieved_at": detail.retrieved_at.isoformat() + "Z",
+            "retrieved_at": self._format_timestamp(detail.retrieved_at),
             "documents": documents,
         }
         manifest_path = session_dir / "manifest.json"
         manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    def _write_agenda_summary(self, session_dir: Path, detail: SessionDetail) -> None:
+        agenda_entries = []
+        for item in detail.agenda_items:
+            title = self._normalise_whitespace(item.title or "") or "Tagesordnungspunkt"
+            agenda_entries.append(
+                {
+                    "number": item.number,
+                    "title": title,
+                    "reporter": item.reporter,
+                    "status": item.status,
+                    "decision": self._derive_decision_outcome(item.status),
+                    "documents_present": bool(item.documents),
+                }
+            )
+
+        summary = {
+            "session": {
+                "id": detail.reference.session_id,
+                "committee": detail.reference.committee,
+                "meeting_name": detail.reference.meeting_name,
+                "date": detail.reference.date.isoformat(),
+            },
+            "generated_at": self._format_timestamp(detail.retrieved_at),
+            "agenda_items": agenda_entries,
+        }
+
+        summary_path = session_dir / "agenda_summary.json"
+        summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
 
     def _write_raw(self, path: Path, content: str) -> None:
         path.write_text(content, encoding="utf-8")
@@ -429,6 +484,54 @@ class SessionNetClient:
             "__canz": "1",
             "__cselect": "0",
         }
+
+    @staticmethod
+    def _format_timestamp(value: datetime) -> str:
+        if value.tzinfo is None:
+            timestamp = value.replace(tzinfo=UTC)
+        else:
+            timestamp = value.astimezone(UTC)
+        return timestamp.isoformat().replace("+00:00", "Z")
+
+    @staticmethod
+    def _derive_decision_outcome(status: Optional[str]) -> Optional[str]:
+        if not status:
+            return None
+        normalised = SessionNetClient._normalise_status_text(status)
+        if any(keyword in normalised for keyword in ACCEPTED_DECISION_KEYWORDS):
+            return "accepted"
+        if any(keyword in normalised for keyword in REJECTED_DECISION_KEYWORDS):
+            return "rejected"
+        return None
+
+    @classmethod
+    def _split_title_and_reporter(cls, text: str) -> Tuple[str, Optional[str]]:
+        if not text:
+            return "", None
+        match = REPORTER_SPLIT_RE.search(text)
+        if not match:
+            return cls._normalise_whitespace(text), None
+
+        title = text[: match.start()].rstrip(" -–—,:;\n\r\t")
+        reporter = text[match.end() :].lstrip(" :;-–—\n\r\t")
+        return cls._normalise_whitespace(title), cls._normalise_whitespace(reporter) or None
+
+    @staticmethod
+    def _normalise_whitespace(value: str) -> str:
+        return " ".join(value.split())
+
+    @staticmethod
+    def _normalise_status_text(value: str) -> str:
+        normalised = value.lower()
+        replacements = {
+            "ß": "ss",
+            "ä": "ae",
+            "ö": "oe",
+            "ü": "ue",
+        }
+        for original, replacement in replacements.items():
+            normalised = normalised.replace(original, replacement)
+        return normalised
 
     @staticmethod
     def _normalise_filename(

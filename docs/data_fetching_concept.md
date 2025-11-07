@@ -34,12 +34,14 @@ Die Stadt Melle betreibt eine eigene **SessionNet**-Installation unter `https://
   - Unterordner:
     - `session_detail.html` mit dem Original-HTML.
     - `session-documents/` für alle dokumente, die auf Sitzungsebene bereitgestellt werden.
-    - `agenda/<TOP-Nummer>_<Kurzname>/` für Dokumente je Tagesordnungspunkt.
+    - `agenda/<TOP-Nummer>_<Kurzname>/` für Dokumente je Tagesordnungspunkt – der Kurzname enthält ausschließlich die offizielle TOP-Bezeichnung; Zusätze wie „Berichterstatter …“ werden entfernt.
     - `manifest.json` als Metadatenindex aller abgelegten Dateien.
+    - `agenda_summary.json` mit einer strukturierten Liste der TOPs (Nummer, Titel, Reporter:in, Status, abgeleiteter Beschluss sowie ein Flag, ob bereits Dokumente vorliegen), sodass spätere Verarbeitungsschritte nicht erneut das HTML parsen müssen.
 - **Gespeicherte Artefakte**:
   - `YYYY-MM_overview.html` pro Monat im Jahresordner.
   - Einzelne Dokumente mit sprechendem Slug, laufender Nummer und entdeckter Dateiendung (z. B. `.pdf`), ergänzt um einen Hash-Anteil zur Entschärfung von Duplikaten.
 - **Metadaten**: Agenda und Dokumente werden programmatisch zu Python-Objekten (`SessionDetail`, `AgendaItem`, `DocumentReference`) verarbeitet. Zusätzlich enthält `manifest.json` Dateipfad, Titel, Kategorie, TOP-Zuordnung, Ursprungs-URL, SHA1-Fingerprint sowie HTTP-Header (`content_type`, `content_disposition`, `content_length`), sodass spätere Verarbeitungsschritte ohne erneutes HTML-Parsen oder wiederholte Downloads auskommen.
+- **Unvollständige Informationen**: Für zukünftige oder frisch nachgepflegte Sitzungen liegen Reporter:innen- und Beschlussangaben teilweise nicht vor. Die Summary-Datei markiert solche Einträge mit `decision = null` bzw. `documents_present = false`, bis ein erneuter Crawl die Werte anreichert.
 - **Versionierung**: Alle Rohdaten liegen innerhalb des Git-Repositories, werden aber über `.gitignore` von produktiven Downloads ausgeschlossen. Tests können mit Mock-Daten arbeiten.
 
 ## 4. Offene Punkte

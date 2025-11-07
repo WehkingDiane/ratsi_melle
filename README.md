@@ -43,11 +43,13 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 - Jeder Sitzungsordner enthält:
   - `session_detail.html` als unveränderte Detailseite.
   - `session-documents/` für Bekanntmachungen, Protokolle etc., die auf Sitzungsebene veröffentlicht werden.
-  - `agenda/<TOP-Nummer>_<Kurzname>/` mit den Dokumenten je Tagesordnungspunkt.
+  - `agenda/<TOP-Nummer>_<Kurzname>/` mit den Dokumenten je Tagesordnungspunkt (Suffixe wie „Berichterstatter …“ werden beim Ordnernamen entfernt).
   - `manifest.json` mit Pfad, URL, Titel, Kategorie, TOP-Zuordnung, SHA1-Hash sowie HTTP-Metadaten (`content_type`, `content_disposition`, `content_length`) sämtlicher Dateien.
+  - `agenda_summary.json` mit einer Liste aller TOPs inkl. Reporter:in, Roh-Status aus SessionNet sowie einem abgeleiteten Entscheidungsfeld (`accepted`, `rejected`, `null`) und einem Flag, ob bereits Dokumente vorliegen.
 - Monatsübersichten werden als `data/raw/<Jahr>/<Jahr>-<Monat>_overview.html` gespeichert.
 - Die tatsächlichen Dateien liegen zwar im Repository-Verzeichnis, werden aber per `.gitignore` von Commits ausgeschlossen, damit lokale Crawls das Repo nicht aufblähen.
 - Downloads werden pro Prozesslauf gecacht und durch eine einstellbare Rate-Limit-/Retry-Logik (Default: 1 Anfrage/Sekunde, exponentieller Backoff) automatisch gedrosselt. Damit werden identische Dokument-URLs innerhalb eines Runs nur einmal vom Ratsinformationssystem geholt.
+- Für zukünftige Sitzungen fehlen erfahrungsgemäß Status, Dokumente oder Reporter:innen-Angaben – `agenda_summary.json` kennzeichnet solche Fälle durch `decision = null` bzw. `documents_present = false`, bis ein erneuter Crawl die Angaben nachliefert.
 
 ## Taskliste auf dem Weg zum Ziel
 1. **Grundlagen schaffen**
