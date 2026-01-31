@@ -46,7 +46,9 @@ class GuiLauncher:
         self.status_label = None
         self.run_button = None
 
-        self.selected_action = ctk.StringVar(value="Fetch Sessions (Script)")
+        self.selected_action = ctk.StringVar(
+            value="Download sessions from the Melle SessionNet (script)"
+        )
         self.year_value = ctk.StringVar(value=str(datetime.now().year))
         self.months_value = ctk.StringVar(value="")
         self.verbose_mode = ctk.BooleanVar(value=False)
@@ -55,23 +57,23 @@ class GuiLauncher:
         self.spinner_index = 0
 
         self.actions = {
-            "Fetch Sessions (Script)": ActionConfig(
-                name="Fetch Sessions (Script)",
+            "Download sessions from the Melle SessionNet (script)": ActionConfig(
+                name="Download sessions from the Melle SessionNet (script)",
                 handler=self._run_fetch_sessions,
                 renderer=self._render_fetch_summary,
             ),
-            "Build SQLite Index": ActionConfig(
-                name="Build SQLite Index",
+            "Build SQLite Index (script)": ActionConfig(
+                name="Build SQLite Index (script)",
                 handler=self._run_build_index,
                 renderer=self._render_index_summary,
             ),
-            "Show Data Inventory": ActionConfig(
-                name="Show Data Inventory",
+            "Show Data Inventory (local)": ActionConfig(
+                name="Show Data Inventory (local)",
                 handler=self._run_data_inventory,
                 renderer=self._render_inventory,
             ),
-            "Show Data Structure": ActionConfig(
-                name="Show Data Structure",
+            "Show Data Structure (local)": ActionConfig(
+                name="Show Data Structure (local)",
                 handler=self._run_data_structure,
                 renderer=self._render_structure,
             ),
@@ -116,7 +118,7 @@ class GuiLauncher:
             frame,
             variable=self.selected_action,
             values=list(self.actions.keys()),
-            width=300,
+            width=460,
             font=FIELD_FONT,
         )
         action_box.grid(row=1, column=0, sticky="w", pady=(0, 8))
