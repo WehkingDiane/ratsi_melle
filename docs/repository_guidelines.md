@@ -18,6 +18,7 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 │   ├── parsing/           # Normalisierung, Parser und Metadaten-Anreicherung
 │   ├── analysis/          # Auswertungs- und Scoring-Komponenten
 │   └── interfaces/        # UI-, API- oder Integrationsschichten
+│       └── gui/           # GUI-Dateien
 └── tests/                 # Unit-, Integrations- und End-to-End-Tests
 ```
 
@@ -59,3 +60,14 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 4. Deployment- oder Betriebsskripte unter `scripts/` ablegen.
 
 Diese Regeln bilden das Fundament für den weiteren Projektverlauf und können bei Bedarf erweitert werden.
+
+## WSL-Setup (kurz)
+
+- Wenn `python` fehlt, `python3` verwenden.
+- Empfehlung: `python3 -m venv .venv` und `source .venv/bin/activate`.
+- Abhängigkeiten mit `python -m pip install -r requirements.txt` installieren.
+
+## .gitignore & lokale Daten
+
+- Lokale venvs, Caches und Logs werden ueber `.gitignore` ausgeschlossen.
+- Rohdaten und verarbeitete Daten verbleiben unter `data/raw/` und `data/processed/` und werden nicht committet.

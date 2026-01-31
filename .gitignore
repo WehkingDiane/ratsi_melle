@@ -1,22 +1,6 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
-# Virtual environment
 .venv/
-venv/
-
-# IDE settings
-.idea/
-.vscode/
-
-# Local data artefacts
+__pycache__/
+.pytest_cache/
+logs/
 data/raw/
 data/processed/
-logs/
-
-# OS-specific files
-.DS_Store
-Thumbs.db
-
