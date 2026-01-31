@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
@@ -57,13 +58,16 @@ def _is_session_folder(path: Path) -> bool:
 
 
 def _parse_session_folder(path: Path) -> SessionFolder | None:
-    parts = path.name.rsplit("_", 2)
-    if len(parts) != 3:
+    match = re.match(r"^(\d{4}-\d{2}-\d{2})[-_](.+)[-_](\d+)$", path.name)
+    if not match:
         return None
-    date_str, committee, session_id = parts
-    if len(date_str) != 10:
-        return None
-    return SessionFolder(session_id=session_id, date=date_str, committee=committee, path=path)
+    date_str, committee, session_id = match.groups()
+    return SessionFolder(
+        session_id=session_id,
+        date=date_str,
+        committee=committee,
+        path=path,
+    )
 
 
 def load_json(path: Path) -> object | None:
@@ -154,12 +158,14 @@ def _populate(conn: sqlite3.Connection, data_root: Path) -> None:
         session_count += 1
 
         agenda_summary = load_json(session.path / "agenda_summary.json")
-        if isinstance(agenda_summary, list):
-            agenda_count += _insert_agenda_items(conn, session.session_id, agenda_summary)
+        agenda_items = _extract_list(agenda_summary, "agenda_items")
+        if agenda_items is not None:
+            agenda_count += _insert_agenda_items(conn, session.session_id, agenda_items)
 
         manifest = load_json(session.path / "manifest.json")
-        if isinstance(manifest, list):
-            doc_count += _insert_documents(conn, session.session_id, manifest)
+        documents = _extract_list(manifest, "documents")
+        if documents is not None:
+            doc_count += _insert_documents(conn, session.session_id, documents)
 
     conn.commit()
     print(
@@ -221,6 +227,16 @@ def _insert_documents(
         )
         inserted += 1
     return inserted
+
+
+def _extract_list(payload: object | None, key: str) -> list[dict] | None:
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    if isinstance(payload, dict):
+        data = payload.get(key)
+        if isinstance(data, list):
+            return [item for item in data if isinstance(item, dict)]
+    return None
 
 
 def _split_date(date_str: str) -> tuple[int | None, int | None]:
