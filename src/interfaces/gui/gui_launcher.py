@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 import subprocess
 import sys
 import threading
@@ -66,6 +67,11 @@ class GuiLauncher:
                 name="Build SQLite Index (script)",
                 handler=self._run_build_index,
                 renderer=self._render_index_summary,
+            ),
+            "List Committees (sqlite)": ActionConfig(
+                name="List Committees (sqlite)",
+                handler=self._run_list_committees,
+                renderer=self._render_committees,
             ),
             "Show Data Inventory (local)": ActionConfig(
                 name="Show Data Inventory (local)",
@@ -368,6 +374,26 @@ class GuiLauncher:
             "size_mb": size_mb,
         }
 
+    def _run_list_committees(self) -> dict:
+        db_path = REPO_ROOT / "data" / "processed" / "index.sqlite"
+        if not db_path.exists():
+            self._append_log("[ERROR] SQLite index not found. Run build_index.py first.")
+            return {"status": "error", "message": "index.sqlite not found"}
+
+        try:
+            with sqlite3.connect(db_path) as conn:
+                cursor = conn.execute(
+                    "SELECT DISTINCT committee FROM sessions WHERE committee IS NOT NULL "
+                    "AND committee != '' ORDER BY committee"
+                )
+                committees = [row[0] for row in cursor.fetchall()]
+        except sqlite3.Error as exc:
+            self._append_log(f"[ERROR] SQLite error: {exc}")
+            return {"status": "error", "message": str(exc)}
+
+        self._append_log(f"[INFO] Committees found: {len(committees)}")
+        return {"status": "ok", "count": len(committees), "committees": committees}
+
     def _run_data_structure(self) -> dict:
         root = DATA_ROOT_DEFAULT
         if not root.exists():
@@ -572,6 +598,13 @@ class GuiLauncher:
         self._render_kv("Exit Code", result.get("exit_code", "-"))
         self._render_kv("Output Lines", result.get("lines", "-"))
         self._render_kv("Summary", result.get("summary", "-"))
+
+    def _render_committees(self, result: dict) -> None:
+        self.right_title.configure(text="Committees")
+        self._clear_right_panel()
+        self._render_kv("Count", result.get("count", "-"))
+        committees = result.get("committees", [])
+        self._render_list(committees if isinstance(committees, list) else [])
 
     def _render_kv(self, label: str, value: object) -> None:
         row = ctk.CTkFrame(self.right_content, fg_color="transparent")
