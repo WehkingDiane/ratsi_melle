@@ -1,15 +1,26 @@
 # Ratsinformations-Analysetool Melle
 
 ## Projektvision
+
 Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen aus dem Ratsinformationssystem der Stadt Melle automatisch einsammeln, analysieren und verständlich aufbereiten.** Vergangene Sitzungen sollen journalistisch zusammengefasst und kommende Sitzungen strukturiert vorbereitet werden um einen Überblick zuerhalten.
 
 ## Leitprinzipien für die Umsetzung
+
 - **Technologieoffenheit:** Programmiersprache, Frameworks und Infrastruktur sind frei wählbar. Bewährt haben sich Skriptsprachen (z. B. Python, JavaScript/TypeScript) ebenso wie kompilierte Sprachen (z. B. Go, Rust), solange sie Webzugriffe, Datenhaltung und optionale KI-Anbindungen unterstützen.
 - **Modularer Aufbau:** Funktionen wie Datenerfassung, Analyse, Speicherung und Darstellung sollen klar getrennt sein, damit einzelne Module unabhängig weiterentwickelt oder ausgetauscht werden können.
 - **Nachvollziehbarkeit & Transparenz:** Alle gewonnenen Daten, Zwischenschritte und Analyseergebnisse müssen dauerhaft nachvollziehbar, versionierbar und für Dritte überprüfbar sein.
 - **Erweiterbarkeit:** Die Lösung soll sich leicht auf andere Kommunen oder Informationsquellen übertragen lassen und Platz für zusätzliche Auswertungen oder Visualisierungen bieten.
 
+## Voraussetzungen (lokale Entwicklung)
+
+- **Python 3.11+** für die Skripte und Tests.
+- **pip** für die Paketinstallation (`pip install -r requirements.txt`).
+- **Git** für Versionskontrolle und Mitarbeit.
+- **(Optional) Tkinter** für eine spätere UI; unter WSL via `sudo apt-get install python3-tk`.
+- **Projektstruktur** siehe `docs/repository_guidelines.md`.
+
 ## Kernfunktionen (geplant)
+
 1. **Datengewinnung aus dem Ratsinformationssystem**
    - Regelmäßiger Abruf von Sitzungsterminen samt Metadaten (Gremium, Datum, Links).
    - Sammeln der zugehörigen Vorlagen, Beschlussdokumente und Protokolle.
@@ -27,6 +38,7 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
    - Werkzeuge zum Aufräumen veralteter Daten und zum Planen automatischer Läufe.
 
 ## Mögliche Architekturbausteine
+
 - **Crawler- oder Fetch-Komponente:** Holt Termine und Dokumente. Umsetzung möglich als CLI-Skript, Serverless-Funktion oder Microservice.
 - **Speicherschicht:** Wahlweise Dateien, relationale Datenbank, Dokumentenspeicher oder Data Lake – je nach Skalierungsbedarf.
 - **Analyse-Service:** Kann lokal laufen (Open-Source-Modelle) oder über externe KI-APIs angebunden werden. Schnittstellen sollten austauschbar gestaltet sein.
@@ -34,11 +46,13 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 - **Automatisierung:** Zeitgesteuerte Jobs (Cron, Cloud Scheduler, GitHub Actions) oder Event-Trigger, die neue Sitzungen und Analysen anstoßen.
 
 ## Datenhaltung & Transparenz
+
 - Alle Eingänge (Rohdaten, Metadaten, Analyseergebnisse) sollten versioniert werden, z. B. über Git, Datenbankrevisionen oder unveränderbare Log-Dateien.
 - Verlinkungen auf Originaldokumente erleichtern die Überprüfung.
 - Klare Namenskonventionen und Metadaten helfen bei der späteren Suche nach Sitzungen, Gremien oder Themenfeldern.
 
 ## Rohdatenablage
+
 - `data/raw/<Jahr>/<Datum>_<Gremium>_<Sitzungs-ID>/` bildet den Sitzungsordner. Beispiel: `data/raw/2025/2025-10-08_Rat-der-Stadt-Melle_6770/`.
 - Jeder Sitzungsordner enthält:
   - `session_detail.html` als unveränderte Detailseite.
@@ -52,6 +66,7 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 - Für zukünftige Sitzungen fehlen erfahrungsgemäß Status, Dokumente oder Reporter:innen-Angaben – `agenda_summary.json` kennzeichnet solche Fälle durch `decision = null` bzw. `documents_present = false`, bis ein erneuter Crawl die Angaben nachliefert.
 
 ## Taskliste auf dem Weg zum Ziel
+
 1. **Grundlagen schaffen**
    - ✅ Projektstruktur und Repository-Regeln sind in `docs/repository_guidelines.md` dokumentiert.
    - ✅ Erste Prüfung von Anforderungen, Datenschutz- und Nutzungsbedingungen inklusive weiterer To-dos in `docs/data_access_review.md` festgehalten.

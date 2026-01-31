@@ -25,7 +25,7 @@ Die Stadt Melle betreibt eine eigene **SessionNet**-Installation unter `https://
 2. **Detailabfrage**: Für jede Sitzung wird die Detailseite (`si0057.asp`) geladen. Die Tagesordnungstabelle wird geparst und zu einer strukturierten Liste von TOPs inklusive der verlinkten Dokumente transformiert.
 3. **Dokumentdownloads**: Alle in der Tagesordnung sowie im Sitzungs-Dokumentenpanel gefundenen Links mit `do*.asp` werden heruntergeladen. Innerhalb eines Prozesslaufs werden identische URLs nur einmal vom Server angefragt (lokaler Cache); Fehler (z. B. 404) werden geloggt, führen aber nicht zum Abbruch der gesamten Sitzungserfassung.
 4. **Request-Drosselung & Retries**: Jeder HTTP-Request wird standardmäßig auf 1 Anfrage/Sekunde begrenzt. Bei Fehlern greift eine exponentielle Retry-Strategie (Backoff), sodass auch größere Zeiträume ohne unnötig viele Doppelanfragen abgearbeitet werden können.
-4. **Wiederholungsstrategien**: HTTP-Fehler werden durch Exception-Handling abgefangen; der Client kann erneut aufgerufen werden. Die CLI unterstützt Wiederholungen über erneutes Ausführen.
+5. **Wiederholungsstrategien**: HTTP-Fehler werden durch Exception-Handling abgefangen; der Client kann erneut aufgerufen werden. Die CLI unterstützt Wiederholungen über erneutes Ausführen.
 
 ## 3. Speicherkonzept für Rohdaten
 
@@ -49,4 +49,3 @@ Die Stadt Melle betreibt eine eigene **SessionNet**-Installation unter `https://
 - Authentifizierung ist aktuell nicht erforderlich, jedoch sollte mittelfristig ein Request-Rate-Limit implementiert werden (z. B. 1 Anfrage/Sekunde), um die Server zu schonen.
 - Für Dokumentdownloads muss der finale Dateiname zukünftig über die HTTP-Header (`Content-Disposition`) bestimmt werden.
 - Bei dauerhaft nicht erreichbaren Seiten (z. B. Wartung) sollte die CLI einen non-zero Exit-Code liefern, um Scheduler-Läufe sichtbar scheitern zu lassen.
-
