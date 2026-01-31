@@ -89,3 +89,4 @@
   - `python -m pip install -r requirements.txt`
 - Tests mit `python -m pytest` ausfuehren (nach Aktivieren der venv).
 - Tkinter ist Teil der Standardbibliothek, benoetigt unter WSL aber das Paket: `sudo apt-get install python3-tk`.
+- Bei Paketinstallationen ggf. mit laengerem Timeout ausfuehren.
