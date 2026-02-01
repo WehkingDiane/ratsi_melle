@@ -4,8 +4,7 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 
 ## Verzeichnisstruktur
 
-```
-.
+```.
 ├── configs/                # Konfigurationsdateien (JSON, YAML, ENV-Beispiele)
 ├── data/
 │   ├── raw/               # Unveränderte Quelldaten aus Zielsystemen

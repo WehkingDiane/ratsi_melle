@@ -33,6 +33,16 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         help="SQLite output path.",
     )
+    parser.add_argument(
+        "--refresh-existing",
+        action="store_true",
+        help="Rebuild entries for sessions that already exist in the database.",
+    )
+    parser.add_argument(
+        "--only-refresh",
+        action="store_true",
+        help="Only refresh existing sessions; do not insert new ones.",
+    )
     return parser.parse_args()
 
 
@@ -79,31 +89,31 @@ def load_json(path: Path) -> object | None:
         return None
 
 
-def build_index(data_root: Path, output_path: Path) -> None:
+def build_index(data_root: Path, output_path: Path, refresh_existing: bool, only_refresh: bool) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(output_path) as conn:
         conn.execute("PRAGMA journal_mode=WAL;")
         _create_tables(conn)
-        _populate(conn, data_root)
+        _populate(conn, data_root, refresh_existing, only_refresh)
 
 
 def _create_tables(conn: sqlite3.Connection) -> None:
     conn.executescript(
         """
-        DROP TABLE IF EXISTS sessions;
-        DROP TABLE IF EXISTS agenda_items;
-        DROP TABLE IF EXISTS documents;
-
-        CREATE TABLE sessions (
+        CREATE TABLE IF NOT EXISTS sessions (
             session_id TEXT PRIMARY KEY,
             date TEXT,
             year INTEGER,
             month INTEGER,
             committee TEXT,
+            meeting_name TEXT,
+            start_time TEXT,
+            location TEXT,
+            detail_url TEXT,
             session_path TEXT
         );
 
-        CREATE TABLE agenda_items (
+        CREATE TABLE IF NOT EXISTS agenda_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             session_id TEXT,
             number TEXT,
@@ -114,37 +124,54 @@ def _create_tables(conn: sqlite3.Connection) -> None:
             documents_present INTEGER
         );
 
-        CREATE TABLE documents (
+        CREATE TABLE IF NOT EXISTS documents (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             session_id TEXT,
             title TEXT,
             category TEXT,
+            agenda_item TEXT,
             url TEXT,
             local_path TEXT,
             content_type TEXT,
             content_length INTEGER
         );
 
-        CREATE INDEX idx_sessions_date ON sessions(date);
-        CREATE INDEX idx_sessions_committee ON sessions(committee);
-        CREATE INDEX idx_agenda_session ON agenda_items(session_id);
-        CREATE INDEX idx_docs_session ON documents(session_id);
+        CREATE INDEX IF NOT EXISTS idx_sessions_date ON sessions(date);
+        CREATE INDEX IF NOT EXISTS idx_sessions_committee ON sessions(committee);
+        CREATE INDEX IF NOT EXISTS idx_agenda_session ON agenda_items(session_id);
+        CREATE INDEX IF NOT EXISTS idx_docs_session ON documents(session_id);
         """
     )
 
 
-def _populate(conn: sqlite3.Connection, data_root: Path) -> None:
+def _populate(conn: sqlite3.Connection, data_root: Path, refresh_existing: bool, only_refresh: bool) -> None:
     session_count = 0
     agenda_count = 0
     doc_count = 0
+    existing = {
+        row[0]
+        for row in conn.execute("SELECT session_id FROM sessions").fetchall()
+        if row and row[0]
+    }
 
     for session in iter_session_folders(data_root):
+        if session.session_id in existing and not refresh_existing:
+            continue
+        if session.session_id not in existing and only_refresh:
+            continue
         year, month = _split_date(session.date)
+        manifest = load_json(session.path / "manifest.json")
+        session_info = manifest.get("session") if isinstance(manifest, dict) else {}
+        if not isinstance(session_info, dict):
+            session_info = {}
+        if session.session_id in existing and refresh_existing:
+            conn.execute("DELETE FROM agenda_items WHERE session_id = ?", (session.session_id,))
+            conn.execute("DELETE FROM documents WHERE session_id = ?", (session.session_id,))
         conn.execute(
             """
             INSERT OR REPLACE INTO sessions
-            (session_id, date, year, month, committee, session_path)
-            VALUES (?, ?, ?, ?, ?, ?)
+            (session_id, date, year, month, committee, meeting_name, start_time, location, detail_url, session_path)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 session.session_id,
@@ -152,6 +179,10 @@ def _populate(conn: sqlite3.Connection, data_root: Path) -> None:
                 year,
                 month,
                 session.committee,
+                session_info.get("meeting_name"),
+                None,
+                session_info.get("location"),
+                session_info.get("detail_url"),
                 str(session.path),
             ),
         )
@@ -162,7 +193,6 @@ def _populate(conn: sqlite3.Connection, data_root: Path) -> None:
         if agenda_items is not None:
             agenda_count += _insert_agenda_items(conn, session.session_id, agenda_items)
 
-        manifest = load_json(session.path / "manifest.json")
         documents = _extract_list(manifest, "documents")
         if documents is not None:
             doc_count += _insert_documents(conn, session.session_id, documents)
@@ -212,13 +242,14 @@ def _insert_documents(
         conn.execute(
             """
             INSERT INTO documents
-            (session_id, title, category, url, local_path, content_type, content_length)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (session_id, title, category, agenda_item, url, local_path, content_type, content_length)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 session_id,
                 doc.get("title"),
                 doc.get("category"),
+                doc.get("agenda_item"),
                 doc.get("url"),
                 doc.get("path"),
                 doc.get("content_type"),
@@ -251,7 +282,8 @@ def _split_date(date_str: str) -> tuple[int | None, int | None]:
 
 def main() -> None:
     args = parse_args()
-    build_index(args.data_root, args.output)
+    refresh_existing = args.refresh_existing or args.only_refresh
+    build_index(args.data_root, args.output, refresh_existing, args.only_refresh)
 
 
 if __name__ == "__main__":
