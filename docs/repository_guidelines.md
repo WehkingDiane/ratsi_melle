@@ -4,8 +4,7 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 
 ## Verzeichnisstruktur
 
-```
-.
+```.
 ├── configs/                # Konfigurationsdateien (JSON, YAML, ENV-Beispiele)
 ├── data/
 │   ├── raw/               # Unveränderte Quelldaten aus Zielsystemen
@@ -60,6 +59,11 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 4. Deployment- oder Betriebsskripte unter `scripts/` ablegen.
 
 Diese Regeln bilden das Fundament für den weiteren Projektverlauf und können bei Bedarf erweitert werden.
+
+## CLI-Indexdatenbanken
+
+- `scripts/build_local_index.py` erzeugt einen lokalen Index aus bereits heruntergeladenen Rohdaten (`data/raw/`) und schreibt standardmäßig nach `data/processed/local_index.sqlite`.
+- `scripts/build_online_index_db.py` erzeugt einen Online-Index ohne Dokumentdownloads und schreibt standardmäßig nach `data/processed/online_session_index.sqlite`. Mit `--refresh-existing` werden vorhandene Sitzungen neu eingelesen; `--only-refresh` aktualisiert ausschließlich bestehende Sitzungen.
 
 ## WSL-Setup (kurz)
 
