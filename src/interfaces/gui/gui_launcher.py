@@ -487,8 +487,14 @@ class GuiLauncher:
     def _render_structure(self, result: dict) -> None:
         self.right_title.configure(text="Data Structure")
         self._clear_right_panel()
-        root = Path(result.get("root", ""))
-        self._render_kv("Root", root if root else "-")
+        root_value = result.get("root")
+        if not root_value:
+            self._render_kv("Root", "-")
+            self._render_list(["(no data root found)"])
+            return
+
+        root = Path(root_value)
+        self._render_kv("Root", root)
         if not root.exists():
             self._render_list(["(no data root found)"])
             return
