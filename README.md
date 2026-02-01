@@ -81,6 +81,7 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
    - Die recherchierten Seiten und Parameter sind in `docs/data_fetching_concept.md` dokumentiert.
    - Der `SessionNetClient` unter `src/fetching/` lädt Monatsübersichten, Sitzungsdetails und verknüpfte Dokumente und legt Rohdaten unter `data/raw/` ab.
    - Das CLI-Skript `scripts/fetch_sessions.py` kapselt die Abruflogik. Beispielaufruf: `python scripts/fetch_sessions.py 2024 --months 5 6`.
+   - Das CLI-Skript `scripts/build_online_index_db.py` erstellt eine Online-Indexdatenbank ohne Dokument-Downloads. Standardpfad: `data/processed/online_session_index.sqlite` (Optionen: `--refresh-existing`, `--only-refresh`).
 3. **Dokumentenverarbeitung ausbauen**
    - Parser für Vorlagen und Beschlüsse entwickeln (HTML, PDF, ggf. weitere Formate).
    - Normalisierte Datenstruktur mit Metadaten entwerfen und implementieren.

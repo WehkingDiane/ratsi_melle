@@ -29,7 +29,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--output",
-        default=Path("data/processed/index.sqlite"),
+        default=Path("data/processed/local_index.sqlite"),
         type=Path,
         help="SQLite output path.",
     )

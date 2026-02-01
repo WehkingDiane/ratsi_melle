@@ -61,6 +61,11 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 
 Diese Regeln bilden das Fundament für den weiteren Projektverlauf und können bei Bedarf erweitert werden.
 
+## CLI-Indexdatenbanken
+
+- `scripts/build_local_index.py` erzeugt einen lokalen Index aus bereits heruntergeladenen Rohdaten (`data/raw/`) und schreibt standardmäßig nach `data/processed/local_index.sqlite`.
+- `scripts/build_online_index_db.py` erzeugt einen Online-Index ohne Dokumentdownloads und schreibt standardmäßig nach `data/processed/online_session_index.sqlite`. Mit `--refresh-existing` werden vorhandene Sitzungen neu eingelesen; `--only-refresh` aktualisiert ausschließlich bestehende Sitzungen.
+
 ## WSL-Setup (kurz)
 
 - Wenn `python` fehlt, `python3` verwenden.

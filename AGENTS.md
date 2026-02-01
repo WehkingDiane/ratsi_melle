@@ -3,7 +3,7 @@
 ## Projektstruktur & Modulorganisation
 
 - `src/` enthaelt die Python-Pakete: `fetching/` (SessionNet-Client + Modelle), `parsing/`, `analysis/`, `interfaces/` (inkl. `interfaces/gui/` fuer GUI-Dateien).
-- `scripts/` enthaelt CLI-Einstiegspunkte wie `scripts/fetch_sessions.py`.
+- `scripts/` enthaelt CLI-Einstiegspunkte wie `scripts/fetch_sessions.py`, `scripts/build_local_index.py` und `scripts/build_online_index_db.py`.
 - `tests/` enthaelt pytest-Testmodule sowie HTML-Fixtures in `tests/fixtures/`.
 - `data/` speichert Laufzeitdaten: `data/raw/` fuer unveraenderte Downloads und `data/processed/` fuer normalisierte Ausgaben.
 - `docs/` enthaelt Projektdokumentation und Recherchen; `configs/` fuer Konfigurationsdateien; `logs/` fuer Laufzeitlogs.
@@ -12,6 +12,8 @@
 
 - `pip install -r requirements.txt` installiert die Abhaengigkeiten.
 - `python scripts/fetch_sessions.py 2024 --months 5 6` laedt Sitzungen fuer Jahr/Monate nach `data/raw/`.
+- `python scripts/build_local_index.py` baut eine SQLite-DB unter `data/processed/local_index.sqlite` aus `data/raw/`.
+- `python scripts/build_online_index_db.py 2024 --months 5 6` baut eine SQLite-DB unter `data/processed/online_session_index.sqlite` ohne Dokument-Downloads.
 - `python -m pytest` fuehrt die Tests in `tests/` aus.
 
 ## Coding-Style & Namenskonventionen

@@ -48,7 +48,7 @@ class GuiLauncher:
         self.run_button = None
 
         self.selected_action = ctk.StringVar(
-            value="Download sessions from the Melle SessionNet (script)"
+            value="Download sessions (raw, script)"
         )
         self.year_value = ctk.StringVar(value=str(datetime.now().year))
         self.months_value = ctk.StringVar(value="")
@@ -58,18 +58,18 @@ class GuiLauncher:
         self.spinner_index = 0
 
         self.actions = {
-            "Download sessions from the Melle SessionNet (script)": ActionConfig(
-                name="Download sessions from the Melle SessionNet (script)",
+            "Download sessions (raw, script)": ActionConfig(
+                name="Download sessions (raw, script)",
                 handler=self._run_fetch_sessions,
                 renderer=self._render_fetch_summary,
             ),
-            "Build SQLite Index (script)": ActionConfig(
-                name="Build SQLite Index (script)",
+            "Build local SQLite index (script)": ActionConfig(
+                name="Build local SQLite index (script)",
                 handler=self._run_build_index,
                 renderer=self._render_index_summary,
             ),
-            "List Committees (sqlite)": ActionConfig(
-                name="List Committees (sqlite)",
+            "List committees (local index)": ActionConfig(
+                name="List committees (local index)",
                 handler=self._run_list_committees,
                 renderer=self._render_committees,
             ),
@@ -310,9 +310,9 @@ class GuiLauncher:
         }
 
     def _run_build_index(self) -> dict:
-        script_path = REPO_ROOT / "scripts" / "build_index.py"
+        script_path = REPO_ROOT / "scripts" / "build_local_index.py"
         if not script_path.exists():
-            self._append_log("[ERROR] scripts/build_index.py not found")
+            self._append_log("[ERROR] scripts/build_local_index.py not found")
             return {"status": "error", "message": "Script not found"}
 
         cmd = [sys.executable, str(script_path)]
@@ -375,10 +375,10 @@ class GuiLauncher:
         }
 
     def _run_list_committees(self) -> dict:
-        db_path = REPO_ROOT / "data" / "processed" / "index.sqlite"
+        db_path = REPO_ROOT / "data" / "processed" / "local_index.sqlite"
         if not db_path.exists():
-            self._append_log("[ERROR] SQLite index not found. Run build_index.py first.")
-            return {"status": "error", "message": "index.sqlite not found"}
+            self._append_log("[ERROR] SQLite index not found. Run build_local_index.py first.")
+            return {"status": "error", "message": "local_index.sqlite not found"}
 
         try:
             with sqlite3.connect(db_path) as conn:

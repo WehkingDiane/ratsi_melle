@@ -27,6 +27,8 @@ Die Stadt Melle betreibt eine eigene **SessionNet**-Installation unter `https://
 4. **Request-Drosselung & Retries**: Jeder HTTP-Request wird standardmäßig auf 1 Anfrage/Sekunde begrenzt. Bei Fehlern greift eine exponentielle Retry-Strategie (Backoff), sodass auch größere Zeiträume ohne unnötig viele Doppelanfragen abgearbeitet werden können.
 5. **Wiederholungsstrategien**: HTTP-Fehler werden durch Exception-Handling abgefangen; der Client kann erneut aufgerufen werden. Die CLI unterstützt Wiederholungen über erneutes Ausführen.
 
+Zusätzlich kann der Abruf ohne Dokumentdownloads erfolgen: `scripts/build_online_index_db.py` lädt Monats- und Detailseiten, erzeugt daraus eine Online-Indexdatenbank unter `data/processed/online_session_index.sqlite` und speichert dabei nur Metadaten (Session, TOPs, Dokument-URLs). Mit `--refresh-existing` werden vorhandene Sitzungen aktualisiert, mit `--only-refresh` werden ausschließlich bestehende Sitzungen erneuert.
+
 ## 3. Speicherkonzept für Rohdaten
 
 - **Verzeichnisstruktur**: `data/raw/<Jahr>/<Datum>_<Gremium>_<Sitzungs-ID>/`.
