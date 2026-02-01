@@ -68,6 +68,11 @@ class GuiLauncher:
                 handler=self._run_build_index,
                 renderer=self._render_index_summary,
             ),
+            "Build online SQLite index (script)": ActionConfig(
+                name="Build online SQLite index (script)",
+                handler=self._run_build_online_index,
+                renderer=self._render_index_summary,
+            ),
             "List committees (local index)": ActionConfig(
                 name="List committees (local index)",
                 handler=self._run_list_committees,
@@ -316,6 +321,54 @@ class GuiLauncher:
             return {"status": "error", "message": "Script not found"}
 
         cmd = [sys.executable, str(script_path)]
+        self._append_log(f"[INFO] Running: {' '.join(cmd)}")
+
+        process = subprocess.Popen(
+            cmd,
+            cwd=str(REPO_ROOT),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        assert process.stdout is not None
+        last_line = ""
+        line_count = 0
+        for line in process.stdout:
+            stripped = line.rstrip()
+            if stripped:
+                last_line = stripped
+            self._append_log(stripped)
+            line_count += 1
+        process.wait()
+        if process.returncode != 0:
+            self._append_log(f"[ERROR] Script exited with {process.returncode}")
+        return {
+            "status": "ok" if process.returncode == 0 else "error",
+            "command": " ".join(cmd),
+            "exit_code": process.returncode,
+            "lines": line_count,
+            "summary": last_line,
+        }
+
+    def _run_build_online_index(self) -> dict:
+        script_path = REPO_ROOT / "scripts" / "build_online_index_db.py"
+        if not script_path.exists():
+            self._append_log("[ERROR] scripts/build_online_index_db.py not found")
+            return {"status": "error", "message": "Script not found"}
+
+        year = self.year_value.get().strip()
+        if not year.isdigit():
+            self._append_log("[ERROR] Year must be a number")
+            return {"status": "error", "message": "Year invalid"}
+
+        months = [m for m in self.months_value.get().split() if m.isdigit()]
+
+        cmd = [sys.executable, str(script_path), year]
+        if months:
+            cmd.extend(["--months", *months])
+        if self.verbose_mode.get():
+            cmd.extend(["--log-level", "DEBUG"])
+
         self._append_log(f"[INFO] Running: {' '.join(cmd)}")
 
         process = subprocess.Popen(
