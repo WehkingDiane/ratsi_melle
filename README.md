@@ -71,20 +71,17 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
    - ✅ Projektstruktur und Repository-Regeln sind in `docs/repository_guidelines.md` dokumentiert.
    - ✅ Erste Prüfung von Anforderungen, Datenschutz- und Nutzungsbedingungen inklusive weiterer To-dos in `docs/data_access_review.md` festgehalten.
 2. **Datenerfassung konzipieren und implementieren**
-   - **Quellen und Strukturen erfassen:** Regelmäßige Übersichts-, Detail- und Downloadseiten identifizieren, Navigations- und Paginationspfade festhalten sowie Parameter (z. B. Zeitraum, Gremium, Dokumenttyp) und wiederkehrende HTML-Elemente dokumentieren.
-   - **Abruflogik konzipieren:** Datenflüsse, Fehlerfälle und Wiederholungsstrategien modellieren, inklusive Zeitplanung für Abrufe, Latenzanforderungen und Grenzen der Zielsysteme.
-   - **Abrufkomponente implementieren:** Skript- oder Service-Module entwickeln, die Termine und Dokumente laden, Netzwerkfehler protokollieren, Wiederholungen auslösen und anhand repräsentativer Testfälle mit Mock- oder Live-Daten verifiziert werden.
-   - **Speicherkonzept ausarbeiten:** Dateiformate, Verzeichnis- bzw. Datenbankschemata, Versionierung sowie Aufbewahrungsfristen der Rohdaten definieren und in einem Architektur- oder Betriebshandbuch dokumentieren.
+   - ✅ **Quellen und Strukturen erfassen:** Regelmäßige Übersichts-, Detail- und Downloadseiten identifizieren, Navigations- und Paginationspfade festhalten sowie Parameter (z. B. Zeitraum, Gremium, Dokumenttyp) und wiederkehrende HTML-Elemente dokumentieren.
+   - ✅ **Abruflogik konzipieren:** Datenflüsse, Fehlerfälle und Wiederholungsstrategien modellieren, inklusive Zeitplanung für Abrufe, Latenzanforderungen und Grenzen der Zielsysteme.
+   - ✅ **Abrufkomponente implementieren:** Skript- oder Service-Module entwickeln, die Termine und Dokumente laden, Netzwerkfehler protokollieren, Wiederholungen auslösen und anhand repräsentativer Testfälle mit Mock- oder Live-Daten verifiziert werden.
+   - ✅ **Speicherkonzept ausarbeiten:** Dateiformate, Verzeichnis- bzw. Datenbankschemata, Versionierung sowie Aufbewahrungsfristen der Rohdaten definieren und in einem Architektur- oder Betriebshandbuch dokumentieren.
 
-   **Stand Task 2 (aktuell):**
-
-   - Die recherchierten Seiten und Parameter sind in `docs/data_fetching_concept.md` dokumentiert.
-   - Der `SessionNetClient` unter `src/fetching/` lädt Monatsübersichten, Sitzungsdetails und verknüpfte Dokumente und legt Rohdaten unter `data/raw/` ab.
-   - Das CLI-Skript `scripts/fetch_sessions.py` kapselt die Abruflogik. Beispielaufruf: `python scripts/fetch_sessions.py 2024 --months 5 6`.
-   - Das CLI-Skript `scripts/build_online_index_db.py` erstellt eine Online-Indexdatenbank ohne Dokument-Downloads. Standardpfad: `data/processed/online_session_index.sqlite` (Optionen: `--refresh-existing`, `--only-refresh`).
 3. **Dokumentenverarbeitung ausbauen**
    - Parser für Vorlagen und Beschlüsse entwickeln (HTML, PDF, ggf. weitere Formate).
    - Normalisierte Datenstruktur mit Metadaten entwerfen und implementieren.
+   - 🚧 HTML-Parser für weitere Dokumenttypen und Beschlüsse ergänzen.
+   - 🚧 PDF-Extraktion/Normalisierung definieren (z. B. Textextraktion, Seitenstruktur).
+   - 🚧 Metadaten-Mapping für spätere Suche/Filterung konkretisieren.
 4. **Analysemodul entwickeln**
    - Kriterien für Zusammenfassungen, Tonalität und Bewertung festlegen.
    - KI- oder regelbasierte Analyse integrieren; Schnittstellen so gestalten, dass verschiedene Modelle getestet werden können.
