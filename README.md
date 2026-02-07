@@ -111,5 +111,10 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 7. **Evaluation & Erweiterung**
    - Feedback von Pilotnutzer:innen einholen und Verbesserungen priorisieren.
    - Erweiterungen für zusätzliche Kommunen, Visualisierungen oder Schnittstellen planen.
+8. **Wartung, Tests & Up-to-date-Prüfung**
+   - Regelmäßig automatisierte Tests ausführen und erweitern (Parser, Index, GUI-nahe Kernflüsse).
+   - Python-Abhängigkeiten sowie Build-/Dev-Tools auf aktuelle, kompatible Versionen prüfen und aktualisieren.
+   - In festem Rhythmus prüfen, ob sich SessionNet/Ratsinformationssystem (HTML-Struktur, Parameter, Endpunkte, Dokumenttypen) geändert hat.
+   - Bei Änderungen am Ratsinformationssystem Parser und Mapping zeitnah anpassen und durch Fixtures/Regressionstests absichern.
 
 Diese Taskliste kann iterativ abgearbeitet werden. Ergebnisse und Learnings jedes Schritts sollten dokumentiert werden, um spätere Anpassungen zu erleichtern und Transparenz gegenüber allen Stakeholdern zu gewährleisten.
