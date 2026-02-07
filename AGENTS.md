@@ -41,6 +41,10 @@
 - Keine Secrets, API-Keys oder grosse Download-Daten einchecken; stattdessen `*.template`-Beispiele.
 - Rohdaten bleiben unveraendert unter `data/raw/`, abgeleitete Daten unter `data/processed/`.
 - Aktualisiere `docs/`, wenn sich Datenformate oder Crawl-Verhalten aendern.
+- Zeilenenden werden ueber `.gitattributes` und `.editorconfig` vereinheitlicht:
+  - Quell- und Konfigurationsdateien (u. a. `*.py`, `*.json`, `*.yml`) werden im Repository mit `LF` gefuehrt.
+  - Windows-Skripte (`*.bat`, `*.cmd`, `*.ps1`) werden mit `CRLF` gefuehrt.
+  - Keine manuellen Massenumstellungen von Zeilenenden ohne expliziten Anlass.
 
 ## Voraussetzungen
 

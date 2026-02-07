@@ -19,6 +19,12 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 - **(Optional) Tkinter** für eine spätere UI; unter WSL via `sudo apt-get install python3-tk`.
 - **Projektstruktur** siehe `docs/repository_guidelines.md`.
 
+## Zeilenenden (Windows/Linux)
+
+- Das Repository nutzt fuer Quell- und Konfigurationsdateien konsistent `LF` (verwaltet ueber `.gitattributes` und `.editorconfig`).
+- Windows-native Skripte (`*.bat`, `*.cmd`, `*.ps1`) bleiben `CRLF`.
+- Dadurch funktioniert die Zusammenarbeit zwischen Windows- und Linux-Umgebungen ohne unnötige Diff-Rauschen.
+
 ## Kernfunktionen (geplant)
 
 1. **Datengewinnung aus dem Ratsinformationssystem**
