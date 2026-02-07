@@ -84,10 +84,20 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 
 3. **Dokumentenverarbeitung ausbauen**
    - Parser für Vorlagen und Beschlüsse entwickeln (HTML, PDF, ggf. weitere Formate).
+     - Relevante Inhalte je Dokumenttyp extrahieren (Beschlusstext, Begründung, Finanzbezug, Zuständigkeit).
+     - Parser-Ausgaben mit Fixtures pro Dokumenttyp absichern (`tests/fixtures/` + Edge-Cases).
    - Normalisierte Datenstruktur mit Metadaten entwerfen und implementieren.
+     - Einheitliches Schema für Filterfelder definieren (`session_id`, `date`, `committee`, `status`, `document_type`, `top_number`).
+     - Felder für Analyse-Übergabe standardisieren (Quell-URL, lokaler Pfad, Hash, Extraktionszeitpunkt, Parsing-Qualität).
    - 🚧 HTML-Parser für weitere Dokumenttypen und Beschlüsse ergänzen.
+     - Priorität auf häufige und politisch relevante Typen setzen (Vorlage, Beschlussvorlage, Niederschrift-Auszug).
+     - Fallback-Regeln für variierende SessionNet-Layouts ergänzen und dokumentieren.
    - 🚧 PDF-Extraktion/Normalisierung definieren (z. B. Textextraktion, Seitenstruktur).
+     - Entscheidung für Extraktionspipeline treffen (reiner Text vs. strukturierte Blöcke pro Seite/Abschnitt).
+     - Qualitätskriterien und Fehlerkennzeichnung festlegen (z. B. OCR nötig, unlesbar, unvollständig).
    - 🚧 Metadaten-Mapping für spätere Suche/Filterung konkretisieren.
+     - Filterlogik für UI vorbereiten: Zeitraum-Presets, vergangen/kommend, Gremium, Sitzungsstatus.
+     - Exportformat für Analyse-Batches definieren, damit ausgewählte Sitzungen reproduzierbar weitergegeben werden können.
 4. **Analysemodul entwickeln**
    - Kriterien für Zusammenfassungen, Tonalität und Bewertung festlegen.
    - KI- oder regelbasierte Analyse integrieren; Schnittstellen so gestalten, dass verschiedene Modelle getestet werden können.
