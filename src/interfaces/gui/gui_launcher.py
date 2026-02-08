@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import os
 import sqlite3
 import subprocess
 import sys
@@ -18,6 +20,7 @@ from CTkMenuBar import CTkMenuBar, CustomDropdownMenu
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DATA_ROOT_DEFAULT = REPO_ROOT / "data" / "raw"
+SETTINGS_PATH = REPO_ROOT / "configs" / "gui_settings.json"
 
 B_R_BLUE = "#3B82F6"
 HOVER_BLUE = "#2563EB"
@@ -46,16 +49,37 @@ class GuiLauncher:
         self.right_content = None
         self.status_label = None
         self.run_button = None
+        self.cancel_button = None
+        self.run_preset_button = None
+        self.validation_label = None
+        self.export_frame = None
 
         self.selected_action = ctk.StringVar(
             value="Download sessions (raw, script)"
         )
+        self.selected_preset = ctk.StringVar(value="Fetch + Build Local + Export")
         self.year_value = ctk.StringVar(value=str(datetime.now().year))
         self.months_value = ctk.StringVar(value="")
         self.verbose_mode = ctk.BooleanVar(value=False)
+        self.export_db_path = ctk.StringVar(
+            value="data/processed/local_index.sqlite"
+        )
+        self.export_output_path = ctk.StringVar(
+            value="data/processed/analysis_batch.json"
+        )
+        self.export_committees = ctk.StringVar(value="")
+        self.export_date_from = ctk.StringVar(value="")
+        self.export_date_to = ctk.StringVar(value="")
+        self.export_document_types = ctk.StringVar(value="")
+        self.export_require_local_path = ctk.BooleanVar(value=False)
+        self.export_include_text_extraction = ctk.BooleanVar(value=False)
+        self.export_max_text_chars = ctk.StringVar(value="12000")
 
         self.spinner_running = False
         self.spinner_index = 0
+        self.current_process: subprocess.Popen | None = None
+        self.cancel_requested = False
+        self.worker_running = False
 
         self.actions = {
             "Download sessions (raw, script)": ActionConfig(
@@ -94,9 +118,28 @@ class GuiLauncher:
                 renderer=self._render_structure,
             ),
         }
+        self.presets = {
+            "Fetch + Build Local + Export": [
+                "Download sessions (raw, script)",
+                "Build local SQLite index (script)",
+                "Export analysis batch (script)",
+            ],
+            "Build Local + Export": [
+                "Build local SQLite index (script)",
+                "Export analysis batch (script)",
+            ],
+            "Build Online Index": [
+                "Build online SQLite index (script)",
+            ],
+        }
 
+        self._load_settings()
         self._build_ui()
         self._update_menubar_theme()
+        self._bind_validation()
+        self._update_dynamic_controls()
+        self._update_run_state()
+        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _build_ui(self) -> None:
         self._build_header()
@@ -138,6 +181,7 @@ class GuiLauncher:
             font=FIELD_FONT,
         )
         action_box.grid(row=1, column=0, sticky="w", pady=(0, 8))
+        action_box.configure(command=lambda _value: self._on_action_changed())
 
         params_frame = ctk.CTkFrame(frame, fg_color="transparent")
         params_frame.grid(row=1, column=1, sticky="w", padx=(20, 0))
@@ -169,6 +213,119 @@ class GuiLauncher:
             height=36,
         )
         self.run_button.grid(row=1, column=3, sticky="w", padx=(20, 0))
+
+        self.cancel_button = ctk.CTkButton(
+            frame,
+            text="Cancel",
+            command=self._cancel_running_action,
+            fg_color="#B91C1C",
+            hover_color="#991B1B",
+            font=BUTTON_FONT,
+            height=36,
+            state="disabled",
+        )
+        self.cancel_button.grid(row=1, column=4, sticky="w", padx=(10, 0))
+
+        preset_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        preset_frame.grid(row=2, column=0, columnspan=5, sticky="w", pady=(8, 0))
+        ctk.CTkLabel(preset_frame, text="Preset:", font=FIELD_FONT).pack(
+            side="left", padx=(0, 6)
+        )
+        preset_box = ctk.CTkComboBox(
+            preset_frame,
+            variable=self.selected_preset,
+            values=list(self.presets.keys()),
+            width=300,
+            font=FIELD_FONT,
+        )
+        preset_box.pack(side="left", padx=(0, 10))
+        self.run_preset_button = ctk.CTkButton(
+            preset_frame,
+            text="Run Preset",
+            command=self._run_selected_preset,
+            fg_color="#0F766E",
+            hover_color="#115E59",
+            font=BUTTON_FONT,
+            height=34,
+        )
+        self.run_preset_button.pack(side="left")
+
+        self.export_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        self.export_frame.grid(row=3, column=0, columnspan=5, sticky="ew", pady=(10, 0))
+        self.export_frame.grid_columnconfigure(1, weight=1)
+        self.export_frame.grid_columnconfigure(3, weight=1)
+
+        ctk.CTkLabel(self.export_frame, text="DB Path:", font=FIELD_FONT).grid(
+            row=0, column=0, sticky="w", padx=(0, 6), pady=(0, 6)
+        )
+        ctk.CTkEntry(
+            self.export_frame, textvariable=self.export_db_path, font=FIELD_FONT
+        ).grid(row=0, column=1, sticky="ew", padx=(0, 16), pady=(0, 6))
+
+        ctk.CTkLabel(self.export_frame, text="Output:", font=FIELD_FONT).grid(
+            row=0, column=2, sticky="w", padx=(0, 6), pady=(0, 6)
+        )
+        ctk.CTkEntry(
+            self.export_frame, textvariable=self.export_output_path, font=FIELD_FONT
+        ).grid(row=0, column=3, sticky="ew", pady=(0, 6))
+
+        ctk.CTkLabel(
+            self.export_frame, text="Committees (comma):", font=FIELD_FONT
+        ).grid(row=1, column=0, sticky="w", padx=(0, 6), pady=(0, 6))
+        ctk.CTkEntry(
+            self.export_frame, textvariable=self.export_committees, font=FIELD_FONT
+        ).grid(row=1, column=1, sticky="ew", padx=(0, 16), pady=(0, 6))
+
+        ctk.CTkLabel(
+            self.export_frame, text="Document types (comma):", font=FIELD_FONT
+        ).grid(row=1, column=2, sticky="w", padx=(0, 6), pady=(0, 6))
+        ctk.CTkEntry(
+            self.export_frame, textvariable=self.export_document_types, font=FIELD_FONT
+        ).grid(row=1, column=3, sticky="ew", pady=(0, 6))
+
+        ctk.CTkLabel(self.export_frame, text="Date from:", font=FIELD_FONT).grid(
+            row=2, column=0, sticky="w", padx=(0, 6), pady=(0, 6)
+        )
+        ctk.CTkEntry(
+            self.export_frame, textvariable=self.export_date_from, font=FIELD_FONT
+        ).grid(row=2, column=1, sticky="ew", padx=(0, 16), pady=(0, 6))
+
+        ctk.CTkLabel(self.export_frame, text="Date to:", font=FIELD_FONT).grid(
+            row=2, column=2, sticky="w", padx=(0, 6), pady=(0, 6)
+        )
+        ctk.CTkEntry(
+            self.export_frame, textvariable=self.export_date_to, font=FIELD_FONT
+        ).grid(row=2, column=3, sticky="ew", pady=(0, 6))
+
+        ctk.CTkCheckBox(
+            self.export_frame,
+            text="Require local path",
+            variable=self.export_require_local_path,
+            font=FIELD_FONT,
+        ).grid(row=3, column=0, sticky="w", pady=(0, 2))
+        ctk.CTkCheckBox(
+            self.export_frame,
+            text="Include text extraction",
+            variable=self.export_include_text_extraction,
+            font=FIELD_FONT,
+        ).grid(row=3, column=1, sticky="w", pady=(0, 2))
+        ctk.CTkLabel(
+            self.export_frame, text="Max text chars:", font=FIELD_FONT
+        ).grid(row=3, column=2, sticky="w", padx=(0, 6), pady=(0, 2))
+        ctk.CTkEntry(
+            self.export_frame, textvariable=self.export_max_text_chars, width=160
+        ).grid(row=3, column=3, sticky="w", pady=(0, 2))
+
+        self.validation_label = ctk.CTkLabel(
+            frame,
+            text="",
+            font=FIELD_FONT,
+            text_color="#DC2626",
+            anchor="w",
+        )
+        self.validation_label.grid(
+            row=4, column=0, columnspan=5, sticky="ew", pady=(8, 0)
+        )
 
     def _build_status(self) -> None:
         self.status_label = ctk.CTkLabel(
@@ -230,6 +387,16 @@ class GuiLauncher:
             height=34,
         ).pack(side="right")
 
+        ctk.CTkButton(
+            frame,
+            text="Open Output Folder",
+            command=self._open_output_folder,
+            fg_color="#1D4ED8",
+            hover_color="#1E40AF",
+            font=BUTTON_FONT,
+            height=34,
+        ).pack(side="right", padx=(0, 10))
+
     def _set_theme(self, mode: str) -> None:
         ctk.set_appearance_mode(mode)
         self._update_menubar_theme()
@@ -256,12 +423,133 @@ class GuiLauncher:
         self.log_text.delete("1.0", "end")
         self.log_text.configure(state="disabled")
 
+    def _on_close(self) -> None:
+        self._save_settings()
+        self.root.destroy()
+
+    def _bind_validation(self) -> None:
+        self.selected_action.trace_add("write", lambda *_: self._on_action_changed())
+        self.selected_preset.trace_add("write", lambda *_: self._update_run_state())
+        for var in (
+            self.year_value,
+            self.months_value,
+            self.export_db_path,
+            self.export_output_path,
+            self.export_committees,
+            self.export_date_from,
+            self.export_date_to,
+            self.export_document_types,
+            self.export_max_text_chars,
+        ):
+            var.trace_add("write", lambda *_: self._update_run_state())
+        for var in (
+            self.verbose_mode,
+            self.export_require_local_path,
+            self.export_include_text_extraction,
+        ):
+            var.trace_add("write", lambda *_: self._update_run_state())
+
+    def _on_action_changed(self) -> None:
+        self._update_dynamic_controls()
+        self._update_run_state()
+
+    def _update_dynamic_controls(self) -> None:
+        if not self.export_frame:
+            return
+        is_export = self.selected_action.get() == "Export analysis batch (script)"
+        if is_export:
+            self.export_frame.grid()
+        else:
+            self.export_frame.grid_remove()
+
+    def _update_run_state(self) -> None:
+        if self.worker_running or self.current_process is not None:
+            if self.run_button:
+                self.run_button.configure(state="disabled")
+            if self.run_preset_button:
+                self.run_preset_button.configure(state="disabled")
+            if self.cancel_button:
+                self.cancel_button.configure(state="normal")
+            return
+
+        is_valid, message = self._validate_selected_action()
+        if self.validation_label:
+            self.validation_label.configure(text=message if not is_valid else "")
+        if self.run_button:
+            self.run_button.configure(state="normal" if is_valid else "disabled")
+        if self.run_preset_button:
+            self.run_preset_button.configure(state="normal")
+        if self.cancel_button:
+            self.cancel_button.configure(state="disabled")
+
+    def _validate_selected_action(self) -> tuple[bool, str]:
+        return self._validate_action_name(self.selected_action.get())
+
+    def _validate_action_name(self, action_name: str) -> tuple[bool, str]:
+        if action_name in {
+            "Download sessions (raw, script)",
+            "Build online SQLite index (script)",
+        }:
+            year = self.year_value.get().strip()
+            if not (year.isdigit() and len(year) == 4):
+                return False, "Year must be a 4-digit number."
+            months_valid, month_error = self._validate_months(self.months_value.get())
+            if not months_valid:
+                return False, month_error
+
+        if action_name == "Export analysis batch (script)":
+            db_path = self.export_db_path.get().strip()
+            output_path = self.export_output_path.get().strip()
+            if not db_path:
+                return False, "DB path is required."
+            if not output_path:
+                return False, "Output path is required."
+            valid_from, err_from = self._validate_iso_date(self.export_date_from.get().strip())
+            if not valid_from:
+                return False, f"Date from: {err_from}"
+            valid_to, err_to = self._validate_iso_date(self.export_date_to.get().strip())
+            if not valid_to:
+                return False, f"Date to: {err_to}"
+            max_chars = self.export_max_text_chars.get().strip()
+            if max_chars and not (max_chars.isdigit() and int(max_chars) >= 1):
+                return False, "Max text chars must be an integer >= 1."
+
+        return True, ""
+
+    def _validate_months(self, value: str) -> tuple[bool, str]:
+        if not value.strip():
+            return True, ""
+        for token in value.split():
+            if not token.isdigit():
+                return False, "Months must contain numbers separated by spaces."
+            month = int(token)
+            if month < 1 or month > 12:
+                return False, "Months must be between 1 and 12."
+        return True, ""
+
+    def _validate_iso_date(self, value: str) -> tuple[bool, str]:
+        if not value:
+            return True, ""
+        try:
+            datetime.strptime(value, "%Y-%m-%d")
+            return True, ""
+        except ValueError:
+            return False, "expected format YYYY-MM-DD"
+
     def _run_action(self) -> None:
+        valid, message = self._validate_selected_action()
+        if not valid:
+            self._append_log(f"[ERROR] {message}")
+            self._update_run_state()
+            return
         action = self.actions.get(self.selected_action.get())
         if not action:
             return
+        self.cancel_requested = False
+        self.worker_running = True
         self._start_spinner()
         self._set_status("Running...")
+        self._update_run_state()
         thread = threading.Thread(target=self._run_worker, args=(action,), daemon=True)
         thread.start()
 
@@ -274,7 +562,220 @@ class GuiLauncher:
             self._append_log(f"[ERROR] {exc}")
             self._set_status("Failed")
         finally:
+            self.current_process = None
+            self.worker_running = False
             self._stop_spinner()
+            self.root.after(0, self._update_run_state)
+
+    def _run_script_command(self, cmd: list[str]) -> dict:
+        self._append_log(f"[INFO] Running: {' '.join(cmd)}")
+        process = subprocess.Popen(
+            cmd,
+            cwd=str(REPO_ROOT),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        self.current_process = process
+        self.root.after(0, self._update_run_state)
+
+        assert process.stdout is not None
+        last_line = ""
+        line_count = 0
+        for line in process.stdout:
+            if self.cancel_requested and process.poll() is None:
+                process.terminate()
+            stripped = line.rstrip()
+            if stripped:
+                last_line = stripped
+            self._append_log(stripped)
+            line_count += 1
+        process.wait()
+
+        cancelled = self.cancel_requested and process.returncode not in (0, None)
+        if cancelled:
+            self._append_log("[WARNING] Process cancelled by user.")
+        elif process.returncode != 0:
+            self._append_log(f"[ERROR] Script exited with {process.returncode}")
+
+        return {
+            "status": "cancelled" if cancelled else ("ok" if process.returncode == 0 else "error"),
+            "command": " ".join(cmd),
+            "exit_code": process.returncode,
+            "lines": line_count,
+            "summary": last_line,
+            "cancelled": cancelled,
+        }
+
+    def _cancel_running_action(self) -> None:
+        self.cancel_requested = True
+        process = self.current_process
+        if process is not None and process.poll() is None:
+            self._append_log("[WARNING] Cancellation requested...")
+            try:
+                process.terminate()
+            except OSError as exc:
+                self._append_log(f"[ERROR] Could not terminate process: {exc}")
+
+    def _run_selected_preset(self) -> None:
+        preset_name = self.selected_preset.get()
+        action_names = self.presets.get(preset_name, [])
+        if not action_names:
+            self._append_log("[ERROR] Selected preset has no actions.")
+            return
+
+        for action_name in action_names:
+            valid, message = self._validate_action_name(action_name)
+            if not valid:
+                self._append_log(f"[ERROR] Preset blocked at '{action_name}': {message}")
+                self._update_run_state()
+                return
+
+        self.cancel_requested = False
+        self.worker_running = True
+        self._start_spinner()
+        self._set_status("Running preset...")
+        self._update_run_state()
+        self._render_preset_progress(
+            preset_name,
+            [{"name": name, "status": "pending"} for name in action_names],
+        )
+        thread = threading.Thread(
+            target=self._run_preset_worker,
+            args=(preset_name, action_names),
+            daemon=True,
+        )
+        thread.start()
+
+    def _run_preset_worker(self, preset_name: str, action_names: list[str]) -> None:
+        progress = [{"name": name, "status": "pending"} for name in action_names]
+        for index, action_name in enumerate(action_names):
+            if self.cancel_requested:
+                progress[index]["status"] = "cancelled"
+                break
+
+            action = self.actions.get(action_name)
+            if not action:
+                progress[index]["status"] = "error"
+                self._append_log(f"[ERROR] Preset action not found: {action_name}")
+                break
+
+            progress[index]["status"] = "running"
+            self.root.after(0, lambda p=progress: self._render_preset_progress(preset_name, p))
+            result = action.handler()
+            status = result.get("status")
+            if status == "ok":
+                progress[index]["status"] = "done"
+            elif status == "cancelled":
+                progress[index]["status"] = "cancelled"
+                break
+            else:
+                progress[index]["status"] = "error"
+                break
+            self.root.after(0, lambda p=progress: self._render_preset_progress(preset_name, p))
+
+        self.current_process = None
+        self.worker_running = False
+        self._stop_spinner()
+        if self.cancel_requested:
+            self._set_status("Preset cancelled")
+        elif any(entry["status"] == "error" for entry in progress):
+            self._set_status("Preset failed")
+        else:
+            self._set_status("Preset done")
+        self.root.after(0, lambda p=progress: self._render_preset_progress(preset_name, p))
+        self.root.after(0, self._update_run_state)
+
+    def _open_output_folder(self) -> None:
+        output_raw = self.export_output_path.get().strip() or "data/processed/analysis_batch.json"
+        output_path = Path(output_raw)
+        if not output_path.is_absolute():
+            output_path = (REPO_ROOT / output_path).resolve()
+        folder = output_path.parent
+        folder.mkdir(parents=True, exist_ok=True)
+
+        try:
+            if sys.platform.startswith("win"):
+                os.startfile(str(folder))
+            elif sys.platform == "darwin":
+                subprocess.Popen(["open", str(folder)], cwd=str(REPO_ROOT))
+            else:
+                subprocess.Popen(["xdg-open", str(folder)], cwd=str(REPO_ROOT))
+            self._append_log(f"[INFO] Opened folder: {folder}")
+        except Exception as exc:  # pragma: no cover - depends on desktop session
+            self._append_log(f"[ERROR] Could not open folder: {exc}")
+
+    def _load_settings(self) -> None:
+        if not SETTINGS_PATH.exists():
+            return
+        try:
+            payload = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return
+        if not isinstance(payload, dict):
+            return
+
+        self.selected_action.set(str(payload.get("selected_action", self.selected_action.get())))
+        self.selected_preset.set(str(payload.get("selected_preset", self.selected_preset.get())))
+        self.year_value.set(str(payload.get("year_value", self.year_value.get())))
+        self.months_value.set(str(payload.get("months_value", self.months_value.get())))
+        self.verbose_mode.set(bool(payload.get("verbose_mode", self.verbose_mode.get())))
+        self.export_db_path.set(str(payload.get("export_db_path", self.export_db_path.get())))
+        self.export_output_path.set(
+            str(payload.get("export_output_path", self.export_output_path.get()))
+        )
+        self.export_committees.set(
+            str(payload.get("export_committees", self.export_committees.get()))
+        )
+        self.export_date_from.set(
+            str(payload.get("export_date_from", self.export_date_from.get()))
+        )
+        self.export_date_to.set(str(payload.get("export_date_to", self.export_date_to.get())))
+        self.export_document_types.set(
+            str(payload.get("export_document_types", self.export_document_types.get()))
+        )
+        self.export_require_local_path.set(
+            bool(payload.get("export_require_local_path", self.export_require_local_path.get()))
+        )
+        self.export_include_text_extraction.set(
+            bool(
+                payload.get(
+                    "export_include_text_extraction",
+                    self.export_include_text_extraction.get(),
+                )
+            )
+        )
+        self.export_max_text_chars.set(
+            str(payload.get("export_max_text_chars", self.export_max_text_chars.get()))
+        )
+
+    def _save_settings(self) -> None:
+        payload = {
+            "selected_action": self.selected_action.get(),
+            "selected_preset": self.selected_preset.get(),
+            "year_value": self.year_value.get(),
+            "months_value": self.months_value.get(),
+            "verbose_mode": bool(self.verbose_mode.get()),
+            "export_db_path": self.export_db_path.get(),
+            "export_output_path": self.export_output_path.get(),
+            "export_committees": self.export_committees.get(),
+            "export_date_from": self.export_date_from.get(),
+            "export_date_to": self.export_date_to.get(),
+            "export_document_types": self.export_document_types.get(),
+            "export_require_local_path": bool(self.export_require_local_path.get()),
+            "export_include_text_extraction": bool(
+                self.export_include_text_extraction.get()
+            ),
+            "export_max_text_chars": self.export_max_text_chars.get(),
+        }
+        try:
+            SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
+            SETTINGS_PATH.write_text(
+                json.dumps(payload, indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+        except OSError as exc:
+            self._append_log(f"[ERROR] Could not save settings: {exc}")
 
     def _run_fetch_sessions(self) -> dict:
         script_path = REPO_ROOT / "scripts" / "fetch_sessions.py"
@@ -294,30 +795,7 @@ class GuiLauncher:
             cmd.extend(["--months", *months])
         if self.verbose_mode.get():
             cmd.extend(["--log-level", "DEBUG"])
-
-        self._append_log(f"[INFO] Running: {' '.join(cmd)}")
-
-        process = subprocess.Popen(
-            cmd,
-            cwd=str(REPO_ROOT),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-        )
-        assert process.stdout is not None
-        line_count = 0
-        for line in process.stdout:
-            self._append_log(line.rstrip())
-            line_count += 1
-        process.wait()
-        if process.returncode != 0:
-            self._append_log(f"[ERROR] Script exited with {process.returncode}")
-        return {
-            "status": "ok" if process.returncode == 0 else "error",
-            "command": " ".join(cmd),
-            "exit_code": process.returncode,
-            "lines": line_count,
-        }
+        return self._run_script_command(cmd)
 
     def _run_build_index(self) -> dict:
         script_path = REPO_ROOT / "scripts" / "build_local_index.py"
@@ -326,34 +804,7 @@ class GuiLauncher:
             return {"status": "error", "message": "Script not found"}
 
         cmd = [sys.executable, str(script_path)]
-        self._append_log(f"[INFO] Running: {' '.join(cmd)}")
-
-        process = subprocess.Popen(
-            cmd,
-            cwd=str(REPO_ROOT),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-        )
-        assert process.stdout is not None
-        last_line = ""
-        line_count = 0
-        for line in process.stdout:
-            stripped = line.rstrip()
-            if stripped:
-                last_line = stripped
-            self._append_log(stripped)
-            line_count += 1
-        process.wait()
-        if process.returncode != 0:
-            self._append_log(f"[ERROR] Script exited with {process.returncode}")
-        return {
-            "status": "ok" if process.returncode == 0 else "error",
-            "command": " ".join(cmd),
-            "exit_code": process.returncode,
-            "lines": line_count,
-            "summary": last_line,
-        }
+        return self._run_script_command(cmd)
 
     def _run_build_online_index(self) -> dict:
         script_path = REPO_ROOT / "scripts" / "build_online_index_db.py"
@@ -373,35 +824,7 @@ class GuiLauncher:
             cmd.extend(["--months", *months])
         if self.verbose_mode.get():
             cmd.extend(["--log-level", "DEBUG"])
-
-        self._append_log(f"[INFO] Running: {' '.join(cmd)}")
-
-        process = subprocess.Popen(
-            cmd,
-            cwd=str(REPO_ROOT),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-        )
-        assert process.stdout is not None
-        last_line = ""
-        line_count = 0
-        for line in process.stdout:
-            stripped = line.rstrip()
-            if stripped:
-                last_line = stripped
-            self._append_log(stripped)
-            line_count += 1
-        process.wait()
-        if process.returncode != 0:
-            self._append_log(f"[ERROR] Script exited with {process.returncode}")
-        return {
-            "status": "ok" if process.returncode == 0 else "error",
-            "command": " ".join(cmd),
-            "exit_code": process.returncode,
-            "lines": line_count,
-            "summary": last_line,
-        }
+        return self._run_script_command(cmd)
 
     def _run_data_inventory(self) -> dict:
         root = DATA_ROOT_DEFAULT
@@ -438,45 +861,79 @@ class GuiLauncher:
             self._append_log("[ERROR] scripts/export_analysis_batch.py not found")
             return {"status": "error", "message": "Script not found"}
 
-        db_path = REPO_ROOT / "data" / "processed" / "local_index.sqlite"
-        output_path = REPO_ROOT / "data" / "processed" / "analysis_batch.json"
+        db_path = self.export_db_path.get().strip()
+        output_path = self.export_output_path.get().strip()
+        date_from = self.export_date_from.get().strip()
+        date_to = self.export_date_to.get().strip()
+        committees = [entry.strip() for entry in self.export_committees.get().split(",") if entry.strip()]
+        doc_types = [entry.strip() for entry in self.export_document_types.get().split(",") if entry.strip()]
+        max_chars = self.export_max_text_chars.get().strip() or "12000"
+
         cmd = [
             sys.executable,
             str(script_path),
             "--db-path",
-            str(db_path),
+            db_path,
             "--output",
-            str(output_path),
+            output_path,
         ]
-        self._append_log(f"[INFO] Running: {' '.join(cmd)}")
+        for committee in committees:
+            cmd.extend(["--committee", committee])
+        for doc_type in doc_types:
+            cmd.extend(["--document-type", doc_type])
+        if date_from:
+            cmd.extend(["--date-from", date_from])
+        if date_to:
+            cmd.extend(["--date-to", date_to])
+        if self.export_require_local_path.get():
+            cmd.append("--require-local-path")
+        if self.export_include_text_extraction.get():
+            cmd.append("--include-text-extraction")
+            cmd.extend(["--max-text-chars", max_chars])
 
-        process = subprocess.Popen(
-            cmd,
-            cwd=str(REPO_ROOT),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
+        result = self._run_script_command(cmd)
+        output_resolved = (
+            (REPO_ROOT / output_path).resolve()
+            if not Path(output_path).is_absolute()
+            else Path(output_path)
         )
-        assert process.stdout is not None
-        last_line = ""
-        line_count = 0
-        for line in process.stdout:
-            stripped = line.rstrip()
-            if stripped:
-                last_line = stripped
-            self._append_log(stripped)
-            line_count += 1
-        process.wait()
-        if process.returncode != 0:
-            self._append_log(f"[ERROR] Script exited with {process.returncode}")
-        return {
-            "status": "ok" if process.returncode == 0 else "error",
-            "command": " ".join(cmd),
-            "exit_code": process.returncode,
-            "lines": line_count,
-            "summary": last_line,
-            "output": str(output_path),
-        }
+        result["output"] = str(output_resolved)
+        result["filter_summary"] = self._collect_export_filter_summary()
+        result["document_count"] = self._count_export_documents(output_resolved)
+        return result
+
+    def _collect_export_filter_summary(self) -> str:
+        parts: list[str] = []
+        committees = [entry.strip() for entry in self.export_committees.get().split(",") if entry.strip()]
+        doc_types = [entry.strip() for entry in self.export_document_types.get().split(",") if entry.strip()]
+        if committees:
+            parts.append(f"committee={','.join(committees)}")
+        if doc_types:
+            parts.append(f"type={','.join(doc_types)}")
+        if self.export_date_from.get().strip():
+            parts.append(f"from={self.export_date_from.get().strip()}")
+        if self.export_date_to.get().strip():
+            parts.append(f"to={self.export_date_to.get().strip()}")
+        if self.export_require_local_path.get():
+            parts.append("require_local_path=true")
+        if self.export_include_text_extraction.get():
+            parts.append(
+                "text_extraction=true,max_text_chars="
+                + (self.export_max_text_chars.get().strip() or "12000")
+            )
+        return "; ".join(parts) if parts else "none"
+
+    def _count_export_documents(self, path: Path) -> int | None:
+        if not path.exists():
+            return None
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        documents = payload.get("documents") if isinstance(payload, dict) else None
+        if not isinstance(documents, list):
+            return None
+        return len(documents)
 
     def _run_list_committees(self) -> dict:
         db_path = REPO_ROOT / "data" / "processed" / "local_index.sqlite"
@@ -716,7 +1173,18 @@ class GuiLauncher:
         self._render_kv("Exit Code", result.get("exit_code", "-"))
         self._render_kv("Output Lines", result.get("lines", "-"))
         self._render_kv("Summary", result.get("summary", "-"))
+        self._render_kv("Document Count", result.get("document_count", "-"))
+        self._render_kv("Filters", result.get("filter_summary", "none"))
         self._render_kv("Output File", result.get("output", "-"))
+
+    def _render_preset_progress(self, preset_name: str, steps: list[dict[str, str]]) -> None:
+        self.right_title.configure(text="Preset Progress")
+        self._clear_right_panel()
+        self._render_kv("Preset", preset_name)
+        for step in steps:
+            name = step.get("name", "-")
+            status = step.get("status", "-")
+            self._render_kv(name, status)
 
     def _render_committees(self, result: dict) -> None:
         self.right_title.configure(text="Committees")
