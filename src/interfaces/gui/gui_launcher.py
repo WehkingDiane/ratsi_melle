@@ -1,4 +1,4 @@
-"""GUI launcher prototype for local data workflows."""
+"""GUI launcher for data workflows and analysis preparation."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import subprocess
 import sys
 import threading
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from tkinter import messagebox
 from typing import Callable
@@ -36,37 +36,36 @@ ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
 
 
+@dataclass(frozen=True)
+class ActionConfig:
+    name: str
+    handler: Callable[[], dict]
+    renderer: Callable[[dict], None] | None = None
+
+
+@dataclass(frozen=True)
+class ViewConfig:
+    key: str
+    label: str
+    builder: Callable[[ctk.CTkFrame], None]
+
+
 class GuiLauncher:
     def __init__(self) -> None:
         self.root = ctk.CTk()
         self.root.title("Ratsinfo Melle - Developer GUI")
-        self.root.geometry("1400x850")
+        self.root.geometry("1500x900")
 
-        self.menubar = None
-        self.log_text = None
-        self.output_frame = None
-        self.right_title = None
-        self.right_content = None
-        self.status_label = None
-        self.run_button = None
-        self.cancel_button = None
-        self.run_preset_button = None
-        self.validation_label = None
-        self.export_frame = None
+        self.menubar: CTkMenuBar | None = None
 
-        self.selected_action = ctk.StringVar(
-            value="Download sessions (raw, script)"
-        )
+        self.selected_action = ctk.StringVar(value="Download sessions (raw, script)")
         self.selected_preset = ctk.StringVar(value="Fetch + Build Local + Export")
         self.year_value = ctk.StringVar(value=str(datetime.now().year))
         self.months_value = ctk.StringVar(value="")
         self.verbose_mode = ctk.BooleanVar(value=False)
-        self.export_db_path = ctk.StringVar(
-            value="data/processed/local_index.sqlite"
-        )
-        self.export_output_path = ctk.StringVar(
-            value="data/processed/analysis_batch.json"
-        )
+
+        self.export_db_path = ctk.StringVar(value="data/processed/local_index.sqlite")
+        self.export_output_path = ctk.StringVar(value="data/processed/analysis_batch.json")
         self.export_committees = ctk.StringVar(value="")
         self.export_date_from = ctk.StringVar(value="")
         self.export_date_to = ctk.StringVar(value="")
@@ -74,6 +73,49 @@ class GuiLauncher:
         self.export_require_local_path = ctk.BooleanVar(value=False)
         self.export_include_text_extraction = ctk.BooleanVar(value=False)
         self.export_max_text_chars = ctk.StringVar(value="12000")
+
+        self.current_view_key = "data_tools"
+        self.sidebar_visible = True
+        self.sidebar_frame: ctk.CTkFrame | None = None
+        self.content_host: ctk.CTkFrame | None = None
+        self.top_title_label: ctk.CTkLabel | None = None
+        self.view_buttons: dict[str, ctk.CTkButton] = {}
+        self.view_frames: dict[str, ctk.CTkFrame] = {}
+        self.view_registry: dict[str, ViewConfig] = {}
+
+        self.log_text: ctk.CTkTextbox | None = None
+        self.output_frame: ctk.CTkFrame | None = None
+        self.right_title: ctk.CTkLabel | None = None
+        self.right_content: ctk.CTkScrollableFrame | None = None
+        self.status_label: ctk.CTkLabel | None = None
+        self.run_button: ctk.CTkButton | None = None
+        self.cancel_button: ctk.CTkButton | None = None
+        self.run_preset_button: ctk.CTkButton | None = None
+        self.validation_label: ctk.CTkLabel | None = None
+        self.export_frame: ctk.CTkFrame | None = None
+
+        self.analysis_session_list_frame: ctk.CTkScrollableFrame | None = None
+        self.analysis_tops_frame: ctk.CTkScrollableFrame | None = None
+        self.analysis_result_text: ctk.CTkTextbox | None = None
+        self.analysis_status_label: ctk.CTkLabel | None = None
+        self.analysis_selected_session_label: ctk.CTkLabel | None = None
+        self.analysis_prompt_box: ctk.CTkTextbox | None = None
+        self.analysis_committee_box: ctk.CTkComboBox | None = None
+
+        self.analysis_date_from = ctk.StringVar(value="")
+        self.analysis_date_to = ctk.StringVar(value="")
+        self.analysis_committee = ctk.StringVar(value="")
+        self.analysis_search = ctk.StringVar(value="")
+        self.analysis_past_only = ctk.BooleanVar(value=True)
+        self.analysis_scope = ctk.StringVar(value="session")
+        self.analysis_prompt_value = (
+            "Erstelle eine journalistische, neutrale Zusammenfassung. "
+            "Nenne Kernthemen, Entscheidungen und offene Punkte."
+        )
+
+        self.analysis_sessions: list[dict] = []
+        self.analysis_top_vars: dict[str, ctk.BooleanVar] = {}
+        self.analysis_current_session: dict | None = None
 
         self.spinner_running = False
         self.spinner_index = 0
@@ -118,6 +160,7 @@ class GuiLauncher:
                 renderer=self._render_structure,
             ),
         }
+
         self.presets = {
             "Fetch + Build Local + Export": [
                 "Download sessions (raw, script)",
@@ -142,20 +185,44 @@ class GuiLauncher:
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _build_ui(self) -> None:
-        self._build_header()
-        self._build_controls()
-        self._build_status()
-        self._build_log()
-        self._build_footer()
+        self._build_menubar()
 
-    def _build_header(self) -> None:
+        topbar = ctk.CTkFrame(self.root, corner_radius=0)
+        topbar.pack(fill="x")
+        ctk.CTkButton(
+            topbar,
+            text="Menu",
+            width=38,
+            command=self._toggle_sidebar,
+            fg_color="#334155",
+            hover_color="#475569",
+            font=BUTTON_FONT,
+        ).pack(side="left", padx=12, pady=10)
+        self.top_title_label = ctk.CTkLabel(topbar, text="", font=LABEL_FONT, anchor="w")
+        self.top_title_label.pack(side="left", padx=(2, 8), pady=10)
+
+        body = ctk.CTkFrame(self.root, fg_color="transparent")
+        body.pack(fill="both", expand=True)
+
+        self.sidebar_frame = ctk.CTkFrame(body, width=260, corner_radius=0)
+        self.sidebar_frame.pack(side="left", fill="y")
+        self.sidebar_frame.pack_propagate(False)
+
+        self.content_host = ctk.CTkFrame(body, fg_color="transparent")
+        self.content_host.pack(side="left", fill="both", expand=True)
+
+        self._register_views()
+        self._build_sidebar()
+        self._switch_view(self.current_view_key)
+
+    def _build_menubar(self) -> None:
         self.menubar = CTkMenuBar(master=self.root)
 
         file_btn = self.menubar.add_cascade("File")
         file_dropdown = CustomDropdownMenu(widget=file_btn)
         file_dropdown.add_option("Clear log", self._clear_log)
         file_dropdown.add_separator()
-        file_dropdown.add_option("Exit", self.root.quit)
+        file_dropdown.add_option("Exit", self._on_close)
 
         theme_btn = self.menubar.add_cascade("Theme")
         theme_dropdown = CustomDropdownMenu(widget=theme_btn)
@@ -165,14 +232,106 @@ class GuiLauncher:
         self.menubar.add_cascade("About", command=self._show_about)
         self.menubar.pack(fill="x")
 
-    def _build_controls(self) -> None:
-        frame = ctk.CTkFrame(self.root, fg_color="transparent")
+    def _register_views(self) -> None:
+        self.view_registry = {
+            "data_tools": ViewConfig(
+                key="data_tools",
+                label="Daten-Tools",
+                builder=self._build_data_tools_view,
+            ),
+            "analysis": ViewConfig(
+                key="analysis",
+                label="Journalistische Analyse",
+                builder=self._build_analysis_view,
+            ),
+            "settings": ViewConfig(
+                key="settings",
+                label="Settings",
+                builder=self._build_settings_view,
+            ),
+            "service": ViewConfig(
+                key="service",
+                label="Service",
+                builder=self._build_service_view,
+            ),
+        }
+        if self.current_view_key not in self.view_registry:
+            self.current_view_key = "data_tools"
+
+    def _build_sidebar(self) -> None:
+        if not self.sidebar_frame:
+            return
+        for child in self.sidebar_frame.winfo_children():
+            child.destroy()
+
+        ctk.CTkLabel(self.sidebar_frame, text="Views", font=LABEL_FONT).pack(
+            anchor="w", padx=14, pady=(14, 10)
+        )
+
+        self.view_buttons.clear()
+        for key, view in self.view_registry.items():
+            btn = ctk.CTkButton(
+                self.sidebar_frame,
+                text=view.label,
+                anchor="w",
+                fg_color="#1F2937",
+                hover_color="#374151",
+                font=FIELD_FONT,
+                command=lambda item=key: self._switch_view(item),
+            )
+            btn.pack(fill="x", padx=10, pady=4)
+            self.view_buttons[key] = btn
+
+    def _switch_view(self, view_key: str) -> None:
+        if view_key not in self.view_registry or not self.content_host:
+            return
+
+        if view_key not in self.view_frames:
+            frame = ctk.CTkFrame(self.content_host, fg_color="transparent")
+            self.view_frames[view_key] = frame
+            self.view_registry[view_key].builder(frame)
+
+        for key, frame in self.view_frames.items():
+            if key == view_key:
+                frame.pack(fill="both", expand=True)
+            else:
+                frame.pack_forget()
+
+        self.current_view_key = view_key
+        if self.top_title_label:
+            self.top_title_label.configure(text=self.view_registry[view_key].label)
+
+        for key, btn in self.view_buttons.items():
+            if key == view_key:
+                btn.configure(fg_color="#0F766E", hover_color="#115E59")
+            else:
+                btn.configure(fg_color="#1F2937", hover_color="#374151")
+
+        if view_key == "analysis":
+            self._refresh_analysis_committee_options()
+            self._refresh_analysis_sessions()
+
+    def _toggle_sidebar(self) -> None:
+        if not self.sidebar_frame:
+            return
+        self.sidebar_visible = not self.sidebar_visible
+        if self.sidebar_visible:
+            self.sidebar_frame.pack(side="left", fill="y")
+        else:
+            self.sidebar_frame.pack_forget()
+
+    def _build_data_tools_view(self, parent: ctk.CTkFrame) -> None:
+        self._build_controls(parent)
+        self._build_status(parent)
+        self._build_log(parent)
+        self._build_footer(parent)
+
+    def _build_controls(self, parent: ctk.CTkFrame) -> None:
+        frame = ctk.CTkFrame(parent, fg_color="transparent")
         frame.pack(fill="x", padx=20, pady=12)
         frame.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(frame, text="Action:", font=LABEL_FONT).grid(
-            row=0, column=0, sticky="w"
-        )
+        ctk.CTkLabel(frame, text="Action:", font=LABEL_FONT).grid(row=0, column=0, sticky="w")
         action_box = ctk.CTkComboBox(
             frame,
             variable=self.selected_action,
@@ -199,9 +358,9 @@ class GuiLauncher:
             row=0, column=3, sticky="w"
         )
 
-        ctk.CTkCheckBox(
-            frame, text="Verbose", variable=self.verbose_mode, font=FIELD_FONT
-        ).grid(row=1, column=2, sticky="w", padx=(20, 0))
+        ctk.CTkCheckBox(frame, text="Verbose", variable=self.verbose_mode, font=FIELD_FONT).grid(
+            row=1, column=2, sticky="w", padx=(20, 0)
+        )
 
         self.run_button = ctk.CTkButton(
             frame,
@@ -228,9 +387,7 @@ class GuiLauncher:
 
         preset_frame = ctk.CTkFrame(frame, fg_color="transparent")
         preset_frame.grid(row=2, column=0, columnspan=5, sticky="w", pady=(8, 0))
-        ctk.CTkLabel(preset_frame, text="Preset:", font=FIELD_FONT).pack(
-            side="left", padx=(0, 6)
-        )
+        ctk.CTkLabel(preset_frame, text="Preset:", font=FIELD_FONT).pack(side="left", padx=(0, 6))
         preset_box = ctk.CTkComboBox(
             preset_frame,
             variable=self.selected_preset,
@@ -239,6 +396,7 @@ class GuiLauncher:
             font=FIELD_FONT,
         )
         preset_box.pack(side="left", padx=(0, 10))
+
         self.run_preset_button = ctk.CTkButton(
             preset_frame,
             text="Run Preset",
@@ -258,44 +416,44 @@ class GuiLauncher:
         ctk.CTkLabel(self.export_frame, text="DB Path:", font=FIELD_FONT).grid(
             row=0, column=0, sticky="w", padx=(0, 6), pady=(0, 6)
         )
-        ctk.CTkEntry(
-            self.export_frame, textvariable=self.export_db_path, font=FIELD_FONT
-        ).grid(row=0, column=1, sticky="ew", padx=(0, 16), pady=(0, 6))
+        ctk.CTkEntry(self.export_frame, textvariable=self.export_db_path, font=FIELD_FONT).grid(
+            row=0, column=1, sticky="ew", padx=(0, 16), pady=(0, 6)
+        )
 
         ctk.CTkLabel(self.export_frame, text="Output:", font=FIELD_FONT).grid(
             row=0, column=2, sticky="w", padx=(0, 6), pady=(0, 6)
         )
-        ctk.CTkEntry(
-            self.export_frame, textvariable=self.export_output_path, font=FIELD_FONT
-        ).grid(row=0, column=3, sticky="ew", pady=(0, 6))
+        ctk.CTkEntry(self.export_frame, textvariable=self.export_output_path, font=FIELD_FONT).grid(
+            row=0, column=3, sticky="ew", pady=(0, 6)
+        )
 
-        ctk.CTkLabel(
-            self.export_frame, text="Committees (comma):", font=FIELD_FONT
-        ).grid(row=1, column=0, sticky="w", padx=(0, 6), pady=(0, 6))
-        ctk.CTkEntry(
-            self.export_frame, textvariable=self.export_committees, font=FIELD_FONT
-        ).grid(row=1, column=1, sticky="ew", padx=(0, 16), pady=(0, 6))
+        ctk.CTkLabel(self.export_frame, text="Committees (comma):", font=FIELD_FONT).grid(
+            row=1, column=0, sticky="w", padx=(0, 6), pady=(0, 6)
+        )
+        ctk.CTkEntry(self.export_frame, textvariable=self.export_committees, font=FIELD_FONT).grid(
+            row=1, column=1, sticky="ew", padx=(0, 16), pady=(0, 6)
+        )
 
-        ctk.CTkLabel(
-            self.export_frame, text="Document types (comma):", font=FIELD_FONT
-        ).grid(row=1, column=2, sticky="w", padx=(0, 6), pady=(0, 6))
-        ctk.CTkEntry(
-            self.export_frame, textvariable=self.export_document_types, font=FIELD_FONT
-        ).grid(row=1, column=3, sticky="ew", pady=(0, 6))
+        ctk.CTkLabel(self.export_frame, text="Document types (comma):", font=FIELD_FONT).grid(
+            row=1, column=2, sticky="w", padx=(0, 6), pady=(0, 6)
+        )
+        ctk.CTkEntry(self.export_frame, textvariable=self.export_document_types, font=FIELD_FONT).grid(
+            row=1, column=3, sticky="ew", pady=(0, 6)
+        )
 
         ctk.CTkLabel(self.export_frame, text="Date from:", font=FIELD_FONT).grid(
             row=2, column=0, sticky="w", padx=(0, 6), pady=(0, 6)
         )
-        ctk.CTkEntry(
-            self.export_frame, textvariable=self.export_date_from, font=FIELD_FONT
-        ).grid(row=2, column=1, sticky="ew", padx=(0, 16), pady=(0, 6))
+        ctk.CTkEntry(self.export_frame, textvariable=self.export_date_from, font=FIELD_FONT).grid(
+            row=2, column=1, sticky="ew", padx=(0, 16), pady=(0, 6)
+        )
 
         ctk.CTkLabel(self.export_frame, text="Date to:", font=FIELD_FONT).grid(
             row=2, column=2, sticky="w", padx=(0, 6), pady=(0, 6)
         )
-        ctk.CTkEntry(
-            self.export_frame, textvariable=self.export_date_to, font=FIELD_FONT
-        ).grid(row=2, column=3, sticky="ew", pady=(0, 6))
+        ctk.CTkEntry(self.export_frame, textvariable=self.export_date_to, font=FIELD_FONT).grid(
+            row=2, column=3, sticky="ew", pady=(0, 6)
+        )
 
         ctk.CTkCheckBox(
             self.export_frame,
@@ -309,12 +467,12 @@ class GuiLauncher:
             variable=self.export_include_text_extraction,
             font=FIELD_FONT,
         ).grid(row=3, column=1, sticky="w", pady=(0, 2))
-        ctk.CTkLabel(
-            self.export_frame, text="Max text chars:", font=FIELD_FONT
-        ).grid(row=3, column=2, sticky="w", padx=(0, 6), pady=(0, 2))
-        ctk.CTkEntry(
-            self.export_frame, textvariable=self.export_max_text_chars, width=160
-        ).grid(row=3, column=3, sticky="w", pady=(0, 2))
+        ctk.CTkLabel(self.export_frame, text="Max text chars:", font=FIELD_FONT).grid(
+            row=3, column=2, sticky="w", padx=(0, 6), pady=(0, 2)
+        )
+        ctk.CTkEntry(self.export_frame, textvariable=self.export_max_text_chars, width=160).grid(
+            row=3, column=3, sticky="w", pady=(0, 2)
+        )
 
         self.validation_label = ctk.CTkLabel(
             frame,
@@ -323,18 +481,14 @@ class GuiLauncher:
             text_color="#DC2626",
             anchor="w",
         )
-        self.validation_label.grid(
-            row=4, column=0, columnspan=5, sticky="ew", pady=(8, 0)
-        )
+        self.validation_label.grid(row=4, column=0, columnspan=5, sticky="ew", pady=(8, 0))
 
-    def _build_status(self) -> None:
-        self.status_label = ctk.CTkLabel(
-            self.root, text="Ready", height=24, anchor="w", font=FIELD_FONT
-        )
+    def _build_status(self, parent: ctk.CTkFrame) -> None:
+        self.status_label = ctk.CTkLabel(parent, text="Ready", height=24, anchor="w", font=FIELD_FONT)
         self.status_label.pack(fill="x", padx=20, pady=(0, 6))
 
-    def _build_log(self) -> None:
-        self.output_frame = ctk.CTkFrame(self.root, fg_color="transparent")
+    def _build_log(self, parent: ctk.CTkFrame) -> None:
+        self.output_frame = ctk.CTkFrame(parent, fg_color="transparent")
         self.output_frame.pack(fill="both", expand=True, padx=20, pady=10)
         self.output_frame.grid_columnconfigure(0, weight=3)
         self.output_frame.grid_columnconfigure(1, weight=2)
@@ -364,17 +518,15 @@ class GuiLauncher:
         right_panel.grid_rowconfigure(1, weight=1)
         right_panel.grid_columnconfigure(0, weight=1)
 
-        self.right_title = ctk.CTkLabel(
-            right_panel, text="Details", font=LABEL_FONT, anchor="w"
-        )
+        self.right_title = ctk.CTkLabel(right_panel, text="Details", font=LABEL_FONT, anchor="w")
         self.right_title.grid(row=0, column=0, sticky="ew", padx=12, pady=(12, 6))
 
         self.right_content = ctk.CTkScrollableFrame(right_panel)
         self.right_content.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 12))
         self._render_placeholder()
 
-    def _build_footer(self) -> None:
-        frame = ctk.CTkFrame(self.root, fg_color="transparent")
+    def _build_footer(self, parent: ctk.CTkFrame) -> None:
+        frame = ctk.CTkFrame(parent, fg_color="transparent")
         frame.pack(fill="x", padx=20, pady=(0, 16))
 
         ctk.CTkButton(
@@ -397,13 +549,185 @@ class GuiLauncher:
             height=34,
         ).pack(side="right", padx=(0, 10))
 
+    def _build_analysis_view(self, parent: ctk.CTkFrame) -> None:
+        parent.grid_columnconfigure(0, weight=2)
+        parent.grid_columnconfigure(1, weight=3)
+        parent.grid_rowconfigure(1, weight=1)
+
+        filter_frame = ctk.CTkFrame(parent)
+        filter_frame.grid(row=0, column=0, columnspan=2, sticky="ew", padx=20, pady=(16, 8))
+        filter_frame.grid_columnconfigure(7, weight=1)
+
+        ctk.CTkLabel(filter_frame, text="Von", font=FIELD_FONT).grid(row=0, column=0, padx=(10, 4), pady=8)
+        ctk.CTkEntry(filter_frame, textvariable=self.analysis_date_from, width=120).grid(
+            row=0, column=1, pady=8
+        )
+        ctk.CTkLabel(filter_frame, text="Bis", font=FIELD_FONT).grid(row=0, column=2, padx=(10, 4), pady=8)
+        ctk.CTkEntry(filter_frame, textvariable=self.analysis_date_to, width=120).grid(row=0, column=3, pady=8)
+
+        ctk.CTkLabel(filter_frame, text="Gremium", font=FIELD_FONT).grid(
+            row=0, column=4, padx=(10, 4), pady=8
+        )
+        self.analysis_committee_box = ctk.CTkComboBox(
+            filter_frame, variable=self.analysis_committee, values=[""], width=220
+        )
+        self.analysis_committee_box.grid(row=0, column=5, pady=8)
+        self.analysis_committee_box.configure(command=lambda _value: self._refresh_analysis_sessions())
+
+        ctk.CTkEntry(
+            filter_frame,
+            textvariable=self.analysis_search,
+            placeholder_text="Suche Sitzung/Gremium",
+            width=220,
+        ).grid(row=0, column=6, padx=(10, 6), pady=8)
+
+        ctk.CTkCheckBox(
+            filter_frame,
+            text="Nur vergangene",
+            variable=self.analysis_past_only,
+            command=self._refresh_analysis_sessions,
+            font=FIELD_FONT,
+        ).grid(row=0, column=7, padx=(0, 6), pady=8, sticky="w")
+
+        ctk.CTkButton(
+            filter_frame,
+            text="Filtern",
+            command=self._refresh_analysis_sessions,
+            fg_color="#0F766E",
+            hover_color="#115E59",
+            font=BUTTON_FONT,
+        ).grid(row=0, column=8, padx=(0, 10), pady=8)
+
+        left_panel = ctk.CTkFrame(parent)
+        left_panel.grid(row=1, column=0, sticky="nsew", padx=(20, 10), pady=(0, 20))
+        left_panel.grid_rowconfigure(1, weight=1)
+        left_panel.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(left_panel, text="Sitzungen", font=LABEL_FONT).grid(
+            row=0, column=0, sticky="w", padx=12, pady=(12, 6)
+        )
+        self.analysis_session_list_frame = ctk.CTkScrollableFrame(left_panel)
+        self.analysis_session_list_frame.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 12))
+
+        right_panel = ctk.CTkFrame(parent)
+        right_panel.grid(row=1, column=1, sticky="nsew", padx=(10, 20), pady=(0, 20))
+        right_panel.grid_rowconfigure(5, weight=1)
+        right_panel.grid_columnconfigure(0, weight=1)
+
+        self.analysis_selected_session_label = ctk.CTkLabel(
+            right_panel,
+            text="Keine Sitzung ausgewaehlt",
+            font=LABEL_FONT,
+            anchor="w",
+        )
+        self.analysis_selected_session_label.grid(row=0, column=0, sticky="ew", padx=12, pady=(12, 6))
+
+        scope_row = ctk.CTkFrame(right_panel, fg_color="transparent")
+        scope_row.grid(row=1, column=0, sticky="ew", padx=12)
+        ctk.CTkLabel(scope_row, text="Scope:", font=FIELD_FONT).pack(side="left")
+        ctk.CTkRadioButton(scope_row, text="Ganze Sitzung", variable=self.analysis_scope, value="session").pack(
+            side="left", padx=(10, 10)
+        )
+        ctk.CTkRadioButton(scope_row, text="Ausgewaehlte TOPs", variable=self.analysis_scope, value="tops").pack(
+            side="left"
+        )
+
+        ctk.CTkLabel(right_panel, text="Tagesordnung", font=FIELD_FONT).grid(
+            row=2, column=0, sticky="w", padx=12, pady=(10, 4)
+        )
+        self.analysis_tops_frame = ctk.CTkScrollableFrame(right_panel, height=160)
+        self.analysis_tops_frame.grid(row=3, column=0, sticky="ew", padx=12)
+
+        ctk.CTkLabel(right_panel, text="Prompt", font=FIELD_FONT).grid(
+            row=4, column=0, sticky="w", padx=12, pady=(10, 4)
+        )
+        self.analysis_prompt_box = ctk.CTkTextbox(right_panel, height=90, font=LOG_FONT)
+        self.analysis_prompt_box.grid(row=5, column=0, sticky="nsew", padx=12)
+        self.analysis_prompt_box.insert("1.0", self.analysis_prompt_value)
+
+        action_row = ctk.CTkFrame(right_panel, fg_color="transparent")
+        action_row.grid(row=6, column=0, sticky="ew", padx=12, pady=(10, 0))
+        ctk.CTkButton(
+            action_row,
+            text="Analyse starten",
+            command=self._start_analysis_job,
+            fg_color="#1D4ED8",
+            hover_color="#1E40AF",
+            font=BUTTON_FONT,
+        ).pack(side="left")
+        ctk.CTkButton(
+            action_row,
+            text="Prompt zuruecksetzen",
+            command=self._reset_analysis_prompt,
+            fg_color="#374151",
+            hover_color="#4B5563",
+            font=BUTTON_FONT,
+        ).pack(side="left", padx=(10, 0))
+        ctk.CTkButton(
+            action_row,
+            text="Markdown exportieren",
+            command=self._export_analysis_markdown,
+            fg_color="#0F766E",
+            hover_color="#115E59",
+            font=BUTTON_FONT,
+        ).pack(side="left", padx=(10, 0))
+
+        self.analysis_status_label = ctk.CTkLabel(right_panel, text="Bereit", font=FIELD_FONT, anchor="w")
+        self.analysis_status_label.grid(row=7, column=0, sticky="ew", padx=12, pady=(10, 4))
+
+        self.analysis_result_text = ctk.CTkTextbox(right_panel, height=170, font=LOG_FONT)
+        self.analysis_result_text.grid(row=8, column=0, sticky="nsew", padx=12, pady=(0, 12))
+
+        self._refresh_analysis_committee_options()
+        self._refresh_analysis_sessions()
+
+    def _build_settings_view(self, parent: ctk.CTkFrame) -> None:
+        frame = ctk.CTkFrame(parent)
+        frame.pack(fill="both", expand=True, padx=20, pady=20)
+        ctk.CTkLabel(frame, text="Settings", font=LABEL_FONT).pack(anchor="w", padx=12, pady=(12, 4))
+        ctk.CTkLabel(
+            frame,
+            text="Diese Seite ist als Erweiterungspunkt vorbereitet.\n"
+            "Hier koennen spaeter API-Keys, Modelle und GUI-Defaults verwaltet werden.",
+            font=FIELD_FONT,
+            justify="left",
+            anchor="w",
+        ).pack(anchor="w", padx=12, pady=(0, 12))
+        ctk.CTkButton(
+            frame,
+            text="Settings speichern",
+            command=self._save_settings,
+            fg_color="#374151",
+            hover_color="#4B5563",
+            font=BUTTON_FONT,
+        ).pack(anchor="w", padx=12)
+
+    def _build_service_view(self, parent: ctk.CTkFrame) -> None:
+        frame = ctk.CTkFrame(parent)
+        frame.pack(fill="both", expand=True, padx=20, pady=20)
+        ctk.CTkLabel(frame, text="Service", font=LABEL_FONT).pack(anchor="w", padx=12, pady=(12, 4))
+        ctk.CTkLabel(
+            frame,
+            text="Diese Seite ist als Erweiterungspunkt vorbereitet.\n"
+            "Hier koennen spaeter Scheduler, Queue-Worker oder Healthchecks eingebunden werden.",
+            font=FIELD_FONT,
+            justify="left",
+            anchor="w",
+        ).pack(anchor="w", padx=12, pady=(0, 12))
+        ctk.CTkButton(
+            frame,
+            text="Logs/Output-Ordner oeffnen",
+            command=self._open_output_folder,
+            fg_color="#374151",
+            hover_color="#4B5563",
+            font=BUTTON_FONT,
+        ).pack(anchor="w", padx=12)
+
     def _set_theme(self, mode: str) -> None:
         ctk.set_appearance_mode(mode)
         self._update_menubar_theme()
         if self.log_text:
-            self.log_text._textbox.tag_configure(
-                "normal", foreground="black" if mode == "Light" else "white"
-            )
+            self.log_text._textbox.tag_configure("normal", foreground="black" if mode == "Light" else "white")
 
     def _update_menubar_theme(self) -> None:
         appearance = ctk.get_appearance_mode()
@@ -415,10 +739,12 @@ class GuiLauncher:
         messagebox.showinfo(
             "About",
             "Developer GUI for Ratsinfo Melle.\n"
-            "Prototype for running scripts and inspecting collected data.",
+            "Includes data tooling and analysis preparation view.",
         )
 
     def _clear_log(self) -> None:
+        if not self.log_text:
+            return
         self.log_text.configure(state="normal")
         self.log_text.delete("1.0", "end")
         self.log_text.configure(state="disabled")
@@ -440,12 +766,16 @@ class GuiLauncher:
             self.export_date_to,
             self.export_document_types,
             self.export_max_text_chars,
+            self.analysis_date_from,
+            self.analysis_date_to,
+            self.analysis_search,
         ):
             var.trace_add("write", lambda *_: self._update_run_state())
         for var in (
             self.verbose_mode,
             self.export_require_local_path,
             self.export_include_text_extraction,
+            self.analysis_past_only,
         ):
             var.trace_add("write", lambda *_: self._update_run_state())
 
@@ -498,10 +828,7 @@ class GuiLauncher:
         return True, ""
 
     def _validate_action_name(self, action_name: str) -> tuple[bool, str]:
-        if action_name in {
-            "Download sessions (raw, script)",
-            "Build online SQLite index (script)",
-        }:
+        if action_name in {"Download sessions (raw, script)", "Build online SQLite index (script)"}:
             year = self.year_value.get().strip()
             if not (year.isdigit() and len(year) == 4):
                 return False, "Year must be a 4-digit number."
@@ -557,6 +884,7 @@ class GuiLauncher:
         action = self.actions.get(self.selected_action.get())
         if not action:
             return
+
         self.cancel_requested = False
         self.worker_running = True
         self._start_spinner()
@@ -565,7 +893,7 @@ class GuiLauncher:
         thread = threading.Thread(target=self._run_worker, args=(action,), daemon=True)
         thread.start()
 
-    def _run_worker(self, action: "ActionConfig") -> None:
+    def _run_worker(self, action: ActionConfig) -> None:
         try:
             result = action.handler()
             self.root.after(0, lambda: self._render_action_result(action, result))
@@ -576,7 +904,7 @@ class GuiLauncher:
                 self._set_status("Cancelled")
             else:
                 self._set_status("Failed")
-        except Exception as exc:  # pragma: no cover - UI safety
+        except Exception as exc:  # pragma: no cover
             self._append_log(f"[ERROR] {exc}")
             self._set_status("Failed")
         finally:
@@ -649,10 +977,8 @@ class GuiLauncher:
         self._start_spinner()
         self._set_status("Running preset...")
         self._update_run_state()
-        self._render_preset_progress(
-            preset_name,
-            [{"name": name, "status": "pending"} for name in action_names],
-        )
+        self._render_preset_progress(preset_name, [{"name": name, "status": "pending"} for name in action_names])
+
         thread = threading.Thread(
             target=self._run_preset_worker,
             args=(preset_name, action_names),
@@ -699,97 +1025,6 @@ class GuiLauncher:
         self.root.after(0, lambda p=progress: self._render_preset_progress(preset_name, p))
         self.root.after(0, self._update_run_state)
 
-    def _open_output_folder(self) -> None:
-        output_raw = self.export_output_path.get().strip() or "data/processed/analysis_batch.json"
-        output_path = Path(output_raw)
-        if not output_path.is_absolute():
-            output_path = (REPO_ROOT / output_path).resolve()
-        folder = output_path.parent
-        folder.mkdir(parents=True, exist_ok=True)
-
-        try:
-            if sys.platform.startswith("win"):
-                os.startfile(str(folder))
-            elif sys.platform == "darwin":
-                subprocess.Popen(["open", str(folder)], cwd=str(REPO_ROOT))
-            else:
-                subprocess.Popen(["xdg-open", str(folder)], cwd=str(REPO_ROOT))
-            self._append_log(f"[INFO] Opened folder: {folder}")
-        except Exception as exc:  # pragma: no cover - depends on desktop session
-            self._append_log(f"[ERROR] Could not open folder: {exc}")
-
-    def _load_settings(self) -> None:
-        if not SETTINGS_PATH.exists():
-            return
-        try:
-            payload = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            return
-        if not isinstance(payload, dict):
-            return
-
-        self.selected_action.set(str(payload.get("selected_action", self.selected_action.get())))
-        self.selected_preset.set(str(payload.get("selected_preset", self.selected_preset.get())))
-        self.year_value.set(str(payload.get("year_value", self.year_value.get())))
-        self.months_value.set(str(payload.get("months_value", self.months_value.get())))
-        self.verbose_mode.set(bool(payload.get("verbose_mode", self.verbose_mode.get())))
-        self.export_db_path.set(str(payload.get("export_db_path", self.export_db_path.get())))
-        self.export_output_path.set(
-            str(payload.get("export_output_path", self.export_output_path.get()))
-        )
-        self.export_committees.set(
-            str(payload.get("export_committees", self.export_committees.get()))
-        )
-        self.export_date_from.set(
-            str(payload.get("export_date_from", self.export_date_from.get()))
-        )
-        self.export_date_to.set(str(payload.get("export_date_to", self.export_date_to.get())))
-        self.export_document_types.set(
-            str(payload.get("export_document_types", self.export_document_types.get()))
-        )
-        self.export_require_local_path.set(
-            bool(payload.get("export_require_local_path", self.export_require_local_path.get()))
-        )
-        self.export_include_text_extraction.set(
-            bool(
-                payload.get(
-                    "export_include_text_extraction",
-                    self.export_include_text_extraction.get(),
-                )
-            )
-        )
-        self.export_max_text_chars.set(
-            str(payload.get("export_max_text_chars", self.export_max_text_chars.get()))
-        )
-
-    def _save_settings(self) -> None:
-        payload = {
-            "selected_action": self.selected_action.get(),
-            "selected_preset": self.selected_preset.get(),
-            "year_value": self.year_value.get(),
-            "months_value": self.months_value.get(),
-            "verbose_mode": bool(self.verbose_mode.get()),
-            "export_db_path": self.export_db_path.get(),
-            "export_output_path": self.export_output_path.get(),
-            "export_committees": self.export_committees.get(),
-            "export_date_from": self.export_date_from.get(),
-            "export_date_to": self.export_date_to.get(),
-            "export_document_types": self.export_document_types.get(),
-            "export_require_local_path": bool(self.export_require_local_path.get()),
-            "export_include_text_extraction": bool(
-                self.export_include_text_extraction.get()
-            ),
-            "export_max_text_chars": self.export_max_text_chars.get(),
-        }
-        try:
-            SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
-            SETTINGS_PATH.write_text(
-                json.dumps(payload, indent=2, ensure_ascii=False),
-                encoding="utf-8",
-            )
-        except OSError as exc:
-            self._append_log(f"[ERROR] Could not save settings: {exc}")
-
     def _run_fetch_sessions(self) -> dict:
         script_path = REPO_ROOT / "scripts" / "fetch_sessions.py"
         if not script_path.exists():
@@ -797,10 +1032,6 @@ class GuiLauncher:
             return {"status": "error", "message": "Script not found"}
 
         year = self.year_value.get().strip()
-        if not year.isdigit():
-            self._append_log("[ERROR] Year must be a number")
-            return {"status": "error", "message": "Year invalid"}
-
         months = [m for m in self.months_value.get().split() if m.isdigit()]
 
         cmd = [sys.executable, str(script_path), year]
@@ -826,10 +1057,6 @@ class GuiLauncher:
             return {"status": "error", "message": "Script not found"}
 
         year = self.year_value.get().strip()
-        if not year.isdigit():
-            self._append_log("[ERROR] Year must be a number")
-            return {"status": "error", "message": "Year invalid"}
-
         months = [m for m in self.months_value.get().split() if m.isdigit()]
 
         cmd = [sys.executable, str(script_path), year]
@@ -905,53 +1132,16 @@ class GuiLauncher:
             cmd.extend(["--max-text-chars", max_chars])
 
         result = self._run_script_command(cmd)
-        output_resolved = (
-            (REPO_ROOT / output_path).resolve()
-            if not Path(output_path).is_absolute()
-            else Path(output_path)
-        )
+        output_resolved = (REPO_ROOT / output_path).resolve() if not Path(output_path).is_absolute() else Path(output_path)
         result["output"] = str(output_resolved)
         result["filter_summary"] = self._collect_export_filter_summary()
         result["document_count"] = self._count_export_documents(output_resolved)
         return result
 
-    def _collect_export_filter_summary(self) -> str:
-        parts: list[str] = []
-        committees = [entry.strip() for entry in self.export_committees.get().split(",") if entry.strip()]
-        doc_types = [entry.strip() for entry in self.export_document_types.get().split(",") if entry.strip()]
-        if committees:
-            parts.append(f"committee={','.join(committees)}")
-        if doc_types:
-            parts.append(f"type={','.join(doc_types)}")
-        if self.export_date_from.get().strip():
-            parts.append(f"from={self.export_date_from.get().strip()}")
-        if self.export_date_to.get().strip():
-            parts.append(f"to={self.export_date_to.get().strip()}")
-        if self.export_require_local_path.get():
-            parts.append("require_local_path=true")
-        if self.export_include_text_extraction.get():
-            parts.append(
-                "text_extraction=true,max_text_chars="
-                + (self.export_max_text_chars.get().strip() or "12000")
-            )
-        return "; ".join(parts) if parts else "none"
-
-    def _count_export_documents(self, path: Path) -> int | None:
-        if not path.exists():
-            return None
-        try:
-            payload = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            return None
-        documents = payload.get("documents") if isinstance(payload, dict) else None
-        if not isinstance(documents, list):
-            return None
-        return len(documents)
-
     def _run_list_committees(self) -> dict:
-        db_path = REPO_ROOT / "data" / "processed" / "local_index.sqlite"
+        db_path = self._resolve_db_path(self.export_db_path.get().strip())
         if not db_path.exists():
-            self._append_log("[ERROR] SQLite index not found. Run build_local_index.py first.")
+            self._append_log("[ERROR] SQLite index not found.")
             return {"status": "error", "message": "local_index.sqlite not found"}
 
         try:
@@ -977,11 +1167,138 @@ class GuiLauncher:
         self._append_log("[INFO] Data structure loaded")
         return {"status": "ok", "root": str(root)}
 
+    def _collect_export_filter_summary(self) -> str:
+        parts: list[str] = []
+        committees = [entry.strip() for entry in self.export_committees.get().split(",") if entry.strip()]
+        doc_types = [entry.strip() for entry in self.export_document_types.get().split(",") if entry.strip()]
+        if committees:
+            parts.append(f"committee={','.join(committees)}")
+        if doc_types:
+            parts.append(f"type={','.join(doc_types)}")
+        if self.export_date_from.get().strip():
+            parts.append(f"from={self.export_date_from.get().strip()}")
+        if self.export_date_to.get().strip():
+            parts.append(f"to={self.export_date_to.get().strip()}")
+        if self.export_require_local_path.get():
+            parts.append("require_local_path=true")
+        if self.export_include_text_extraction.get():
+            parts.append("text_extraction=true,max_text_chars=" + (self.export_max_text_chars.get().strip() or "12000"))
+        return "; ".join(parts) if parts else "none"
+
+    def _count_export_documents(self, path: Path) -> int | None:
+        if not path.exists():
+            return None
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        documents = payload.get("documents") if isinstance(payload, dict) else None
+        if not isinstance(documents, list):
+            return None
+        return len(documents)
+
+    def _open_output_folder(self) -> None:
+        output_raw = self.export_output_path.get().strip() or "data/processed/analysis_batch.json"
+        output_path = self._resolve_db_path(output_raw)
+        folder = output_path.parent
+        folder.mkdir(parents=True, exist_ok=True)
+
+        try:
+            if sys.platform.startswith("win"):
+                os.startfile(str(folder))
+            elif sys.platform == "darwin":
+                subprocess.Popen(["open", str(folder)], cwd=str(REPO_ROOT))
+            else:
+                subprocess.Popen(["xdg-open", str(folder)], cwd=str(REPO_ROOT))
+            self._append_log(f"[INFO] Opened folder: {folder}")
+        except Exception as exc:  # pragma: no cover
+            self._append_log(f"[ERROR] Could not open folder: {exc}")
+
+    def _resolve_db_path(self, value: str) -> Path:
+        raw = value.strip()
+        path = Path(raw)
+        if path.is_absolute():
+            return path
+        return (REPO_ROOT / path).resolve()
+
+    def _load_settings(self) -> None:
+        if not SETTINGS_PATH.exists():
+            return
+        try:
+            payload = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return
+        if not isinstance(payload, dict):
+            return
+
+        self.current_view_key = str(payload.get("current_view_key", self.current_view_key))
+        self.selected_action.set(str(payload.get("selected_action", self.selected_action.get())))
+        self.selected_preset.set(str(payload.get("selected_preset", self.selected_preset.get())))
+        self.year_value.set(str(payload.get("year_value", self.year_value.get())))
+        self.months_value.set(str(payload.get("months_value", self.months_value.get())))
+        self.verbose_mode.set(bool(payload.get("verbose_mode", self.verbose_mode.get())))
+        self.export_db_path.set(str(payload.get("export_db_path", self.export_db_path.get())))
+        self.export_output_path.set(str(payload.get("export_output_path", self.export_output_path.get())))
+        self.export_committees.set(str(payload.get("export_committees", self.export_committees.get())))
+        self.export_date_from.set(str(payload.get("export_date_from", self.export_date_from.get())))
+        self.export_date_to.set(str(payload.get("export_date_to", self.export_date_to.get())))
+        self.export_document_types.set(str(payload.get("export_document_types", self.export_document_types.get())))
+        self.export_require_local_path.set(bool(payload.get("export_require_local_path", self.export_require_local_path.get())))
+        self.export_include_text_extraction.set(
+            bool(payload.get("export_include_text_extraction", self.export_include_text_extraction.get()))
+        )
+        self.export_max_text_chars.set(str(payload.get("export_max_text_chars", self.export_max_text_chars.get())))
+
+        self.analysis_date_from.set(str(payload.get("analysis_date_from", self.analysis_date_from.get())))
+        self.analysis_date_to.set(str(payload.get("analysis_date_to", self.analysis_date_to.get())))
+        self.analysis_committee.set(str(payload.get("analysis_committee", self.analysis_committee.get())))
+        self.analysis_search.set(str(payload.get("analysis_search", self.analysis_search.get())))
+        self.analysis_past_only.set(bool(payload.get("analysis_past_only", self.analysis_past_only.get())))
+        self.analysis_scope.set(str(payload.get("analysis_scope", self.analysis_scope.get())))
+        self.analysis_prompt_value = str(payload.get("analysis_prompt", self.analysis_prompt_value))
+
+    def _save_settings(self) -> None:
+        prompt_text = ""
+        if self.analysis_prompt_box:
+            prompt_text = self.analysis_prompt_box.get("1.0", "end").strip()
+
+        payload = {
+            "current_view_key": self.current_view_key,
+            "selected_action": self.selected_action.get(),
+            "selected_preset": self.selected_preset.get(),
+            "year_value": self.year_value.get(),
+            "months_value": self.months_value.get(),
+            "verbose_mode": bool(self.verbose_mode.get()),
+            "export_db_path": self.export_db_path.get(),
+            "export_output_path": self.export_output_path.get(),
+            "export_committees": self.export_committees.get(),
+            "export_date_from": self.export_date_from.get(),
+            "export_date_to": self.export_date_to.get(),
+            "export_document_types": self.export_document_types.get(),
+            "export_require_local_path": bool(self.export_require_local_path.get()),
+            "export_include_text_extraction": bool(self.export_include_text_extraction.get()),
+            "export_max_text_chars": self.export_max_text_chars.get(),
+            "analysis_date_from": self.analysis_date_from.get(),
+            "analysis_date_to": self.analysis_date_to.get(),
+            "analysis_committee": self.analysis_committee.get(),
+            "analysis_search": self.analysis_search.get(),
+            "analysis_past_only": bool(self.analysis_past_only.get()),
+            "analysis_scope": self.analysis_scope.get(),
+            "analysis_prompt": prompt_text,
+        }
+        try:
+            SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
+            SETTINGS_PATH.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+        except OSError as exc:
+            self._append_log(f"[ERROR] Could not save settings: {exc}")
+
     def _append_log(self, message: str) -> None:
+        if not self.log_text:
+            return
+
         def append() -> None:
             timestamp = datetime.now().strftime("%H:%M:%S")
             line = f"[{timestamp}] {message}"
-
             self.log_text.configure(state="normal")
             tag = self._detect_tag(message)
             self.log_text.insert("end", line + "\n", tag)
@@ -1001,7 +1318,8 @@ class GuiLauncher:
         return "normal"
 
     def _set_status(self, message: str) -> None:
-        self.status_label.after(0, lambda: self.status_label.configure(text=message))
+        if self.status_label:
+            self.status_label.after(0, lambda: self.status_label.configure(text=message))
 
     def _start_spinner(self) -> None:
         self.spinner_running = True
@@ -1012,23 +1330,22 @@ class GuiLauncher:
         self.spinner_running = False
 
     def _animate_spinner(self) -> None:
-        if not self.spinner_running:
+        if not self.spinner_running or not self.status_label:
             return
         frame = SPINNER_FRAMES[self.spinner_index % len(SPINNER_FRAMES)]
         self.status_label.configure(text=f"{frame} Running")
         self.spinner_index += 1
         self.status_label.after(120, self._animate_spinner)
 
-    def run(self) -> None:
-        self.root.mainloop()
-
-    def _render_action_result(self, action: "ActionConfig", result: dict | None) -> None:
+    def _render_action_result(self, action: ActionConfig, result: dict | None) -> None:
         if action.renderer:
             action.renderer(result or {})
         else:
             self._render_placeholder()
 
     def _render_placeholder(self) -> None:
+        if not self.right_content:
+            return
         self._clear_right_panel()
         ctk.CTkLabel(
             self.right_content,
@@ -1039,10 +1356,14 @@ class GuiLauncher:
         ).pack(anchor="w", pady=8)
 
     def _clear_right_panel(self) -> None:
+        if not self.right_content:
+            return
         for child in self.right_content.winfo_children():
             child.destroy()
 
     def _render_fetch_summary(self, result: dict) -> None:
+        if not self.right_title:
+            return
         self.right_title.configure(text="Fetch Summary")
         self._clear_right_panel()
         self._render_kv("Command", result.get("command", "-"))
@@ -1050,6 +1371,8 @@ class GuiLauncher:
         self._render_kv("Output Lines", result.get("lines", "-"))
 
     def _render_inventory(self, result: dict) -> None:
+        if not self.right_title:
+            return
         self.right_title.configure(text="Data Inventory")
         self._clear_right_panel()
         self._render_kv("Root", result.get("root", "-"))
@@ -1059,6 +1382,8 @@ class GuiLauncher:
         self._render_kv("Size (MB)", f"{size:.2f}" if isinstance(size, float) else "-")
 
     def _render_structure(self, result: dict) -> None:
+        if not self.right_title:
+            return
         self.right_title.configure(text="Data Structure")
         self._clear_right_panel()
         root_value = result.get("root")
@@ -1075,9 +1400,9 @@ class GuiLauncher:
 
         self._render_collapsible_tree(root, max_depth=3, max_entries=200)
 
-    def _render_collapsible_tree(
-        self, root: Path, max_depth: int, max_entries: int
-    ) -> None:
+    def _render_collapsible_tree(self, root: Path, max_depth: int, max_entries: int) -> None:
+        if not self.right_content:
+            return
         count = 0
 
         def add_node(parent: ctk.CTkFrame, path: Path, depth: int) -> None:
@@ -1125,9 +1450,7 @@ class GuiLauncher:
                     return
 
                 try:
-                    entries = sorted(
-                        path.iterdir(), key=lambda p: (p.is_file(), p.name.lower())
-                    )
+                    entries = sorted(path.iterdir(), key=lambda p: (p.is_file(), p.name.lower()))
                 except PermissionError:
                     entries = []
 
@@ -1139,39 +1462,33 @@ class GuiLauncher:
                     else:
                         file_row = ctk.CTkFrame(children_frame, fg_color="transparent")
                         file_row.pack(fill="x", pady=1)
-                        ctk.CTkLabel(
-                            file_row,
-                            text=entry.name,
-                            font=FIELD_FONT,
-                            anchor="w",
-                        ).pack(side="left", padx=(12 * (depth + 1) + 34, 0))
+                        ctk.CTkLabel(file_row, text=entry.name, font=FIELD_FONT, anchor="w").pack(
+                            side="left", padx=(12 * (depth + 1) + 34, 0)
+                        )
                         count += 1
 
                 if not children_frame.winfo_children():
-                    empty_row = ctk.CTkLabel(
+                    ctk.CTkLabel(
                         children_frame,
                         text="(leer)",
                         font=FIELD_FONT,
                         anchor="w",
-                    )
-                    empty_row.pack(anchor="w", padx=(12 * (depth + 1) + 34, 0))
+                    ).pack(anchor="w", padx=(12 * (depth + 1) + 34, 0))
                 children_frame.pack(fill="x")
 
             toggle.configure(command=toggle_children)
             label.bind("<Button-1>", lambda _e: toggle_children())
-
             count += 1
 
         add_node(self.right_content, root, 0)
         if count >= max_entries:
-            ctk.CTkLabel(
-                self.right_content,
-                text="... (truncated)",
-                font=FIELD_FONT,
-                anchor="w",
-            ).pack(anchor="w", pady=6)
+            ctk.CTkLabel(self.right_content, text="... (truncated)", font=FIELD_FONT, anchor="w").pack(
+                anchor="w", pady=6
+            )
 
     def _render_index_summary(self, result: dict) -> None:
+        if not self.right_title:
+            return
         self.right_title.configure(text="Index Summary")
         self._clear_right_panel()
         self._render_kv("Command", result.get("command", "-"))
@@ -1180,6 +1497,8 @@ class GuiLauncher:
         self._render_kv("Summary", result.get("summary", "-"))
 
     def _render_export_summary(self, result: dict) -> None:
+        if not self.right_title:
+            return
         self.right_title.configure(text="Export Summary")
         self._clear_right_panel()
         self._render_kv("Command", result.get("command", "-"))
@@ -1191,15 +1510,17 @@ class GuiLauncher:
         self._render_kv("Output File", result.get("output", "-"))
 
     def _render_preset_progress(self, preset_name: str, steps: list[dict[str, str]]) -> None:
+        if not self.right_title:
+            return
         self.right_title.configure(text="Preset Progress")
         self._clear_right_panel()
         self._render_kv("Preset", preset_name)
         for step in steps:
-            name = step.get("name", "-")
-            status = step.get("status", "-")
-            self._render_kv(name, status)
+            self._render_kv(step.get("name", "-"), step.get("status", "-"))
 
     def _render_committees(self, result: dict) -> None:
+        if not self.right_title:
+            return
         self.right_title.configure(text="Committees")
         self._clear_right_panel()
         self._render_kv("Count", result.get("count", "-"))
@@ -1207,32 +1528,383 @@ class GuiLauncher:
         self._render_list(committees if isinstance(committees, list) else [])
 
     def _render_kv(self, label: str, value: object) -> None:
+        if not self.right_content:
+            return
         row = ctk.CTkFrame(self.right_content, fg_color="transparent")
         row.pack(fill="x", pady=4)
-        ctk.CTkLabel(row, text=label, font=FIELD_FONT, anchor="w").pack(
-            side="left"
-        )
-        ctk.CTkLabel(
-            row, text=str(value), font=FIELD_FONT, anchor="e", justify="right"
-        ).pack(side="right")
+        ctk.CTkLabel(row, text=label, font=FIELD_FONT, anchor="w").pack(side="left")
+        ctk.CTkLabel(row, text=str(value), font=FIELD_FONT, anchor="e", justify="right").pack(side="right")
 
     def _render_list(self, items: list[str]) -> None:
+        if not self.right_content:
+            return
         if not items:
-            ctk.CTkLabel(
-                self.right_content, text="(no entries)", font=FIELD_FONT
-            ).pack(anchor="w", pady=6)
+            ctk.CTkLabel(self.right_content, text="(no entries)", font=FIELD_FONT).pack(anchor="w", pady=6)
             return
         for item in items:
+            ctk.CTkLabel(self.right_content, text=f"- {item}", font=FIELD_FONT, anchor="w").pack(anchor="w")
+
+    def _refresh_analysis_committee_options(self) -> None:
+        if not self.view_frames.get("analysis"):
+            return
+        db_path = self._resolve_db_path(self.export_db_path.get())
+        if not db_path.exists():
+            return
+        committees = [""]
+        try:
+            with sqlite3.connect(db_path) as conn:
+                rows = conn.execute(
+                    "SELECT DISTINCT committee FROM sessions WHERE committee IS NOT NULL AND committee != '' ORDER BY committee"
+                ).fetchall()
+            committees.extend([str(row[0]) for row in rows if row and row[0]])
+        except sqlite3.Error:
+            return
+
+        if self.analysis_committee_box:
+            self.analysis_committee_box.configure(values=committees)
+
+    def _refresh_analysis_sessions(self) -> None:
+        if not self.analysis_session_list_frame:
+            return
+
+        db_path = self._resolve_db_path(self.export_db_path.get())
+        self.analysis_sessions = []
+        if not db_path.exists():
+            self._render_analysis_session_list()
+            return
+
+        query = (
+            "SELECT s.session_id, s.date, s.committee, s.meeting_name, COUNT(ai.id) AS top_count "
+            "FROM sessions s LEFT JOIN agenda_items ai ON ai.session_id = s.session_id WHERE 1=1"
+        )
+        params: list[object] = []
+
+        date_from = self.analysis_date_from.get().strip()
+        date_to = self.analysis_date_to.get().strip()
+        committee = self.analysis_committee.get().strip()
+        search = self.analysis_search.get().strip()
+
+        if date_from:
+            query += " AND s.date >= ?"
+            params.append(date_from)
+        if date_to:
+            query += " AND s.date <= ?"
+            params.append(date_to)
+        if committee:
+            query += " AND s.committee = ?"
+            params.append(committee)
+        if self.analysis_past_only.get():
+            query += " AND s.date <= ?"
+            params.append(date.today().isoformat())
+        if search:
+            query += " AND (s.meeting_name LIKE ? OR s.committee LIKE ?)"
+            params.extend([f"%{search}%", f"%{search}%"])
+
+        query += " GROUP BY s.session_id, s.date, s.committee, s.meeting_name ORDER BY s.date DESC"
+
+        try:
+            with sqlite3.connect(db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                rows = conn.execute(query, tuple(params)).fetchall()
+                self.analysis_sessions = [dict(row) for row in rows]
+        except sqlite3.Error as exc:
+            self._set_analysis_status(f"DB error: {exc}")
+            self.analysis_sessions = []
+
+        self._render_analysis_session_list()
+
+    def _render_analysis_session_list(self) -> None:
+        if not self.analysis_session_list_frame:
+            return
+        for child in self.analysis_session_list_frame.winfo_children():
+            child.destroy()
+
+        if not self.analysis_sessions:
             ctk.CTkLabel(
-                self.right_content, text=f"- {item}", font=FIELD_FONT, anchor="w"
-            ).pack(anchor="w")
+                self.analysis_session_list_frame,
+                text="Keine Sitzungen mit den aktuellen Filtern.",
+                font=FIELD_FONT,
+                anchor="w",
+                justify="left",
+            ).pack(fill="x", padx=6, pady=6)
+            return
 
+        for row in self.analysis_sessions:
+            title = f"{row.get('date', '')} | {row.get('committee', '-') } | {row.get('meeting_name', '-') }"
+            subtitle = f"TOPs: {row.get('top_count', 0)} | Session-ID: {row.get('session_id', '-') }"
+            text = f"{title}\n{subtitle}"
+            ctk.CTkButton(
+                self.analysis_session_list_frame,
+                text=text,
+                command=lambda session_id=row.get("session_id"): self._load_analysis_session_detail(str(session_id)),
+                anchor="w",
+                height=58,
+                fg_color="#1F2937",
+                hover_color="#374151",
+                font=FIELD_FONT,
+            ).pack(fill="x", padx=6, pady=4)
 
-@dataclass(frozen=True)
-class ActionConfig:
-    name: str
-    handler: Callable[[], dict]
-    renderer: Callable[[dict], None] | None = None
+    def _load_analysis_session_detail(self, session_id: str) -> None:
+        db_path = self._resolve_db_path(self.export_db_path.get())
+        if not db_path.exists() or not self.analysis_tops_frame:
+            return
+
+        try:
+            with sqlite3.connect(db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                session_row = conn.execute(
+                    "SELECT session_id, date, committee, meeting_name FROM sessions WHERE session_id = ?",
+                    (session_id,),
+                ).fetchone()
+                agenda_rows = conn.execute(
+                    "SELECT number, title, status, decision, documents_present FROM agenda_items "
+                    "WHERE session_id = ? ORDER BY id",
+                    (session_id,),
+                ).fetchall()
+        except sqlite3.Error as exc:
+            self._set_analysis_status(f"DB error: {exc}")
+            return
+
+        if session_row is None:
+            self._set_analysis_status("Session nicht gefunden.")
+            return
+
+        self.analysis_current_session = dict(session_row)
+        if self.analysis_selected_session_label:
+            self.analysis_selected_session_label.configure(
+                text=(
+                    f"{session_row['date']} | {session_row['committee'] or '-'} | "
+                    f"{session_row['meeting_name'] or '-'}"
+                )
+            )
+
+        self.analysis_top_vars.clear()
+        for child in self.analysis_tops_frame.winfo_children():
+            child.destroy()
+
+        if not agenda_rows:
+            ctk.CTkLabel(self.analysis_tops_frame, text="Keine TOPs vorhanden.", font=FIELD_FONT).pack(
+                anchor="w", padx=6, pady=6
+            )
+            return
+
+        for row in agenda_rows:
+            number = str(row["number"] or "")
+            title = str(row["title"] or "")
+            info = f"{number} - {title}"
+            var = ctk.BooleanVar(value=False)
+            self.analysis_top_vars[number] = var
+            ctk.CTkCheckBox(
+                self.analysis_tops_frame,
+                text=info,
+                variable=var,
+                font=FIELD_FONT,
+            ).pack(anchor="w", padx=6, pady=3)
+
+        self._set_analysis_status("Sitzung geladen.")
+
+    def _start_analysis_job(self) -> None:
+        if not self.analysis_current_session:
+            self._set_analysis_status("Bitte zuerst eine Sitzung waehlen.")
+            return
+
+        if self.analysis_scope.get() == "tops" and not self._selected_top_numbers():
+            self._set_analysis_status("Bitte mindestens einen TOP waehlen.")
+            return
+
+        prompt = ""
+        if self.analysis_prompt_box:
+            prompt = self.analysis_prompt_box.get("1.0", "end").strip()
+
+        payload = self._build_analysis_payload()
+        if payload is None:
+            self._set_analysis_status("Keine Daten fuer die Analyse gefunden.")
+            return
+
+        self._set_analysis_status("Analyse laeuft...")
+        thread = threading.Thread(target=self._run_analysis_job_worker, args=(payload, prompt), daemon=True)
+        thread.start()
+
+    def _build_analysis_payload(self) -> dict | None:
+        session = self.analysis_current_session
+        if not session:
+            return None
+
+        db_path = self._resolve_db_path(self.export_db_path.get())
+        if not db_path.exists():
+            return None
+
+        selected_tops = self._selected_top_numbers()
+        scope = self.analysis_scope.get()
+
+        where = "session_id = ?"
+        params: list[object] = [session["session_id"]]
+        if scope == "tops" and selected_tops:
+            placeholders = ", ".join("?" for _ in selected_tops)
+            where += f" AND COALESCE(agenda_item, '') IN ({placeholders})"
+            params.extend(selected_tops)
+
+        documents: list[dict] = []
+        try:
+            with sqlite3.connect(db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                rows = conn.execute(
+                    f"SELECT agenda_item, title, document_type, local_path, url FROM documents WHERE {where} "
+                    "ORDER BY COALESCE(agenda_item,''), title",
+                    tuple(params),
+                ).fetchall()
+                documents = [dict(row) for row in rows]
+        except sqlite3.Error:
+            documents = []
+
+        return {
+            "session": session,
+            "scope": scope,
+            "selected_tops": selected_tops,
+            "documents": documents,
+            "db_path": str(db_path),
+        }
+
+    def _run_analysis_job_worker(self, payload: dict, prompt: str) -> None:
+        db_path = Path(payload["db_path"])
+        session = payload["session"]
+        scope = payload["scope"]
+        selected_tops = payload["selected_tops"]
+        documents = payload["documents"]
+
+        created_at = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+        job_id: int | None = None
+        result_markdown = ""
+
+        try:
+            with sqlite3.connect(db_path) as conn:
+                self._ensure_analysis_tables(conn)
+                cur = conn.execute(
+                    "INSERT INTO analysis_jobs (created_at, session_id, scope, top_numbers_json, model_name, prompt_version, status, error_message) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        created_at,
+                        session["session_id"],
+                        scope,
+                        json.dumps(selected_tops, ensure_ascii=False),
+                        "mock-journalism-v1",
+                        "local-template-1",
+                        "running",
+                        None,
+                    ),
+                )
+                job_id = int(cur.lastrowid)
+
+                top_text = "alle TOPs" if scope == "session" else ", ".join(selected_tops)
+                doc_count = len(documents)
+                headline = f"Analyse Sitzung {session.get('date')} - {session.get('committee') or '-'}"
+                summary_lines = [
+                    f"# {headline}",
+                    "",
+                    f"- Scope: {scope}",
+                    f"- TOP-Auswahl: {top_text}",
+                    f"- Dokumente im Scope: {doc_count}",
+                    "",
+                    "## Journalistische Kurzfassung",
+                    "Die Sitzung enthielt mehrere politische Beratungen. "
+                    "Fuer eine belastbare journalistische Auswertung sollten die relevanten Vorlagen und Beschluesse "
+                    "inhaltlich geprueft und gegengecheckt werden.",
+                    "",
+                    "## Prompt-Hinweis",
+                    prompt or "(kein Prompt gesetzt)",
+                ]
+                result_markdown = "\n".join(summary_lines)
+
+                conn.execute(
+                    "INSERT INTO analysis_outputs (job_id, output_format, content, created_at) VALUES (?, ?, ?, ?)",
+                    (job_id, "markdown", result_markdown, created_at),
+                )
+                conn.execute("UPDATE analysis_jobs SET status = ? WHERE id = ?", ("done", job_id))
+                conn.commit()
+
+            self.root.after(0, lambda: self._set_analysis_result(result_markdown))
+            self.root.after(0, lambda: self._set_analysis_status(f"Analyse abgeschlossen (Job {job_id})."))
+        except Exception as exc:
+            try:
+                if job_id is not None:
+                    with sqlite3.connect(db_path) as conn:
+                        self._ensure_analysis_tables(conn)
+                        conn.execute(
+                            "UPDATE analysis_jobs SET status = ?, error_message = ? WHERE id = ?",
+                            ("failed", str(exc), job_id),
+                        )
+                        conn.commit()
+            except Exception:
+                pass
+            self.root.after(0, lambda: self._set_analysis_status(f"Analyse fehlgeschlagen: {exc}"))
+
+    def _ensure_analysis_tables(self, conn: sqlite3.Connection) -> None:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS analysis_jobs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TEXT NOT NULL,
+                session_id TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                top_numbers_json TEXT,
+                model_name TEXT,
+                prompt_version TEXT,
+                status TEXT NOT NULL,
+                error_message TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS analysis_outputs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                job_id INTEGER NOT NULL,
+                output_format TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY(job_id) REFERENCES analysis_jobs(id)
+            );
+            """
+        )
+
+    def _selected_top_numbers(self) -> list[str]:
+        selected: list[str] = []
+        for number, var in self.analysis_top_vars.items():
+            if var.get():
+                selected.append(number)
+        return selected
+
+    def _set_analysis_status(self, text: str) -> None:
+        if self.analysis_status_label:
+            self.analysis_status_label.configure(text=text)
+
+    def _set_analysis_result(self, text: str) -> None:
+        if not self.analysis_result_text:
+            return
+        self.analysis_result_text.delete("1.0", "end")
+        self.analysis_result_text.insert("1.0", text)
+
+    def _reset_analysis_prompt(self) -> None:
+        if not self.analysis_prompt_box:
+            return
+        self.analysis_prompt_box.delete("1.0", "end")
+        self.analysis_prompt_box.insert(
+            "1.0",
+            "Erstelle eine journalistische, neutrale Zusammenfassung. Nenne Kernthemen, Entscheidungen und offene Punkte.",
+        )
+
+    def _export_analysis_markdown(self) -> None:
+        if not self.analysis_result_text:
+            return
+        content = self.analysis_result_text.get("1.0", "end").strip()
+        if not content:
+            self._set_analysis_status("Kein Analyseergebnis zum Exportieren vorhanden.")
+            return
+
+        target = self._resolve_db_path("data/processed/analysis_latest.md")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content + "\n", encoding="utf-8")
+        self._set_analysis_status(f"Markdown exportiert: {target}")
+
+    def run(self) -> None:
+        self.root.mainloop()
 
 
 def main() -> None:
