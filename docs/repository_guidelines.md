@@ -64,6 +64,8 @@ Diese Regeln bilden das Fundament für den weiteren Projektverlauf und können b
 
 - `scripts/build_local_index.py` erzeugt einen lokalen Index aus bereits heruntergeladenen Rohdaten (`data/raw/`) und schreibt standardmäßig nach `data/processed/local_index.sqlite`.
 - `scripts/build_online_index_db.py` erzeugt einen Online-Index ohne Dokumentdownloads und schreibt standardmäßig nach `data/processed/online_session_index.sqlite`. Mit `--refresh-existing` werden vorhandene Sitzungen neu eingelesen; `--only-refresh` aktualisiert ausschließlich bestehende Sitzungen.
+- Beide Indexe enthalten in `documents` ein normalisiertes Feld `document_type` (`vorlage`, `beschlussvorlage`, `protokoll`, `bekanntmachung`, `sonstiges`) sowie Metadatenfelder `sha1` und `retrieved_at`.
+- `scripts/export_analysis_batch.py` exportiert aus einem Index einen reproduzierbaren JSON-Batch für nachgelagerte Analysen (inklusive Filteroptionen für Sitzung, Gremium, Zeitraum und Dokumenttyp).
 
 ## WSL-Setup (kurz)
 

@@ -19,6 +19,13 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 - **(Optional) Tkinter** für eine spätere UI; unter WSL via `sudo apt-get install python3-tk`.
 - **Projektstruktur** siehe `docs/repository_guidelines.md`.
 
+## Wichtige Skripte
+
+- `python scripts/fetch_sessions.py 2024 --months 5 6` laedt Sitzungen und Dokumente nach `data/raw/`.
+- `python scripts/build_local_index.py` baut den lokalen SQLite-Index unter `data/processed/local_index.sqlite`.
+- `python scripts/build_online_index_db.py 2024 --months 5 6` baut den Online-Index unter `data/processed/online_session_index.sqlite` ohne Downloads.
+- `python scripts/export_analysis_batch.py --db-path data/processed/local_index.sqlite --output data/processed/analysis_batch.json` exportiert einen reproduzierbaren Analyse-Batch (optional filterbar nach Sitzung, Zeitraum, Gremium, `document_type`).
+
 ## Zeilenenden (Windows/Linux)
 
 - Das Repository nutzt fuer Quell- und Konfigurationsdateien konsistent `LF` (verwaltet ueber `.gitattributes` und `.editorconfig`).

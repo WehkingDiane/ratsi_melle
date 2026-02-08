@@ -89,6 +89,8 @@ def _write_local_fixture(root: Path) -> None:
                         "agenda_item": "Ö 1",
                         "url": "https://example.org/doc.pdf",
                         "path": "session-documents/doc.pdf",
+                        "sha1": "abc123",
+                        "retrieved_at": "2025-06-05T10:00:00Z",
                         "content_type": "application/pdf",
                         "content_length": 1234,
                     }
@@ -161,3 +163,28 @@ def test_index_schema_parity_and_time_format(tmp_path: Path) -> None:
     assert _schema_snapshot(local_db) == _schema_snapshot(online_db)
     _assert_time_format(local_db)
     _assert_time_format(online_db)
+    _assert_document_metadata(local_db)
+    _assert_document_metadata(online_db)
+
+
+def _assert_document_metadata(path: Path) -> None:
+    with sqlite3.connect(path) as conn:
+        rows = conn.execute(
+            """
+            SELECT title, category, document_type, sha1, retrieved_at
+            FROM documents
+            ORDER BY id
+            """
+        ).fetchall()
+    assert rows
+    for _, _, document_type, _, retrieved_at in rows:
+        assert document_type in {
+            "vorlage",
+            "beschlussvorlage",
+            "protokoll",
+            "bekanntmachung",
+            "sonstiges",
+        }
+        assert isinstance(retrieved_at, str)
+        assert retrieved_at.endswith("Z")
+    assert any(category == "PR" and document_type == "protokoll" for _, category, document_type, _, _ in rows)
