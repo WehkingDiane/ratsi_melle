@@ -19,6 +19,13 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 - **(Optional) Tkinter** für eine spätere UI; unter WSL via `sudo apt-get install python3-tk`.
 - **Projektstruktur** siehe `docs/repository_guidelines.md`.
 
+## Wichtige Skripte
+
+- `python scripts/fetch_sessions.py 2024 --months 5 6` laedt Sitzungen und Dokumente nach `data/raw/`.
+- `python scripts/build_local_index.py` baut den lokalen SQLite-Index unter `data/processed/local_index.sqlite`.
+- `python scripts/build_online_index_db.py 2024 --months 5 6` baut den Online-Index unter `data/processed/online_session_index.sqlite` ohne Downloads.
+- `python scripts/export_analysis_batch.py --db-path data/processed/local_index.sqlite --output data/processed/analysis_batch.json` exportiert einen reproduzierbaren Analyse-Batch (optional filterbar nach Sitzung, Zeitraum, Gremium, `document_type`).
+
 ## Zeilenenden (Windows/Linux)
 
 - Das Repository nutzt fuer Quell- und Konfigurationsdateien konsistent `LF` (verwaltet ueber `.gitattributes` und `.editorconfig`).
@@ -84,10 +91,20 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 
 3. **Dokumentenverarbeitung ausbauen**
    - Parser für Vorlagen und Beschlüsse entwickeln (HTML, PDF, ggf. weitere Formate).
+     - Relevante Inhalte je Dokumenttyp extrahieren (Beschlusstext, Begründung, Finanzbezug, Zuständigkeit).
+     - Parser-Ausgaben mit Fixtures pro Dokumenttyp absichern (`tests/fixtures/` + Edge-Cases).
    - Normalisierte Datenstruktur mit Metadaten entwerfen und implementieren.
+     - Einheitliches Schema für Filterfelder definieren (`session_id`, `date`, `committee`, `status`, `document_type`, `top_number`).
+     - Felder für Analyse-Übergabe standardisieren (Quell-URL, lokaler Pfad, Hash, Extraktionszeitpunkt, Parsing-Qualität).
    - 🚧 HTML-Parser für weitere Dokumenttypen und Beschlüsse ergänzen.
+     - Priorität auf häufige und politisch relevante Typen setzen (Vorlage, Beschlussvorlage, Niederschrift-Auszug).
+     - Fallback-Regeln für variierende SessionNet-Layouts ergänzen und dokumentieren.
    - 🚧 PDF-Extraktion/Normalisierung definieren (z. B. Textextraktion, Seitenstruktur).
+     - Entscheidung für Extraktionspipeline treffen (reiner Text vs. strukturierte Blöcke pro Seite/Abschnitt).
+     - Qualitätskriterien und Fehlerkennzeichnung festlegen (z. B. OCR nötig, unlesbar, unvollständig).
    - 🚧 Metadaten-Mapping für spätere Suche/Filterung konkretisieren.
+     - Filterlogik für UI vorbereiten: Zeitraum-Presets, vergangen/kommend, Gremium, Sitzungsstatus.
+     - Exportformat für Analyse-Batches definieren, damit ausgewählte Sitzungen reproduzierbar weitergegeben werden können.
 4. **Analysemodul entwickeln**
    - Kriterien für Zusammenfassungen, Tonalität und Bewertung festlegen.
    - KI- oder regelbasierte Analyse integrieren; Schnittstellen so gestalten, dass verschiedene Modelle getestet werden können.
@@ -101,5 +118,10 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 7. **Evaluation & Erweiterung**
    - Feedback von Pilotnutzer:innen einholen und Verbesserungen priorisieren.
    - Erweiterungen für zusätzliche Kommunen, Visualisierungen oder Schnittstellen planen.
+8. **Wartung, Tests & Up-to-date-Prüfung**
+   - Regelmäßig automatisierte Tests ausführen und erweitern (Parser, Index, GUI-nahe Kernflüsse).
+   - Python-Abhängigkeiten sowie Build-/Dev-Tools auf aktuelle, kompatible Versionen prüfen und aktualisieren.
+   - In festem Rhythmus prüfen, ob sich SessionNet/Ratsinformationssystem (HTML-Struktur, Parameter, Endpunkte, Dokumenttypen) geändert hat.
+   - Bei Änderungen am Ratsinformationssystem Parser und Mapping zeitnah anpassen und durch Fixtures/Regressionstests absichern.
 
 Diese Taskliste kann iterativ abgearbeitet werden. Ergebnisse und Learnings jedes Schritts sollten dokumentiert werden, um spätere Anpassungen zu erleichtern und Transparenz gegenüber allen Stakeholdern zu gewährleisten.

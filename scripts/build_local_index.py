@@ -129,9 +129,12 @@ def _create_tables(conn: sqlite3.Connection) -> None:
             session_id TEXT,
             title TEXT,
             category TEXT,
+            document_type TEXT,
             agenda_item TEXT,
             url TEXT,
             local_path TEXT,
+            sha1 TEXT,
+            retrieved_at TEXT,
             content_type TEXT,
             content_length INTEGER
         );
@@ -142,6 +145,10 @@ def _create_tables(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_docs_session ON documents(session_id);
         """
     )
+    _ensure_documents_columns(conn)
+    _migrate_legacy_document_types(conn)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_docs_type ON documents(document_type);")
+    _backfill_document_types(conn)
 
 
 def _populate(conn: sqlite3.Connection, data_root: Path, refresh_existing: bool, only_refresh: bool) -> None:
@@ -194,8 +201,9 @@ def _populate(conn: sqlite3.Connection, data_root: Path, refresh_existing: bool,
             agenda_count += _insert_agenda_items(conn, session.session_id, agenda_items)
 
         documents = _extract_list(manifest, "documents")
+        retrieved_at = manifest.get("retrieved_at") if isinstance(manifest, dict) else None
         if documents is not None:
-            doc_count += _insert_documents(conn, session.session_id, documents)
+            doc_count += _insert_documents(conn, session.session_id, documents, retrieved_at)
 
     conn.commit()
     print(
@@ -233,31 +241,149 @@ def _insert_agenda_items(
 
 
 def _insert_documents(
-    conn: sqlite3.Connection, session_id: str, manifest: Iterable[dict]
+    conn: sqlite3.Connection,
+    session_id: str,
+    manifest: Iterable[dict],
+    default_retrieved_at: str | None,
 ) -> int:
     inserted = 0
     for doc in manifest:
         if not isinstance(doc, dict):
             continue
+        document_type = _infer_document_type(
+            title=doc.get("title"),
+            category=doc.get("category"),
+            content_type=doc.get("content_type"),
+            url=doc.get("url"),
+            local_path=doc.get("path"),
+        )
         conn.execute(
             """
             INSERT INTO documents
-            (session_id, title, category, agenda_item, url, local_path, content_type, content_length)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (
+                session_id,
+                title,
+                category,
+                document_type,
+                agenda_item,
+                url,
+                local_path,
+                sha1,
+                retrieved_at,
+                content_type,
+                content_length
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 session_id,
                 doc.get("title"),
                 doc.get("category"),
+                document_type,
                 doc.get("agenda_item"),
                 doc.get("url"),
                 doc.get("path"),
+                doc.get("sha1"),
+                doc.get("retrieved_at") or default_retrieved_at,
                 doc.get("content_type"),
                 doc.get("content_length"),
             ),
         )
         inserted += 1
     return inserted
+
+
+def _ensure_documents_columns(conn: sqlite3.Connection) -> None:
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(documents)").fetchall()}
+    for column_name, column_type in (
+        ("document_type", "TEXT"),
+        ("sha1", "TEXT"),
+        ("retrieved_at", "TEXT"),
+    ):
+        if column_name in columns:
+            continue
+        conn.execute(f"ALTER TABLE documents ADD COLUMN {column_name} {column_type}")
+
+
+def _backfill_document_types(conn: sqlite3.Connection) -> None:
+    rows = conn.execute(
+        """
+        SELECT id, title, category, content_type, url, local_path
+        FROM documents
+        WHERE document_type IS NULL OR TRIM(document_type) = ''
+        """
+    ).fetchall()
+    if not rows:
+        return
+    updates = []
+    for row in rows:
+        doc_id, title, category, content_type, url, local_path = row
+        updates.append(
+            (
+                _infer_document_type(
+                    title=title,
+                    category=category,
+                    content_type=content_type,
+                    url=url,
+                    local_path=local_path,
+                ),
+                doc_id,
+            )
+        )
+    conn.executemany("UPDATE documents SET document_type = ? WHERE id = ?", updates)
+
+
+def _migrate_legacy_document_types(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        UPDATE documents
+        SET document_type = 'protokoll'
+        WHERE LOWER(COALESCE(document_type, '')) = 'niederschrift'
+        """
+    )
+
+
+def _infer_document_type(
+    *,
+    title: str | None,
+    category: str | None,
+    content_type: str | None,
+    url: str | None,
+    local_path: str | None,
+) -> str:
+    normalized_title = (title or "").lower()
+    normalized_category = (category or "").lower()
+    normalized_content_type = (content_type or "").lower()
+    normalized_url = (url or "").lower()
+    normalized_path = (local_path or "").lower()
+
+    if normalized_category in {"pr", "ni"}:
+        return "protokoll"
+    if normalized_category in {"bm", "be", "bek"}:
+        return "bekanntmachung"
+    if normalized_category in {"bv"}:
+        return "beschlussvorlage"
+    if normalized_category in {"vo", "vl"}:
+        return "vorlage"
+
+    search_blob = " ".join(
+        (
+            normalized_title,
+            normalized_category,
+            normalized_content_type,
+            normalized_url,
+            normalized_path,
+        )
+    )
+    if any(keyword in search_blob for keyword in ("niederschrift", "protokoll", "sitzungsprotokoll")):
+        return "protokoll"
+    if any(keyword in search_blob for keyword in ("bekanntmachung", "einladung", "tagesordnung")):
+        return "bekanntmachung"
+    if any(keyword in search_blob for keyword in ("beschlussvorlage", "beschlussvorschlag", "beschluss")):
+        return "beschlussvorlage"
+    if any(keyword in search_blob for keyword in ("vorlage", "antrag")):
+        return "vorlage"
+    return "sonstiges"
 
 
 def _extract_list(payload: object | None, key: str) -> list[dict] | None:
