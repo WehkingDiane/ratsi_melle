@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from .app import GuiLauncher, main
+try:
+    from .app import GuiLauncher, main
+except ImportError:  # pragma: no cover - direct file execution fallback
+    from src.interfaces.gui.app import GuiLauncher, main
 
 __all__ = ["GuiLauncher", "main"]
 
