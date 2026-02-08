@@ -178,9 +178,11 @@ def _extract_text_from_pdf(file_path: Path) -> tuple[str, int | None]:
             candidates.append(decompressed)
 
         for candidate in candidates:
-            decoded = _extract_pdf_literal_text(candidate)
-            if decoded:
-                text_chunks.append(decoded)
+            text_blocks = re.findall(rb"BT(.*?)ET", candidate, flags=re.DOTALL)
+            for block in text_blocks:
+                decoded = _extract_pdf_literal_text(block)
+                if decoded:
+                    text_chunks.append(decoded)
 
     return "\n".join(text_chunks), page_count
 
@@ -193,15 +195,54 @@ def _try_decompress(data: bytes) -> bytes | None:
 
 
 def _extract_pdf_literal_text(data: bytes) -> str:
-    literals = re.findall(rb"\((?:\\.|[^\\()])*\)", data)
+    literals = _iter_pdf_literal_strings(data)
     if not literals:
         return ""
 
     parts = []
     for literal in literals:
-        inner = literal[1:-1]
-        parts.append(_decode_pdf_escapes(inner))
+        parts.append(_decode_pdf_escapes(literal))
     return " ".join(part for part in parts if part)
+
+
+def _iter_pdf_literal_strings(data: bytes) -> list[bytes]:
+    literals: list[bytes] = []
+    i = 0
+    while i < len(data):
+        if data[i] != ord("("):
+            i += 1
+            continue
+        i += 1
+        depth = 1
+        current = bytearray()
+        while i < len(data):
+            char = data[i]
+            if char == 0x5C:  # backslash
+                if i + 1 < len(data):
+                    current.append(char)
+                    current.append(data[i + 1])
+                    i += 2
+                    continue
+                current.append(char)
+                i += 1
+                continue
+            if char == ord("("):
+                depth += 1
+                current.append(char)
+                i += 1
+                continue
+            if char == ord(")"):
+                depth -= 1
+                if depth == 0:
+                    i += 1
+                    break
+                current.append(char)
+                i += 1
+                continue
+            current.append(char)
+            i += 1
+        literals.append(bytes(current))
+    return literals
 
 
 def _decode_pdf_escapes(value: bytes) -> str:

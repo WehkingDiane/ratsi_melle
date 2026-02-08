@@ -166,3 +166,12 @@ def test_export_analysis_batch_includes_text_extraction(tmp_path: Path) -> None:
         assert entry["resolved_local_path"]
         assert entry["extraction_pipeline_version"] == "1.0"
         assert isinstance(entry["extracted_at"], str)
+
+
+def test_resolve_local_file_path_accepts_windows_separators() -> None:
+    resolved = export_analysis_batch._resolve_local_file_path(
+        session_path=r"data\raw\2025\2025-09-18_Rat_901",
+        local_path=r"session-documents\protokoll.pdf",
+    )
+    assert resolved is not None
+    assert resolved.as_posix() == "data/raw/2025/2025-09-18_Rat_901/session-documents/protokoll.pdf"

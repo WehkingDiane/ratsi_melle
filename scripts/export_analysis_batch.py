@@ -306,6 +306,7 @@ def _resolve_local_file_path(*, session_path: str | None, local_path: str | None
     normalized_local = (local_path or "").strip()
     if not normalized_local:
         return None
+    normalized_local = normalized_local.replace("\\", "/")
 
     candidate = Path(normalized_local)
     if candidate.is_absolute():
@@ -314,6 +315,7 @@ def _resolve_local_file_path(*, session_path: str | None, local_path: str | None
     normalized_session = (session_path or "").strip()
     if not normalized_session:
         return candidate
+    normalized_session = normalized_session.replace("\\", "/")
 
     return Path(normalized_session) / candidate
 
