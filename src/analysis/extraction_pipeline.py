@@ -214,6 +214,7 @@ def _iter_pdf_literal_strings(data: bytes) -> list[bytes]:
             continue
         i += 1
         depth = 1
+        terminated = False
         current = bytearray()
         while i < len(data):
             char = data[i]
@@ -234,6 +235,7 @@ def _iter_pdf_literal_strings(data: bytes) -> list[bytes]:
             if char == ord(")"):
                 depth -= 1
                 if depth == 0:
+                    terminated = True
                     i += 1
                     break
                 current.append(char)
@@ -241,7 +243,8 @@ def _iter_pdf_literal_strings(data: bytes) -> list[bytes]:
                 continue
             current.append(char)
             i += 1
-        literals.append(bytes(current))
+        if terminated:
+            literals.append(bytes(current))
     return literals
 
 
