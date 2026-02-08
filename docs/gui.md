@@ -2,6 +2,8 @@
 
 Diese Datei beschreibt die aktuelle Desktop-GUI unter `src/interfaces/gui/`.
 
+> Hinweis: Die GUI ist noch nicht fertig. Die Oberflaeche und die zugrunde liegende Architektur werden kontinuierlich erweitert und iterativ verbessert.
+
 ## Ziel
 
 - Daten-Workflows (Fetch/Index/Export) direkt aus der Oberflaeche ausfuehren.
@@ -85,4 +87,3 @@ Die GUI ist modular aufgeteilt:
 2. Action im `self.actions`-Mapping registrieren.
 3. Optional Renderer fuer Detailpanel hinzufuegen.
 4. Optional in Presets aufnehmen.
-
