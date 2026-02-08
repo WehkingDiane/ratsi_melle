@@ -26,6 +26,12 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 - `python scripts/build_online_index_db.py 2024 --months 5 6` baut den Online-Index unter `data/processed/online_session_index.sqlite` ohne Downloads.
 - `python scripts/export_analysis_batch.py --db-path data/processed/local_index.sqlite --output data/processed/analysis_batch.json` exportiert einen reproduzierbaren Analyse-Batch (optional filterbar nach Sitzung, Zeitraum, Gremium, `document_type`).
 
+## GUI (modular)
+
+- Einstiegspunkt: `python -m src.interfaces.gui.gui_launcher`
+- Architektur und Erweiterungshinweise: `docs/gui.md`
+- GUI-Quellcode liegt unter `src/interfaces/gui/` und ist in `app.py`, `views/`, `services/` und `config.py` aufgeteilt.
+
 ## Zeilenenden (Windows/Linux)
 
 - Das Repository nutzt fuer Quell- und Konfigurationsdateien konsistent `LF` (verwaltet ueber `.gitattributes` und `.editorconfig`).
