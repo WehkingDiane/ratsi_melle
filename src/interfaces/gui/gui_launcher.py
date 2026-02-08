@@ -73,6 +73,11 @@ class GuiLauncher:
                 handler=self._run_build_online_index,
                 renderer=self._render_index_summary,
             ),
+            "Export analysis batch (script)": ActionConfig(
+                name="Export analysis batch (script)",
+                handler=self._run_export_analysis_batch,
+                renderer=self._render_export_summary,
+            ),
             "List committees (local index)": ActionConfig(
                 name="List committees (local index)",
                 handler=self._run_list_committees,
@@ -427,6 +432,52 @@ class GuiLauncher:
             "size_mb": size_mb,
         }
 
+    def _run_export_analysis_batch(self) -> dict:
+        script_path = REPO_ROOT / "scripts" / "export_analysis_batch.py"
+        if not script_path.exists():
+            self._append_log("[ERROR] scripts/export_analysis_batch.py not found")
+            return {"status": "error", "message": "Script not found"}
+
+        db_path = REPO_ROOT / "data" / "processed" / "local_index.sqlite"
+        output_path = REPO_ROOT / "data" / "processed" / "analysis_batch.json"
+        cmd = [
+            sys.executable,
+            str(script_path),
+            "--db-path",
+            str(db_path),
+            "--output",
+            str(output_path),
+        ]
+        self._append_log(f"[INFO] Running: {' '.join(cmd)}")
+
+        process = subprocess.Popen(
+            cmd,
+            cwd=str(REPO_ROOT),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        assert process.stdout is not None
+        last_line = ""
+        line_count = 0
+        for line in process.stdout:
+            stripped = line.rstrip()
+            if stripped:
+                last_line = stripped
+            self._append_log(stripped)
+            line_count += 1
+        process.wait()
+        if process.returncode != 0:
+            self._append_log(f"[ERROR] Script exited with {process.returncode}")
+        return {
+            "status": "ok" if process.returncode == 0 else "error",
+            "command": " ".join(cmd),
+            "exit_code": process.returncode,
+            "lines": line_count,
+            "summary": last_line,
+            "output": str(output_path),
+        }
+
     def _run_list_committees(self) -> dict:
         db_path = REPO_ROOT / "data" / "processed" / "local_index.sqlite"
         if not db_path.exists():
@@ -657,6 +708,15 @@ class GuiLauncher:
         self._render_kv("Exit Code", result.get("exit_code", "-"))
         self._render_kv("Output Lines", result.get("lines", "-"))
         self._render_kv("Summary", result.get("summary", "-"))
+
+    def _render_export_summary(self, result: dict) -> None:
+        self.right_title.configure(text="Export Summary")
+        self._clear_right_panel()
+        self._render_kv("Command", result.get("command", "-"))
+        self._render_kv("Exit Code", result.get("exit_code", "-"))
+        self._render_kv("Output Lines", result.get("lines", "-"))
+        self._render_kv("Summary", result.get("summary", "-"))
+        self._render_kv("Output File", result.get("output", "-"))
 
     def _render_committees(self, result: dict) -> None:
         self.right_title.configure(text="Committees")
