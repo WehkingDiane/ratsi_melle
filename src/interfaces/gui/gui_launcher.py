@@ -473,17 +473,29 @@ class GuiLauncher:
             return
 
         is_valid, message = self._validate_selected_action()
+        preset_valid, _preset_message = self._validate_selected_preset()
         if self.validation_label:
             self.validation_label.configure(text=message if not is_valid else "")
         if self.run_button:
             self.run_button.configure(state="normal" if is_valid else "disabled")
         if self.run_preset_button:
-            self.run_preset_button.configure(state="normal")
+            self.run_preset_button.configure(state="normal" if preset_valid else "disabled")
         if self.cancel_button:
             self.cancel_button.configure(state="disabled")
 
     def _validate_selected_action(self) -> tuple[bool, str]:
         return self._validate_action_name(self.selected_action.get())
+
+    def _validate_selected_preset(self) -> tuple[bool, str]:
+        preset_name = self.selected_preset.get()
+        action_names = self.presets.get(preset_name, [])
+        if not action_names:
+            return False, "Preset has no actions."
+        for action_name in action_names:
+            valid, message = self._validate_action_name(action_name)
+            if not valid:
+                return False, f"{action_name}: {message}"
+        return True, ""
 
     def _validate_action_name(self, action_name: str) -> tuple[bool, str]:
         if action_name in {
@@ -557,7 +569,13 @@ class GuiLauncher:
         try:
             result = action.handler()
             self.root.after(0, lambda: self._render_action_result(action, result))
-            self._set_status("Done")
+            result_status = result.get("status")
+            if result_status == "ok":
+                self._set_status("Done")
+            elif result_status == "cancelled":
+                self._set_status("Cancelled")
+            else:
+                self._set_status("Failed")
         except Exception as exc:  # pragma: no cover - UI safety
             self._append_log(f"[ERROR] {exc}")
             self._set_status("Failed")
@@ -620,16 +638,11 @@ class GuiLauncher:
     def _run_selected_preset(self) -> None:
         preset_name = self.selected_preset.get()
         action_names = self.presets.get(preset_name, [])
-        if not action_names:
-            self._append_log("[ERROR] Selected preset has no actions.")
+        valid, message = self._validate_selected_preset()
+        if not valid:
+            self._append_log(f"[ERROR] Preset blocked: {message}")
+            self._update_run_state()
             return
-
-        for action_name in action_names:
-            valid, message = self._validate_action_name(action_name)
-            if not valid:
-                self._append_log(f"[ERROR] Preset blocked at '{action_name}': {message}")
-                self._update_run_state()
-                return
 
         self.cancel_requested = False
         self.worker_running = True
