@@ -9,6 +9,8 @@ from scripts import build_local_index, export_analysis_batch
 def _write_fixture(root: Path) -> None:
     session_dir = root / "2025" / "2025-09-18_Rat_901"
     session_dir.mkdir(parents=True, exist_ok=True)
+    (session_dir / "session-documents").mkdir(parents=True, exist_ok=True)
+    (session_dir / "agenda" / "o1").mkdir(parents=True, exist_ok=True)
 
     (session_dir / "session_detail.html").write_text("<html></html>", encoding="utf-8")
     (session_dir / "agenda_summary.json").write_text(
@@ -70,6 +72,28 @@ def _write_fixture(root: Path) -> None:
         ),
         encoding="utf-8",
     )
+    (session_dir / "session-documents" / "protokoll.pdf").write_bytes(
+        b"%PDF-1.4\n"
+        b"1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n"
+        b"2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n"
+        b"3 0 obj << /Type /Page /Parent 2 0 R /Contents 4 0 R >> endobj\n"
+        b"4 0 obj << /Length 120 >> stream\n"
+        b"BT /F1 12 Tf 72 700 Td (Protokolltext fuer Analyse Export mit ausreichend Textumfang fuer Qualitaet.) Tj ET\n"
+        b"endstream endobj\n"
+        b"trailer << /Root 1 0 R >>\n"
+        b"%%EOF\n"
+    )
+    (session_dir / "agenda" / "o1" / "beschluss.pdf").write_bytes(
+        b"%PDF-1.4\n"
+        b"1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n"
+        b"2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n"
+        b"3 0 obj << /Type /Page /Parent 2 0 R /Contents 4 0 R >> endobj\n"
+        b"4 0 obj << /Length 118 >> stream\n"
+        b"BT /F1 12 Tf 72 700 Td (Beschlussvorlage mit Freigabetext und Basisdaten zur KI-Auswertung.) Tj ET\n"
+        b"endstream endobj\n"
+        b"trailer << /Root 1 0 R >>\n"
+        b"%%EOF\n"
+    )
 
 
 def _build_db(tmp_path: Path) -> Path:
@@ -114,3 +138,31 @@ def test_normalize_document_types_rejects_unknown_values() -> None:
         assert "Unsupported document type" in str(exc)
     else:  # pragma: no cover - defensive
         raise AssertionError("Expected ValueError for unsupported document type")
+
+
+def test_export_analysis_batch_includes_text_extraction(tmp_path: Path) -> None:
+    db_path = _build_db(tmp_path)
+    output_path = tmp_path / "data" / "processed" / "analysis_batch_with_text.json"
+
+    count = export_analysis_batch.export_analysis_batch(
+        db_path,
+        output_path,
+        session_ids=["901"],
+        include_text_extraction=True,
+        max_text_chars=10_000,
+    )
+
+    assert count == 2
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload["filters"]["include_text_extraction"] is True
+    assert payload["filters"]["max_text_chars"] == 10_000
+
+    docs = payload["documents"]
+    assert len(docs) == 2
+    for entry in docs:
+        assert entry["extraction_status"] in {"ok", "partial"}
+        assert entry["parsing_quality"] in {"low", "medium", "high"}
+        assert entry["extracted_char_count"] > 0
+        assert entry["resolved_local_path"]
+        assert entry["extraction_pipeline_version"] == "1.0"
+        assert isinstance(entry["extracted_at"], str)
