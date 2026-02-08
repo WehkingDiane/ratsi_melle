@@ -4,3 +4,4 @@ __pycache__/
 logs/
 data/raw/
 data/processed/
+configs/gui_settings.json
