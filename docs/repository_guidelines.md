@@ -17,7 +17,7 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 │   ├── parsing/           # Normalisierung, Parser und Metadaten-Anreicherung
 │   ├── analysis/          # Auswertungs- und Scoring-Komponenten
 │   └── interfaces/        # UI-, API- oder Integrationsschichten
-│       └── gui/           # GUI-Dateien
+│       └── gui/           # GUI-Dateien (app.py, views/, services/, config.py)
 └── tests/                 # Unit-, Integrations- und End-to-End-Tests
 ```
 
@@ -42,6 +42,7 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 - Ein Modul pro Verantwortlichkeit; umfangreiche Komponenten werden in Unterpakete zerlegt.
 - Öffentliche Funktionen dokumentieren Eingabeparameter, Rückgabewerte und Ausnahmen mittels Docstrings oder vergleichbarer Mechanismen.
 - Logging verwendet spätere zentrale Logger-Hilfen unter `src/` und schreibt ausschließlich in `logs/`.
+- GUI-spezifisch: Layouts in `src/interfaces/gui/views/`, fachliche GUI-Helfer in `src/interfaces/gui/services/`, zentrale Orchestrierung in `src/interfaces/gui/app.py`.
 
 ## Datenhaltung
 
