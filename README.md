@@ -121,6 +121,7 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
    - Logging, Monitoring und Alarmierung einrichten.
    - Automatisierung (Zeitpläne, Deployments) definieren und testen.
    - Dokumentation, Tests und Onboarding-Unterlagen pflegen.
+   - 🚧 Verbesserte Download-Strategie ergänzen: optionaler inkrementeller Modus, der nur fehlende oder geänderte Dokumente lädt statt Sitzungsordner pro Lauf vollständig neu aufzubauen (Abgleich über URL/Hash/Metadaten).
 7. **Evaluation & Erweiterung**
    - Feedback von Pilotnutzer:innen einholen und Verbesserungen priorisieren.
    - Erweiterungen für zusätzliche Kommunen, Visualisierungen oder Schnittstellen planen.
