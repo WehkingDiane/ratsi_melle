@@ -96,21 +96,21 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
    - ✅ **Speicherkonzept ausarbeiten:** Dateiformate, Verzeichnis- bzw. Datenbankschemata, Versionierung sowie Aufbewahrungsfristen der Rohdaten definieren und in einem Architektur- oder Betriebshandbuch dokumentieren.
 
 3. **Dokumentenverarbeitung ausbauen**
-   - Parser für Vorlagen und Beschlüsse entwickeln (HTML, PDF, ggf. weitere Formate).
+   - 🚧 Parser für Vorlagen und Beschlüsse entwickeln (HTML, PDF, ggf. weitere Formate).
      - Relevante Inhalte je Dokumenttyp extrahieren (Beschlusstext, Begründung, Finanzbezug, Zuständigkeit).
-     - Parser-Ausgaben mit Fixtures pro Dokumenttyp absichern (`tests/fixtures/` + Edge-Cases).
-   - Normalisierte Datenstruktur mit Metadaten entwerfen und implementieren.
-     - Einheitliches Schema für Filterfelder definieren (`session_id`, `date`, `committee`, `status`, `document_type`, `top_number`).
-     - Felder für Analyse-Übergabe standardisieren (Quell-URL, lokaler Pfad, Hash, Extraktionszeitpunkt, Parsing-Qualität).
+     - ✅ Parser-Ausgaben mit Fixtures pro Dokumenttyp absichern (`tests/fixtures/` + Edge-Cases).
+   - ✅ Normalisierte Datenstruktur mit Metadaten entwerfen und implementieren.
+     - ✅ Einheitliches Schema für zentrale Filterfelder ist umgesetzt (`session_id`, `date`, `committee`, `document_type`, `top_number`; `status` aktuell über `agenda_items`).
+     - ✅ Felder für Analyse-Übergabe sind standardisiert (Quell-URL, lokaler Pfad, Hash, Extraktionszeitpunkt; Parsing-Qualität via Analyse-Export).
    - 🚧 HTML-Parser für weitere Dokumenttypen und Beschlüsse ergänzen.
      - Priorität auf häufige und politisch relevante Typen setzen (Vorlage, Beschlussvorlage, Niederschrift-Auszug).
      - Fallback-Regeln für variierende SessionNet-Layouts ergänzen und dokumentieren.
-   - 🚧 PDF-Extraktion/Normalisierung definieren (z. B. Textextraktion, Seitenstruktur).
-     - Entscheidung für Extraktionspipeline treffen (reiner Text vs. strukturierte Blöcke pro Seite/Abschnitt).
-     - Qualitätskriterien und Fehlerkennzeichnung festlegen (z. B. OCR nötig, unlesbar, unvollständig).
+   - 🚧 PDF-Extraktion/Normalisierung ausbauen (z. B. Textextraktion, Seitenstruktur).
+     - ✅ Basis-Extraktion und Qualitätskennzeichnung (inkl. OCR-Hinweis) sind vorhanden.
+     - 🚧 Erweiterte Pipeline für robuste Seiten-/Abschnittsstruktur und OCR-Workflow bleibt offen.
    - 🚧 Metadaten-Mapping für spätere Suche/Filterung konkretisieren.
-     - Filterlogik für UI vorbereiten: Zeitraum-Presets, vergangen/kommend, Gremium, Sitzungsstatus.
-     - Exportformat für Analyse-Batches definieren, damit ausgewählte Sitzungen reproduzierbar weitergegeben werden können.
+     - 🚧 Filterlogik für UI vorbereiten: Zeitraum-Presets, vergangen/kommend, Gremium, Sitzungsstatus.
+     - ✅ Exportformat für Analyse-Batches ist definiert, damit ausgewählte Sitzungen reproduzierbar weitergegeben werden können.
 4. **Analysemodul entwickeln**
    - Kriterien für Zusammenfassungen, Tonalität und Bewertung festlegen.
    - KI- oder regelbasierte Analyse integrieren; Schnittstellen so gestalten, dass verschiedene Modelle getestet werden können.
@@ -121,6 +121,7 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
    - Logging, Monitoring und Alarmierung einrichten.
    - Automatisierung (Zeitpläne, Deployments) definieren und testen.
    - Dokumentation, Tests und Onboarding-Unterlagen pflegen.
+   - 🚧 Verbesserte Download-Strategie ergänzen: optionaler inkrementeller Modus, der nur fehlende oder geänderte Dokumente lädt statt Sitzungsordner pro Lauf vollständig neu aufzubauen (Abgleich über URL/Hash/Metadaten).
 7. **Evaluation & Erweiterung**
    - Feedback von Pilotnutzer:innen einholen und Verbesserungen priorisieren.
    - Erweiterungen für zusätzliche Kommunen, Visualisierungen oder Schnittstellen planen.

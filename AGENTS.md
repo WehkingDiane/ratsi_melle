@@ -88,6 +88,7 @@
 
 ## WSL-spezifische Python-Umgebung (optional)
 
+- Version python 3.14
 - Wenn `python` fehlt, `python3` und `pip3` verwenden.
 - Empfohlenes Setup (vom Repo-Root):
   - `python3 -m venv .venv`
