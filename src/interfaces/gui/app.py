@@ -17,6 +17,8 @@ from typing import Callable
 import customtkinter as ctk
 from CTkMenuBar import CTkMenuBar, CustomDropdownMenu
 
+from src.analysis.analysis_context import build_analysis_markdown, enrich_documents_for_analysis
+
 from .config import (
     BUTTON_FONT,
     DATA_ROOT_DEFAULT,
@@ -1305,6 +1307,7 @@ class GuiLauncher:
             )
         except sqlite3.Error:
             documents = []
+        documents = enrich_documents_for_analysis(documents)
 
         return {
             "session": session,
@@ -1344,25 +1347,13 @@ class GuiLauncher:
                 )
                 job_id = int(cur.lastrowid)
 
-                top_text = "alle TOPs" if scope == "session" else ", ".join(selected_tops)
-                doc_count = len(documents)
-                headline = f"Analyse Sitzung {session.get('date')} - {session.get('committee') or '-'}"
-                summary_lines = [
-                    f"# {headline}",
-                    "",
-                    f"- Scope: {scope}",
-                    f"- TOP-Auswahl: {top_text}",
-                    f"- Dokumente im Scope: {doc_count}",
-                    "",
-                    "## Journalistische Kurzfassung",
-                    "Die Sitzung enthielt mehrere politische Beratungen. "
-                    "Fuer eine belastbare journalistische Auswertung sollten die relevanten Vorlagen und Beschluesse "
-                    "inhaltlich geprueft und gegengecheckt werden.",
-                    "",
-                    "## Prompt-Hinweis",
-                    prompt or "(kein Prompt gesetzt)",
-                ]
-                result_markdown = "\n".join(summary_lines)
+                result_markdown = build_analysis_markdown(
+                    session=session,
+                    scope=scope,
+                    selected_tops=selected_tops,
+                    documents=documents,
+                    prompt=prompt,
+                )
 
                 conn.execute(
                     "INSERT INTO analysis_outputs (job_id, output_format, content, created_at) VALUES (?, ?, ?, ?)",

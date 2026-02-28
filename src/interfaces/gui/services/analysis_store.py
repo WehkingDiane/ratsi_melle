@@ -96,9 +96,11 @@ class AnalysisStore:
             where += f" AND COALESCE(agenda_item, '') IN ({placeholders})"
             params.extend(selected_tops)
 
+        where_sql = where.replace("session_id", "d.session_id").replace("agenda_item", "d.agenda_item")
         query = (
-            f"SELECT agenda_item, title, document_type, local_path, url FROM documents WHERE {where} "
-            "ORDER BY COALESCE(agenda_item,''), title"
+            f"SELECT d.agenda_item, d.title, d.document_type, d.local_path, d.url, d.content_type, s.session_path "
+            f"FROM documents d JOIN sessions s ON s.session_id = d.session_id WHERE {where_sql} "
+            "ORDER BY COALESCE(d.agenda_item,''), d.title"
         )
         with sqlite3.connect(db_path) as conn:
             conn.row_factory = sqlite3.Row

@@ -15,6 +15,7 @@ if str(REPO_ROOT) not in sys.path:  # pragma: no branch - defensive
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.analysis.extraction_pipeline import extract_text_for_analysis
+from src.parsing.document_content import parse_document_content
 
 
 ALLOWED_DOCUMENT_TYPES = {
@@ -146,6 +147,8 @@ def export_analysis_batch(
                     session_path=row["session_path"],
                     local_path=row["local_path"],
                     content_type=row["content_type"],
+                    document_type=row["document_type"],
+                    title=row["title"],
                     max_text_chars=max_text_chars,
                 )
             )
@@ -277,6 +280,8 @@ def _extract_document_payload(
     session_path: str | None,
     local_path: str | None,
     content_type: str | None,
+    document_type: str | None,
+    title: str | None,
     max_text_chars: int,
 ) -> dict[str, object]:
     if max_text_chars < 1:
@@ -295,6 +300,11 @@ def _extract_document_payload(
             "ocr_needed": False,
             "extraction_pipeline_version": None,
             "extracted_at": None,
+            "content_parser_status": "missing_file",
+            "content_parser_quality": "failed",
+            "content_parser_version": None,
+            "structured_fields": {},
+            "matched_sections": [],
         }
 
     result = extract_text_for_analysis(
@@ -304,6 +314,12 @@ def _extract_document_payload(
     )
     payload = result.to_dict()
     payload["resolved_local_path"] = str(resolved_path)
+    content_result = parse_document_content(
+        document_type=document_type,
+        text=result.extracted_text,
+        title=title,
+    )
+    payload.update(content_result.to_dict())
     return payload
 
 

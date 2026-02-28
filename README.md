@@ -96,18 +96,18 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
    - ✅ **Speicherkonzept ausarbeiten:** Dateiformate, Verzeichnis- bzw. Datenbankschemata, Versionierung sowie Aufbewahrungsfristen der Rohdaten definieren und in einem Architektur- oder Betriebshandbuch dokumentieren.
 
 3. **Dokumentenverarbeitung ausbauen**
-   - 🚧 Parser für Vorlagen und Beschlüsse entwickeln (HTML, PDF, ggf. weitere Formate).
-     - Relevante Inhalte je Dokumenttyp extrahieren (Beschlusstext, Begründung, Finanzbezug, Zuständigkeit).
-     - ✅ Parser-Ausgaben mit Fixtures pro Dokumenttyp absichern (`tests/fixtures/` + Edge-Cases).
+   - ✅ Parser für priorisierte Dokumenttypen entwickeln (Vorlage, Beschlussvorlage, Protokoll-Auszug).
+     - ✅ Relevante Inhalte je Dokumenttyp werden als strukturierte Felder extrahiert (`beschlusstext`, `begruendung`, `finanzbezug`, `zustaendigkeit`, `entscheidung`).
+     - ✅ Parser-Ausgaben sind mit Fixtures pro Dokumenttyp abgesichert (`tests/fixtures/` + Edge-Cases).
    - ✅ Normalisierte Datenstruktur mit Metadaten entwerfen und implementieren.
      - ✅ Einheitliches Schema für zentrale Filterfelder ist umgesetzt (`session_id`, `date`, `committee`, `document_type`, `top_number`; `status` aktuell über `agenda_items`).
-     - ✅ Felder für Analyse-Übergabe sind standardisiert (Quell-URL, lokaler Pfad, Hash, Extraktionszeitpunkt; Parsing-Qualität via Analyse-Export).
-   - 🚧 HTML-Parser für weitere Dokumenttypen und Beschlüsse ergänzen.
-     - Priorität auf häufige und politisch relevante Typen setzen (Vorlage, Beschlussvorlage, Niederschrift-Auszug).
-     - Fallback-Regeln für variierende SessionNet-Layouts ergänzen und dokumentieren.
-   - 🚧 PDF-Extraktion/Normalisierung ausbauen (z. B. Textextraktion, Seitenstruktur).
+     - ✅ Felder für Analyse-Übergabe sind standardisiert (Quell-URL, lokaler Pfad, Hash, Extraktionszeitpunkt, Extraktions- und Parser-Qualität).
+   - ✅ Analyse-Export liefert strukturierte Dokumentkontexte für priorisierte Typen.
+     - ✅ `scripts/export_analysis_batch.py` kann Text-Extraktion und `structured_fields` für Analyse-Batches ausgeben.
+     - ✅ Der Analyse-Workflow in der GUI nutzt strukturierte Dokumentfelder als Kontext im generierten Markdown.
+   - 🚧 Erweiterte PDF-Robustheit bleibt als Folgearbeit offen.
      - ✅ Basis-Extraktion und Qualitätskennzeichnung (inkl. OCR-Hinweis) sind vorhanden.
-     - 🚧 Erweiterte Pipeline für robuste Seiten-/Abschnittsstruktur und OCR-Workflow bleibt offen.
+     - 🚧 Erweiterte Pipeline für robuste Seiten-/Abschnittsstruktur und vollwertigen OCR-Workflow bleibt offen und gehört in die nachgelagerte Qualitäts-/Betriebsarbeit.
    - 🚧 Metadaten-Mapping für spätere Suche/Filterung konkretisieren.
      - 🚧 Filterlogik für UI vorbereiten: Zeitraum-Presets, vergangen/kommend, Gremium, Sitzungsstatus.
      - ✅ Exportformat für Analyse-Batches ist definiert, damit ausgewählte Sitzungen reproduzierbar weitergegeben werden können.
