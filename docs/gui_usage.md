@@ -26,6 +26,9 @@ Die GUI ist in mehrere Bereiche gegliedert:
 - `Analysis`: Auswahl von Sitzungen und Erzeugung eines Analyse-Markdowns
 - weitere technische Bereiche wie Service- und Einstellungsansichten
 
+Leere Eingabefelder enthalten Beispiel-Platzhalter, damit das erwartete Format direkt sichtbar ist, etwa fuer Monate (`5 6 7`) oder Datumswerte (`2026-01-01`).
+Bei der Action `Export analysis batch (script)` werden fuer die wichtigsten Exportfelder zusaetzlich sichtbare Beispielwerte gesetzt, sobald das Feld leer ist.
+
 ## Typischer Ablauf
 
 ### 1. Rohdaten laden

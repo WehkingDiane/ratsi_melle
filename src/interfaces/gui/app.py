@@ -74,6 +74,15 @@ class GuiLauncher:
         self.export_require_local_path = ctk.BooleanVar(value=False)
         self.export_include_text_extraction = ctk.BooleanVar(value=False)
         self.export_max_text_chars = ctk.StringVar(value="12000")
+        self.export_field_defaults = {
+            "db_path": "data/processed/local_index.sqlite",
+            "output_path": "data/processed/analysis_batch.json",
+            "committees": "Rat, Ausschuss fuer Finanzen",
+            "date_from": "2026-01-01",
+            "date_to": "2026-12-31",
+            "document_types": "vorlage, beschlussvorlage, protokoll",
+            "max_text_chars": "12000",
+        }
 
         self.current_view_key = "data_tools"
         self.sidebar_visible = True
@@ -404,8 +413,28 @@ class GuiLauncher:
             var.trace_add("write", lambda *_: self._update_run_state())
 
     def _on_action_changed(self) -> None:
+        self._apply_export_field_defaults()
         self._update_dynamic_controls()
         self._update_run_state()
+
+    def _apply_export_field_defaults(self) -> None:
+        if self.selected_action.get() != "Export analysis batch (script)":
+            return
+
+        if not self.export_db_path.get().strip():
+            self.export_db_path.set(self.export_field_defaults["db_path"])
+        if not self.export_output_path.get().strip():
+            self.export_output_path.set(self.export_field_defaults["output_path"])
+        if not self.export_committees.get().strip():
+            self.export_committees.set(self.export_field_defaults["committees"])
+        if not self.export_date_from.get().strip():
+            self.export_date_from.set(self.export_field_defaults["date_from"])
+        if not self.export_date_to.get().strip():
+            self.export_date_to.set(self.export_field_defaults["date_to"])
+        if not self.export_document_types.get().strip():
+            self.export_document_types.set(self.export_field_defaults["document_types"])
+        if not self.export_max_text_chars.get().strip():
+            self.export_max_text_chars.set(self.export_field_defaults["max_text_chars"])
 
     def _update_dynamic_controls(self) -> None:
         if not self.export_frame:
