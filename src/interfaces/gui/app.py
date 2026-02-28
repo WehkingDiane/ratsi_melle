@@ -17,6 +17,8 @@ from typing import Callable
 import customtkinter as ctk
 from CTkMenuBar import CTkMenuBar, CustomDropdownMenu
 
+from src.analysis.analysis_context import build_analysis_markdown, enrich_documents_for_analysis
+
 from .config import (
     BUTTON_FONT,
     DATA_ROOT_DEFAULT,
@@ -72,6 +74,15 @@ class GuiLauncher:
         self.export_require_local_path = ctk.BooleanVar(value=False)
         self.export_include_text_extraction = ctk.BooleanVar(value=False)
         self.export_max_text_chars = ctk.StringVar(value="12000")
+        self.export_field_defaults = {
+            "db_path": "data/processed/local_index.sqlite",
+            "output_path": "data/processed/analysis_batch.json",
+            "committees": "Rat, Ausschuss fuer Finanzen",
+            "date_from": "2026-01-01",
+            "date_to": "2026-12-31",
+            "document_types": "vorlage, beschlussvorlage, protokoll",
+            "max_text_chars": "12000",
+        }
 
         self.current_view_key = "data_tools"
         self.sidebar_visible = True
@@ -402,8 +413,28 @@ class GuiLauncher:
             var.trace_add("write", lambda *_: self._update_run_state())
 
     def _on_action_changed(self) -> None:
+        self._apply_export_field_defaults()
         self._update_dynamic_controls()
         self._update_run_state()
+
+    def _apply_export_field_defaults(self) -> None:
+        if self.selected_action.get() != "Export analysis batch (script)":
+            return
+
+        if not self.export_db_path.get().strip():
+            self.export_db_path.set(self.export_field_defaults["db_path"])
+        if not self.export_output_path.get().strip():
+            self.export_output_path.set(self.export_field_defaults["output_path"])
+        if not self.export_committees.get().strip():
+            self.export_committees.set(self.export_field_defaults["committees"])
+        if not self.export_date_from.get().strip():
+            self.export_date_from.set(self.export_field_defaults["date_from"])
+        if not self.export_date_to.get().strip():
+            self.export_date_to.set(self.export_field_defaults["date_to"])
+        if not self.export_document_types.get().strip():
+            self.export_document_types.set(self.export_field_defaults["document_types"])
+        if not self.export_max_text_chars.get().strip():
+            self.export_max_text_chars.set(self.export_field_defaults["max_text_chars"])
 
     def _update_dynamic_controls(self) -> None:
         if not self.export_frame:
@@ -1305,6 +1336,7 @@ class GuiLauncher:
             )
         except sqlite3.Error:
             documents = []
+        documents = enrich_documents_for_analysis(documents)
 
         return {
             "session": session,
@@ -1344,25 +1376,13 @@ class GuiLauncher:
                 )
                 job_id = int(cur.lastrowid)
 
-                top_text = "alle TOPs" if scope == "session" else ", ".join(selected_tops)
-                doc_count = len(documents)
-                headline = f"Analyse Sitzung {session.get('date')} - {session.get('committee') or '-'}"
-                summary_lines = [
-                    f"# {headline}",
-                    "",
-                    f"- Scope: {scope}",
-                    f"- TOP-Auswahl: {top_text}",
-                    f"- Dokumente im Scope: {doc_count}",
-                    "",
-                    "## Journalistische Kurzfassung",
-                    "Die Sitzung enthielt mehrere politische Beratungen. "
-                    "Fuer eine belastbare journalistische Auswertung sollten die relevanten Vorlagen und Beschluesse "
-                    "inhaltlich geprueft und gegengecheckt werden.",
-                    "",
-                    "## Prompt-Hinweis",
-                    prompt or "(kein Prompt gesetzt)",
-                ]
-                result_markdown = "\n".join(summary_lines)
+                result_markdown = build_analysis_markdown(
+                    session=session,
+                    scope=scope,
+                    selected_tops=selected_tops,
+                    documents=documents,
+                    prompt=prompt,
+                )
 
                 conn.execute(
                     "INSERT INTO analysis_outputs (job_id, output_format, content, created_at) VALUES (?, ?, ?, ?)",

@@ -17,9 +17,19 @@ def build_analysis_view(app, parent: ctk.CTkFrame) -> None:
     filter_frame.grid_columnconfigure(7, weight=1)
 
     ctk.CTkLabel(filter_frame, text="Von", font=FIELD_FONT).grid(row=0, column=0, padx=(10, 4), pady=8)
-    ctk.CTkEntry(filter_frame, textvariable=app.analysis_date_from, width=120).grid(row=0, column=1, pady=8)
+    ctk.CTkEntry(
+        filter_frame,
+        textvariable=app.analysis_date_from,
+        width=120,
+        placeholder_text="2026-01-01",
+    ).grid(row=0, column=1, pady=8)
     ctk.CTkLabel(filter_frame, text="Bis", font=FIELD_FONT).grid(row=0, column=2, padx=(10, 4), pady=8)
-    ctk.CTkEntry(filter_frame, textvariable=app.analysis_date_to, width=120).grid(row=0, column=3, pady=8)
+    ctk.CTkEntry(
+        filter_frame,
+        textvariable=app.analysis_date_to,
+        width=120,
+        placeholder_text="2026-12-31",
+    ).grid(row=0, column=3, pady=8)
 
     ctk.CTkLabel(filter_frame, text="Gremium", font=FIELD_FONT).grid(row=0, column=4, padx=(10, 4), pady=8)
     app.analysis_committee_box = ctk.CTkComboBox(
@@ -31,7 +41,7 @@ def build_analysis_view(app, parent: ctk.CTkFrame) -> None:
     ctk.CTkEntry(
         filter_frame,
         textvariable=app.analysis_search,
-        placeholder_text="Suche Sitzung/Gremium",
+        placeholder_text="z. B. Rat oder Haushalt",
         width=220,
     ).grid(row=0, column=6, padx=(10, 6), pady=8)
 

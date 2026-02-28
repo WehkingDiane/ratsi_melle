@@ -77,8 +77,8 @@ def _write_fixture(root: Path) -> None:
         b"1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n"
         b"2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n"
         b"3 0 obj << /Type /Page /Parent 2 0 R /Contents 4 0 R >> endobj\n"
-        b"4 0 obj << /Length 120 >> stream\n"
-        b"BT /F1 12 Tf 72 700 Td (Protokolltext fuer Analyse Export mit ausreichend Textumfang fuer Qualitaet.) Tj ET\n"
+        b"4 0 obj << /Length 220 >> stream\n"
+        b"BT /F1 12 Tf 72 700 Td (Beratung: Im Ausschuss wurde ausfuehrlich ueber den Vorschlag diskutiert. Beschluss: Der Rat stimmt dem Verwaltungsvorschlag zu. Abstimmung: einstimmig angenommen.) Tj ET\n"
         b"endstream endobj\n"
         b"trailer << /Root 1 0 R >>\n"
         b"%%EOF\n"
@@ -88,8 +88,8 @@ def _write_fixture(root: Path) -> None:
         b"1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n"
         b"2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n"
         b"3 0 obj << /Type /Page /Parent 2 0 R /Contents 4 0 R >> endobj\n"
-        b"4 0 obj << /Length 118 >> stream\n"
-        b"BT /F1 12 Tf 72 700 Td (Beschlussvorlage mit Freigabetext und Basisdaten zur KI-Auswertung.) Tj ET\n"
+        b"4 0 obj << /Length 285 >> stream\n"
+        b"BT /F1 12 Tf 72 700 Td (Beschlussvorschlag: Der Rat beschliesst die Freigabe der Mittel fuer den Haushalt. Begruendung: Die Investition ist fuer den Betrieb erforderlich. Finanzielle Auswirkungen: Im Haushalt 2025 stehen 50000 EUR bereit. Zustaendigkeit: Rat der Stadt Melle.) Tj ET\n"
         b"endstream endobj\n"
         b"trailer << /Root 1 0 R >>\n"
         b"%%EOF\n"
@@ -166,6 +166,16 @@ def test_export_analysis_batch_includes_text_extraction(tmp_path: Path) -> None:
         assert entry["resolved_local_path"]
         assert entry["extraction_pipeline_version"] == "1.0"
         assert isinstance(entry["extracted_at"], str)
+        assert entry["content_parser_status"] == "ok"
+        assert entry["content_parser_quality"] in {"low", "medium", "high"}
+        assert entry["content_parser_version"] == "1.0"
+        assert isinstance(entry["structured_fields"], dict)
+        assert isinstance(entry["matched_sections"], list)
+
+    by_type = {entry["document_type"]: entry for entry in docs}
+    assert "Freigabe der Mittel" in by_type["beschlussvorlage"]["structured_fields"]["beschlusstext"]
+    assert "50000 EUR" in by_type["beschlussvorlage"]["structured_fields"]["finanzbezug"]
+    assert "einstimmig angenommen" in by_type["protokoll"]["structured_fields"]["entscheidung"]
 
 
 def test_resolve_local_file_path_accepts_windows_separators() -> None:

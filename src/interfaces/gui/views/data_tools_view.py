@@ -43,13 +43,23 @@ def build_controls(app, parent: ctk.CTkFrame) -> None:
     ctk.CTkLabel(params_frame, text="Year:", font=FIELD_FONT).grid(
         row=0, column=0, sticky="w", padx=(0, 6)
     )
-    ctk.CTkEntry(params_frame, textvariable=app.year_value, width=80).grid(
+    ctk.CTkEntry(
+        params_frame,
+        textvariable=app.year_value,
+        width=80,
+        placeholder_text="2026",
+    ).grid(
         row=0, column=1, sticky="w", padx=(0, 12)
     )
     ctk.CTkLabel(params_frame, text="Months (e.g. 5 6):", font=FIELD_FONT).grid(
         row=0, column=2, sticky="w", padx=(0, 6)
     )
-    ctk.CTkEntry(params_frame, textvariable=app.months_value, width=140).grid(
+    ctk.CTkEntry(
+        params_frame,
+        textvariable=app.months_value,
+        width=140,
+        placeholder_text="5 6 7",
+    ).grid(
         row=0, column=3, sticky="w"
     )
 
@@ -111,42 +121,72 @@ def build_controls(app, parent: ctk.CTkFrame) -> None:
     ctk.CTkLabel(app.export_frame, text="DB Path:", font=FIELD_FONT).grid(
         row=0, column=0, sticky="w", padx=(0, 6), pady=(0, 6)
     )
-    ctk.CTkEntry(app.export_frame, textvariable=app.export_db_path, font=FIELD_FONT).grid(
+    ctk.CTkEntry(
+        app.export_frame,
+        textvariable=app.export_db_path,
+        font=FIELD_FONT,
+        placeholder_text="data/processed/local_index.sqlite",
+    ).grid(
         row=0, column=1, sticky="ew", padx=(0, 16), pady=(0, 6)
     )
 
     ctk.CTkLabel(app.export_frame, text="Output:", font=FIELD_FONT).grid(
         row=0, column=2, sticky="w", padx=(0, 6), pady=(0, 6)
     )
-    ctk.CTkEntry(app.export_frame, textvariable=app.export_output_path, font=FIELD_FONT).grid(
+    ctk.CTkEntry(
+        app.export_frame,
+        textvariable=app.export_output_path,
+        font=FIELD_FONT,
+        placeholder_text="data/processed/analysis_batch.json",
+    ).grid(
         row=0, column=3, sticky="ew", pady=(0, 6)
     )
 
     ctk.CTkLabel(app.export_frame, text="Committees (comma):", font=FIELD_FONT).grid(
         row=1, column=0, sticky="w", padx=(0, 6), pady=(0, 6)
     )
-    ctk.CTkEntry(app.export_frame, textvariable=app.export_committees, font=FIELD_FONT).grid(
+    ctk.CTkEntry(
+        app.export_frame,
+        textvariable=app.export_committees,
+        font=FIELD_FONT,
+        placeholder_text="Rat, Ausschuss fuer Finanzen",
+    ).grid(
         row=1, column=1, sticky="ew", padx=(0, 16), pady=(0, 6)
     )
 
     ctk.CTkLabel(app.export_frame, text="Document types (comma):", font=FIELD_FONT).grid(
         row=1, column=2, sticky="w", padx=(0, 6), pady=(0, 6)
     )
-    ctk.CTkEntry(app.export_frame, textvariable=app.export_document_types, font=FIELD_FONT).grid(
+    ctk.CTkEntry(
+        app.export_frame,
+        textvariable=app.export_document_types,
+        font=FIELD_FONT,
+        placeholder_text="vorlage, beschlussvorlage, protokoll",
+    ).grid(
         row=1, column=3, sticky="ew", pady=(0, 6)
     )
 
     ctk.CTkLabel(app.export_frame, text="Date from:", font=FIELD_FONT).grid(
         row=2, column=0, sticky="w", padx=(0, 6), pady=(0, 6)
     )
-    ctk.CTkEntry(app.export_frame, textvariable=app.export_date_from, font=FIELD_FONT).grid(
+    ctk.CTkEntry(
+        app.export_frame,
+        textvariable=app.export_date_from,
+        font=FIELD_FONT,
+        placeholder_text="2026-01-01",
+    ).grid(
         row=2, column=1, sticky="ew", padx=(0, 16), pady=(0, 6)
     )
 
     ctk.CTkLabel(app.export_frame, text="Date to:", font=FIELD_FONT).grid(
         row=2, column=2, sticky="w", padx=(0, 6), pady=(0, 6)
     )
-    ctk.CTkEntry(app.export_frame, textvariable=app.export_date_to, font=FIELD_FONT).grid(
+    ctk.CTkEntry(
+        app.export_frame,
+        textvariable=app.export_date_to,
+        font=FIELD_FONT,
+        placeholder_text="2026-12-31",
+    ).grid(
         row=2, column=3, sticky="ew", pady=(0, 6)
     )
 
@@ -165,7 +205,12 @@ def build_controls(app, parent: ctk.CTkFrame) -> None:
     ctk.CTkLabel(app.export_frame, text="Max text chars:", font=FIELD_FONT).grid(
         row=3, column=2, sticky="w", padx=(0, 6), pady=(0, 2)
     )
-    ctk.CTkEntry(app.export_frame, textvariable=app.export_max_text_chars, width=160).grid(
+    ctk.CTkEntry(
+        app.export_frame,
+        textvariable=app.export_max_text_chars,
+        width=160,
+        placeholder_text="12000",
+    ).grid(
         row=3, column=3, sticky="w", pady=(0, 2)
     )
 

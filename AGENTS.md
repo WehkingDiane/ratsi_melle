@@ -41,6 +41,7 @@
 - Keine Secrets, API-Keys oder grosse Download-Daten einchecken; stattdessen `*.template`-Beispiele.
 - Rohdaten bleiben unveraendert unter `data/raw/`, abgeleitete Daten unter `data/processed/`.
 - Aktualisiere `docs/`, wenn sich Datenformate oder Crawl-Verhalten aendern.
+- Nach Aenderungen an GUI, Workflows, Exporten, Datenformaten oder Nutzerfuehrung muessen die betroffenen Dokumente geprueft und bei Bedarf aktualisiert werden, insbesondere `docs/gui_usage.md`, `docs/gui.md`, `README.md` und weitere einschlaegige Dateien unter `docs/`.
 - Zeilenenden werden ueber `.gitattributes` und `.editorconfig` vereinheitlicht:
   - Quell- und Konfigurationsdateien (u. a. `*.py`, `*.json`, `*.yml`) werden im Repository mit `LF` gefuehrt.
   - Windows-Skripte (`*.bat`, `*.cmd`, `*.ps1`) werden mit `CRLF` gefuehrt.
