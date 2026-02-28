@@ -70,3 +70,95 @@ def test_fetch_month_uses_extended_query_params(tmp_path, monkeypatch):
         "__canz": "1",
         "__cselect": "0",
     }
+
+
+def test_parse_month_page_accepts_full_date_strings(tmp_path):
+    html = """
+    <table id="smc_page_si0040_contenttable1">
+      <tr class="smc-row">
+        <td class="siday">
+          <div class="date">
+            <span class="weekday">Mi, 04.03.2026</span>
+          </div>
+        </td>
+        <td class="silink">
+          <div class="smc-el-h">Ortsrat Bruchmuehlen</div>
+          <a class="smc-link-normal" href="si0057.asp?__ksinr=7001">Ortsrat Bruchmuehlen</a>
+          <ul class="list-inline smc-detail-list">
+            <li>19:00 Uhr</li>
+            <li>Gemeindehaus</li>
+          </ul>
+        </td>
+      </tr>
+      <tr class="smc-row">
+        <td class="siday">
+          <div class="date">
+            <span class="weekday">Fr., 20.03.26</span>
+          </div>
+        </td>
+        <td class="silink">
+          <div class="smc-el-h">Ortsrat Melle-Mitte</div>
+          <a class="smc-link-normal" href="si0057.asp?__ksinr=7002">Ortsrat Melle-Mitte</a>
+          <ul class="list-inline smc-detail-list">
+            <li>18:30 Uhr</li>
+            <li>Rathaus</li>
+          </ul>
+        </td>
+      </tr>
+    </table>
+    """
+    client = SessionNetClient(storage_root=tmp_path)
+
+    sessions = client._parse_overview(html, year=2026, month=3)
+
+    assert [session.session_id for session in sessions] == ["7001", "7002"]
+    assert [session.date for session in sessions] == [date(2026, 3, 4), date(2026, 3, 20)]
+
+
+def test_parse_month_page_falls_back_to_date_in_link_metadata(tmp_path):
+    html = """
+    <table id="smc_page_si0040_contenttable1">
+      <tr>
+        <td class="smc_fct_day_991"></td>
+        <td class="smc_fct_day"></td>
+        <td class="smc_fct_daytext"></td>
+        <td class="silink">
+          <div class="smc-el-h">
+            <a
+              class="smc-link-normal"
+              href="si0057.asp?__ksinr=8207"
+              title="Details anzeigen: Ortsrat Bruchmuehlen 10.03.2026"
+            >Ortsrat Bruchmuehlen</a>
+          </div>
+          <ul class="list-inline smc-detail-list">
+            <li>19:00 Uhr</li>
+            <li>Saal Torbogenhaus</li>
+          </ul>
+        </td>
+      </tr>
+      <tr>
+        <td class="smc_fct_day_991"></td>
+        <td class="smc_fct_day"></td>
+        <td class="smc_fct_daytext"></td>
+        <td class="silink">
+          <div class="smc-el-h">
+            <a
+              class="smc-link-normal"
+              href="si0057.asp?__ksinr=8185"
+              aria-label="Details anzeigen: Ortsrat Melle-Mitte 10.03.2026"
+            >Ortsrat Melle-Mitte</a>
+          </div>
+          <ul class="list-inline smc-detail-list">
+            <li>19:00 Uhr</li>
+            <li>Ratssaal</li>
+          </ul>
+        </td>
+      </tr>
+    </table>
+    """
+    client = SessionNetClient(storage_root=tmp_path)
+
+    sessions = client._parse_overview(html, year=2026, month=3)
+
+    assert [session.session_id for session in sessions] == ["8207", "8185"]
+    assert [session.date for session in sessions] == [date(2026, 3, 10), date(2026, 3, 10)]

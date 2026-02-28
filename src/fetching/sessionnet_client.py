@@ -176,6 +176,8 @@ class SessionNetClient:
             day_tag = row.select_one("span.weekday")
             session_date = self._parse_day_value(day_tag.get_text(strip=True) if day_tag else None, year, month)
             if session_date is None:
+                session_date = self._extract_date_from_row_metadata(row, year, month)
+            if session_date is None:
                 LOGGER.warning("Could not parse date for meeting %s", title)
                 continue
 
@@ -203,15 +205,46 @@ class SessionNetClient:
         if not day_text:
             return None
 
-        cleaned = "".join(ch for ch in day_text if ch.isdigit())
-        if not cleaned:
+        normalized = " ".join(day_text.split())
+        if not normalized:
+            return None
+
+        full_date_match = re.search(r"\b(\d{1,2})\.(\d{1,2})\.(\d{2,4})\b", normalized)
+        if full_date_match:
+            day_number, month_number, year_number = (int(part) for part in full_date_match.groups())
+            if year_number < 100:
+                year_number += 2000
+            try:
+                return date(year_number, month_number, day_number)
+            except ValueError:
+                return None
+
+        day_month_match = re.search(r"\b(\d{1,2})\.(\d{1,2})\.(?!\d)", normalized)
+        if day_month_match:
+            day_number, month_number = (int(part) for part in day_month_match.groups())
+            try:
+                return date(year, month_number, day_number)
+            except ValueError:
+                return None
+
+        day_only_match = re.search(r"\b(\d{1,2})\.?\b", normalized)
+        if not day_only_match:
             return None
 
         try:
-            day_number = int(cleaned)
+            day_number = int(day_only_match.group(1))
             return date(year, month, day_number)
         except ValueError:
             return None
+
+    def _extract_date_from_row_metadata(self, row, year: int, month: int) -> Optional[date]:
+        for tag in row.select("a[title], a[aria-label]"):
+            for attribute in ("title", "aria-label"):
+                raw_value = tag.get(attribute)
+                parsed = self._parse_day_value(raw_value, year, month)
+                if parsed is not None:
+                    return parsed
+        return None
 
     def _parse_session_detail(self, reference: SessionReference, html: str) -> SessionDetail:
         soup = BeautifulSoup(html, "html.parser")
@@ -590,4 +623,3 @@ class SessionNetClient:
             cutoff = max_length - len(hash_suffix) - 1
             slug = f"{slug[:cutoff].rstrip('-')}-{hash_suffix}"
         return slug
-
