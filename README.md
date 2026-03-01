@@ -108,6 +108,7 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
      - ✅ Bestehende Rohdaten werden bei Nutzung des Fetch-Clients einmalig in die neue Monatsstruktur migriert.
 
 3. **Dokumentenverarbeitung ausbauen**
+   - Laufender Status und Restaufgaben werden nur noch in dieser README gepflegt; fruehere Zwischenstaende liegen bei Bedarf im Archiv unter `docs/archive/`.
    - ✅ Parser für priorisierte Dokumenttypen entwickeln (Vorlage, Beschlussvorlage, Protokoll-Auszug).
      - ✅ Relevante Inhalte je Dokumenttyp werden als strukturierte Felder extrahiert (`beschlusstext`, `begruendung`, `finanzbezug`, `zustaendigkeit`, `entscheidung`).
      - ✅ Parser-Ausgaben sind mit Fixtures pro Dokumenttyp abgesichert (`tests/fixtures/` + Edge-Cases).
