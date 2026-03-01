@@ -158,14 +158,14 @@ def build_export_view(app, parent: ctk.CTkFrame) -> None:
     )
     app.export_validation_label.grid(row=7, column=0, columnspan=4, sticky="ew", padx=12, pady=(0, 10))
 
-    app.status_label = ctk.CTkLabel(parent, text="Bereit", height=24, anchor="w", font=FIELD_FONT)
-    app.status_label.grid(row=3, column=0, columnspan=2, sticky="ew", padx=20, pady=(0, 6))
+    app.export_status_label = ctk.CTkLabel(parent, text="Bereit", height=24, anchor="w", font=FIELD_FONT)
+    app.export_status_label.grid(row=3, column=0, columnspan=2, sticky="ew", padx=20, pady=(0, 6))
 
-    app.log_text = ctk.CTkTextbox(parent, wrap="word", font=LOG_FONT, border_width=1, corner_radius=6)
-    app.log_text.grid(row=4, column=0, sticky="nsew", padx=(20, 10), pady=(0, 20))
-    app.log_text.configure(state="disabled")
+    app.export_log_text = ctk.CTkTextbox(parent, wrap="word", font=LOG_FONT, border_width=1, corner_radius=6)
+    app.export_log_text.grid(row=4, column=0, sticky="nsew", padx=(20, 10), pady=(0, 20))
+    app.export_log_text.configure(state="disabled")
 
-    textbox = app.log_text._textbox
+    textbox = app.export_log_text._textbox
     textbox.tag_configure("error", foreground="#ef4444")
     textbox.tag_configure("warning", foreground="#f59e0b")
     textbox.tag_configure("info", foreground="#22c55e")
@@ -180,11 +180,11 @@ def build_export_view(app, parent: ctk.CTkFrame) -> None:
     right_panel.grid_rowconfigure(1, weight=1)
     right_panel.grid_rowconfigure(3, weight=3)
 
-    app.right_title = ctk.CTkLabel(right_panel, text="Exportdetails", font=LABEL_FONT, anchor="w")
-    app.right_title.grid(row=0, column=0, sticky="ew", padx=12, pady=(12, 6))
+    app.export_right_title = ctk.CTkLabel(right_panel, text="Exportdetails", font=LABEL_FONT, anchor="w")
+    app.export_right_title.grid(row=0, column=0, sticky="ew", padx=12, pady=(12, 6))
 
-    app.right_content = ctk.CTkScrollableFrame(right_panel, height=220)
-    app.right_content.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 8))
+    app.export_right_content = ctk.CTkScrollableFrame(right_panel, height=220)
+    app.export_right_content.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 8))
 
     ctk.CTkLabel(right_panel, text="Dateivorschau", font=FIELD_FONT, anchor="w").grid(
         row=2, column=0, sticky="ew", padx=12, pady=(0, 4)
@@ -197,5 +197,6 @@ def build_export_view(app, parent: ctk.CTkFrame) -> None:
     )
     app.export_preview_text.configure(state="disabled")
 
+    app._activate_runtime_output_targets("analysis_export")
     app._refresh_export_committee_options()
     app._render_placeholder()

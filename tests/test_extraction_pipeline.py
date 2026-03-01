@@ -151,3 +151,34 @@ def test_extract_text_for_analysis_pdf_tracks_pages_and_sections(tmp_path: Path)
     assert [entry["page"] for entry in result.page_texts] == [1, 2]
     assert any(section["heading"].lower().startswith("beschluss") for section in result.detected_sections)
     assert any(section["heading"].lower().startswith("finanz") for section in result.detected_sections)
+
+
+def test_extract_text_for_analysis_pdf_preserves_page_tree_order(tmp_path: Path) -> None:
+    pdf_path = tmp_path / "page_order.pdf"
+    pdf_path.write_bytes(
+        b"%PDF-1.4\n"
+        b"1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n"
+        b"2 0 obj << /Type /Pages /Kids [9 0 R 3 0 R] /Count 2 >> endobj\n"
+        b"3 0 obj << /Type /Page /Parent 2 0 R /Contents 4 0 R >> endobj\n"
+        b"4 0 obj << /Length 96 >> stream\n"
+        b"BT (Finanzielle Auswirkungen: Zweite Seite.) Tj ET\n"
+        b"endstream endobj\n"
+        b"9 0 obj << /Type /Page /Parent 2 0 R /Contents 10 0 R >> endobj\n"
+        b"10 0 obj << /Length 92 >> stream\n"
+        b"BT (Beschlussvorschlag: Erste Seite.) Tj ET\n"
+        b"endstream endobj\n"
+        b"trailer << /Root 1 0 R >>\n"
+        b"%%EOF\n"
+    )
+
+    result = extract_text_for_analysis(
+        pdf_path,
+        content_type="application/pdf",
+        max_text_chars=10_000,
+    )
+
+    assert result.page_count == 2
+    assert result.page_texts[0]["text"].startswith("Beschlussvorschlag")
+    assert result.page_texts[1]["text"].startswith("Finanzielle Auswirkungen")
+    assert result.detected_sections[0]["page"] == 1
+    assert result.detected_sections[1]["page"] == 2

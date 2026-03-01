@@ -189,7 +189,7 @@ def _extract_text_from_text_file(file_path: Path) -> str:
 def _extract_text_from_pdf(file_path: Path) -> tuple[str, int | None, list[dict[str, object]], list[dict[str, object]]]:
     raw = file_path.read_bytes()
     object_map = _parse_pdf_objects(raw)
-    page_object_ids = _find_page_object_ids(object_map)
+    page_object_ids = _find_page_object_ids(raw, object_map)
     page_count = len(page_object_ids) or None
 
     page_texts = _extract_pdf_page_texts(object_map, page_object_ids)
@@ -285,13 +285,66 @@ def _parse_pdf_objects(raw: bytes) -> dict[int, bytes]:
     return objects
 
 
-def _find_page_object_ids(object_map: dict[int, bytes]) -> list[int]:
+def _find_page_object_ids(raw: bytes, object_map: dict[int, bytes]) -> list[int]:
+    root_pages_id = _find_root_pages_object_id(raw, object_map)
+    if root_pages_id is not None:
+        ordered = _walk_page_tree(object_map, root_pages_id, visited=set())
+        if ordered:
+            return ordered
+
     page_ids = [
         object_id
         for object_id, data in object_map.items()
         if re.search(rb"/Type\s*/Page\b", data)
     ]
     return sorted(page_ids)
+
+
+def _find_root_pages_object_id(raw: bytes, object_map: dict[int, bytes]) -> int | None:
+    root_catalog_id = _find_catalog_object_id(raw, object_map)
+    if root_catalog_id is None:
+        return None
+
+    catalog_object = object_map.get(root_catalog_id, b"")
+    pages_match = re.search(rb"/Pages\s+(\d+)\s+\d+\s+R", catalog_object)
+    if not pages_match:
+        return None
+    return int(pages_match.group(1))
+
+
+def _find_catalog_object_id(raw: bytes, object_map: dict[int, bytes]) -> int | None:
+    trailer_match = re.search(rb"trailer\s*<<(.*?)>>", raw, flags=re.DOTALL)
+    if trailer_match:
+        root_match = re.search(rb"/Root\s+(\d+)\s+\d+\s+R", trailer_match.group(1))
+        if root_match:
+            return int(root_match.group(1))
+
+    for object_id, data in object_map.items():
+        if re.search(rb"/Type\s*/Catalog\b", data):
+            return object_id
+    return None
+
+
+def _walk_page_tree(object_map: dict[int, bytes], object_id: int, visited: set[int]) -> list[int]:
+    if object_id in visited:
+        return []
+    visited.add(object_id)
+
+    data = object_map.get(object_id, b"")
+    if not data:
+        return []
+    if re.search(rb"/Type\s*/Page\b", data):
+        return [object_id]
+
+    kids_match = re.search(rb"/Kids\s*\[(.*?)\]", data, flags=re.DOTALL)
+    if not kids_match:
+        return []
+
+    ordered_pages: list[int] = []
+    for value in re.findall(rb"(\d+)\s+\d+\s+R", kids_match.group(1)):
+        child_id = int(value)
+        ordered_pages.extend(_walk_page_tree(object_map, child_id, visited))
+    return ordered_pages
 
 
 def _extract_contents_object_ids(page_object: bytes) -> list[int]:
