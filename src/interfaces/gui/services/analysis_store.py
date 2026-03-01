@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 
@@ -12,12 +12,22 @@ from pathlib import Path
 class SessionFilters:
     date_from: str
     date_to: str
+    date_preset: str
     committee: str
     search: str
-    past_only: bool
+    session_status: str
 
 
 class AnalysisStore:
+    DATE_PRESET_LABELS = (
+        "Benutzerdefiniert",
+        "Heute",
+        "Naechste 30 Tage",
+        "Letzte 30 Tage",
+        "Dieses Jahr",
+    )
+    SESSION_STATUS_LABELS = ("alle", "vergangen", "heute", "kommend")
+
     def list_committees(self, db_path: Path) -> list[str]:
         if not db_path.exists():
             return []
@@ -31,35 +41,72 @@ class AnalysisStore:
         if not db_path.exists():
             return []
 
+        resolved_from, resolved_to = self.resolve_date_range(
+            filters.date_preset,
+            filters.date_from,
+            filters.date_to,
+        )
+        today = date.today().isoformat()
         query = (
-            "SELECT s.session_id, s.date, s.committee, s.meeting_name, COUNT(ai.id) AS top_count "
+            "SELECT s.session_id, s.date, s.committee, s.meeting_name, "
+            "CASE "
+            "WHEN s.date < ? THEN 'vergangen' "
+            "WHEN s.date = ? THEN 'heute' "
+            "ELSE 'kommend' "
+            "END AS session_status, "
+            "COUNT(ai.id) AS top_count "
             "FROM sessions s LEFT JOIN agenda_items ai ON ai.session_id = s.session_id WHERE 1=1"
         )
-        params: list[object] = []
+        params: list[object] = [today, today]
 
-        if filters.date_from:
+        if resolved_from:
             query += " AND s.date >= ?"
-            params.append(filters.date_from)
-        if filters.date_to:
+            params.append(resolved_from)
+        if resolved_to:
             query += " AND s.date <= ?"
-            params.append(filters.date_to)
+            params.append(resolved_to)
         if filters.committee:
             query += " AND s.committee = ?"
             params.append(filters.committee)
-        if filters.past_only:
-            query += " AND s.date <= ?"
-            params.append(date.today().isoformat())
+        if filters.session_status in {"vergangen", "heute", "kommend"}:
+            if filters.session_status == "vergangen":
+                query += " AND s.date < ?"
+                params.append(today)
+            elif filters.session_status == "heute":
+                query += " AND s.date = ?"
+                params.append(today)
+            else:
+                query += " AND s.date > ?"
+                params.append(today)
         if filters.search:
             query += " AND (s.meeting_name LIKE ? OR s.committee LIKE ?)"
             like = f"%{filters.search}%"
             params.extend([like, like])
 
-        query += " GROUP BY s.session_id, s.date, s.committee, s.meeting_name ORDER BY s.date DESC"
+        query += (
+            " GROUP BY s.session_id, s.date, s.committee, s.meeting_name "
+            "ORDER BY s.date DESC, s.committee ASC"
+        )
 
         with sqlite3.connect(db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(query, tuple(params)).fetchall()
         return [dict(row) for row in rows]
+
+    @staticmethod
+    def resolve_date_range(date_preset: str, date_from: str, date_to: str) -> tuple[str, str]:
+        today = date.today()
+        preset = (date_preset or "").strip()
+        if preset == "Heute":
+            iso = today.isoformat()
+            return iso, iso
+        if preset == "Naechste 30 Tage":
+            return today.isoformat(), (today + timedelta(days=30)).isoformat()
+        if preset == "Letzte 30 Tage":
+            return (today - timedelta(days=30)).isoformat(), today.isoformat()
+        if preset == "Dieses Jahr":
+            return f"{today.year}-01-01", f"{today.year}-12-31"
+        return date_from, date_to
 
     def load_session_and_agenda(self, db_path: Path, session_id: str) -> tuple[dict | None, list[dict]]:
         if not db_path.exists():

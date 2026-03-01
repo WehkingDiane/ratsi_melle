@@ -111,13 +111,16 @@ class GuiLauncher:
         self.analysis_status_label: ctk.CTkLabel | None = None
         self.analysis_selected_session_label: ctk.CTkLabel | None = None
         self.analysis_prompt_box: ctk.CTkTextbox | None = None
+        self.analysis_date_preset_box: ctk.CTkComboBox | None = None
         self.analysis_committee_box: ctk.CTkComboBox | None = None
+        self.analysis_session_status_box: ctk.CTkComboBox | None = None
 
+        self.analysis_date_preset = ctk.StringVar(value="Benutzerdefiniert")
         self.analysis_date_from = ctk.StringVar(value="")
         self.analysis_date_to = ctk.StringVar(value="")
         self.analysis_committee = ctk.StringVar(value="")
+        self.analysis_session_status = ctk.StringVar(value="vergangen")
         self.analysis_search = ctk.StringVar(value="")
-        self.analysis_past_only = ctk.BooleanVar(value=True)
         self.analysis_scope = ctk.StringVar(value="session")
         self.analysis_prompt_value = (
             "Erstelle eine journalistische, neutrale Zusammenfassung. "
@@ -401,8 +404,11 @@ class GuiLauncher:
             self.export_date_to,
             self.export_document_types,
             self.export_max_text_chars,
+            self.analysis_date_preset,
             self.analysis_date_from,
             self.analysis_date_to,
+            self.analysis_committee,
+            self.analysis_session_status,
             self.analysis_search,
         ):
             var.trace_add("write", lambda *_: self._update_run_state())
@@ -410,7 +416,6 @@ class GuiLauncher:
             self.verbose_mode,
             self.export_require_local_path,
             self.export_include_text_extraction,
-            self.analysis_past_only,
         ):
             var.trace_add("write", lambda *_: self._update_run_state())
 
@@ -881,11 +886,14 @@ class GuiLauncher:
         )
         self.export_max_text_chars.set(str(payload.get("export_max_text_chars", self.export_max_text_chars.get())))
 
+        self.analysis_date_preset.set(str(payload.get("analysis_date_preset", self.analysis_date_preset.get())))
         self.analysis_date_from.set(str(payload.get("analysis_date_from", self.analysis_date_from.get())))
         self.analysis_date_to.set(str(payload.get("analysis_date_to", self.analysis_date_to.get())))
         self.analysis_committee.set(str(payload.get("analysis_committee", self.analysis_committee.get())))
+        self.analysis_session_status.set(
+            str(payload.get("analysis_session_status", self.analysis_session_status.get()))
+        )
         self.analysis_search.set(str(payload.get("analysis_search", self.analysis_search.get())))
-        self.analysis_past_only.set(bool(payload.get("analysis_past_only", self.analysis_past_only.get())))
         self.analysis_scope.set(str(payload.get("analysis_scope", self.analysis_scope.get())))
         self.analysis_prompt_value = str(payload.get("analysis_prompt", self.analysis_prompt_value))
 
@@ -910,11 +918,12 @@ class GuiLauncher:
             "export_require_local_path": bool(self.export_require_local_path.get()),
             "export_include_text_extraction": bool(self.export_include_text_extraction.get()),
             "export_max_text_chars": self.export_max_text_chars.get(),
+            "analysis_date_preset": self.analysis_date_preset.get(),
             "analysis_date_from": self.analysis_date_from.get(),
             "analysis_date_to": self.analysis_date_to.get(),
             "analysis_committee": self.analysis_committee.get(),
+            "analysis_session_status": self.analysis_session_status.get(),
             "analysis_search": self.analysis_search.get(),
-            "analysis_past_only": bool(self.analysis_past_only.get()),
             "analysis_scope": self.analysis_scope.get(),
             "analysis_prompt": prompt_text,
         }
@@ -1190,6 +1199,17 @@ class GuiLauncher:
         if self.analysis_committee_box:
             self.analysis_committee_box.configure(values=committees)
 
+    def _on_analysis_date_preset_changed(self, _value: str | None = None) -> None:
+        date_from, date_to = self.analysis_store.resolve_date_range(
+            self.analysis_date_preset.get().strip(),
+            self.analysis_date_from.get().strip(),
+            self.analysis_date_to.get().strip(),
+        )
+        if self.analysis_date_preset.get().strip() != "Benutzerdefiniert":
+            self.analysis_date_from.set(date_from)
+            self.analysis_date_to.set(date_to)
+        self._refresh_analysis_sessions()
+
     def _refresh_analysis_sessions(self) -> None:
         if not self.analysis_session_list_frame:
             return
@@ -1206,9 +1226,10 @@ class GuiLauncher:
                 SessionFilters(
                     date_from=self.analysis_date_from.get().strip(),
                     date_to=self.analysis_date_to.get().strip(),
+                    date_preset=self.analysis_date_preset.get().strip(),
                     committee=self.analysis_committee.get().strip(),
+                    session_status=self.analysis_session_status.get().strip(),
                     search=self.analysis_search.get().strip(),
-                    past_only=bool(self.analysis_past_only.get()),
                 ),
             )
         except sqlite3.Error as exc:
@@ -1235,7 +1256,10 @@ class GuiLauncher:
 
         for row in self.analysis_sessions:
             title = f"{row.get('date', '')} | {row.get('committee', '-') } | {row.get('meeting_name', '-') }"
-            subtitle = f"TOPs: {row.get('top_count', 0)} | Session-ID: {row.get('session_id', '-') }"
+            subtitle = (
+                f"Status: {row.get('session_status', '-') } | "
+                f"TOPs: {row.get('top_count', 0)} | Session-ID: {row.get('session_id', '-') }"
+            )
             text = f"{title}\n{subtitle}"
             ctk.CTkButton(
                 self.analysis_session_list_frame,
