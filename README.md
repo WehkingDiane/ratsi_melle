@@ -101,8 +101,8 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
    - ✅ **Quellen und Strukturen erfassen:** Regelmäßige Übersichts-, Detail- und Downloadseiten identifizieren, Navigations- und Paginationspfade festhalten sowie Parameter (z. B. Zeitraum, Gremium, Dokumenttyp) und wiederkehrende HTML-Elemente dokumentieren.
    - ✅ **Abruflogik konzipieren:** Datenflüsse, Fehlerfälle und Wiederholungsstrategien modellieren, inklusive Zeitplanung für Abrufe, Latenzanforderungen und Grenzen der Zielsysteme.
    - ✅ **Abrufkomponente implementieren:** Skript- oder Service-Module entwickeln, die Termine und Dokumente laden, Netzwerkfehler protokollieren, Wiederholungen auslösen und anhand repräsentativer Testfälle mit Mock- oder Live-Daten verifiziert werden.
-     - 🚧 `fetch_sessions.py` bzw. `sessionnet_client.py` um einen Änderungsabgleich erweitern, damit nur neue oder aktualisierte Dateien erneut heruntergeladen werden.
-     - 🚧 Vorhandene Dateien vor dem Download vergleichen und identische Dateien überspringen, um Netzwerk- und Speicherressourcen zu sparen.
+     - ✅ `fetch_sessions.py` bzw. `sessionnet_client.py` führen einen Änderungsabgleich durch, damit nur neue oder aktualisierte Dateien erneut heruntergeladen werden.
+     - ✅ Vorhandene Dateien werden vor dem Download verglichen; identische Dateien werden übersprungen, um Netzwerk- und Speicherressourcen zu sparen.
    - ✅ **Speicherkonzept ausarbeiten:** Dateiformate, Verzeichnis- bzw. Datenbankschemata, Versionierung sowie Aufbewahrungsfristen der Rohdaten definieren und in einem Architektur- oder Betriebshandbuch dokumentieren.
      - ✅ Ablagestruktur unter `data/raw/YYYY/MM/` um einen zusätzlichen Monats-Unterordner erweitert.
      - ✅ Bestehende Rohdaten werden bei Nutzung des Fetch-Clients einmalig in die neue Monatsstruktur migriert.
