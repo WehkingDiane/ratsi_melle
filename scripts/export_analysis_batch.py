@@ -15,6 +15,7 @@ if str(REPO_ROOT) not in sys.path:  # pragma: no branch - defensive
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.analysis.extraction_pipeline import extract_text_for_analysis
+from src.fetching.storage_layout import resolve_local_file_path
 from src.parsing.document_content import parse_document_content
 
 
@@ -287,7 +288,7 @@ def _extract_document_payload(
     if max_text_chars < 1:
         raise ValueError("--max-text-chars must be >= 1")
 
-    resolved_path = _resolve_local_file_path(session_path=session_path, local_path=local_path)
+    resolved_path = resolve_local_file_path(session_path=session_path, local_path=local_path)
     if resolved_path is None:
         return {
             "resolved_local_path": None,
@@ -321,24 +322,6 @@ def _extract_document_payload(
     )
     payload.update(content_result.to_dict())
     return payload
-
-
-def _resolve_local_file_path(*, session_path: str | None, local_path: str | None) -> Path | None:
-    normalized_local = (local_path or "").strip()
-    if not normalized_local:
-        return None
-    normalized_local = normalized_local.replace("\\", "/")
-
-    candidate = Path(normalized_local)
-    if candidate.is_absolute():
-        return candidate
-
-    normalized_session = (session_path or "").strip()
-    if not normalized_session:
-        return candidate
-    normalized_session = normalized_session.replace("\\", "/")
-
-    return Path(normalized_session) / candidate
 
 
 def main() -> None:

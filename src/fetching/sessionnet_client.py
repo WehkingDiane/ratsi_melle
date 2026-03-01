@@ -9,8 +9,8 @@ import logging
 import mimetypes
 from itertools import count
 import re
-import shutil
 from pathlib import Path
+import shutil
 import time
 from typing import Dict, Iterable, List, Optional, Tuple
 from urllib.parse import parse_qs, urljoin, urlparse, unquote
@@ -52,6 +52,7 @@ class SessionNetClient:
     storage_root: Path = Path("data/raw")
     _last_request_ts: float = field(default=0.0, init=False, repr=False)
     _document_cache: Dict[str, Tuple[bytes, Dict[str, str]]] = field(default_factory=dict, init=False, repr=False)
+    _document_head_cache: Dict[str, Dict[str, str]] = field(default_factory=dict, init=False, repr=False)
     session: requests.Session = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -60,6 +61,7 @@ class SessionNetClient:
         self.base_url = self.base_url.rstrip("/") + "/"
         self.storage_root = Path(self.storage_root)
         self.storage_root.mkdir(parents=True, exist_ok=True)
+        self._migrate_legacy_storage_layout()
 
     # ------------------------------------------------------------------
     # Public API
@@ -90,15 +92,29 @@ class SessionNetClient:
 
         target_dir = self._build_session_directory(detail.reference)
         target_dir.mkdir(parents=True, exist_ok=True)
-        for subdir in ("session-documents", "agenda"):
-            path = target_dir / subdir
-            if path.exists():
-                shutil.rmtree(path)
+        existing_manifest = self._load_manifest(target_dir)
         manifest_entries = []
         sequence = count(1)
 
         def _store_document(document: DocumentReference, scope_dir: Path) -> None:
             scope_dir.mkdir(parents=True, exist_ok=True)
+            existing_entry = self._find_existing_manifest_entry(existing_manifest, document)
+            existing_path = self._resolve_existing_document_path(target_dir, existing_entry)
+            remote_headers = self._head_document(document) if existing_path is not None else {}
+
+            if existing_path is not None and self._is_unchanged_document(existing_entry, remote_headers):
+                LOGGER.info("Reusing unchanged document %s", document.url)
+                manifest_entries.append(
+                    self._build_manifest_entry(
+                        document=document,
+                        path=existing_path,
+                        headers=remote_headers or existing_entry or {},
+                        sha1=self._read_sha1(existing_path, existing_entry),
+                        target_dir=target_dir,
+                    )
+                )
+                return
+
             try:
                 content, headers = self._fetch_document_payload(document)
             except FetchingError:
@@ -106,23 +122,23 @@ class SessionNetClient:
                 return
 
             file_extension = self._detect_extension(document, headers)
-            index = next(sequence)
-            filename = self._normalise_filename(document, index=index, extension=file_extension)
-            path = scope_dir / filename
+            path = existing_path
+            if path is None:
+                index = next(sequence)
+                filename = self._normalise_filename(document, index=index, extension=file_extension)
+                path = scope_dir / filename
+            else:
+                path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(content)
             digest = sha1(content).hexdigest()
             manifest_entries.append(
-                {
-                    "title": document.title,
-                    "category": document.category,
-                    "agenda_item": document.on_agenda_item,
-                    "url": document.url,
-                    "path": str(path.relative_to(target_dir)),
-                    "sha1": digest,
-                    "content_type": headers.get("Content-Type"),
-                    "content_disposition": headers.get("Content-Disposition"),
-                    "content_length": int(headers.get("Content-Length") or len(content)),
-                }
+                self._build_manifest_entry(
+                    document=document,
+                    path=path,
+                    headers=headers,
+                    sha1=digest,
+                    target_dir=target_dir,
+                )
             )
 
         session_docs_dir = target_dir / "session-documents"
@@ -352,6 +368,22 @@ class SessionNetClient:
         self._document_cache[document.url] = payload
         return payload
 
+    def _head_document(self, document: DocumentReference) -> Dict[str, str]:
+        cached = self._document_head_cache.get(document.url)
+        if cached is not None:
+            return cached
+
+        try:
+            response = self._request("HEAD", document.url)
+        except FetchingError:
+            LOGGER.debug("HEAD request failed for %s", document.url)
+            self._document_head_cache[document.url] = {}
+            return {}
+
+        headers = response.headers.copy()
+        self._document_head_cache[document.url] = headers
+        return headers
+
     def _respect_rate_limit(self) -> None:
         if self.min_request_interval <= 0:
             return
@@ -363,13 +395,16 @@ class SessionNetClient:
             time.sleep(delay)
 
     def _get(self, path: str, params: Optional[dict] = None) -> requests.Response:
+        return self._request("GET", path, params=params)
+
+    def _request(self, method: str, path: str, params: Optional[dict] = None) -> requests.Response:
         url = path if path.startswith("http") else urljoin(self.base_url, path)
         last_error: Optional[requests.RequestException] = None
         backoff = 1.0
         for attempt in range(1, self.max_retries + 1):
             self._respect_rate_limit()
             try:
-                response = self.session.get(url, params=params, timeout=self.timeout)
+                response = self.session.request(method, url, params=params, timeout=self.timeout, allow_redirects=True)
                 self._last_request_ts = time.monotonic()
                 response.raise_for_status()
                 return response
@@ -388,6 +423,116 @@ class SessionNetClient:
                 time.sleep(backoff)
                 backoff *= self.retry_backoff
         raise FetchingError(str(last_error)) from last_error
+
+    def _load_manifest(self, session_dir: Path) -> list[dict]:
+        manifest_path = session_dir / "manifest.json"
+        if not manifest_path.exists():
+            return []
+        try:
+            payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return []
+        documents = payload.get("documents") if isinstance(payload, dict) else None
+        if not isinstance(documents, list):
+            return []
+        return [entry for entry in documents if isinstance(entry, dict)]
+
+    def _find_existing_manifest_entry(self, manifest_entries: list[dict], document: DocumentReference) -> dict | None:
+        for entry in manifest_entries:
+            if entry.get("url") != document.url:
+                continue
+            if entry.get("agenda_item") != document.on_agenda_item:
+                continue
+            if entry.get("title") != document.title:
+                continue
+            if entry.get("category") != document.category:
+                continue
+            return entry
+        return None
+
+    def _resolve_existing_document_path(self, target_dir: Path, entry: dict | None) -> Path | None:
+        if not entry:
+            return None
+        relative_path = entry.get("path")
+        if not isinstance(relative_path, str) or not relative_path.strip():
+            return None
+        candidate = target_dir / relative_path
+        if candidate.exists() and candidate.is_file():
+            return candidate
+        return None
+
+    def _is_unchanged_document(self, existing_entry: dict | None, remote_headers: Dict[str, str]) -> bool:
+        if not existing_entry:
+            return False
+        if not remote_headers:
+            return False
+
+        existing_etag = self._normalise_header_value(existing_entry.get("etag"))
+        remote_etag = self._normalise_header_value(remote_headers.get("ETag"))
+        if existing_etag and remote_etag:
+            return existing_etag == remote_etag
+
+        existing_last_modified = self._normalise_header_value(existing_entry.get("last_modified"))
+        remote_last_modified = self._normalise_header_value(remote_headers.get("Last-Modified"))
+        if existing_last_modified and remote_last_modified:
+            existing_length = self._parse_content_length(existing_entry.get("content_length"))
+            remote_length = self._parse_content_length(remote_headers.get("Content-Length"))
+            if existing_length is None or remote_length is None:
+                return existing_last_modified == remote_last_modified
+            return existing_last_modified == remote_last_modified and existing_length == remote_length
+
+        return False
+
+    def _build_manifest_entry(
+        self,
+        *,
+        document: DocumentReference,
+        path: Path,
+        headers: Dict[str, str] | dict,
+        sha1: str,
+        target_dir: Path,
+    ) -> dict:
+        return {
+            "title": document.title,
+            "category": document.category,
+            "agenda_item": document.on_agenda_item,
+            "url": document.url,
+            "path": str(path.relative_to(target_dir)),
+            "sha1": sha1,
+            "content_type": headers.get("Content-Type"),
+            "content_disposition": headers.get("Content-Disposition"),
+            "content_length": self._parse_content_length(headers.get("Content-Length")) or path.stat().st_size,
+            "etag": headers.get("ETag"),
+            "last_modified": headers.get("Last-Modified"),
+        }
+
+    @staticmethod
+    def _parse_content_length(value: object) -> int | None:
+        if isinstance(value, int):
+            return value
+        if not isinstance(value, str):
+            return None
+        value = value.strip()
+        if not value:
+            return None
+        try:
+            return int(value)
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _normalise_header_value(value: object) -> str | None:
+        if not isinstance(value, str):
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+    @staticmethod
+    def _read_sha1(path: Path, existing_entry: dict | None) -> str:
+        existing_sha1 = existing_entry.get("sha1") if isinstance(existing_entry, dict) else None
+        if isinstance(existing_sha1, str) and existing_sha1:
+            return existing_sha1
+        return sha1(path.read_bytes()).hexdigest()
 
     def _absolute_url(self, href: str) -> str:
         if not href:
@@ -412,17 +557,54 @@ class SessionNetClient:
         return detail_url
 
     def _build_month_filename(self, year: int, month: int) -> Path:
-        directory = self.storage_root / str(year)
+        directory = self._build_month_storage_directory(year, month)
         directory.mkdir(parents=True, exist_ok=True)
         return directory / f"{year:04d}-{month:02d}_overview.html"
 
     def _build_session_directory(self, reference: SessionReference) -> Path:
-        directory = self.storage_root / str(reference.date.year)
+        directory = self._build_month_storage_directory(reference.date.year, reference.date.month)
         directory.mkdir(parents=True, exist_ok=True)
         slug = self._slugify(f"{reference.date.isoformat()}_{reference.committee}_{reference.session_id}")
         path = directory / slug
         path.mkdir(parents=True, exist_ok=True)
         return path
+
+    def _build_month_storage_directory(self, year: int, month: int) -> Path:
+        return self.storage_root / str(year) / f"{month:02d}"
+
+    def _migrate_legacy_storage_layout(self) -> None:
+        for year_dir in self.storage_root.iterdir():
+            if not year_dir.is_dir() or not year_dir.name.isdigit():
+                continue
+            for child in list(year_dir.iterdir()):
+                target_dir = self._determine_migration_target_dir(year_dir, child)
+                if target_dir is None:
+                    continue
+                target_dir.mkdir(parents=True, exist_ok=True)
+                destination = target_dir / child.name
+                if destination.exists():
+                    continue
+                shutil.move(str(child), str(destination))
+
+    def _determine_migration_target_dir(self, year_dir: Path, child: Path) -> Path | None:
+        if child.name.isdigit() and len(child.name) == 2 and child.is_dir():
+            return None
+
+        month = self._extract_month_from_legacy_entry(child)
+        if month is None:
+            return None
+        return year_dir / f"{month:02d}"
+
+    def _extract_month_from_legacy_entry(self, child: Path) -> int | None:
+        overview_match = re.match(r"^\d{4}-(\d{2})_overview\.html$", child.name)
+        if overview_match:
+            return int(overview_match.group(1))
+
+        session_match = re.match(r"^(\d{4})-(\d{2})-(\d{2})[-_].+$", child.name)
+        if session_match:
+            return int(session_match.group(2))
+
+        return None
 
     def _build_session_filename(self, reference: SessionReference) -> Path:
         directory = self._build_session_directory(reference)

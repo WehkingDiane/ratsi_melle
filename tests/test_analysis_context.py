@@ -67,3 +67,30 @@ def test_build_analysis_markdown_includes_structured_document_context() -> None:
     assert "beschlussvorlage" in markdown
     assert "25.000 EUR" in markdown
     assert "Bitte Kernthemen und Kosten benennen." in markdown
+
+
+def test_enrich_documents_for_analysis_accepts_legacy_session_path(tmp_path: Path) -> None:
+    session_dir = tmp_path / "data" / "raw" / "2026" / "01" / "2026-01-15_Rat_902"
+    document_dir = session_dir / "agenda" / "o1"
+    document_dir.mkdir(parents=True, exist_ok=True)
+    document_path = document_dir / "beschlussvorlage.txt"
+    document_path.write_text(
+        "Beschlussvorschlag: Der Rat beschliesst die Umsetzung.",
+        encoding="utf-8",
+    )
+
+    documents = [
+        {
+            "agenda_item": "Oe 1",
+            "title": "Beschlussvorlage Projekt",
+            "document_type": "beschlussvorlage",
+            "local_path": "agenda/o1/beschlussvorlage.txt",
+            "session_path": str(tmp_path / "data" / "raw" / "2026" / "2026-01-15_Rat_902"),
+            "content_type": "text/plain",
+        }
+    ]
+
+    enriched = enrich_documents_for_analysis(documents)
+
+    assert enriched[0]["resolved_local_path"] == str(document_path)
+    assert enriched[0]["extraction_status"] in {"ok", "partial"}

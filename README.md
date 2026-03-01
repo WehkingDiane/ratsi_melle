@@ -77,14 +77,14 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 
 ## Rohdatenablage
 
-- `data/raw/<Jahr>/<Datum>_<Gremium>_<Sitzungs-ID>/` bildet den Sitzungsordner. Beispiel: `data/raw/2025/2025-10-08_Rat-der-Stadt-Melle_6770/`.
+- `data/raw/<Jahr>/<Monat>/<Datum>_<Gremium>_<Sitzungs-ID>/` bildet den Sitzungsordner. Beispiel: `data/raw/2025/10/2025-10-08_Rat-der-Stadt-Melle_6770/`.
 - Jeder Sitzungsordner enthält:
   - `session_detail.html` als unveränderte Detailseite.
   - `session-documents/` für Bekanntmachungen, Protokolle etc., die auf Sitzungsebene veröffentlicht werden.
   - `agenda/<TOP-Nummer>_<Kurzname>/` mit den Dokumenten je Tagesordnungspunkt (Suffixe wie „Berichterstatter …“ werden beim Ordnernamen entfernt).
   - `manifest.json` mit Pfad, URL, Titel, Kategorie, TOP-Zuordnung, SHA1-Hash sowie HTTP-Metadaten (`content_type`, `content_disposition`, `content_length`) sämtlicher Dateien.
   - `agenda_summary.json` mit einer Liste aller TOPs inkl. Reporter:in, Roh-Status aus SessionNet sowie einem abgeleiteten Entscheidungsfeld (`accepted`, `rejected`, `null`) und einem Flag, ob bereits Dokumente vorliegen.
-- Monatsübersichten werden als `data/raw/<Jahr>/<Jahr>-<Monat>_overview.html` gespeichert.
+- Monatsübersichten werden als `data/raw/<Jahr>/<Monat>/<Jahr>-<Monat>_overview.html` gespeichert.
 - Die tatsächlichen Dateien liegen zwar im Repository-Verzeichnis, werden aber per `.gitignore` von Commits ausgeschlossen, damit lokale Crawls das Repo nicht aufblähen.
 - Downloads werden pro Prozesslauf gecacht und durch eine einstellbare Rate-Limit-/Retry-Logik (Default: 1 Anfrage/Sekunde, exponentieller Backoff) automatisch gedrosselt. Damit werden identische Dokument-URLs innerhalb eines Runs nur einmal vom Ratsinformationssystem geholt.
 - Für zukünftige Sitzungen fehlen erfahrungsgemäß Status, Dokumente oder Reporter:innen-Angaben – `agenda_summary.json` kennzeichnet solche Fälle durch `decision = null` bzw. `documents_present = false`, bis ein erneuter Crawl die Angaben nachliefert.
@@ -101,11 +101,11 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
    - ✅ **Quellen und Strukturen erfassen:** Regelmäßige Übersichts-, Detail- und Downloadseiten identifizieren, Navigations- und Paginationspfade festhalten sowie Parameter (z. B. Zeitraum, Gremium, Dokumenttyp) und wiederkehrende HTML-Elemente dokumentieren.
    - ✅ **Abruflogik konzipieren:** Datenflüsse, Fehlerfälle und Wiederholungsstrategien modellieren, inklusive Zeitplanung für Abrufe, Latenzanforderungen und Grenzen der Zielsysteme.
    - ✅ **Abrufkomponente implementieren:** Skript- oder Service-Module entwickeln, die Termine und Dokumente laden, Netzwerkfehler protokollieren, Wiederholungen auslösen und anhand repräsentativer Testfälle mit Mock- oder Live-Daten verifiziert werden.
-     - 🚧 `fetch_sessions.py` bzw. `sessionnet_client.py` um einen Änderungsabgleich erweitern, damit nur neue oder aktualisierte Dateien erneut heruntergeladen werden.
-     - 🚧 Vorhandene Dateien vor dem Download vergleichen und identische Dateien überspringen, um Netzwerk- und Speicherressourcen zu sparen.
+     - ✅ `fetch_sessions.py` bzw. `sessionnet_client.py` führen einen Änderungsabgleich durch, damit nur neue oder aktualisierte Dateien erneut heruntergeladen werden.
+     - ✅ Vorhandene Dateien werden vor dem Download verglichen; identische Dateien werden übersprungen, um Netzwerk- und Speicherressourcen zu sparen.
    - ✅ **Speicherkonzept ausarbeiten:** Dateiformate, Verzeichnis- bzw. Datenbankschemata, Versionierung sowie Aufbewahrungsfristen der Rohdaten definieren und in einem Architektur- oder Betriebshandbuch dokumentieren.
-     - 🚧 Ablagestruktur unter `data/raw/YYYY/` um einen zusätzlichen Monats-Unterordner erweitern.
-     - 🚧 Bestehende Rohdaten einmalig in die neue Monatsstruktur migrieren.
+     - ✅ Ablagestruktur unter `data/raw/YYYY/MM/` um einen zusätzlichen Monats-Unterordner erweitert.
+     - ✅ Bestehende Rohdaten werden bei Nutzung des Fetch-Clients einmalig in die neue Monatsstruktur migriert.
 
 3. **Dokumentenverarbeitung ausbauen**
    - ✅ Parser für priorisierte Dokumenttypen entwickeln (Vorlage, Beschlussvorlage, Protokoll-Auszug).

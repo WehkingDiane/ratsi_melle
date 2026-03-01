@@ -30,8 +30,8 @@ Die Stadt Melle betreibt eine eigene **SessionNet**-Installation unter `https://
 
 ## 3. Speicherkonzept für Rohdaten
 
-- **Verzeichnisstruktur**: `data/raw/<Jahr>/<Datum>_<Gremium>_<Sitzungs-ID>/`.
-  - Beispiel: `data/raw/2024/2024-05-14_Ausschuss-fuer-Umwelt_12345/`.
+- **Verzeichnisstruktur**: `data/raw/<Jahr>/<Monat>/<Datum>_<Gremium>_<Sitzungs-ID>/`.
+  - Beispiel: `data/raw/2024/05/2024-05-14_Ausschuss-fuer-Umwelt_12345/`.
   - Unterordner:
     - `session_detail.html` mit dem Original-HTML.
     - `session-documents/` für alle dokumente, die auf Sitzungsebene bereitgestellt werden.
@@ -39,7 +39,7 @@ Die Stadt Melle betreibt eine eigene **SessionNet**-Installation unter `https://
     - `manifest.json` als Metadatenindex aller abgelegten Dateien.
     - `agenda_summary.json` mit einer strukturierten Liste der TOPs (Nummer, Titel, Reporter:in, Status, abgeleiteter Beschluss sowie ein Flag, ob bereits Dokumente vorliegen), sodass spätere Verarbeitungsschritte nicht erneut das HTML parsen müssen.
 - **Gespeicherte Artefakte**:
-  - `YYYY-MM_overview.html` pro Monat im Jahresordner.
+  - `YYYY-MM_overview.html` pro Monat im Monatsordner.
   - Einzelne Dokumente mit sprechendem Slug, laufender Nummer und entdeckter Dateiendung (z. B. `.pdf`), ergänzt um einen Hash-Anteil zur Entschärfung von Duplikaten.
 - **Metadaten**: Agenda und Dokumente werden programmatisch zu Python-Objekten (`SessionDetail`, `AgendaItem`, `DocumentReference`) verarbeitet. Zusätzlich enthält `manifest.json` Dateipfad, Titel, Kategorie, TOP-Zuordnung, Ursprungs-URL, SHA1-Fingerprint sowie HTTP-Header (`content_type`, `content_disposition`, `content_length`), sodass spätere Verarbeitungsschritte ohne erneutes HTML-Parsen oder wiederholte Downloads auskommen.
 - **Unvollständige Informationen**: Für zukünftige oder frisch nachgepflegte Sitzungen liegen Reporter:innen- und Beschlussangaben teilweise nicht vor. Die Summary-Datei markiert solche Einträge mit `decision = null` bzw. `documents_present = false`, bis ein erneuter Crawl die Werte anreichert.
