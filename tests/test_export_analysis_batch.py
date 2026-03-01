@@ -179,9 +179,24 @@ def test_export_analysis_batch_includes_text_extraction(tmp_path: Path) -> None:
 
 
 def test_resolve_local_file_path_accepts_windows_separators() -> None:
-    resolved = export_analysis_batch._resolve_local_file_path(
+    resolved = export_analysis_batch.resolve_local_file_path(
         session_path=r"data\raw\2025\09\2025-09-18_Rat_901",
         local_path=r"session-documents\protokoll.pdf",
     )
     assert resolved is not None
     assert resolved.as_posix() == "data/raw/2025/09/2025-09-18_Rat_901/session-documents/protokoll.pdf"
+
+
+def test_resolve_local_file_path_accepts_legacy_session_path(tmp_path: Path) -> None:
+    session_dir = tmp_path / "data" / "raw" / "2025" / "09" / "2025-09-18_Rat_901"
+    session_dir.mkdir(parents=True, exist_ok=True)
+    document_path = session_dir / "session-documents" / "protokoll.pdf"
+    document_path.parent.mkdir(parents=True, exist_ok=True)
+    document_path.write_bytes(b"pdf")
+
+    resolved = export_analysis_batch.resolve_local_file_path(
+        session_path=str(tmp_path / "data" / "raw" / "2025" / "2025-09-18_Rat_901"),
+        local_path="session-documents/protokoll.pdf",
+    )
+
+    assert resolved == document_path

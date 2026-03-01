@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from src.analysis.extraction_pipeline import extract_text_for_analysis
+from src.fetching.storage_layout import resolve_local_file_path
 from src.parsing.document_content import parse_document_content
 
 
@@ -14,7 +15,10 @@ def enrich_documents_for_analysis(documents: list[dict], *, max_text_chars: int 
     enriched: list[dict] = []
     for document in documents:
         entry = dict(document)
-        resolved_path = _resolve_local_file_path(entry.get("session_path"), entry.get("local_path"))
+        resolved_path = resolve_local_file_path(
+            session_path=_as_text(entry.get("session_path")),
+            local_path=_as_text(entry.get("local_path")),
+        )
         entry["resolved_local_path"] = str(resolved_path) if resolved_path else None
 
         if resolved_path is None:
@@ -89,22 +93,6 @@ def build_analysis_markdown(
 
     summary_lines.extend(["", "## Prompt-Hinweis", prompt or "(kein Prompt gesetzt)"])
     return "\n".join(summary_lines)
-
-
-def _resolve_local_file_path(session_path: object, local_path: object) -> Path | None:
-    normalized_local = _as_text(local_path).strip().replace("\\", "/")
-    if not normalized_local:
-        return None
-
-    candidate = Path(normalized_local)
-    if candidate.is_absolute():
-        return candidate
-
-    normalized_session = _as_text(session_path).strip().replace("\\", "/")
-    if not normalized_session:
-        return candidate
-    return Path(normalized_session) / candidate
-
 
 def _truncate(value: str, max_chars: int) -> str:
     cleaned = " ".join(value.split())
