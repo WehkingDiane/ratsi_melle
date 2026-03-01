@@ -65,25 +65,26 @@ Hinweis: Diese Datei dokumentiert den aktuellen Implementierungsstand inklusive 
   - Erweiterungen auf weitere Typen bleiben moeglich, sind aber kein Blocker fuer Taskliste Punkt 3.
 
 6. PDF-Extraktion/Normalisierung
-- Status: **teilweise erledigt**
+- Status: **weitgehend erledigt**
 - Nachweis:
   - Download und Dateityp-Erkennung sind vorhanden.
   - Basis-PDF-Text-Extraktion und OCR-Hinweis sind vorhanden: `src/analysis/extraction_pipeline.py`
   - Qualitaetskennzeichnung ist vorhanden und wird im Analyse-Export genutzt.
-  - Offen bleibt eine robustere Seiten-/Abschnittsstruktur und ein vollwertiger OCR-Workflow.
+  - Seitenbezogene Textsegmente (`page_texts`) und Abschnittsanker (`detected_sections`) werden jetzt fuer PDF-Dokumente erkannt und in Export/Analyse weitergereicht.
+  - Offen bleibt ein vollwertiger OCR-Workflow fuer gescannte/problematische PDFs.
 
 7. Metadaten-Mapping fuer Suche/Filterung + Export fuer Analyse-Batches
-- Status: **weitgehend erledigt**
+- Status: **erledigt (fuer aktuellen GUI-/Export-Scope)**
 - Nachweis:
   - Indexe fuer Zeit/Gremium vorhanden.
   - `document_type` als zusaetzliches Filterfeld vorhanden.
   - Reproduzierbarer Batch-Export implementiert: `scripts/export_analysis_batch.py`.
   - GUI-Analyse-Workflow nutzt strukturierte Dokumentfelder als Kontext: `src/interfaces/gui/app.py`, `src/analysis/analysis_context.py`
-  - GUI kann aktuell u. a. Gremienlisten ausgeben und Analyse-Markdown mit Dokumentkontext erzeugen.
-  - Offen: weiterer UI-Filterflow fuer Zeitraum-Presets und feinere Sitzungs-/Dokumentauswahl.
+  - GUI unterstuetzt jetzt Zeitraum-Presets, Sitzungsstatus (`vergangen`, `heute`, `kommend`) und Gremienfilter fuer die Analyseauswahl.
+  - Analyse-Markdown kann erkannte PDF-Abschnittsanker als Kontext ausgeben.
 
 ## Priorisierte naechste Schritte
 
-1. PDF-Extraktionspipeline fuer schwierige/gescannte Dokumente robuster machen (Seitenstruktur, OCR-Workflow).
+1. OCR-Workflow fuer schwierige/gescannte Dokumente ergaenzen und betrieblich absichern.
 2. Dokumentparser auf weitere Typen ausdehnen, falls reale Daten das rechtfertigen.
-3. UI-Filter fuer Zeitraum/Sitzung/Gremium plus Auswahl-Workflow fuer Analyse weiter verfeinern.
+3. UI-Filter und Dokumentauswahl fuer Analyse weiter verfeinern (z. B. Mehrfachauswahl, Preset-Workflows, Dokumentvorschau).

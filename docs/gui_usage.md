@@ -93,10 +93,10 @@ In `Analysis`:
 
 ### 1. Sitzungen filtern
 
-- `Von` und `Bis` setzen
+- `Zeitraum` als Preset waehlen oder `Von` und `Bis` manuell setzen
 - `Gremium` auswaehlen
+- `Status` waehlen (`alle`, `vergangen`, `heute`, `kommend`)
 - optional Textsuche verwenden
-- `Nur vergangene` aktivieren/deaktivieren
 - `Filtern` klicken
 
 ### 2. Sitzung auswaehlen
@@ -126,6 +126,7 @@ Die Analyse nutzt jetzt nicht nur Metadaten, sondern auch Dokumentkontext aus lo
 - Dokumenttyp
 - Extraktionsstatus
 - Parser-Qualitaet
+- erkannte PDF-Abschnitte und Seitenkontext
 - strukturierte Felder aus Beschlussvorlagen und Protokollen
 
 Der erzeugte Markdown-Text enthaelt einen Abschnitt `Dokumentkontext`, in dem erkannte Inhalte kompakt aufgefuehrt werden.

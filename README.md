@@ -117,11 +117,12 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
    - ✅ Analyse-Export liefert strukturierte Dokumentkontexte für priorisierte Typen.
      - ✅ `scripts/export_analysis_batch.py` kann Text-Extraktion und `structured_fields` für Analyse-Batches ausgeben.
      - ✅ Der Analyse-Workflow in der GUI nutzt strukturierte Dokumentfelder als Kontext im generierten Markdown.
-   - 🚧 Erweiterte PDF-Robustheit bleibt als Folgearbeit offen.
+   - ✅ Erweiterte PDF-Robustheit für Analyse-Export weiter ausgebaut.
      - ✅ Basis-Extraktion und Qualitätskennzeichnung (inkl. OCR-Hinweis) sind vorhanden.
-     - 🚧 Erweiterte Pipeline für robuste Seiten-/Abschnittsstruktur und vollwertigen OCR-Workflow bleibt offen und gehört in die nachgelagerte Qualitäts-/Betriebsarbeit.
-   - 🚧 Metadaten-Mapping für spätere Suche/Filterung konkretisieren.
-     - 🚧 Filterlogik für UI vorbereiten: Zeitraum-Presets, vergangen/kommend, Gremium, Sitzungsstatus.
+     - ✅ Seitenbezogene PDF-Texte und Abschnittsanker werden in der Extraktionspipeline erkannt und fuer Export/Analyse bereitgestellt.
+     - 🚧 Vollwertiger OCR-Workflow fuer gescannte/problematische PDFs bleibt als nachgelagerte Betriebsarbeit offen.
+   - ✅ Metadaten-Mapping für spätere Suche/Filterung konkretisiert.
+     - ✅ Filterlogik für UI ist vorbereitet: Zeitraum-Presets, vergangen/heute/kommend, Gremium, Sitzungsstatus.
      - ✅ Exportformat für Analyse-Batches ist definiert, damit ausgewählte Sitzungen reproduzierbar weitergegeben werden können.
 4. **Analysemodul entwickeln**
    - 🚧 Analyseziele, Qualitätskriterien und Ausgabeformate festlegen.

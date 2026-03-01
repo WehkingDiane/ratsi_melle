@@ -53,7 +53,7 @@ Die GUI ist modular aufgeteilt:
 
 ### Journalistische Analyse
 
-- Filter: Zeitraum, Gremium, Suche, vergangene Sitzungen.
+- Filter: Zeitraum-Presets, manuelle Datumsgrenzen, Gremium, Suche, Sitzungsstatus (`vergangen`, `heute`, `kommend`).
 - Sitzungsliste aus `sessions`.
 - TOP-Auswahl aus `agenda_items`.
 - Scope:

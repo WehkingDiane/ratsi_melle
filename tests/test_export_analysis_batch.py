@@ -164,7 +164,7 @@ def test_export_analysis_batch_includes_text_extraction(tmp_path: Path) -> None:
         assert entry["parsing_quality"] in {"low", "medium", "high"}
         assert entry["extracted_char_count"] > 0
         assert entry["resolved_local_path"]
-        assert entry["extraction_pipeline_version"] == "1.0"
+        assert entry["extraction_pipeline_version"] == "1.1"
         assert isinstance(entry["extracted_at"], str)
         assert entry["content_parser_status"] == "ok"
         assert entry["content_parser_quality"] in {"low", "medium", "high"}

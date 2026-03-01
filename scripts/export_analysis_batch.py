@@ -297,6 +297,8 @@ def _extract_document_payload(
             "extracted_text": "",
             "extracted_char_count": 0,
             "page_count": None,
+            "page_texts": [],
+            "detected_sections": [],
             "extraction_error": "No local path available",
             "ocr_needed": False,
             "extraction_pipeline_version": None,
