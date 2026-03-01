@@ -31,6 +31,7 @@ Die GUI ist modular aufgeteilt:
 - `src/interfaces/gui/views/`
   - Seiten-/Layoutmodule:
     - `data_tools_view.py`
+    - `export_view.py`
     - `analysis_view.py`
     - `settings_view.py`
     - `service_view.py`
@@ -47,9 +48,15 @@ Die GUI ist modular aufgeteilt:
   - `fetch_sessions.py`
   - `build_local_index.py`
   - `build_online_index_db.py`
-  - `export_analysis_batch.py`
 - Presets fuer Mehrschrittablaeufe.
 - Live-Validierung, Logbereich, Detailpanel, Cancel laufender Prozesse.
+
+### Analyse-Batch Export
+
+- Eigene Developer-Seite fuer `export_analysis_batch.py`.
+- Klarere Zweckbeschreibung fuer reproduzierbare Analyse-JSONs.
+- Exportprofile, Zeitraum-Presets, Gremienauswahl aus der DB und Dokumentprofile.
+- Vorschau des erzeugten JSON-Inhalts direkt in der GUI.
 
 ### Journalistische Analyse
 

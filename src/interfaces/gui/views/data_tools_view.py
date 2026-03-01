@@ -30,7 +30,7 @@ def build_controls(app, parent: ctk.CTkFrame) -> None:
     action_box = ctk.CTkComboBox(
         frame,
         variable=app.selected_action,
-        values=list(app.actions.keys()),
+        values=app.data_tool_actions,
         width=460,
         font=FIELD_FONT,
     )

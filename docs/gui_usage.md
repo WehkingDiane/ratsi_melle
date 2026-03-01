@@ -22,12 +22,13 @@ python -m src.interfaces.gui.gui_launcher
 
 Die GUI ist in mehrere Bereiche gegliedert:
 
-- `Data Tools`: Skriptnahe Funktionen wie Download, Index-Build und Analyse-Export
+- `Data Tools`: Skriptnahe Funktionen wie Download und Index-Build
+- `Analyse-Batch Export`: Developer-Werkzeug fuer reproduzierbare JSON-Exports inkl. Vorschau
 - `Analysis`: Auswahl von Sitzungen und Erzeugung eines Analyse-Markdowns
 - weitere technische Bereiche wie Service- und Einstellungsansichten
 
 Leere Eingabefelder enthalten Beispiel-Platzhalter, damit das erwartete Format direkt sichtbar ist, etwa fuer Monate (`5 6 7`) oder Datumswerte (`2026-01-01`).
-Bei der Action `Export analysis batch (script)` werden fuer die wichtigsten Exportfelder zusaetzlich sichtbare Beispielwerte gesetzt, sobald das Feld leer ist.
+Auf der Seite `Analyse-Batch Export` werden zusaetzlich Profile, Zeitraum-Presets und Dokumentprofile angeboten, damit typische Exporte ohne manuelles Ausfuellen startklar sind.
 
 ## Typischer Ablauf
 
@@ -53,16 +54,26 @@ Standardziel ist `data/processed/local_index.sqlite`.
 
 ### 3. Analyse-Batch exportieren
 
-In `Data Tools`:
+In `Analyse-Batch Export`:
 
-- `DB Path` auf die Quelldatenbank setzen, z. B. `data/processed/local_index.sqlite`
-- `Output Path` setzen, z. B. `data/processed/analysis_batch.json`
-- optional Filter setzen:
-  - Gremium
-  - Datum von/bis
-  - Dokumenttyp
-  - nur Eintraege mit `local_path`
-- `Include text extraction` aktivieren, wenn Text und strukturierte Inhaltsfelder exportiert werden sollen
+- `Exportprofil` waehlen, z. B. `Standardbatch (empfohlen)` oder `Rat mit Text-Extraktion`
+- optional `Zeitraum`, `Gremium aus DB` und `Dokumentprofil` nutzen
+- falls noetig Feinsteuerung ueber:
+  - `DB-Pfad`
+  - `Output-Datei`
+  - `Gremien (kommagetrennt)`
+  - `Dokumenttypen (kommagetrennt)`
+  - `Von` / `Bis`
+  - `Nur lokale Dateien`
+  - `Text-Extraktion einbeziehen`
+- `Analyse-Batch als JSON erzeugen` klicken
+
+Nach erfolgreichem Lauf zeigt die rechte Seite:
+
+- Exportdetails
+- Anzahl der exportierten Dokumente
+- verwendete Filter
+- eine Vorschau des erzeugten JSON-Inhalts
 
 Wichtige Wirkung von `Include text extraction`:
 
