@@ -19,6 +19,11 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 - **(Optional) Tkinter** für eine spätere UI; unter WSL via `sudo apt-get install python3-tk`.
 - **Projektstruktur** siehe `docs/repository_guidelines.md`.
 
+## Softwareversion
+
+- Aktuelle Projektversion: `0.1.0`
+- Versionsstrategie: `docs/software_versioning.md`
+
 ## Wichtige Skripte
 
 - `python scripts/fetch_sessions.py 2024 --months 5 6` laedt Sitzungen und Dokumente nach `data/raw/`.
@@ -89,11 +94,18 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 1. **Grundlagen schaffen**
    - ✅ Projektstruktur und Repository-Regeln sind in `docs/repository_guidelines.md` dokumentiert.
    - ✅ Erste Prüfung von Anforderungen, Datenschutz- und Nutzungsbedingungen inklusive weiterer To-dos in `docs/data_access_review.md` festgehalten.
+   - ✅ Softwareversionierung eingeführt.
+     - ✅ Ein konsistentes Schema nach `Major.Minor.Patch` ist festgelegt und dokumentiert (`VERSION`, `docs/software_versioning.md`).
+     - ✅ Für die Entwicklungsphase ist eine Vor-1.0-Strategie definiert; aktuelle Basisversion ist `0.1.0`.
 2. **Datenerfassung konzipieren und implementieren**
    - ✅ **Quellen und Strukturen erfassen:** Regelmäßige Übersichts-, Detail- und Downloadseiten identifizieren, Navigations- und Paginationspfade festhalten sowie Parameter (z. B. Zeitraum, Gremium, Dokumenttyp) und wiederkehrende HTML-Elemente dokumentieren.
    - ✅ **Abruflogik konzipieren:** Datenflüsse, Fehlerfälle und Wiederholungsstrategien modellieren, inklusive Zeitplanung für Abrufe, Latenzanforderungen und Grenzen der Zielsysteme.
    - ✅ **Abrufkomponente implementieren:** Skript- oder Service-Module entwickeln, die Termine und Dokumente laden, Netzwerkfehler protokollieren, Wiederholungen auslösen und anhand repräsentativer Testfälle mit Mock- oder Live-Daten verifiziert werden.
+     - 🚧 `fetch_sessions.py` bzw. `sessionnet_client.py` um einen Änderungsabgleich erweitern, damit nur neue oder aktualisierte Dateien erneut heruntergeladen werden.
+     - 🚧 Vorhandene Dateien vor dem Download vergleichen und identische Dateien überspringen, um Netzwerk- und Speicherressourcen zu sparen.
    - ✅ **Speicherkonzept ausarbeiten:** Dateiformate, Verzeichnis- bzw. Datenbankschemata, Versionierung sowie Aufbewahrungsfristen der Rohdaten definieren und in einem Architektur- oder Betriebshandbuch dokumentieren.
+     - 🚧 Ablagestruktur unter `data/raw/YYYY/` um einen zusätzlichen Monats-Unterordner erweitern.
+     - 🚧 Bestehende Rohdaten einmalig in die neue Monatsstruktur migrieren.
 
 3. **Dokumentenverarbeitung ausbauen**
    - ✅ Parser für priorisierte Dokumenttypen entwickeln (Vorlage, Beschlussvorlage, Protokoll-Auszug).
@@ -112,11 +124,22 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
      - 🚧 Filterlogik für UI vorbereiten: Zeitraum-Presets, vergangen/kommend, Gremium, Sitzungsstatus.
      - ✅ Exportformat für Analyse-Batches ist definiert, damit ausgewählte Sitzungen reproduzierbar weitergegeben werden können.
 4. **Analysemodul entwickeln**
-   - Kriterien für Zusammenfassungen, Tonalität und Bewertung festlegen.
-   - KI- oder regelbasierte Analyse integrieren; Schnittstellen so gestalten, dass verschiedene Modelle getestet werden können.
+   - 🚧 Analyseziele, Qualitätskriterien und Ausgabeformate festlegen.
+   - 🚧 Mehrere Analysemodi für Dokumente, TOPs und ganze Sitzungen unterstützen.
+   - 🚧 KI- und regelbasierte Verfahren kombinierbar machen und über austauschbare Schnittstellen anbinden.
+   - 🚧 Reproduzierbarkeit, Quellenbezug und menschliche Nachprüfung sicherstellen.
+   - Details und Ausbaupfade stehen in `README_TASK4.md`.
 5. **Benutzerzugang gestalten**
-   - Anforderungen an UI oder API definieren (Zielgruppen, Filter, Exportformate).
-   - Prototyp für Darstellung/Interaktion umsetzen und mit Testdaten befüllen.
+   - 🚧 **Developer-GUI weiterentwickeln**
+     - 🚧 Anforderungen an die interne Developer-GUI definieren (Arbeitsabläufe, Eingabefelder, Schnellaktionen, Exportpfade).
+     - 🚧 Prototypen und Verbesserungen für die Developer-GUI mit Testdaten umsetzen und iterativ schärfen.
+     - 🚧 In der GUI-Action-Ansicht `Export Analysis` ein Dropdown für `Committee` statt eines reinen Texteingabefelds ergänzen.
+     - 🚧 In der GUI Eingabeelemente ausblenden, die für die aktuell ausgewählte Action nicht benötigt werden.
+   - 🚧 **Finale User-Oberfläche konzipieren und ausbauen**
+     - 🚧 Anforderungen an UI oder API für Endnutzer definieren (Zielgruppen, Filter, Exportformate).
+     - 🚧 Prototyp für Darstellung/Interaktion der finalen User-Oberfläche umsetzen und mit Testdaten befüllen.
+     - 🚧 Anforderungen, Navigation und Darstellung für eine Endnutzer-Oberfläche von der Developer-GUI abgrenzen.
+     - 🚧 In der finalen Oberfläche einen PDF-Viewer für Dokumente integrieren.
 6. **Betrieb & Qualitätssicherung sicherstellen**
    - Logging, Monitoring und Alarmierung einrichten.
    - Automatisierung (Zeitpläne, Deployments) definieren und testen.
