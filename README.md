@@ -119,8 +119,11 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
      - 🚧 Filterlogik für UI vorbereiten: Zeitraum-Presets, vergangen/kommend, Gremium, Sitzungsstatus.
      - ✅ Exportformat für Analyse-Batches ist definiert, damit ausgewählte Sitzungen reproduzierbar weitergegeben werden können.
 4. **Analysemodul entwickeln**
-   - Kriterien für Zusammenfassungen, Tonalität und Bewertung festlegen.
-   - KI- oder regelbasierte Analyse integrieren; Schnittstellen so gestalten, dass verschiedene Modelle getestet werden können.
+   - 🚧 Analyseziele, Qualitätskriterien und Ausgabeformate festlegen.
+   - 🚧 Mehrere Analysemodi für Dokumente, TOPs und ganze Sitzungen unterstützen.
+   - 🚧 KI- und regelbasierte Verfahren kombinierbar machen und über austauschbare Schnittstellen anbinden.
+   - 🚧 Reproduzierbarkeit, Quellenbezug und menschliche Nachprüfung sicherstellen.
+   - Details und Ausbaupfade stehen in `README_TASK4.md`.
 5. **Benutzerzugang gestalten**
    - 🚧 **Developer-GUI weiterentwickeln**
      - 🚧 Anforderungen an die interne Developer-GUI definieren (Arbeitsabläufe, Eingabefelder, Schnellaktionen, Exportpfade).
