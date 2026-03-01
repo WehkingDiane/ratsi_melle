@@ -106,6 +106,10 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
    - ✅ **Speicherkonzept ausarbeiten:** Dateiformate, Verzeichnis- bzw. Datenbankschemata, Versionierung sowie Aufbewahrungsfristen der Rohdaten definieren und in einem Architektur- oder Betriebshandbuch dokumentieren.
      - ✅ Ablagestruktur unter `data/raw/YYYY/MM/` um einen zusätzlichen Monats-Unterordner erweitert.
      - ✅ Bestehende Rohdaten werden bei Nutzung des Fetch-Clients einmalig in die neue Monatsstruktur migriert.
+     - 🚧 Ausgabe-/Artefaktstruktur ausserhalb von `data/raw/` weiter schärfen.
+       - 🚧 SQLite-Datenbanken in einen eigenen Infrastruktur-Ordner verschieben, z. B. `data/db/`, statt sie dauerhaft unter `data/processed/` zu halten.
+       - 🚧 `data/processed/` danach klar auf sonstige interne Normalisierung/Ableitungen begrenzen oder neu definieren.
+       - 🚧 Ein- und Ausgaben fuer Analyse/KI klar trennen, z. B. `data/analysis_requests/` fuer Eingabebatches und `data/analysis_outputs/` fuer erzeugte Ergebnisse.
 
 3. **Dokumentenverarbeitung ausbauen**
    - Laufender Status und Restaufgaben werden nur noch in dieser README gepflegt; fruehere Zwischenstaende liegen bei Bedarf im Archiv unter `docs/archive/`.
