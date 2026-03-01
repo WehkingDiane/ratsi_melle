@@ -141,6 +141,15 @@ class GuiLauncher:
         self.right_title: ctk.CTkLabel | None = None
         self.right_content: ctk.CTkScrollableFrame | None = None
         self.status_label: ctk.CTkLabel | None = None
+        self.data_tools_log_text: ctk.CTkTextbox | None = None
+        self.data_tools_output_frame: ctk.CTkFrame | None = None
+        self.data_tools_right_title: ctk.CTkLabel | None = None
+        self.data_tools_right_content: ctk.CTkScrollableFrame | None = None
+        self.data_tools_status_label: ctk.CTkLabel | None = None
+        self.export_log_text: ctk.CTkTextbox | None = None
+        self.export_right_title: ctk.CTkLabel | None = None
+        self.export_right_content: ctk.CTkScrollableFrame | None = None
+        self.export_status_label: ctk.CTkLabel | None = None
         self.run_button: ctk.CTkButton | None = None
         self.cancel_button: ctk.CTkButton | None = None
         self.run_preset_button: ctk.CTkButton | None = None
@@ -383,6 +392,7 @@ class GuiLauncher:
                 frame.pack_forget()
 
         self.current_view_key = view_key
+        self._activate_runtime_output_targets(view_key)
         if self.top_title_label:
             self.top_title_label.configure(text=self.view_registry[view_key].label)
 
@@ -395,6 +405,29 @@ class GuiLauncher:
         if view_key == "analysis":
             self._refresh_analysis_committee_options()
             self._refresh_analysis_sessions()
+
+    def _activate_runtime_output_targets(self, view_key: str) -> None:
+        if view_key == "data_tools":
+            self.status_label = self.data_tools_status_label
+            self.log_text = self.data_tools_log_text
+            self.output_frame = self.data_tools_output_frame
+            self.right_title = self.data_tools_right_title
+            self.right_content = self.data_tools_right_content
+            return
+
+        if view_key == "analysis_export":
+            self.status_label = self.export_status_label
+            self.log_text = self.export_log_text
+            self.output_frame = None
+            self.right_title = self.export_right_title
+            self.right_content = self.export_right_content
+            return
+
+        self.status_label = None
+        self.log_text = None
+        self.output_frame = None
+        self.right_title = None
+        self.right_content = None
 
     def _toggle_sidebar(self) -> None:
         if not self.sidebar_frame:

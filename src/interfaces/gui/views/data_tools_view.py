@@ -225,28 +225,28 @@ def build_controls(app, parent: ctk.CTkFrame) -> None:
 
 
 def build_status(app, parent: ctk.CTkFrame) -> None:
-    app.status_label = ctk.CTkLabel(parent, text="Ready", height=24, anchor="w", font=FIELD_FONT)
-    app.status_label.pack(fill="x", padx=20, pady=(0, 6))
+    app.data_tools_status_label = ctk.CTkLabel(parent, text="Ready", height=24, anchor="w", font=FIELD_FONT)
+    app.data_tools_status_label.pack(fill="x", padx=20, pady=(0, 6))
 
 
 def build_log(app, parent: ctk.CTkFrame) -> None:
-    app.output_frame = ctk.CTkFrame(parent, fg_color="transparent")
-    app.output_frame.pack(fill="both", expand=True, padx=20, pady=10)
-    app.output_frame.grid_columnconfigure(0, weight=3)
-    app.output_frame.grid_columnconfigure(1, weight=2)
-    app.output_frame.grid_rowconfigure(0, weight=1)
+    app.data_tools_output_frame = ctk.CTkFrame(parent, fg_color="transparent")
+    app.data_tools_output_frame.pack(fill="both", expand=True, padx=20, pady=10)
+    app.data_tools_output_frame.grid_columnconfigure(0, weight=3)
+    app.data_tools_output_frame.grid_columnconfigure(1, weight=2)
+    app.data_tools_output_frame.grid_rowconfigure(0, weight=1)
 
-    app.log_text = ctk.CTkTextbox(
-        app.output_frame,
+    app.data_tools_log_text = ctk.CTkTextbox(
+        app.data_tools_output_frame,
         wrap="word",
         font=LOG_FONT,
         border_width=1,
         corner_radius=6,
     )
-    app.log_text.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
-    app.log_text.configure(state="disabled")
+    app.data_tools_log_text.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+    app.data_tools_log_text.configure(state="disabled")
 
-    textbox = app.log_text._textbox
+    textbox = app.data_tools_log_text._textbox
     textbox.tag_configure("error", foreground="#ef4444")
     textbox.tag_configure("warning", foreground="#f59e0b")
     textbox.tag_configure("info", foreground="#22c55e")
@@ -255,16 +255,17 @@ def build_log(app, parent: ctk.CTkFrame) -> None:
         foreground="white" if ctk.get_appearance_mode() == "Dark" else "black",
     )
 
-    right_panel = ctk.CTkFrame(app.output_frame, corner_radius=8)
+    right_panel = ctk.CTkFrame(app.data_tools_output_frame, corner_radius=8)
     right_panel.grid(row=0, column=1, sticky="nsew")
     right_panel.grid_rowconfigure(1, weight=1)
     right_panel.grid_columnconfigure(0, weight=1)
 
-    app.right_title = ctk.CTkLabel(right_panel, text="Details", font=LABEL_FONT, anchor="w")
-    app.right_title.grid(row=0, column=0, sticky="ew", padx=12, pady=(12, 6))
+    app.data_tools_right_title = ctk.CTkLabel(right_panel, text="Details", font=LABEL_FONT, anchor="w")
+    app.data_tools_right_title.grid(row=0, column=0, sticky="ew", padx=12, pady=(12, 6))
 
-    app.right_content = ctk.CTkScrollableFrame(right_panel)
-    app.right_content.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 12))
+    app.data_tools_right_content = ctk.CTkScrollableFrame(right_panel)
+    app.data_tools_right_content.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 12))
+    app._activate_runtime_output_targets("data_tools")
     app._render_placeholder()
 
 
