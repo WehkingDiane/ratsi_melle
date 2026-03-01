@@ -60,7 +60,7 @@ In `Analyse-Batch Export`:
 - optional `Zeitraum`, `Gremium aus DB` und `Dokumentprofil` nutzen
 - falls noetig Feinsteuerung ueber:
   - `DB-Pfad`
-  - `Output-Datei`
+  - `Output-Datei`, standardmaessig `data/analysis_requests/analysis_batch.json`
   - `Gremien (kommagetrennt)`
   - `Dokumenttypen (kommagetrennt)`
   - `Von` / `Bis`
@@ -74,6 +74,8 @@ Nach erfolgreichem Lauf zeigt die rechte Seite:
 - Anzahl der exportierten Dokumente
 - verwendete Filter
 - eine Vorschau des erzeugten JSON-Inhalts
+
+Die Exportdatei liegt damit getrennt von den SQLite-Datenbanken und kann spaeter direkt als KI-/Analyse-Eingang weiterverwendet werden.
 
 Wichtige Wirkung von `Include text extraction`:
 

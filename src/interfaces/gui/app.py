@@ -67,7 +67,7 @@ class GuiLauncher:
         self.verbose_mode = ctk.BooleanVar(value=False)
 
         self.export_db_path = ctk.StringVar(value="data/processed/local_index.sqlite")
-        self.export_output_path = ctk.StringVar(value="data/processed/analysis_batch.json")
+        self.export_output_path = ctk.StringVar(value="data/analysis_requests/analysis_batch.json")
         self.export_committees = ctk.StringVar(value="")
         self.export_date_from = ctk.StringVar(value="")
         self.export_date_to = ctk.StringVar(value="")
@@ -77,7 +77,7 @@ class GuiLauncher:
         self.export_max_text_chars = ctk.StringVar(value="12000")
         self.export_field_defaults = {
             "db_path": "data/processed/local_index.sqlite",
-            "output_path": "data/processed/analysis_batch.json",
+            "output_path": "data/analysis_requests/analysis_batch.json",
             "committees": "Rat, Ausschuss fuer Finanzen",
             "date_from": "2026-01-01",
             "date_to": "2026-12-31",
@@ -1038,7 +1038,7 @@ class GuiLauncher:
         return len(documents)
 
     def _open_output_folder(self) -> None:
-        output_raw = self.export_output_path.get().strip() or "data/processed/analysis_batch.json"
+        output_raw = self.export_output_path.get().strip() or "data/analysis_requests/analysis_batch.json"
         output_path = self._resolve_db_path(output_raw)
         folder = output_path.parent
         folder.mkdir(parents=True, exist_ok=True)

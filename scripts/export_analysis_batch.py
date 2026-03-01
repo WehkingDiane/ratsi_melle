@@ -39,7 +39,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("data/processed/analysis_batch.json"),
+        default=Path("data/analysis_requests/analysis_batch.json"),
         help="Path to JSON output file.",
     )
     parser.add_argument(

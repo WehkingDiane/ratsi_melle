@@ -56,6 +56,7 @@ Die GUI ist modular aufgeteilt:
 - Eigene Developer-Seite fuer `export_analysis_batch.py`.
 - Klarere Zweckbeschreibung fuer reproduzierbare Analyse-JSONs.
 - Exportprofile, Zeitraum-Presets, Gremienauswahl aus der DB und Dokumentprofile.
+- Standardziel getrennt von den DB-Dateien unter `data/analysis_requests/`.
 - Vorschau des erzeugten JSON-Inhalts direkt in der GUI.
 
 ### Journalistische Analyse
