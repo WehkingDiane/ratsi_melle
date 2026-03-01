@@ -19,6 +19,11 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 - **(Optional) Tkinter** für eine spätere UI; unter WSL via `sudo apt-get install python3-tk`.
 - **Projektstruktur** siehe `docs/repository_guidelines.md`.
 
+## Softwareversion
+
+- Aktuelle Projektversion: `0.1.0`
+- Versionsstrategie: `docs/software_versioning.md`
+
 ## Wichtige Skripte
 
 - `python scripts/fetch_sessions.py 2024 --months 5 6` laedt Sitzungen und Dokumente nach `data/raw/`.
@@ -89,9 +94,9 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 1. **Grundlagen schaffen**
    - ✅ Projektstruktur und Repository-Regeln sind in `docs/repository_guidelines.md` dokumentiert.
    - ✅ Erste Prüfung von Anforderungen, Datenschutz- und Nutzungsbedingungen inklusive weiterer To-dos in `docs/data_access_review.md` festgehalten.
-   - 🚧 Softwareversionierung einführen.
-     - Ein konsistentes Schema nach `Major.Minor.Patch` festlegen und dokumentieren.
-     - Solange sich das Projekt in der Entwicklungsphase befindet, eine passende Vor-1.0-Strategie oder alternative Versionierungslogik begründet auswählen.
+   - ✅ Softwareversionierung eingeführt.
+     - ✅ Ein konsistentes Schema nach `Major.Minor.Patch` ist festgelegt und dokumentiert (`VERSION`, `docs/software_versioning.md`).
+     - ✅ Für die Entwicklungsphase ist eine Vor-1.0-Strategie definiert; aktuelle Basisversion ist `0.1.0`.
 2. **Datenerfassung konzipieren und implementieren**
    - ✅ **Quellen und Strukturen erfassen:** Regelmäßige Übersichts-, Detail- und Downloadseiten identifizieren, Navigations- und Paginationspfade festhalten sowie Parameter (z. B. Zeitraum, Gremium, Dokumenttyp) und wiederkehrende HTML-Elemente dokumentieren.
    - ✅ **Abruflogik konzipieren:** Datenflüsse, Fehlerfälle und Wiederholungsstrategien modellieren, inklusive Zeitplanung für Abrufe, Latenzanforderungen und Grenzen der Zielsysteme.

@@ -18,6 +18,7 @@ import customtkinter as ctk
 from CTkMenuBar import CTkMenuBar, CustomDropdownMenu
 
 from src.analysis.analysis_context import build_analysis_markdown, enrich_documents_for_analysis
+from src.version import __version__
 
 from .config import (
     BUTTON_FONT,
@@ -372,6 +373,7 @@ class GuiLauncher:
         messagebox.showinfo(
             "About",
             "Developer GUI for Ratsinfo Melle.\n"
+            f"Version: {__version__}\n"
             "Includes data tooling and analysis preparation view.",
         )
 
