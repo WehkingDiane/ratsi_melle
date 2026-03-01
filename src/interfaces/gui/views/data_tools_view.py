@@ -30,7 +30,7 @@ def build_controls(app, parent: ctk.CTkFrame) -> None:
     action_box = ctk.CTkComboBox(
         frame,
         variable=app.selected_action,
-        values=list(app.actions.keys()),
+        values=app.data_tool_actions,
         width=460,
         font=FIELD_FONT,
     )
@@ -137,7 +137,7 @@ def build_controls(app, parent: ctk.CTkFrame) -> None:
         app.export_frame,
         textvariable=app.export_output_path,
         font=FIELD_FONT,
-        placeholder_text="data/processed/analysis_batch.json",
+        placeholder_text="data/analysis_requests/analysis_batch.json",
     ).grid(
         row=0, column=3, sticky="ew", pady=(0, 6)
     )

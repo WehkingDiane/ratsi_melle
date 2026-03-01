@@ -39,7 +39,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("data/processed/analysis_batch.json"),
+        default=Path("data/analysis_requests/analysis_batch.json"),
         help="Path to JSON output file.",
     )
     parser.add_argument(
@@ -297,6 +297,8 @@ def _extract_document_payload(
             "extracted_text": "",
             "extracted_char_count": 0,
             "page_count": None,
+            "page_texts": [],
+            "detected_sections": [],
             "extraction_error": "No local path available",
             "ocr_needed": False,
             "extraction_pipeline_version": None,

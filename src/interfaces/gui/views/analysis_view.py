@@ -14,44 +14,56 @@ def build_analysis_view(app, parent: ctk.CTkFrame) -> None:
 
     filter_frame = ctk.CTkFrame(parent)
     filter_frame.grid(row=0, column=0, columnspan=2, sticky="ew", padx=20, pady=(16, 8))
-    filter_frame.grid_columnconfigure(7, weight=1)
+    filter_frame.grid_columnconfigure(9, weight=1)
 
-    ctk.CTkLabel(filter_frame, text="Von", font=FIELD_FONT).grid(row=0, column=0, padx=(10, 4), pady=8)
+    ctk.CTkLabel(filter_frame, text="Zeitraum", font=FIELD_FONT).grid(row=0, column=0, padx=(10, 4), pady=8)
+    app.analysis_date_preset_box = ctk.CTkComboBox(
+        filter_frame,
+        variable=app.analysis_date_preset,
+        values=list(app.analysis_store.DATE_PRESET_LABELS),
+        width=170,
+        command=app._on_analysis_date_preset_changed,
+    )
+    app.analysis_date_preset_box.grid(row=0, column=1, pady=8)
+
+    ctk.CTkLabel(filter_frame, text="Von", font=FIELD_FONT).grid(row=0, column=2, padx=(10, 4), pady=8)
     ctk.CTkEntry(
         filter_frame,
         textvariable=app.analysis_date_from,
         width=120,
         placeholder_text="2026-01-01",
-    ).grid(row=0, column=1, pady=8)
-    ctk.CTkLabel(filter_frame, text="Bis", font=FIELD_FONT).grid(row=0, column=2, padx=(10, 4), pady=8)
+    ).grid(row=0, column=3, pady=8)
+    ctk.CTkLabel(filter_frame, text="Bis", font=FIELD_FONT).grid(row=0, column=4, padx=(10, 4), pady=8)
     ctk.CTkEntry(
         filter_frame,
         textvariable=app.analysis_date_to,
         width=120,
         placeholder_text="2026-12-31",
-    ).grid(row=0, column=3, pady=8)
+    ).grid(row=0, column=5, pady=8)
 
-    ctk.CTkLabel(filter_frame, text="Gremium", font=FIELD_FONT).grid(row=0, column=4, padx=(10, 4), pady=8)
+    ctk.CTkLabel(filter_frame, text="Gremium", font=FIELD_FONT).grid(row=0, column=6, padx=(10, 4), pady=8)
     app.analysis_committee_box = ctk.CTkComboBox(
         filter_frame, variable=app.analysis_committee, values=[""], width=220
     )
-    app.analysis_committee_box.grid(row=0, column=5, pady=8)
+    app.analysis_committee_box.grid(row=0, column=7, pady=8)
     app.analysis_committee_box.configure(command=lambda _value: app._refresh_analysis_sessions())
+
+    ctk.CTkLabel(filter_frame, text="Status", font=FIELD_FONT).grid(row=0, column=8, padx=(10, 4), pady=8)
+    app.analysis_session_status_box = ctk.CTkComboBox(
+        filter_frame,
+        variable=app.analysis_session_status,
+        values=list(app.analysis_store.SESSION_STATUS_LABELS),
+        width=120,
+        command=lambda _value: app._refresh_analysis_sessions(),
+    )
+    app.analysis_session_status_box.grid(row=0, column=9, pady=8)
 
     ctk.CTkEntry(
         filter_frame,
         textvariable=app.analysis_search,
         placeholder_text="z. B. Rat oder Haushalt",
         width=220,
-    ).grid(row=0, column=6, padx=(10, 6), pady=8)
-
-    ctk.CTkCheckBox(
-        filter_frame,
-        text="Nur vergangene",
-        variable=app.analysis_past_only,
-        command=app._refresh_analysis_sessions,
-        font=FIELD_FONT,
-    ).grid(row=0, column=7, padx=(0, 6), pady=8, sticky="w")
+    ).grid(row=0, column=10, padx=(10, 6), pady=8)
 
     ctk.CTkButton(
         filter_frame,
@@ -60,7 +72,7 @@ def build_analysis_view(app, parent: ctk.CTkFrame) -> None:
         fg_color="#0F766E",
         hover_color="#115E59",
         font=BUTTON_FONT,
-    ).grid(row=0, column=8, padx=(0, 10), pady=8)
+    ).grid(row=0, column=11, padx=(0, 10), pady=8)
 
     left_panel = ctk.CTkFrame(parent)
     left_panel.grid(row=1, column=0, sticky="nsew", padx=(20, 10), pady=(0, 20))

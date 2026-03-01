@@ -32,7 +32,7 @@ from .config import (
 )
 from .services.analysis_store import AnalysisStore, SessionFilters
 from .services.script_runner import ScriptRunner
-from .views import analysis_view, data_tools_view, service_view, settings_view
+from .views import analysis_view, data_tools_view, export_view, service_view, settings_view
 
 
 configure_theme()
@@ -67,7 +67,7 @@ class GuiLauncher:
         self.verbose_mode = ctk.BooleanVar(value=False)
 
         self.export_db_path = ctk.StringVar(value="data/processed/local_index.sqlite")
-        self.export_output_path = ctk.StringVar(value="data/processed/analysis_batch.json")
+        self.export_output_path = ctk.StringVar(value="data/analysis_requests/analysis_batch.json")
         self.export_committees = ctk.StringVar(value="")
         self.export_date_from = ctk.StringVar(value="")
         self.export_date_to = ctk.StringVar(value="")
@@ -77,12 +77,54 @@ class GuiLauncher:
         self.export_max_text_chars = ctk.StringVar(value="12000")
         self.export_field_defaults = {
             "db_path": "data/processed/local_index.sqlite",
-            "output_path": "data/processed/analysis_batch.json",
+            "output_path": "data/analysis_requests/analysis_batch.json",
             "committees": "Rat, Ausschuss fuer Finanzen",
             "date_from": "2026-01-01",
             "date_to": "2026-12-31",
             "document_types": "vorlage, beschlussvorlage, protokoll",
             "max_text_chars": "12000",
+        }
+        self.export_profiles = {
+            "Standardbatch (empfohlen)": {
+                "committees": "",
+                "document_types": "vorlage, beschlussvorlage, protokoll",
+                "date_preset": "Dieses Jahr",
+                "require_local_path": True,
+                "include_text_extraction": True,
+            },
+            "Rat mit Text-Extraktion": {
+                "committees": "Rat",
+                "document_types": "vorlage, beschlussvorlage, protokoll",
+                "date_preset": "Dieses Jahr",
+                "require_local_path": True,
+                "include_text_extraction": True,
+            },
+            "Nur Protokolle": {
+                "committees": "",
+                "document_types": "protokoll",
+                "date_preset": "Dieses Jahr",
+                "require_local_path": True,
+                "include_text_extraction": True,
+            },
+            "Roh-Export ohne Text": {
+                "committees": "",
+                "document_types": "",
+                "date_preset": "Dieses Jahr",
+                "require_local_path": False,
+                "include_text_extraction": False,
+            },
+        }
+        self.export_date_presets = {
+            "Dieses Jahr": "Dieses Jahr",
+            "Letzte 30 Tage": "Letzte 30 Tage",
+            "Naechste 30 Tage": "Naechste 30 Tage",
+            "Benutzerdefiniert": "Benutzerdefiniert",
+        }
+        self.export_document_profiles = {
+            "Priorisierte Dokumente": "vorlage, beschlussvorlage, protokoll",
+            "Nur Protokolle": "protokoll",
+            "Vorlagen und Beschluesse": "vorlage, beschlussvorlage",
+            "Alle Dokumenttypen": "",
         }
 
         self.current_view_key = "data_tools"
@@ -104,6 +146,14 @@ class GuiLauncher:
         self.run_preset_button: ctk.CTkButton | None = None
         self.validation_label: ctk.CTkLabel | None = None
         self.export_frame: ctk.CTkFrame | None = None
+        self.export_profile_box: ctk.CTkComboBox | None = None
+        self.export_date_preset_box: ctk.CTkComboBox | None = None
+        self.export_committee_box: ctk.CTkComboBox | None = None
+        self.export_document_profile_box: ctk.CTkComboBox | None = None
+        self.export_preview_text: ctk.CTkTextbox | None = None
+        self.export_run_button: ctk.CTkButton | None = None
+        self.export_open_button: ctk.CTkButton | None = None
+        self.export_validation_label: ctk.CTkLabel | None = None
 
         self.analysis_session_list_frame: ctk.CTkScrollableFrame | None = None
         self.analysis_tops_frame: ctk.CTkScrollableFrame | None = None
@@ -111,18 +161,25 @@ class GuiLauncher:
         self.analysis_status_label: ctk.CTkLabel | None = None
         self.analysis_selected_session_label: ctk.CTkLabel | None = None
         self.analysis_prompt_box: ctk.CTkTextbox | None = None
+        self.analysis_date_preset_box: ctk.CTkComboBox | None = None
         self.analysis_committee_box: ctk.CTkComboBox | None = None
+        self.analysis_session_status_box: ctk.CTkComboBox | None = None
 
+        self.analysis_date_preset = ctk.StringVar(value="Benutzerdefiniert")
         self.analysis_date_from = ctk.StringVar(value="")
         self.analysis_date_to = ctk.StringVar(value="")
         self.analysis_committee = ctk.StringVar(value="")
+        self.analysis_session_status = ctk.StringVar(value="vergangen")
         self.analysis_search = ctk.StringVar(value="")
-        self.analysis_past_only = ctk.BooleanVar(value=True)
         self.analysis_scope = ctk.StringVar(value="session")
         self.analysis_prompt_value = (
             "Erstelle eine journalistische, neutrale Zusammenfassung. "
             "Nenne Kernthemen, Entscheidungen und offene Punkte."
         )
+        self.export_profile = ctk.StringVar(value="Standardbatch (empfohlen)")
+        self.export_date_preset = ctk.StringVar(value="Dieses Jahr")
+        self.export_committee_selection = ctk.StringVar(value="Alle Gremien")
+        self.export_document_profile = ctk.StringVar(value="Priorisierte Dokumente")
 
         self.analysis_sessions: list[dict] = []
         self.analysis_top_vars: dict[str, ctk.BooleanVar] = {}
@@ -173,16 +230,22 @@ class GuiLauncher:
                 renderer=self._render_structure,
             ),
         }
+        self.data_tool_actions = [
+            "Download sessions (raw, script)",
+            "Build local SQLite index (script)",
+            "Build online SQLite index (script)",
+            "List committees (local index)",
+            "Show Data Inventory (local)",
+            "Show Data Structure (local)",
+        ]
 
         self.presets = {
-            "Fetch + Build Local + Export": [
+            "Fetch + Build Local": [
                 "Download sessions (raw, script)",
                 "Build local SQLite index (script)",
-                "Export analysis batch (script)",
             ],
-            "Build Local + Export": [
+            "Build Local": [
                 "Build local SQLite index (script)",
-                "Export analysis batch (script)",
             ],
             "Build Online Index": [
                 "Build online SQLite index (script)",
@@ -190,6 +253,10 @@ class GuiLauncher:
         }
 
         self._load_settings()
+        if self.selected_action.get() not in self.data_tool_actions:
+            self.selected_action.set(self.data_tool_actions[0])
+        if self.selected_preset.get() not in self.presets:
+            self.selected_preset.set(next(iter(self.presets)))
         self._build_ui()
         self._update_menubar_theme()
         self._bind_validation()
@@ -251,6 +318,11 @@ class GuiLauncher:
                 key="data_tools",
                 label="Daten-Tools",
                 builder=self._build_data_tools_view,
+            ),
+            "analysis_export": ViewConfig(
+                key="analysis_export",
+                label="Analyse-Batch Export",
+                builder=self._build_export_view,
             ),
             "analysis": ViewConfig(
                 key="analysis",
@@ -351,6 +423,20 @@ class GuiLauncher:
     def _build_analysis_view(self, parent: ctk.CTkFrame) -> None:
         analysis_view.build_analysis_view(self, parent)
 
+    def _build_export_view(self, parent: ctk.CTkFrame) -> None:
+        self._apply_export_field_defaults()
+        export_view.build_export_view(self, parent)
+        if not any(
+            [
+                self.export_committees.get().strip(),
+                self.export_document_types.get().strip(),
+                self.export_date_from.get().strip(),
+                self.export_date_to.get().strip(),
+            ]
+        ):
+            self._on_export_profile_changed()
+        self._preview_current_export_file()
+
     def _build_settings_view(self, parent: ctk.CTkFrame) -> None:
         settings_view.build_settings_view(self, parent)
 
@@ -391,18 +477,27 @@ class GuiLauncher:
     def _bind_validation(self) -> None:
         self.selected_action.trace_add("write", lambda *_: self._on_action_changed())
         self.selected_preset.trace_add("write", lambda *_: self._update_run_state())
+        self.export_db_path.trace_add("write", lambda *_: self._refresh_export_committee_options())
+        self.export_output_path.trace_add("write", lambda *_: self._update_run_state())
         for var in (
             self.year_value,
             self.months_value,
             self.export_db_path,
             self.export_output_path,
+            self.export_profile,
+            self.export_date_preset,
+            self.export_committee_selection,
+            self.export_document_profile,
             self.export_committees,
             self.export_date_from,
             self.export_date_to,
             self.export_document_types,
             self.export_max_text_chars,
+            self.analysis_date_preset,
             self.analysis_date_from,
             self.analysis_date_to,
+            self.analysis_committee,
+            self.analysis_session_status,
             self.analysis_search,
         ):
             var.trace_add("write", lambda *_: self._update_run_state())
@@ -410,7 +505,6 @@ class GuiLauncher:
             self.verbose_mode,
             self.export_require_local_path,
             self.export_include_text_extraction,
-            self.analysis_past_only,
         ):
             var.trace_add("write", lambda *_: self._update_run_state())
 
@@ -420,9 +514,6 @@ class GuiLauncher:
         self._update_run_state()
 
     def _apply_export_field_defaults(self) -> None:
-        if self.selected_action.get() != "Export analysis batch (script)":
-            return
-
         if not self.export_db_path.get().strip():
             self.export_db_path.set(self.export_field_defaults["db_path"])
         if not self.export_output_path.get().strip():
@@ -441,11 +532,7 @@ class GuiLauncher:
     def _update_dynamic_controls(self) -> None:
         if not self.export_frame:
             return
-        is_export = self.selected_action.get() == "Export analysis batch (script)"
-        if is_export:
-            self.export_frame.grid()
-        else:
-            self.export_frame.grid_remove()
+        self.export_frame.grid_remove()
 
     def _update_run_state(self) -> None:
         if self.worker_running or self.current_process is not None:
@@ -455,18 +542,30 @@ class GuiLauncher:
                 self.run_preset_button.configure(state="disabled")
             if self.cancel_button:
                 self.cancel_button.configure(state="normal")
+            if self.export_run_button:
+                self.export_run_button.configure(state="disabled")
+            if self.export_open_button:
+                self.export_open_button.configure(state="disabled")
             return
 
         is_valid, message = self._validate_selected_action()
         preset_valid, _preset_message = self._validate_selected_preset()
+        export_valid, export_message = self._validate_action_name("Export analysis batch (script)")
         if self.validation_label:
             self.validation_label.configure(text=message if not is_valid else "")
+        if self.export_validation_label:
+            self.export_validation_label.configure(text=export_message if not export_valid else "")
         if self.run_button:
             self.run_button.configure(state="normal" if is_valid else "disabled")
         if self.run_preset_button:
             self.run_preset_button.configure(state="normal" if preset_valid else "disabled")
         if self.cancel_button:
             self.cancel_button.configure(state="disabled")
+        if self.export_run_button:
+            self.export_run_button.configure(state="normal" if export_valid else "disabled")
+        if self.export_open_button:
+            preview_path = self._resolve_output_path(self.export_output_path.get().strip())
+            self.export_open_button.configure(state="normal" if preview_path.exists() else "disabled")
 
     def _validate_selected_action(self) -> tuple[bool, str]:
         return self._validate_action_name(self.selected_action.get())
@@ -536,14 +635,25 @@ class GuiLauncher:
             self._append_log(f"[ERROR] {message}")
             self._update_run_state()
             return
-        action = self.actions.get(self.selected_action.get())
+        self._run_action_by_name(self.selected_action.get(), status_text="Running...")
+
+    def _run_export_action(self) -> None:
+        valid, message = self._validate_action_name("Export analysis batch (script)")
+        if not valid:
+            self._append_log(f"[ERROR] {message}")
+            self._update_run_state()
+            return
+        self._run_action_by_name("Export analysis batch (script)", status_text="Exporting analysis batch...")
+
+    def _run_action_by_name(self, action_name: str, *, status_text: str) -> None:
+        action = self.actions.get(action_name)
         if not action:
             return
 
         self.cancel_requested = False
         self.worker_running = True
         self._start_spinner()
-        self._set_status("Running...")
+        self._set_status(status_text)
         self._update_run_state()
         thread = threading.Thread(target=self._run_worker, args=(action,), daemon=True)
         thread.start()
@@ -769,7 +879,7 @@ class GuiLauncher:
             cmd.extend(["--max-text-chars", max_chars])
 
         result = self._run_script_command(cmd)
-        output_resolved = (REPO_ROOT / output_path).resolve() if not Path(output_path).is_absolute() else Path(output_path)
+        output_resolved = self._resolve_output_path(output_path)
         result["output"] = str(output_resolved)
         result["filter_summary"] = self._collect_export_filter_summary()
         result["document_count"] = self._count_export_documents(output_resolved)
@@ -799,6 +909,66 @@ class GuiLauncher:
         self._append_log("[INFO] Data structure loaded")
         return {"status": "ok", "root": str(root)}
 
+    def _on_export_profile_changed(self, _value: str | None = None) -> None:
+        profile = self.export_profiles.get(self.export_profile.get().strip())
+        if not profile:
+            return
+        self.export_committees.set(str(profile.get("committees", "")))
+        self.export_document_types.set(str(profile.get("document_types", "")))
+        self.export_require_local_path.set(bool(profile.get("require_local_path", False)))
+        self.export_include_text_extraction.set(bool(profile.get("include_text_extraction", False)))
+        preset = str(profile.get("date_preset", "Benutzerdefiniert"))
+        if preset in self.export_date_presets:
+            self.export_date_preset.set(preset)
+            self._on_export_date_preset_changed(preset)
+        self._sync_export_committee_selection()
+        self._sync_export_document_profile()
+
+    def _on_export_date_preset_changed(self, _value: str | None = None) -> None:
+        date_from, date_to = self.analysis_store.resolve_date_range(
+            self.export_date_preset.get().strip(),
+            self.export_date_from.get().strip(),
+            self.export_date_to.get().strip(),
+        )
+        if self.export_date_preset.get().strip() != "Benutzerdefiniert":
+            self.export_date_from.set(date_from)
+            self.export_date_to.set(date_to)
+        self._update_run_state()
+
+    def _on_export_committee_selected(self, _value: str | None = None) -> None:
+        selected = self.export_committee_selection.get().strip()
+        self.export_committees.set("" if selected == "Alle Gremien" else selected)
+
+    def _on_export_document_profile_changed(self, _value: str | None = None) -> None:
+        value = self.export_document_profiles.get(self.export_document_profile.get().strip())
+        if value is None:
+            return
+        self.export_document_types.set(value)
+
+    def _refresh_export_committee_options(self) -> None:
+        db_path = self._resolve_db_path(self.export_db_path.get())
+        values = ["Alle Gremien"]
+        if db_path.exists():
+            try:
+                values.extend(self.analysis_store.list_committees(db_path))
+            except sqlite3.Error:
+                pass
+        if self.export_committee_box:
+            self.export_committee_box.configure(values=values)
+        self._sync_export_committee_selection()
+
+    def _sync_export_committee_selection(self) -> None:
+        selected = self.export_committees.get().strip()
+        self.export_committee_selection.set(selected or "Alle Gremien")
+
+    def _sync_export_document_profile(self) -> None:
+        current_types = self.export_document_types.get().strip()
+        for label, value in self.export_document_profiles.items():
+            if current_types == value:
+                self.export_document_profile.set(label)
+                return
+        self.export_document_profile.set("Priorisierte Dokumente")
+
     def _collect_export_filter_summary(self) -> str:
         parts: list[str] = []
         committees = [entry.strip() for entry in self.export_committees.get().split(",") if entry.strip()]
@@ -817,6 +987,44 @@ class GuiLauncher:
             parts.append("text_extraction=true,max_text_chars=" + (self.export_max_text_chars.get().strip() or "12000"))
         return "; ".join(parts) if parts else "none"
 
+    def _resolve_output_path(self, output_path: str) -> Path:
+        path = Path(output_path)
+        return path if path.is_absolute() else (REPO_ROOT / path).resolve()
+
+    def _preview_current_export_file(self) -> None:
+        self._render_export_file_preview(self._resolve_output_path(self.export_output_path.get().strip()))
+        self._update_run_state()
+
+    def _render_export_file_preview(self, output_path: Path) -> None:
+        if not self.export_preview_text:
+            return
+
+        self.export_preview_text.configure(state="normal")
+        self.export_preview_text.delete("1.0", "end")
+
+        if not output_path.exists():
+            self.export_preview_text.insert("1.0", f"Datei nicht gefunden: {output_path}")
+            self.export_preview_text.configure(state="disabled")
+            return
+
+        try:
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            self.export_preview_text.insert("1.0", f"Datei konnte nicht gelesen werden: {exc}")
+            self.export_preview_text.configure(state="disabled")
+            return
+
+        documents = payload.get("documents", []) if isinstance(payload, dict) else []
+        preview_payload = {
+            "generated_at": payload.get("generated_at") if isinstance(payload, dict) else None,
+            "source_db": payload.get("source_db") if isinstance(payload, dict) else None,
+            "filters": payload.get("filters") if isinstance(payload, dict) else None,
+            "document_count": len(documents) if isinstance(documents, list) else 0,
+            "documents_preview": documents[:3] if isinstance(documents, list) else [],
+        }
+        self.export_preview_text.insert("1.0", json.dumps(preview_payload, indent=2, ensure_ascii=False))
+        self.export_preview_text.configure(state="disabled")
+
     def _count_export_documents(self, path: Path) -> int | None:
         if not path.exists():
             return None
@@ -830,7 +1038,7 @@ class GuiLauncher:
         return len(documents)
 
     def _open_output_folder(self) -> None:
-        output_raw = self.export_output_path.get().strip() or "data/processed/analysis_batch.json"
+        output_raw = self.export_output_path.get().strip() or "data/analysis_requests/analysis_batch.json"
         output_path = self._resolve_db_path(output_raw)
         folder = output_path.parent
         folder.mkdir(parents=True, exist_ok=True)
@@ -871,6 +1079,14 @@ class GuiLauncher:
         self.verbose_mode.set(bool(payload.get("verbose_mode", self.verbose_mode.get())))
         self.export_db_path.set(str(payload.get("export_db_path", self.export_db_path.get())))
         self.export_output_path.set(str(payload.get("export_output_path", self.export_output_path.get())))
+        self.export_profile.set(str(payload.get("export_profile", self.export_profile.get())))
+        self.export_date_preset.set(str(payload.get("export_date_preset", self.export_date_preset.get())))
+        self.export_committee_selection.set(
+            str(payload.get("export_committee_selection", self.export_committee_selection.get()))
+        )
+        self.export_document_profile.set(
+            str(payload.get("export_document_profile", self.export_document_profile.get()))
+        )
         self.export_committees.set(str(payload.get("export_committees", self.export_committees.get())))
         self.export_date_from.set(str(payload.get("export_date_from", self.export_date_from.get())))
         self.export_date_to.set(str(payload.get("export_date_to", self.export_date_to.get())))
@@ -881,11 +1097,14 @@ class GuiLauncher:
         )
         self.export_max_text_chars.set(str(payload.get("export_max_text_chars", self.export_max_text_chars.get())))
 
+        self.analysis_date_preset.set(str(payload.get("analysis_date_preset", self.analysis_date_preset.get())))
         self.analysis_date_from.set(str(payload.get("analysis_date_from", self.analysis_date_from.get())))
         self.analysis_date_to.set(str(payload.get("analysis_date_to", self.analysis_date_to.get())))
         self.analysis_committee.set(str(payload.get("analysis_committee", self.analysis_committee.get())))
+        self.analysis_session_status.set(
+            str(payload.get("analysis_session_status", self.analysis_session_status.get()))
+        )
         self.analysis_search.set(str(payload.get("analysis_search", self.analysis_search.get())))
-        self.analysis_past_only.set(bool(payload.get("analysis_past_only", self.analysis_past_only.get())))
         self.analysis_scope.set(str(payload.get("analysis_scope", self.analysis_scope.get())))
         self.analysis_prompt_value = str(payload.get("analysis_prompt", self.analysis_prompt_value))
 
@@ -903,6 +1122,10 @@ class GuiLauncher:
             "verbose_mode": bool(self.verbose_mode.get()),
             "export_db_path": self.export_db_path.get(),
             "export_output_path": self.export_output_path.get(),
+            "export_profile": self.export_profile.get(),
+            "export_date_preset": self.export_date_preset.get(),
+            "export_committee_selection": self.export_committee_selection.get(),
+            "export_document_profile": self.export_document_profile.get(),
             "export_committees": self.export_committees.get(),
             "export_date_from": self.export_date_from.get(),
             "export_date_to": self.export_date_to.get(),
@@ -910,11 +1133,12 @@ class GuiLauncher:
             "export_require_local_path": bool(self.export_require_local_path.get()),
             "export_include_text_extraction": bool(self.export_include_text_extraction.get()),
             "export_max_text_chars": self.export_max_text_chars.get(),
+            "analysis_date_preset": self.analysis_date_preset.get(),
             "analysis_date_from": self.analysis_date_from.get(),
             "analysis_date_to": self.analysis_date_to.get(),
             "analysis_committee": self.analysis_committee.get(),
+            "analysis_session_status": self.analysis_session_status.get(),
             "analysis_search": self.analysis_search.get(),
-            "analysis_past_only": bool(self.analysis_past_only.get()),
             "analysis_scope": self.analysis_scope.get(),
             "analysis_prompt": prompt_text,
         }
@@ -1131,7 +1355,7 @@ class GuiLauncher:
     def _render_export_summary(self, result: dict) -> None:
         if not self.right_title:
             return
-        self.right_title.configure(text="Export Summary")
+        self.right_title.configure(text="Analyse-Batch Export")
         self._clear_right_panel()
         self._render_kv("Command", result.get("command", "-"))
         self._render_kv("Exit Code", result.get("exit_code", "-"))
@@ -1140,6 +1364,9 @@ class GuiLauncher:
         self._render_kv("Document Count", result.get("document_count", "-"))
         self._render_kv("Filters", result.get("filter_summary", "none"))
         self._render_kv("Output File", result.get("output", "-"))
+        output_file = result.get("output")
+        if isinstance(output_file, str) and output_file:
+            self._render_export_file_preview(Path(output_file))
 
     def _render_preset_progress(self, preset_name: str, steps: list[dict[str, str]]) -> None:
         if not self.right_title:
@@ -1190,6 +1417,17 @@ class GuiLauncher:
         if self.analysis_committee_box:
             self.analysis_committee_box.configure(values=committees)
 
+    def _on_analysis_date_preset_changed(self, _value: str | None = None) -> None:
+        date_from, date_to = self.analysis_store.resolve_date_range(
+            self.analysis_date_preset.get().strip(),
+            self.analysis_date_from.get().strip(),
+            self.analysis_date_to.get().strip(),
+        )
+        if self.analysis_date_preset.get().strip() != "Benutzerdefiniert":
+            self.analysis_date_from.set(date_from)
+            self.analysis_date_to.set(date_to)
+        self._refresh_analysis_sessions()
+
     def _refresh_analysis_sessions(self) -> None:
         if not self.analysis_session_list_frame:
             return
@@ -1206,9 +1444,10 @@ class GuiLauncher:
                 SessionFilters(
                     date_from=self.analysis_date_from.get().strip(),
                     date_to=self.analysis_date_to.get().strip(),
+                    date_preset=self.analysis_date_preset.get().strip(),
                     committee=self.analysis_committee.get().strip(),
+                    session_status=self.analysis_session_status.get().strip(),
                     search=self.analysis_search.get().strip(),
-                    past_only=bool(self.analysis_past_only.get()),
                 ),
             )
         except sqlite3.Error as exc:
@@ -1235,7 +1474,10 @@ class GuiLauncher:
 
         for row in self.analysis_sessions:
             title = f"{row.get('date', '')} | {row.get('committee', '-') } | {row.get('meeting_name', '-') }"
-            subtitle = f"TOPs: {row.get('top_count', 0)} | Session-ID: {row.get('session_id', '-') }"
+            subtitle = (
+                f"Status: {row.get('session_status', '-') } | "
+                f"TOPs: {row.get('top_count', 0)} | Session-ID: {row.get('session_id', '-') }"
+            )
             text = f"{title}\n{subtitle}"
             ctk.CTkButton(
                 self.analysis_session_list_frame,

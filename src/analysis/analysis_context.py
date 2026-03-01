@@ -22,6 +22,8 @@ def enrich_documents_for_analysis(documents: list[dict], *, max_text_chars: int 
         entry["resolved_local_path"] = str(resolved_path) if resolved_path else None
 
         if resolved_path is None:
+            entry["page_texts"] = []
+            entry["detected_sections"] = []
             entry["structured_fields"] = {}
             entry["content_parser_status"] = "missing_file"
             entry["content_parser_quality"] = "failed"
@@ -84,6 +86,18 @@ def build_analysis_markdown(
             summary_lines.append(
                 f"- {top_number} | {doc_type} | {title} | Extraktion: {extraction_status} | Parser: {parser_quality}"
             )
+            sections = document.get("detected_sections")
+            if isinstance(sections, list) and sections:
+                preview = []
+                for section in sections[:3]:
+                    if not isinstance(section, dict):
+                        continue
+                    heading = section.get("heading")
+                    page = section.get("page")
+                    if isinstance(heading, str) and heading.strip():
+                        preview.append(f"{heading} (S. {page})")
+                if preview:
+                    summary_lines.append(f"  - abschnitte: {', '.join(preview)}")
             fields = document.get("structured_fields")
             if isinstance(fields, dict) and fields:
                 for key in ("beschlusstext", "entscheidung", "begruendung", "finanzbezug", "zustaendigkeit"):

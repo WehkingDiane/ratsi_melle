@@ -29,7 +29,7 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 - `python scripts/fetch_sessions.py 2024 --months 5 6` laedt Sitzungen und Dokumente nach `data/raw/`.
 - `python scripts/build_local_index.py` baut den lokalen SQLite-Index unter `data/processed/local_index.sqlite`.
 - `python scripts/build_online_index_db.py 2024 --months 5 6` baut den Online-Index unter `data/processed/online_session_index.sqlite` ohne Downloads.
-- `python scripts/export_analysis_batch.py --db-path data/processed/local_index.sqlite --output data/processed/analysis_batch.json` exportiert einen reproduzierbaren Analyse-Batch (optional filterbar nach Sitzung, Zeitraum, Gremium, `document_type`).
+- `python scripts/export_analysis_batch.py --db-path data/processed/local_index.sqlite --output data/analysis_requests/analysis_batch.json` exportiert einen reproduzierbaren Analyse-Batch (optional filterbar nach Sitzung, Zeitraum, Gremium, `document_type`).
 
 ## GUI (modular)
 
@@ -106,8 +106,13 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
    - ✅ **Speicherkonzept ausarbeiten:** Dateiformate, Verzeichnis- bzw. Datenbankschemata, Versionierung sowie Aufbewahrungsfristen der Rohdaten definieren und in einem Architektur- oder Betriebshandbuch dokumentieren.
      - ✅ Ablagestruktur unter `data/raw/YYYY/MM/` um einen zusätzlichen Monats-Unterordner erweitert.
      - ✅ Bestehende Rohdaten werden bei Nutzung des Fetch-Clients einmalig in die neue Monatsstruktur migriert.
+     - 🚧 Ausgabe-/Artefaktstruktur ausserhalb von `data/raw/` weiter schärfen.
+       - 🚧 SQLite-Datenbanken in einen eigenen Infrastruktur-Ordner verschieben, z. B. `data/db/`, statt sie dauerhaft unter `data/processed/` zu halten.
+       - 🚧 `data/processed/` danach klar auf sonstige interne Normalisierung/Ableitungen begrenzen oder neu definieren.
+       - 🚧 Ein- und Ausgaben fuer Analyse/KI klar trennen, z. B. `data/analysis_requests/` fuer Eingabebatches und `data/analysis_outputs/` fuer erzeugte Ergebnisse.
 
 3. **Dokumentenverarbeitung ausbauen**
+   - Laufender Status und Restaufgaben werden nur noch in dieser README gepflegt; fruehere Zwischenstaende liegen bei Bedarf im Archiv unter `docs/archive/`.
    - ✅ Parser für priorisierte Dokumenttypen entwickeln (Vorlage, Beschlussvorlage, Protokoll-Auszug).
      - ✅ Relevante Inhalte je Dokumenttyp werden als strukturierte Felder extrahiert (`beschlusstext`, `begruendung`, `finanzbezug`, `zustaendigkeit`, `entscheidung`).
      - ✅ Parser-Ausgaben sind mit Fixtures pro Dokumenttyp abgesichert (`tests/fixtures/` + Edge-Cases).
@@ -117,11 +122,12 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
    - ✅ Analyse-Export liefert strukturierte Dokumentkontexte für priorisierte Typen.
      - ✅ `scripts/export_analysis_batch.py` kann Text-Extraktion und `structured_fields` für Analyse-Batches ausgeben.
      - ✅ Der Analyse-Workflow in der GUI nutzt strukturierte Dokumentfelder als Kontext im generierten Markdown.
-   - 🚧 Erweiterte PDF-Robustheit bleibt als Folgearbeit offen.
+   - ✅ Erweiterte PDF-Robustheit für Analyse-Export weiter ausgebaut.
      - ✅ Basis-Extraktion und Qualitätskennzeichnung (inkl. OCR-Hinweis) sind vorhanden.
-     - 🚧 Erweiterte Pipeline für robuste Seiten-/Abschnittsstruktur und vollwertigen OCR-Workflow bleibt offen und gehört in die nachgelagerte Qualitäts-/Betriebsarbeit.
-   - 🚧 Metadaten-Mapping für spätere Suche/Filterung konkretisieren.
-     - 🚧 Filterlogik für UI vorbereiten: Zeitraum-Presets, vergangen/kommend, Gremium, Sitzungsstatus.
+     - ✅ Seitenbezogene PDF-Texte und Abschnittsanker werden in der Extraktionspipeline erkannt und fuer Export/Analyse bereitgestellt.
+     - 🚧 Vollwertiger OCR-Workflow fuer gescannte/problematische PDFs bleibt als nachgelagerte Betriebsarbeit offen.
+   - ✅ Metadaten-Mapping für spätere Suche/Filterung konkretisiert.
+     - ✅ Filterlogik für UI ist vorbereitet: Zeitraum-Presets, vergangen/heute/kommend, Gremium, Sitzungsstatus.
      - ✅ Exportformat für Analyse-Batches ist definiert, damit ausgewählte Sitzungen reproduzierbar weitergegeben werden können.
 4. **Analysemodul entwickeln**
    - 🚧 Analyseziele, Qualitätskriterien und Ausgabeformate festlegen.
