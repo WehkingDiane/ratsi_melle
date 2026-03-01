@@ -46,7 +46,7 @@ def _assert_time_format(path: Path) -> None:
 
 
 def _write_local_fixture(root: Path) -> None:
-    session_dir = root / "2025" / "2025-06-05_Rat_123"
+    session_dir = root / "2025" / "06" / "2025-06-05_Rat_123"
     session_dir.mkdir(parents=True, exist_ok=True)
     (session_dir / "session_detail.html").write_text("<html></html>", encoding="utf-8")
     (session_dir / "agenda_summary.json").write_text(

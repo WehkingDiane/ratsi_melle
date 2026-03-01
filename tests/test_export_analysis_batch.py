@@ -7,7 +7,7 @@ from scripts import build_local_index, export_analysis_batch
 
 
 def _write_fixture(root: Path) -> None:
-    session_dir = root / "2025" / "2025-09-18_Rat_901"
+    session_dir = root / "2025" / "09" / "2025-09-18_Rat_901"
     session_dir.mkdir(parents=True, exist_ok=True)
     (session_dir / "session-documents").mkdir(parents=True, exist_ok=True)
     (session_dir / "agenda" / "o1").mkdir(parents=True, exist_ok=True)
@@ -180,8 +180,8 @@ def test_export_analysis_batch_includes_text_extraction(tmp_path: Path) -> None:
 
 def test_resolve_local_file_path_accepts_windows_separators() -> None:
     resolved = export_analysis_batch._resolve_local_file_path(
-        session_path=r"data\raw\2025\2025-09-18_Rat_901",
+        session_path=r"data\raw\2025\09\2025-09-18_Rat_901",
         local_path=r"session-documents\protokoll.pdf",
     )
     assert resolved is not None
-    assert resolved.as_posix() == "data/raw/2025/2025-09-18_Rat_901/session-documents/protokoll.pdf"
+    assert resolved.as_posix() == "data/raw/2025/09/2025-09-18_Rat_901/session-documents/protokoll.pdf"

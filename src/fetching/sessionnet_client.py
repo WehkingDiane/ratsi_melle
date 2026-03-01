@@ -10,6 +10,7 @@ import mimetypes
 from itertools import count
 import re
 from pathlib import Path
+import shutil
 import time
 from typing import Dict, Iterable, List, Optional, Tuple
 from urllib.parse import parse_qs, urljoin, urlparse, unquote
@@ -60,6 +61,7 @@ class SessionNetClient:
         self.base_url = self.base_url.rstrip("/") + "/"
         self.storage_root = Path(self.storage_root)
         self.storage_root.mkdir(parents=True, exist_ok=True)
+        self._migrate_legacy_storage_layout()
 
     # ------------------------------------------------------------------
     # Public API
@@ -555,17 +557,54 @@ class SessionNetClient:
         return detail_url
 
     def _build_month_filename(self, year: int, month: int) -> Path:
-        directory = self.storage_root / str(year)
+        directory = self._build_month_storage_directory(year, month)
         directory.mkdir(parents=True, exist_ok=True)
         return directory / f"{year:04d}-{month:02d}_overview.html"
 
     def _build_session_directory(self, reference: SessionReference) -> Path:
-        directory = self.storage_root / str(reference.date.year)
+        directory = self._build_month_storage_directory(reference.date.year, reference.date.month)
         directory.mkdir(parents=True, exist_ok=True)
         slug = self._slugify(f"{reference.date.isoformat()}_{reference.committee}_{reference.session_id}")
         path = directory / slug
         path.mkdir(parents=True, exist_ok=True)
         return path
+
+    def _build_month_storage_directory(self, year: int, month: int) -> Path:
+        return self.storage_root / str(year) / f"{month:02d}"
+
+    def _migrate_legacy_storage_layout(self) -> None:
+        for year_dir in self.storage_root.iterdir():
+            if not year_dir.is_dir() or not year_dir.name.isdigit():
+                continue
+            for child in list(year_dir.iterdir()):
+                target_dir = self._determine_migration_target_dir(year_dir, child)
+                if target_dir is None:
+                    continue
+                target_dir.mkdir(parents=True, exist_ok=True)
+                destination = target_dir / child.name
+                if destination.exists():
+                    continue
+                shutil.move(str(child), str(destination))
+
+    def _determine_migration_target_dir(self, year_dir: Path, child: Path) -> Path | None:
+        if child.name.isdigit() and len(child.name) == 2 and child.is_dir():
+            return None
+
+        month = self._extract_month_from_legacy_entry(child)
+        if month is None:
+            return None
+        return year_dir / f"{month:02d}"
+
+    def _extract_month_from_legacy_entry(self, child: Path) -> int | None:
+        overview_match = re.match(r"^\d{4}-(\d{2})_overview\.html$", child.name)
+        if overview_match:
+            return int(overview_match.group(1))
+
+        session_match = re.match(r"^(\d{4})-(\d{2})-(\d{2})[-_].+$", child.name)
+        if session_match:
+            return int(session_match.group(2))
+
+        return None
 
     def _build_session_filename(self, reference: SessionReference) -> Path:
         directory = self._build_session_directory(reference)
