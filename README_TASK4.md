@@ -1,266 +1,113 @@
-# Task 4: Analysemodul entwickeln
+# Task 4: Analysemodul entwickeln - sichere KI
 
-Diese Datei beschreibt Task 4 aus `README.md` ausführlich. Das Analysemodul ist ein zentraler Hauptbestandteil des Projekts und soll bewusst so strukturiert werden, dass spaetere Funktionserweiterungen moeglich bleiben.
+Dieses Dokument beschreibt den Task 4 der Projekt-Roadmap des Ratsinformations-Analysewerkzeugs. Ziel dieses Meilensteins ist der Entwurf und die Implementierung eines modularen Analysemoduls, das Dokumente, Tagesordnungspunkte und ganze Sitzungen auswertet und zuverlässige, reproduzierbare Ergebnisse liefert. Im Vergleich zur ursprünglichen Fassung legt diese Version besonderen Wert auf Datensicherheit, Transparenz und Risiko-Management, damit der Einsatz von KI vertrauenswürdig und nachvollziehbar bleibt.
 
-## Zielbild
+## 1 Zielbild
 
-Das Analysemodul soll Dokumente, Tagesordnungspunkte und ganze Sitzungen so auswerten, dass daraus nachvollziehbare, reproduzierbare und fuer unterschiedliche Zielgruppen nutzbare Ergebnisse entstehen.
+Das Analysemodul soll strukturierte Informationen aus dem Ratsinformationssystem in mehreren Analyseebenen aufbereiten (Dokument, TOP, Sitzung, Vergleich). Unterschiedliche Zielgruppen (Journalist:innen, Bürger:innen, Ratsmitglieder) sollen Ergebnisse in passender Detailtiefe erhalten: von kurzen neutralen Zusammenfassungen über finanzielle Bewertungen bis hin zu thematischen Klassifikationen. Alle Analysen müssen nachvollziehbar, faktentreu und quellenbasiert sein.
 
-Die Analyse soll nicht nur eine einzige Zusammenfassung erzeugen, sondern mehrere Modi unterstuetzen, die je nach Anwendungsfall aktiviert werden koennen.
+## 2 Leitprinzipien
 
-## Leitprinzipien
+- Faktentreue vor Sprachglanz. Analyseergebnisse müssen sich strikt an den Inhalten der zugrunde liegenden Dokumente orientieren. Halluzinationen sind zu kennzeichnen und zu minimieren.
+- Klare Trennung von Quelle, Extraktion, Analyse und Interpretation. Rohdaten und extrahierte Metadaten werden separat gespeichert. Analyse- und Interpretationsschritte operieren ausschließlich auf dieser strukturierten Basis.
+- Reproduzierbarkeit und Auditierbarkeit. Jede Analyse speichert den vollständigen Eingabekontext, verwendete Modelle, Prompt-Versionen, Ausführungsparameter und Hashes der Eingangsdokumente. Dadurch können Ergebnisse jederzeit nachgestellt und überprüft werden.
+- Hybridansatz aus Regeln und KI. Strukturelle Informationen wie Datum, Gremium, Dokumenttyp oder finanzielle Kennzahlen werden regelbasiert extrahiert. KI-Modelle kommen erst im zweiten Schritt für Verdichtung, thematische Einordnung und Verknüpfung zum Einsatz.
+- Sicherheits- und Risiko-Management. Datenschutz, Bias-Kontrolle, Erklärbarkeit und menschliche Überprüfbarkeit sind integrale Bestandteile des Designs. Analysen werden als „Entwürfe“ gekennzeichnet, bis sie durch Review freigegeben sind.
+- Erweiterbarkeit. Die Architektur muss neue Analysemodi, zusätzliche Datenquellen und unterschiedliche KI-Modelle (lokal, API-basiert, verschiedene Größen) aufnehmen können.
 
-- Faktentreue vor Sprachglanz
-- klare Trennung zwischen Quelle, Extraktion, Analyse und Interpretation
-- reproduzierbare Ergebnisse durch gespeicherte Parameter
-- Kombination aus regelbasierten und KI-gestuetzten Verfahren
-- erweiterbare Architektur fuer weitere Analysearten
+## 3 Analyseziele
 
-## Analyseziele
+Folgende Ergebnisarten sollten unterstützt werden:
 
-Folgende Ergebnisarten sollten unterstuetzt werden:
+- Kurze neutrale Zusammenfassung - faktenbasierte Kurzfassung eines Dokuments oder TOPs.
+- Ausführliche Zusammenfassung - detaillierte Darstellung für Fachpublikum.
+- Strukturierte Extraktion relevanter Inhalte - z. B. Akteur:innen, Beträge, Fristen.
+- Beschlussanalyse - Darstellung des Beschlusses, Verantwortlichkeiten und Folgeschritte.
+- Finanzanalyse - Herausarbeitung von Kosten, Finanzierung, Fördermitteln und Risiken.
+- Themenklassifikation und Priorisierung - Zuordnung zu Themenfeldern (Verkehr, Soziales usw.) und Bewertung der politischen Relevanz.
+- Vergleichs- und Monitoringanalysen - Analyse von Entwicklungen über mehrere Sitzungen oder Zeiträume.
 
-- kurze neutrale Zusammenfassung
-- ausfuehrliche Zusammenfassung
-- strukturierte Extraktion relevanter Inhalte
-- Beschlussanalyse
-- Finanzanalyse
-- Themenklassifikation
-- Priorisierung politisch relevanter Dokumente
-- Vergleich ueber Sitzungen oder Zeitraeume
+## 4 Analyseebenen
 
-## Empfohlene Analyseebenen
+### 4.1 Dokumentanalyse
 
-### 1. Dokumentanalyse
+Ein einzelnes Dokument wird isoliert betrachtet. Typische Anwendungsfälle: Zusammenfassung einer Vorlage, Zerlegung einer Beschlussvorlage in Kernaussagen oder Prüfung eines Protokollauszugs auf getroffene Entscheidungen. Zusätzlich müssen sensible Daten erkannt und anonymisiert werden, und das System soll auf Unsicherheiten oder fehlende Informationen hinweisen.
 
-Ein einzelnes Dokument wird separat analysiert.
+### 4.2 TOP-Analyse
 
-Typische Anwendungsfaelle:
+Alle Dokumente zu einem Tagesordnungspunkt werden gemeinsam analysiert. Über die bisherigen Ziele hinaus sollten Inkonsistenzen zwischen Vorlage und Beschluss markiert und Risiken hervorgehoben werden.
 
-- Vorlage zusammenfassen
-- Beschlussvorlage in Kernaussagen zerlegen
-- Protokoll-Auszug auf Entscheidungen pruefen
+### 4.3 Sitzungsanalyse
 
-Typische Ausgaben:
+Die Gesamtheit der relevanten Dokumente einer Sitzung wird verdichtet. Neben wichtigen Themen und Entscheidungen sollen Konfliktlinien identifiziert, offene Folgeaufgaben priorisiert und jede Aussage mit einer Quellenverlinkung versehen werden.
 
-- Worum geht es?
-- Welche Entscheidung ist vorgesehen oder getroffen?
-- Welche Kosten oder Risiken werden genannt?
-- Welche Stellen oder Gremien sind betroffen?
+### 4.4 Vergleichs- und Monitoringanalyse
 
-### 2. TOP-Analyse
+Mehrere Sitzungen oder Dokumentstände werden über Zeiträume hinweg verglichen. Zusätzlich sollen Trends, Versionen und potenzielle Bias-Verschiebungen erkannt werden.
 
-Alle Dokumente zu einem Tagesordnungspunkt werden zusammengefuehrt und gemeinsam bewertet.
+## 5 Analysemodi
 
-Typische Anwendungsfaelle:
+Um die Analyseziele abzudecken, werden verschiedene Modi definiert:
 
-- Vorlage plus Anlagen plus spaeterer Beschluss
-- verschiedene Dokumente zu einem einzigen Sachverhalt
+- `summary` - neutrale Kurzfassung mit Quellenangaben.
+- `decision_brief` - Fokus auf Beschlussinhalt, Zuständigkeit und nächste Schritte.
+- `financial_impact` - Analyse von Kosten, Finanzierung, Haushalt, Fördermitteln und Risiken.
+- `citizen_explainer` - leicht verständliche Erklärungen ohne Fachsprache.
+- `journalistic_brief` - Kernaussagen, Konfliktlinien und offene Fragen.
+- `topic_classifier` - thematische Einordnung.
+- `change_monitor` - Vergleich neuer Dokumente mit früheren Ständen.
 
-Typische Ausgaben:
+Jeder Modus definiert klar, welche Eingaben er benötigt und welche strukturierten Felder er ausgibt; weitere Modi lassen sich später ergänzen.
 
-- Kernthema des TOP
-- Beschlusslage
-- offene Fragen
-- Finanzbezug
-- Unterschiede zwischen Vorlage und Beschluss
+## 6 Fachliche Analysearten
 
-### 3. Sitzungsanalyse
+Unabhängig vom Modus werden diese Perspektiven unterstützt: Zusammenfassung, Beschlussanalyse, Finanzanalyse, Akteursanalyse, Themenklassifikation, Priorisierung und Hinweise auf Unsicherheiten/Halluzinationen.
 
-Alle relevanten Dokumente einer Sitzung werden zu einer uebergeordneten Analyse verdichtet.
+## 7 Sicherer Einsatz von KI
 
-Typische Ausgaben:
+### 7.1 Regelbasiert vs. KI
 
-- wichtigste Themen der Sitzung
-- zentrale Entscheidungen
-- oeffentlich relevante Punkte
-- wiederkehrende Konfliktlinien
-- offene Folgeaufgaben
+Ein reines KI-System ist ungeeignet. Daher gelten:
 
-### 4. Vergleichs- und Monitoringanalyse
+- Regelbasierte Vorverarbeitung: Extraktion von Datum, Gremium, Dokumenttyp, finanziellen Schlüsselwörtern usw.; Anonymisierung sensibler Daten.
+- KI-gestützte Verdichtung: Erst danach werden längere Inhalte durch Modelle verdichtet oder klassifiziert.
+- Plausibilitäts- und Qualitätskontrolle: Nach der KI-Analyse Abgleich mit den extrahierten Fakten; Widersprüche werden markiert und dem/der Reviewer:in angezeigt.
 
-Mehrere Sitzungen oder Dokumentstaende werden ueber Zeitraeume hinweg verglichen.
+### 7.2 Modell- und Schnittstellenstrategie
 
-Typische Anwendungsfaelle:
+Eine einheitliche API kapselt den Umgang mit Modellen: Eingabekontext, Prompt, Modellname/-version, definierte Antwortformate, Fehler-/Bias-Handling und Logging sind standardisiert. So lässt sich flexibel zwischen lokalen und externen Modellen wählen.
 
-- Thema ueber mehrere Monate verfolgen
-- neue Beschluesse gegen fruehere Vorlagen vergleichen
-- geaenderte Dokumente erkennen und hervorheben
+### 7.3 Reproduzierbarkeit und Auditierbarkeit
 
-Typische Ausgaben:
+Bei jeder Analyse werden Analysemodus, Prompt-Version, Modellname/-version, Parameter, Zeitstempel, Hashes der Dokumente und der vollständige Prompt gespeichert. Ergebnisse enthalten strukturierte Felder, Quellenverweise, Unsicherheitsmarkierungen und Reviewer-Metadaten.
 
-- was ist neu
-- was hat sich geaendert
-- welche Themen nehmen zu
-- welche Entscheidungen wurden fortgeschrieben oder revidiert
+### 7.4 Menschliche Nachprüfung und Feedback
 
-## Empfohlene Analysemodi
+Analyseergebnisse sind stets als Entwurf zu kennzeichnen. Reviewer:innen sehen Belegstellen, Unsicherheitsmarker und offene Fragen, können Kommentare hinterlassen, Korrekturen vornehmen und die Veröffentlichung freigeben.
 
-Die folgenden Modi sind als erster sinnvoller Zielkatalog zu verstehen:
+## 8 Empfohlene Umsetzungsreihenfolge
 
-### `summary`
+- Phase 1 - Basismodule: Analyse-Schnittstelle und Datenmodelle (`AnalysisRequest`, `AnalysisOutputRecord`) samt Audit-Trail; Implementierung der Dokumentanalyse mit den Modi `summary`, `decision_brief` und `financial_impact`; Tests zur Maskierung sensibler Daten.
+- Phase 2 - TOP-Analyse und Priorisierung: Zusammenführung mehrerer Dokumente pro TOP; Integration des Modus `citizen_explainer` und eines Thema-Klassifikators; Markierung von Inkonsistenzen.
+- Phase 3 - Sitzungsanalyse und journalistische Perspektive: Sitzungsweite Verdichtung; Einführung des Modus `journalistic_brief`; Konflikt- und Akteursanalysen.
+- Phase 4 - Vergleichs- und Monitoringanalysen: Entwicklung des `change_monitor`-Modus; Aufbau einer Benachrichtigungs-/Warteschlangenlogik.
 
-Kurze neutrale Zusammenfassung eines Dokuments, TOPs oder einer Sitzung.
+## 9 Offene Architekturfragen
 
-### `decision_brief`
-
-Fokus auf Beschlussinhalt, Entscheidung, Zustaendigkeit und naechste Schritte.
-
-### `financial_impact`
-
-Fokus auf Kosten, Finanzierung, Haushaltsbezug, Foerdermittel und Risiken.
-
-### `citizen_explainer`
-
-Leicht verstaendliche Erklaerung fuer Buergerinnen und Buerger ohne Fachsprache.
-
-### `journalistic_brief`
-
-Arbeitsmodus fuer journalistische Auswertung mit Kernaussagen, Konfliktlinien und offenen Fragen.
-
-### `topic_classifier`
-
-Thematische Einordnung, z. B. Verkehr, Schule, Haushalt, Bau, Soziales, Klima.
-
-### `change_monitor`
-
-Vergleich neuer Dokumente oder Sitzungen mit frueheren Staenden.
-
-## Fachliche Analysearten
-
-Unabhaengig vom Modus sollten folgende fachliche Perspektiven unterstuetzt werden:
-
-- Zusammenfassung
-- Beschlussanalyse
-- Finanzanalyse
-- Akteursanalyse
-- Themenklassifikation
-- Priorisierung
-- Unsicherheits- und Lueckenhinweise
-
-## Kombination von KI und Regeln
-
-Ein rein KI-basiertes System ist fuer diesen Anwendungsfall nicht ideal. Sinnvoller ist ein Hybridansatz.
-
-### Regelbasiert geeignet fuer
-
-- Datum, Gremium, Dokumenttyp
-- Beschlussformeln
-- Finanzielle Schluesselwoerter
-- strukturierte Kernfelder
-- technische Vorfilterung
-
-### KI geeignet fuer
-
-- Verdichtung laengerer Inhalte
-- Formulierung verschiedener Ausgabeformen
-- thematische Einordnung
-- Zusammenfuehrung mehrerer Dokumente
-- Erkennen indirekter Zusammenhaenge
-
-### Hybridmodus
-
-Empfehlung:
-
-- erst strukturierte Extraktion
-- dann KI-Analyse auf basisbereinigtem Kontext
-- danach Plausibilitaets- und Qualitaetspruefung
-
-## Modell- und Schnittstellenstrategie
-
-Das Analysemodul sollte mehrere Modelle oder Provider unterstuetzen koennen.
-
-Moegliche Varianten:
-
-- lokale Modelle fuer Datenschutz oder Offline-Betrieb
-- API-basierte Modelle fuer hoehere Qualitaet
-- kleine schnelle Modelle fuer Vorfilterung
-- groessere Modelle fuer Endauswertung
-
-Dafuer braucht es eine einheitliche Schnittstelle fuer:
-
-- Eingabekontext
-- Prompting
-- Modellname
-- Modellversion
-- Antwortformat
-- Fehlerbehandlung
-- Logging
-
-## Reproduzierbarkeit und Nachvollziehbarkeit
-
-Zu jeder Analyse sollten mindestens gespeichert werden:
-
-- Analysemodus
-- Modellname
-- Modellversion
-- Prompt oder Prompt-Version
-- Eingabedokumente
-- Dokument-Hashes
-- Analysezeitpunkt
-- Parameter der Ausfuehrung
-
-Ausgaben sollten moeglichst enthalten:
-
-- Ergebnistext
-- strukturierte Felder
-- Quellenbezug
-- Hinweise auf Unsicherheit
-
-## Menschliche Nachpruefung
-
-Analyseergebnisse sollen als bearbeitbare Arbeitsgrundlage dienen und nicht als unpruefbare Endwahrheit.
-
-Deshalb sinnvoll:
-
-- Ergebnisse als Entwurf kennzeichnen
-- Belegstellen oder Kurzquellen ausgeben
-- offene Fragen sichtbar machen
-- unsichere Aussagen markieren
-- Export fuer redaktionelle Nachbearbeitung erlauben
-
-## Empfohlene Umsetzungsreihenfolge
-
-### Phase 1
-
-- Einzel-Dokumentanalyse
-- neutrale Zusammenfassung
-- Beschluss- und Finanzfokus
-
-### Phase 2
-
-- TOP-Analyse
-- Zusammenfuehrung mehrerer Dokumente
-- bessere Priorisierung
-
-### Phase 3
-
-- Sitzungsanalyse
-- journalistischer Modus
-- Buerger-Erklaermodus
-
-### Phase 4
-
-- Vergleichsanalyse
-- Monitoring geaenderter oder neuer Dokumente
-- automatisierte Benachrichtigung oder Warteschlangenlogik
-
-## Offene Architekturfragen
-
-- Welche Analyseergebnisse werden dauerhaft gespeichert?
-- Welche nur on-demand erzeugt?
-- Welche Modelle duerfen lokal laufen?
-- Welche Ergebnisse muessen mit Quellenbeleg ausgegeben werden?
-- Welche Modi kommen zuerst in die Developer-GUI?
-- Welche Modi spaeter in die finale User-Oberflaeche?
-
-## Definition of Done fuer einen ersten sinnvollen Meilenstein
-
-Task 4 muss nicht komplett abgeschlossen sein, um nutzbar zu werden. Ein realistischer erster Meilenstein waere:
-
-- einheitliche Analyse-Schnittstelle
-- mindestens zwei Analysemodi
-- Analyse auf Dokument- und TOP-Ebene
-- Speicherung von Modell-, Prompt- und Kontext-Metadaten
-- nachvollziehbare Ausgaben mit Quellenbezug
-- Tests fuer Kernfluesse und Fehlerfaelle
+- Welche Analyseergebnisse werden dauerhaft gespeichert und welche nur on-demand erzeugt?
+- Wie werden Bias-Erkennung und Qualitätsmetriken integriert?
+- Welche Modelle dürfen lokal ausgeführt werden; wann darf externe KI genutzt werden? Welche Datenschutz- und Lizenzanforderungen gelten?
+- Welche Ergebnisse müssen zwingend mit Quellenbeleg ausgegeben werden und wie werden sie im GUI dargestellt?
+- Welche Analysemodi kommen zuerst in die Developer-GUI; welche später in die Endnutzer-Oberfläche?
+
+## 10 Definition of Done (erster Meilenstein)
+
+Ein erster nutzbarer Meilenstein umfasst:
+
+- Eine einheitliche Analyse-API mit Audit-Trail, Logging und Unsicherheitskennzeichnung.
+- Mindestens zwei Analysemodi (z. B. `summary` und `decision_brief`) für die Dokumentanalyse.
+- Nachvollziehbare Ergebnisse mit Quellenbezug, strukturierten Feldern und Unsicherheitsmarkierungen.
+- Speicherung von Modell- und Prompt-Metadaten wie in Abschnitt 7.3.
+- Sicherheitsmechanismen zum Maskieren personenbezogener Daten und zur Erkennung von Halluzinationen.
+- Unit-Tests für Kernflüsse und Fehlerfälle, die auch die Reproduzierbarkeit und das Bias-Handling prüfen.
+- Eine menschliche Review-Funktion in GUI oder CLI, um Analysen als Entwurf zu kennzeichnen, zu kommentieren und freizugeben.
