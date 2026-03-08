@@ -8,7 +8,7 @@ Diese Anleitung beschreibt die Nutzung der Desktop-GUI unter `src/interfaces/gui
 - Die Projektabhaengigkeiten sind installiert:
   - `pip install -r requirements.txt`
 - Unter WSL ist fuer Tkinter ggf. `python3-tk` erforderlich.
-- Fuer datenbezogene Funktionen sollte eine lokale SQLite-DB vorhanden sein, typischerweise `data/processed/local_index.sqlite`.
+- Fuer datenbezogene Funktionen sollte eine lokale SQLite-DB vorhanden sein, typischerweise `data/db/local_index.sqlite`.
 
 ## GUI starten
 
@@ -50,7 +50,7 @@ Falls noch keine lokale DB existiert:
 python scripts/build_local_index.py
 ```
 
-Standardziel ist `data/processed/local_index.sqlite`.
+Standardziel ist `data/db/local_index.sqlite`.
 
 ### 3. Analyse-Batch exportieren
 
@@ -147,7 +147,7 @@ Der erzeugte Markdown-Text enthaelt einen Abschnitt `Dokumentkontext`, in dem er
 ### 6. Ergebnis exportieren
 
 Mit `Markdown exportieren` wird das aktuelle Analyseergebnis nach
-`data/processed/analysis_latest.md` geschrieben.
+`data/analysis_outputs/summaries/analysis_latest.md` geschrieben.
 
 ## Typische Fehlerbilder
 

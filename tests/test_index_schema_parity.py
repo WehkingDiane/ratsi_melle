@@ -106,7 +106,7 @@ def _write_local_fixture(root: Path) -> None:
 def _build_local_db(tmp_path: Path) -> Path:
     data_root = tmp_path / "data" / "raw"
     _write_local_fixture(data_root)
-    output_path = tmp_path / "data" / "processed" / "local_index.sqlite"
+    output_path = tmp_path / "data" / "db" / "local_index.sqlite"
     build_local_index.build_index(data_root, output_path, refresh_existing=False, only_refresh=False)
     return output_path
 
@@ -149,7 +149,7 @@ def _build_online_db(tmp_path: Path) -> Path:
         raw_html="",
     )
     client = _StubClient(references=[reference], detail=detail)
-    output_path = tmp_path / "data" / "processed" / "online_session_index.sqlite"
+    output_path = tmp_path / "data" / "db" / "online_session_index.sqlite"
     build_online_index_db.build_session_db(
         client, 2025, [6], output_path, refresh_existing=False, only_refresh=False, migrate_from=Path("missing")
     )

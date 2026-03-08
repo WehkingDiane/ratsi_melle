@@ -27,9 +27,9 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 ## Wichtige Skripte
 
 - `python scripts/fetch_sessions.py 2024 --months 5 6` laedt Sitzungen und Dokumente nach `data/raw/`.
-- `python scripts/build_local_index.py` baut den lokalen SQLite-Index unter `data/processed/local_index.sqlite`.
-- `python scripts/build_online_index_db.py 2024 --months 5 6` baut den Online-Index unter `data/processed/online_session_index.sqlite` ohne Downloads.
-- `python scripts/export_analysis_batch.py --db-path data/processed/local_index.sqlite --output data/analysis_requests/analysis_batch.json` exportiert einen reproduzierbaren Analyse-Batch (optional filterbar nach Sitzung, Zeitraum, Gremium, `document_type`).
+- `python scripts/build_local_index.py` baut den lokalen SQLite-Index unter `data/db/local_index.sqlite`.
+- `python scripts/build_online_index_db.py 2024 --months 5 6` baut den Online-Index unter `data/db/online_session_index.sqlite` ohne Downloads.
+- `python scripts/export_analysis_batch.py --db-path data/db/local_index.sqlite --output data/analysis_requests/analysis_batch.json` exportiert einen reproduzierbaren Analyse-Batch (optional filterbar nach Sitzung, Zeitraum, Gremium, `document_type`).
 
 ## GUI (modular)
 
@@ -106,10 +106,10 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
    - ✅ **Speicherkonzept ausarbeiten:** Dateiformate, Verzeichnis- bzw. Datenbankschemata, Versionierung sowie Aufbewahrungsfristen der Rohdaten definieren und in einem Architektur- oder Betriebshandbuch dokumentieren.
      - ✅ Ablagestruktur unter `data/raw/YYYY/MM/` um einen zusätzlichen Monats-Unterordner erweitert.
      - ✅ Bestehende Rohdaten werden bei Nutzung des Fetch-Clients einmalig in die neue Monatsstruktur migriert.
-     - 🚧 Ausgabe-/Artefaktstruktur ausserhalb von `data/raw/` weiter schärfen.
-       - 🚧 SQLite-Datenbanken in einen eigenen Infrastruktur-Ordner verschieben, z. B. `data/db/`, statt sie dauerhaft unter `data/processed/` zu halten.
-       - 🚧 `data/processed/` danach klar auf sonstige interne Normalisierung/Ableitungen begrenzen oder neu definieren.
-       - 🚧 Ein- und Ausgaben fuer Analyse/KI klar trennen, z. B. `data/analysis_requests/` fuer Eingabebatches und `data/analysis_outputs/` fuer erzeugte Ergebnisse.
+     - ✅ Ausgabe-/Artefaktstruktur ausserhalb von `data/raw/` weiter geschärft.
+       - ✅ SQLite-Datenbanken liegen unter `data/db/` (inkl. automatischer Migration von Legacy-Pfaden).
+       - ✅ `data/processed/` ist fuer interne Normalisierung/Ableitungen reserviert und enthaelt keine SQLite-DB-Standards mehr.
+       - ✅ Ein- und Ausgaben fuer Analyse/KI sind getrennt: `data/analysis_requests/` (Eingaben) und `data/analysis_outputs/` (Ergebnisse).
 
 3. **Dokumentenverarbeitung ausbauen**
    - Laufender Status und Restaufgaben werden nur noch in dieser README gepflegt; fruehere Zwischenstaende liegen bei Bedarf im Archiv unter `docs/archive/`.
@@ -125,7 +125,7 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
    - ✅ Erweiterte PDF-Robustheit für Analyse-Export weiter ausgebaut.
      - ✅ Basis-Extraktion und Qualitätskennzeichnung (inkl. OCR-Hinweis) sind vorhanden.
      - ✅ Seitenbezogene PDF-Texte und Abschnittsanker werden in der Extraktionspipeline erkannt und fuer Export/Analyse bereitgestellt.
-     - 🚧 Vollwertiger OCR-Workflow fuer gescannte/problematische PDFs bleibt als nachgelagerte Betriebsarbeit offen.
+     - ✅ OCR-Fallback ist integriert: gescannte/problematische PDFs werden bei fehlendem Textlayer ueber OCR-Werkzeuge verarbeitet (wenn verfuegbar).
    - ✅ Metadaten-Mapping für spätere Suche/Filterung konkretisiert.
      - ✅ Filterlogik für UI ist vorbereitet: Zeitraum-Presets, vergangen/heute/kommend, Gremium, Sitzungsstatus.
      - ✅ Exportformat für Analyse-Batches ist definiert, damit ausgewählte Sitzungen reproduzierbar weitergegeben werden können.
@@ -137,10 +137,10 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
    - Details und Ausbaupfade stehen in `README_TASK4.md`.
 5. **Benutzerzugang gestalten**
    - 🚧 **Developer-GUI weiterentwickeln**
-     - 🚧 Anforderungen an die interne Developer-GUI definieren (Arbeitsabläufe, Eingabefelder, Schnellaktionen, Exportpfade).
-     - 🚧 Prototypen und Verbesserungen für die Developer-GUI mit Testdaten umsetzen und iterativ schärfen.
-     - 🚧 In der GUI-Action-Ansicht `Export Analysis` ein Dropdown für `Committee` statt eines reinen Texteingabefelds ergänzen.
-     - 🚧 In der GUI Eingabeelemente ausblenden, die für die aktuell ausgewählte Action nicht benötigt werden.
+     - ✅ Anforderungen an die interne Developer-GUI wurden in konkrete Arbeitsablaeufe und Exportpfade ueberfuehrt (eigene Exportseite, Presets, DB-gestuetzte Auswahl).
+     - ✅ Prototypen und Verbesserungen fuer die Developer-GUI sind umgesetzt und mit Testdaten abgesichert.
+     - ✅ In der GUI-Action-Ansicht `Export Analysis` ist ein `Committee`-Dropdown verfuegbar.
+     - ✅ In der GUI werden Eingabeelemente ausgeblendet, die fuer die aktuell ausgewaehlte Action nicht benoetigt werden.
    - 🚧 **Finale User-Oberfläche konzipieren und ausbauen**
      - 🚧 Anforderungen an UI oder API für Endnutzer definieren (Zielgruppen, Filter, Exportformate).
      - 🚧 Prototyp für Darstellung/Interaktion der finalen User-Oberfläche umsetzen und mit Testdaten befüllen.

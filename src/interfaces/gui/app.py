@@ -17,7 +17,10 @@ from typing import Callable
 import customtkinter as ctk
 from CTkMenuBar import CTkMenuBar, CustomDropdownMenu
 
-from src.analysis.analysis_context import build_analysis_markdown, enrich_documents_for_analysis
+from src.analysis.batch_exporter import export_analysis_batch
+from src.analysis.service import AnalysisRequest, AnalysisService
+from src.data_layout import migrate_legacy_database_layout
+from src.paths import DEFAULT_ANALYSIS_BATCH, DEFAULT_ANALYSIS_MARKDOWN, LOCAL_INDEX_DB, ONLINE_INDEX_DB
 from src.version import __version__
 
 from .config import (
@@ -66,8 +69,8 @@ class GuiLauncher:
         self.months_value = ctk.StringVar(value="")
         self.verbose_mode = ctk.BooleanVar(value=False)
 
-        self.export_db_path = ctk.StringVar(value="data/processed/local_index.sqlite")
-        self.export_output_path = ctk.StringVar(value="data/analysis_requests/analysis_batch.json")
+        self.export_db_path = ctk.StringVar(value=str(LOCAL_INDEX_DB.relative_to(REPO_ROOT)))
+        self.export_output_path = ctk.StringVar(value=str(DEFAULT_ANALYSIS_BATCH.relative_to(REPO_ROOT)))
         self.export_committees = ctk.StringVar(value="")
         self.export_date_from = ctk.StringVar(value="")
         self.export_date_to = ctk.StringVar(value="")
@@ -76,8 +79,8 @@ class GuiLauncher:
         self.export_include_text_extraction = ctk.BooleanVar(value=False)
         self.export_max_text_chars = ctk.StringVar(value="12000")
         self.export_field_defaults = {
-            "db_path": "data/processed/local_index.sqlite",
-            "output_path": "data/analysis_requests/analysis_batch.json",
+            "db_path": str(LOCAL_INDEX_DB.relative_to(REPO_ROOT)),
+            "output_path": str(DEFAULT_ANALYSIS_BATCH.relative_to(REPO_ROOT)),
             "committees": "Rat, Ausschuss fuer Finanzen",
             "date_from": "2026-01-01",
             "date_to": "2026-12-31",
@@ -155,6 +158,11 @@ class GuiLauncher:
         self.run_preset_button: ctk.CTkButton | None = None
         self.validation_label: ctk.CTkLabel | None = None
         self.export_frame: ctk.CTkFrame | None = None
+        self.data_tools_year_label: ctk.CTkLabel | None = None
+        self.data_tools_year_entry: ctk.CTkEntry | None = None
+        self.data_tools_months_label: ctk.CTkLabel | None = None
+        self.data_tools_months_entry: ctk.CTkEntry | None = None
+        self.data_tools_verbose_check: ctk.CTkCheckBox | None = None
         self.export_profile_box: ctk.CTkComboBox | None = None
         self.export_date_preset_box: ctk.CTkComboBox | None = None
         self.export_committee_box: ctk.CTkComboBox | None = None
@@ -201,6 +209,8 @@ class GuiLauncher:
         self.worker_running = False
         self.script_runner = ScriptRunner(REPO_ROOT)
         self.analysis_store = AnalysisStore()
+        self.analysis_service = AnalysisService()
+        migrate_legacy_database_layout()
 
         self.actions = {
             "Download sessions (raw, script)": ActionConfig(
@@ -563,9 +573,34 @@ class GuiLauncher:
             self.export_max_text_chars.set(self.export_field_defaults["max_text_chars"])
 
     def _update_dynamic_controls(self) -> None:
-        if not self.export_frame:
-            return
-        self.export_frame.grid_remove()
+        if self.export_frame:
+            self.export_frame.grid_remove()
+
+        action = self.selected_action.get()
+        needs_date_inputs = action in {"Download sessions (raw, script)", "Build online SQLite index (script)"}
+        widgets = (
+            self.data_tools_year_label,
+            self.data_tools_year_entry,
+            self.data_tools_months_label,
+            self.data_tools_months_entry,
+        )
+        for widget in widgets:
+            if widget is None:
+                continue
+            if needs_date_inputs:
+                widget.grid()
+            else:
+                widget.grid_remove()
+
+        if self.data_tools_verbose_check is not None:
+            if action in {
+                "Download sessions (raw, script)",
+                "Build local SQLite index (script)",
+                "Build online SQLite index (script)",
+            }:
+                self.data_tools_verbose_check.grid()
+            else:
+                self.data_tools_verbose_check.grid_remove()
 
     def _update_run_state(self) -> None:
         if self.worker_running or self.current_process is not None:
@@ -876,47 +911,47 @@ class GuiLauncher:
         }
 
     def _run_export_analysis_batch(self) -> dict:
-        script_path = REPO_ROOT / "scripts" / "export_analysis_batch.py"
-        if not script_path.exists():
-            self._append_log("[ERROR] scripts/export_analysis_batch.py not found")
-            return {"status": "error", "message": "Script not found"}
-
         db_path = self.export_db_path.get().strip()
         output_path = self.export_output_path.get().strip()
         date_from = self.export_date_from.get().strip()
         date_to = self.export_date_to.get().strip()
         committees = [entry.strip() for entry in self.export_committees.get().split(",") if entry.strip()]
         doc_types = [entry.strip() for entry in self.export_document_types.get().split(",") if entry.strip()]
-        max_chars = self.export_max_text_chars.get().strip() or "12000"
+        max_chars = int(self.export_max_text_chars.get().strip() or "12000")
+        resolved_db = self._resolve_db_path(db_path)
+        resolved_output = self._resolve_output_path(output_path)
 
-        cmd = [
-            sys.executable,
-            str(script_path),
-            "--db-path",
-            db_path,
-            "--output",
-            output_path,
-        ]
-        for committee in committees:
-            cmd.extend(["--committee", committee])
-        for doc_type in doc_types:
-            cmd.extend(["--document-type", doc_type])
-        if date_from:
-            cmd.extend(["--date-from", date_from])
-        if date_to:
-            cmd.extend(["--date-to", date_to])
-        if self.export_require_local_path.get():
-            cmd.append("--require-local-path")
-        if self.export_include_text_extraction.get():
-            cmd.append("--include-text-extraction")
-            cmd.extend(["--max-text-chars", max_chars])
+        if not resolved_db.exists():
+            self._append_log("[ERROR] SQLite index not found.")
+            return {"status": "error", "message": "local_index.sqlite not found"}
 
-        result = self._run_script_command(cmd)
-        output_resolved = self._resolve_output_path(output_path)
-        result["output"] = str(output_resolved)
-        result["filter_summary"] = self._collect_export_filter_summary()
-        result["document_count"] = self._count_export_documents(output_resolved)
-        return result
+        try:
+            document_count = export_analysis_batch(
+                resolved_db,
+                resolved_output,
+                committees=committees,
+                date_from=date_from or None,
+                date_to=date_to or None,
+                document_types=doc_types,
+                require_local_path=self.export_require_local_path.get(),
+                include_text_extraction=self.export_include_text_extraction.get(),
+                max_text_chars=max_chars,
+            )
+        except Exception as exc:  # pragma: no cover - defensive
+            self._append_log(f"[ERROR] Export failed: {exc}")
+            return {"status": "error", "message": str(exc)}
+
+        self._append_log(f"[INFO] Exported {document_count} documents to {resolved_output}")
+        return {
+            "status": "ok",
+            "exit_code": 0,
+            "summary": f"Exported {document_count} documents",
+            "output": str(resolved_output),
+            "filter_summary": self._collect_export_filter_summary(),
+            "document_count": document_count,
+            "command": "analysis.batch_exporter",
+            "lines": None,
+        }
 
     def _run_list_committees(self) -> dict:
         db_path = self._resolve_db_path(self.export_db_path.get().strip())
@@ -1092,7 +1127,14 @@ class GuiLauncher:
         path = Path(raw)
         if path.is_absolute():
             return path
-        return (REPO_ROOT / path).resolve()
+        resolved = (REPO_ROOT / path).resolve()
+        if resolved.exists():
+            return resolved
+        if path.as_posix() == "data/processed/local_index.sqlite":
+            return LOCAL_INDEX_DB
+        if path.as_posix() == "data/processed/online_session_index.sqlite":
+            return ONLINE_INDEX_DB
+        return resolved
 
     def _load_settings(self) -> None:
         if not SETTINGS_PATH.exists():
@@ -1607,19 +1649,10 @@ class GuiLauncher:
 
         selected_tops = self._selected_top_numbers()
         scope = self.analysis_scope.get()
-        try:
-            documents = self.analysis_store.load_documents(
-                db_path, str(session["session_id"]), scope, selected_tops
-            )
-        except sqlite3.Error:
-            documents = []
-        documents = enrich_documents_for_analysis(documents)
-
         return {
             "session": session,
             "scope": scope,
             "selected_tops": selected_tops,
-            "documents": documents,
             "db_path": str(db_path),
         }
 
@@ -1628,64 +1661,20 @@ class GuiLauncher:
         session = payload["session"]
         scope = payload["scope"]
         selected_tops = payload["selected_tops"]
-        documents = payload["documents"]
-
-        created_at = datetime.utcnow().isoformat(timespec="seconds") + "Z"
-        job_id: int | None = None
-        result_markdown = ""
+        request = AnalysisRequest(
+            db_path=db_path,
+            session=session,
+            scope=scope,
+            selected_tops=selected_tops,
+            prompt=prompt,
+        )
 
         try:
-            with sqlite3.connect(db_path) as conn:
-                self._ensure_analysis_tables(conn)
-                cur = conn.execute(
-                    "INSERT INTO analysis_jobs (created_at, session_id, scope, top_numbers_json, model_name, prompt_version, status, error_message) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                    (
-                        created_at,
-                        session["session_id"],
-                        scope,
-                        json.dumps(selected_tops, ensure_ascii=False),
-                        "mock-journalism-v1",
-                        "local-template-1",
-                        "running",
-                        None,
-                    ),
-                )
-                job_id = int(cur.lastrowid)
-
-                result_markdown = build_analysis_markdown(
-                    session=session,
-                    scope=scope,
-                    selected_tops=selected_tops,
-                    documents=documents,
-                    prompt=prompt,
-                )
-
-                conn.execute(
-                    "INSERT INTO analysis_outputs (job_id, output_format, content, created_at) VALUES (?, ?, ?, ?)",
-                    (job_id, "markdown", result_markdown, created_at),
-                )
-                conn.execute("UPDATE analysis_jobs SET status = ? WHERE id = ?", ("done", job_id))
-                conn.commit()
-
-            self.root.after(0, lambda: self._set_analysis_result(result_markdown))
-            self.root.after(0, lambda: self._set_analysis_status(f"Analyse abgeschlossen (Job {job_id})."))
+            result = self.analysis_service.run_journalistic_analysis(request)
+            self.root.after(0, lambda: self._set_analysis_result(result.markdown))
+            self.root.after(0, lambda: self._set_analysis_status(f"Analyse abgeschlossen (Job {result.job_id})."))
         except Exception as exc:
-            try:
-                if job_id is not None:
-                    with sqlite3.connect(db_path) as conn:
-                        self._ensure_analysis_tables(conn)
-                        conn.execute(
-                            "UPDATE analysis_jobs SET status = ?, error_message = ? WHERE id = ?",
-                            ("failed", str(exc), job_id),
-                        )
-                        conn.commit()
-            except Exception:
-                pass
             self.root.after(0, lambda: self._set_analysis_status(f"Analyse fehlgeschlagen: {exc}"))
-
-    def _ensure_analysis_tables(self, conn: sqlite3.Connection) -> None:
-        self.analysis_store.ensure_analysis_tables(conn)
 
     def _selected_top_numbers(self) -> list[str]:
         selected: list[str] = []
@@ -1721,9 +1710,7 @@ class GuiLauncher:
             self._set_analysis_status("Kein Analyseergebnis zum Exportieren vorhanden.")
             return
 
-        target = self._resolve_db_path("data/processed/analysis_latest.md")
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content + "\n", encoding="utf-8")
+        target = self.analysis_service.export_markdown(content, DEFAULT_ANALYSIS_MARKDOWN)
         self._set_analysis_status(f"Markdown exportiert: {target}")
 
     def run(self) -> None:

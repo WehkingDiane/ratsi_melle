@@ -7,7 +7,7 @@ from scripts import build_local_index
 
 
 def test_build_local_index_backfills_document_type_for_existing_rows(tmp_path: Path) -> None:
-    db_path = tmp_path / "data" / "processed" / "local_index.sqlite"
+    db_path = tmp_path / "data" / "db" / "local_index.sqlite"
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
     with sqlite3.connect(db_path) as conn:

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
+from src.analysis import extraction_pipeline
 from src.analysis.extraction_pipeline import extract_text_for_analysis
 
 
@@ -182,3 +184,54 @@ def test_extract_text_for_analysis_pdf_preserves_page_tree_order(tmp_path: Path)
     assert result.page_texts[1]["text"].startswith("Finanzielle Auswirkungen")
     assert result.detected_sections[0]["page"] == 1
     assert result.detected_sections[1]["page"] == 2
+
+
+def test_extract_text_for_analysis_pdf_uses_ocr_fallback(tmp_path: Path, monkeypatch) -> None:
+    pdf_path = tmp_path / "scan.pdf"
+    pdf_path.write_bytes(b"%PDF-1.4\n%%EOF\n")
+
+    monkeypatch.setattr(
+        "src.analysis.extraction_pipeline._extract_text_from_pdf",
+        lambda _path: ("", 1, [], []),
+    )
+    monkeypatch.setattr(
+        "src.analysis.extraction_pipeline._extract_text_via_ocr",
+        lambda _path: ["Beschlussvorschlag: OCR erkannter Text."],
+    )
+
+    result = extract_text_for_analysis(
+        pdf_path,
+        content_type="application/pdf",
+        max_text_chars=10_000,
+    )
+
+    assert result.extraction_status in {"ok", "partial"}
+    assert "OCR erkannter Text" in result.extracted_text
+    assert result.page_texts
+
+
+def test_extract_text_via_ocr_sorts_pages_numerically(tmp_path: Path, monkeypatch) -> None:
+    pdf_path = tmp_path / "scan.pdf"
+    pdf_path.write_bytes(b"%PDF-1.4\n%%EOF\n")
+
+    monkeypatch.setattr(extraction_pipeline.shutil, "which", lambda _name: "/usr/bin/fake")
+    observed_files: list[str] = []
+
+    def fake_run(cmd, capture_output, text, check):  # type: ignore[no-untyped-def]
+        if cmd[0] == "pdftoppm":
+            prefix = Path(cmd[-1])
+            for name in ("page-1.png", "page-10.png", "page-2.png"):
+                prefix.parent.joinpath(name).write_bytes(b"fake")
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+        if cmd[0] == "tesseract":
+            image_name = Path(cmd[1]).name
+            observed_files.append(image_name)
+            return SimpleNamespace(returncode=0, stdout=f"text {image_name}", stderr="")
+        raise AssertionError(f"Unexpected command: {cmd}")
+
+    monkeypatch.setattr(extraction_pipeline.subprocess, "run", fake_run)
+
+    pages = extraction_pipeline._extract_text_via_ocr(pdf_path)
+
+    assert observed_files == ["page-1.png", "page-2.png", "page-10.png"]
+    assert len(pages) == 3
