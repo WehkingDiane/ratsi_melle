@@ -22,5 +22,10 @@ def migrate_legacy_database_layout() -> list[tuple[Path, Path]]:
             continue
         new_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(old_path), str(new_path))
+        for suffix in ("-wal", "-shm"):
+            old_sidecar = old_path.with_name(f"{old_path.name}{suffix}")
+            new_sidecar = new_path.with_name(f"{new_path.name}{suffix}")
+            if old_sidecar.exists() and not new_sidecar.exists():
+                shutil.move(str(old_sidecar), str(new_sidecar))
         moved.append((old_path, new_path))
     return moved
