@@ -1,31 +1,23 @@
-"""Export selected sessions/documents from an index DB as analysis batch JSON."""
+"""CLI wrapper for exporting analysis batches from SQLite index data."""
 
 from __future__ import annotations
 
 import argparse
-import json
-import sqlite3
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, Sequence
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:  # pragma: no branch - defensive
     sys.path.insert(0, str(REPO_ROOT))
 
-from src.analysis.extraction_pipeline import extract_text_for_analysis
-from src.fetching.storage_layout import resolve_local_file_path
-from src.parsing.document_content import parse_document_content
-
-
-ALLOWED_DOCUMENT_TYPES = {
-    "vorlage",
-    "beschlussvorlage",
-    "protokoll",
-    "bekanntmachung",
-    "sonstiges",
-}
+from src.analysis.batch_exporter import (  # noqa: E402
+    ALLOWED_DOCUMENT_TYPES,
+    _normalize_document_types,
+    export_analysis_batch,
+    resolve_local_file_path,
+)
+from src.data_layout import migrate_legacy_database_layout  # noqa: E402
+from src.paths import DEFAULT_ANALYSIS_BATCH, LOCAL_INDEX_DB  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -33,13 +25,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--db-path",
         type=Path,
-        default=Path("data/processed/local_index.sqlite"),
+        default=LOCAL_INDEX_DB,
         help="Path to source SQLite index database.",
     )
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("data/analysis_requests/analysis_batch.json"),
+        default=DEFAULT_ANALYSIS_BATCH,
         help="Path to JSON output file.",
     )
     parser.add_argument(
@@ -92,242 +84,9 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def export_analysis_batch(
-    db_path: Path,
-    output_path: Path,
-    *,
-    session_ids: Sequence[str] | None = None,
-    committees: Sequence[str] | None = None,
-    date_from: str | None = None,
-    date_to: str | None = None,
-    document_types: Sequence[str] | None = None,
-    require_local_path: bool = False,
-    include_text_extraction: bool = False,
-    max_text_chars: int = 12000,
-) -> int:
-    _validate_date(date_from)
-    _validate_date(date_to)
-    normalized_types = _normalize_document_types(document_types)
-
-    with sqlite3.connect(db_path) as conn:
-        conn.row_factory = sqlite3.Row
-        top_titles = _load_top_titles(conn)
-        rows = conn.execute(
-            *_build_query(
-                session_ids=session_ids or (),
-                committees=committees or (),
-                date_from=date_from,
-                date_to=date_to,
-                document_types=normalized_types,
-                require_local_path=require_local_path,
-            )
-        ).fetchall()
-
-    documents: list[dict[str, object]] = []
-    for row in rows:
-        document = {
-            "session_id": row["session_id"],
-            "date": row["date"],
-            "committee": row["committee"],
-            "meeting_name": row["meeting_name"],
-            "top_number": row["agenda_item"],
-            "top_title": top_titles.get((row["session_id"], row["agenda_item"])),
-            "title": row["title"],
-            "category": row["category"],
-            "document_type": row["document_type"],
-            "url": row["url"],
-            "local_path": row["local_path"],
-            "sha1": row["sha1"],
-            "retrieved_at": row["retrieved_at"],
-            "content_type": row["content_type"],
-            "content_length": row["content_length"],
-        }
-        if include_text_extraction:
-            document.update(
-                _extract_document_payload(
-                    session_path=row["session_path"],
-                    local_path=row["local_path"],
-                    content_type=row["content_type"],
-                    document_type=row["document_type"],
-                    title=row["title"],
-                    max_text_chars=max_text_chars,
-                )
-            )
-        documents.append(document)
-
-    payload = {
-        "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        "source_db": str(db_path),
-        "filters": {
-            "session_ids": sorted(set(session_ids or ())),
-            "committees": sorted(set(committees or ())),
-            "date_from": date_from,
-            "date_to": date_to,
-            "document_types": normalized_types,
-            "require_local_path": require_local_path,
-            "include_text_extraction": include_text_extraction,
-            "max_text_chars": max_text_chars,
-        },
-        "documents": documents,
-    }
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
-    return len(rows)
-
-
-def _build_query(
-    *,
-    session_ids: Iterable[str],
-    committees: Iterable[str],
-    date_from: str | None,
-    date_to: str | None,
-    document_types: Iterable[str],
-    require_local_path: bool,
-) -> tuple[str, tuple[object, ...]]:
-    where_clauses: list[str] = []
-    params: list[object] = []
-
-    where_clauses.append("d.session_id = s.session_id")
-
-    session_ids = tuple(sorted(set(session_ids)))
-    if session_ids:
-        placeholders = ", ".join("?" for _ in session_ids)
-        where_clauses.append(f"s.session_id IN ({placeholders})")
-        params.extend(session_ids)
-
-    committees = tuple(sorted(set(committees)))
-    if committees:
-        placeholders = ", ".join("?" for _ in committees)
-        where_clauses.append(f"s.committee IN ({placeholders})")
-        params.extend(committees)
-
-    if date_from:
-        where_clauses.append("s.date >= ?")
-        params.append(date_from)
-    if date_to:
-        where_clauses.append("s.date <= ?")
-        params.append(date_to)
-
-    document_types = tuple(sorted(set(document_types)))
-    if document_types:
-        placeholders = ", ".join("?" for _ in document_types)
-        where_clauses.append(f"d.document_type IN ({placeholders})")
-        params.extend(document_types)
-
-    if require_local_path:
-        where_clauses.append("COALESCE(TRIM(d.local_path), '') != ''")
-
-    where_sql = " AND ".join(where_clauses)
-    query = f"""
-        SELECT
-            s.session_id,
-            s.date,
-            s.committee,
-            s.meeting_name,
-            d.title,
-            d.category,
-            d.document_type,
-            d.agenda_item,
-            d.url,
-            d.local_path,
-            d.sha1,
-            d.retrieved_at,
-            d.content_type,
-            d.content_length,
-            s.session_path
-        FROM sessions s, documents d
-        WHERE {where_sql}
-        ORDER BY s.date, s.session_id, COALESCE(d.agenda_item, ''), d.title, d.url
-    """
-    return query, tuple(params)
-
-
-def _load_top_titles(conn: sqlite3.Connection) -> dict[tuple[str, str | None], str]:
-    rows = conn.execute(
-        """
-        SELECT session_id, number, title
-        FROM agenda_items
-        ORDER BY session_id, id
-        """
-    ).fetchall()
-    mapping: dict[tuple[str, str | None], str] = {}
-    for row in rows:
-        key = (row[0], row[1])
-        if key in mapping:
-            continue
-        mapping[key] = row[2]
-    return mapping
-
-
-def _validate_date(value: str | None) -> None:
-    if value is None:
-        return
-    datetime.strptime(value, "%Y-%m-%d")
-
-
-def _normalize_document_types(document_types: Sequence[str] | None) -> list[str]:
-    normalized = sorted({entry.strip().lower() for entry in (document_types or ()) if entry.strip()})
-    for value in normalized:
-        if value not in ALLOWED_DOCUMENT_TYPES:
-            raise ValueError(
-                f"Unsupported document type '{value}'. Allowed: {', '.join(sorted(ALLOWED_DOCUMENT_TYPES))}"
-            )
-    return normalized
-
-
-def _extract_document_payload(
-    *,
-    session_path: str | None,
-    local_path: str | None,
-    content_type: str | None,
-    document_type: str | None,
-    title: str | None,
-    max_text_chars: int,
-) -> dict[str, object]:
-    if max_text_chars < 1:
-        raise ValueError("--max-text-chars must be >= 1")
-
-    resolved_path = resolve_local_file_path(session_path=session_path, local_path=local_path)
-    if resolved_path is None:
-        return {
-            "resolved_local_path": None,
-            "extraction_status": "missing_file",
-            "parsing_quality": "failed",
-            "extracted_text": "",
-            "extracted_char_count": 0,
-            "page_count": None,
-            "page_texts": [],
-            "detected_sections": [],
-            "extraction_error": "No local path available",
-            "ocr_needed": False,
-            "extraction_pipeline_version": None,
-            "extracted_at": None,
-            "content_parser_status": "missing_file",
-            "content_parser_quality": "failed",
-            "content_parser_version": None,
-            "structured_fields": {},
-            "matched_sections": [],
-        }
-
-    result = extract_text_for_analysis(
-        resolved_path,
-        content_type=content_type,
-        max_text_chars=max_text_chars,
-    )
-    payload = result.to_dict()
-    payload["resolved_local_path"] = str(resolved_path)
-    content_result = parse_document_content(
-        document_type=document_type,
-        text=result.extracted_text,
-        title=title,
-    )
-    payload.update(content_result.to_dict())
-    return payload
-
-
 def main() -> None:
     args = parse_args()
+    migrate_legacy_database_layout()
     count = export_analysis_batch(
         args.db_path,
         args.output,
