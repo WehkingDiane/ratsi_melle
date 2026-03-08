@@ -39,6 +39,8 @@ Die GUI ist modular aufgeteilt:
   - Fach-/Infrastruktur-Logik:
     - `script_runner.py` (Subprocess + Cancel)
     - `analysis_store.py` (SQLite-Zugriffe fuer Analyse-Ansicht)
+ - `src/analysis/`
+   - Analyse-API fuer GUI-unabhaengige Workflows (`AnalysisService`, Batch-Export, Schemas).
 
 ## Seiten
 
@@ -53,11 +55,12 @@ Die GUI ist modular aufgeteilt:
 
 ### Analyse-Batch Export
 
-- Eigene Developer-Seite fuer `export_analysis_batch.py`.
+- Eigene Developer-Seite fuer reproduzierbare Analyse-Eingaben.
 - Klarere Zweckbeschreibung fuer reproduzierbare Analyse-JSONs.
 - Exportprofile, Zeitraum-Presets, Gremienauswahl aus der DB und Dokumentprofile.
 - Standardziel getrennt von den DB-Dateien unter `data/analysis_requests/`.
 - Vorschau des erzeugten JSON-Inhalts direkt in der GUI.
+- Umsetzung nutzt die Analyse-API (`src/analysis/batch_exporter.py`) statt direktem Skriptaufruf.
 
 ### Journalistische Analyse
 
@@ -70,7 +73,7 @@ Die GUI ist modular aufgeteilt:
 - Analyse-Job-Workflow (aktuell lokaler/mockbarer Ablauf) mit Speicherung in:
   - `analysis_jobs`
   - `analysis_outputs`
-- Markdown-Export.
+- Artefakt-Export nach `data/analysis_outputs/summaries/` und Prompt-Ablage unter `data/analysis_outputs/prompts/`.
 
 ### Settings / Service
 

@@ -6,8 +6,9 @@ from pathlib import Path
 
 import customtkinter as ctk
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-DATA_ROOT_DEFAULT = REPO_ROOT / "data" / "raw"
+from src.paths import RAW_DATA_DIR, REPO_ROOT
+
+DATA_ROOT_DEFAULT = RAW_DATA_DIR
 SETTINGS_PATH = REPO_ROOT / "configs" / "gui_settings.json"
 
 B_R_BLUE = "#3B82F6"

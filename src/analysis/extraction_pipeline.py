@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import re
+import shutil
+import subprocess
+import tempfile
 import zlib
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-PIPELINE_VERSION = "1.1"
+PIPELINE_VERSION = "1.2"
 
 
 @dataclass(frozen=True)
@@ -61,6 +64,21 @@ def extract_text_for_analysis(
     try:
         if "pdf" in normalized_content_type or suffix == ".pdf":
             text, page_count, page_texts, detected_sections = _extract_text_from_pdf(file_path)
+            if not text.strip():
+                ocr_pages = _extract_text_via_ocr(file_path)
+                if ocr_pages:
+                    page_texts = [
+                        {
+                            "page": index,
+                            "char_count": len(_normalize_whitespace(text_value)),
+                            "text": text_value,
+                        }
+                        for index, text_value in enumerate(ocr_pages, start=1)
+                        if _normalize_whitespace(text_value)
+                    ]
+                    text = "\n\n".join(str(page["text"]) for page in page_texts)
+                    detected_sections = _detect_pdf_sections(page_texts)
+                    page_count = len(page_texts) or page_count
             return _classify_result(
                 text=text,
                 page_count=page_count,
@@ -257,6 +275,37 @@ def _extract_pdf_stream_text(raw: bytes) -> str:
         if decoded:
             text_chunks.append(decoded)
     return "\n".join(text_chunks)
+
+
+def _extract_text_via_ocr(file_path: Path) -> list[str]:
+    """Attempt OCR extraction for scan-like PDFs when no text layer is available."""
+
+    if shutil.which("pdftoppm") is None or shutil.which("tesseract") is None:
+        return []
+
+    with tempfile.TemporaryDirectory(prefix="ratsi_ocr_") as tmp_dir:
+        tmp_path = Path(tmp_dir)
+        image_prefix = tmp_path / "page"
+        raster = subprocess.run(
+            ["pdftoppm", "-r", "200", "-png", str(file_path), str(image_prefix)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if raster.returncode != 0:
+            return []
+
+        page_texts: list[str] = []
+        for image_path in sorted(tmp_path.glob("page-*.png")):
+            ocr = subprocess.run(
+                ["tesseract", str(image_path), "stdout", "-l", "deu+eng", "--psm", "6"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if ocr.returncode == 0 and ocr.stdout:
+                page_texts.append(ocr.stdout)
+        return page_texts
 
 
 def _iter_stream_candidates(stream: bytes) -> list[bytes]:

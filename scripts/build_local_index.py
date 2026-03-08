@@ -9,6 +9,15 @@ import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Iterator
+import sys
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:  # pragma: no branch - defensive
+    sys.path.insert(0, str(REPO_ROOT))
+
+from src.paths import LOCAL_INDEX_DB
+from src.data_layout import migrate_legacy_database_layout
 
 
 @dataclass(frozen=True)
@@ -29,7 +38,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--output",
-        default=Path("data/processed/local_index.sqlite"),
+        default=LOCAL_INDEX_DB,
         type=Path,
         help="SQLite output path.",
     )
@@ -408,6 +417,7 @@ def _split_date(date_str: str) -> tuple[int | None, int | None]:
 
 def main() -> None:
     args = parse_args()
+    migrate_legacy_database_layout()
     refresh_existing = args.refresh_existing or args.only_refresh
     build_index(args.data_root, args.output, refresh_existing, args.only_refresh)
 

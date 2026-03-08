@@ -99,14 +99,14 @@ def _write_fixture(root: Path) -> None:
 def _build_db(tmp_path: Path) -> Path:
     data_root = tmp_path / "data" / "raw"
     _write_fixture(data_root)
-    db_path = tmp_path / "data" / "processed" / "local_index.sqlite"
+    db_path = tmp_path / "data" / "db" / "local_index.sqlite"
     build_local_index.build_index(data_root, db_path, refresh_existing=False, only_refresh=False)
     return db_path
 
 
 def test_export_analysis_batch_writes_expected_payload(tmp_path: Path) -> None:
     db_path = _build_db(tmp_path)
-    output_path = tmp_path / "data" / "processed" / "analysis_batch.json"
+    output_path = tmp_path / "data" / "analysis_requests" / "analysis_batch.json"
 
     count = export_analysis_batch.export_analysis_batch(
         db_path,
@@ -142,7 +142,7 @@ def test_normalize_document_types_rejects_unknown_values() -> None:
 
 def test_export_analysis_batch_includes_text_extraction(tmp_path: Path) -> None:
     db_path = _build_db(tmp_path)
-    output_path = tmp_path / "data" / "processed" / "analysis_batch_with_text.json"
+    output_path = tmp_path / "data" / "analysis_requests" / "analysis_batch_with_text.json"
 
     count = export_analysis_batch.export_analysis_batch(
         db_path,
@@ -164,7 +164,7 @@ def test_export_analysis_batch_includes_text_extraction(tmp_path: Path) -> None:
         assert entry["parsing_quality"] in {"low", "medium", "high"}
         assert entry["extracted_char_count"] > 0
         assert entry["resolved_local_path"]
-        assert entry["extraction_pipeline_version"] == "1.1"
+        assert entry["extraction_pipeline_version"] == "1.2"
         assert isinstance(entry["extracted_at"], str)
         assert entry["content_parser_status"] == "ok"
         assert entry["content_parser_quality"] in {"low", "medium", "high"}

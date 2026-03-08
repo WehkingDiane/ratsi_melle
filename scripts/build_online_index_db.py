@@ -16,6 +16,8 @@ if str(REPO_ROOT) not in sys.path:  # pragma: no branch - defensive
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.fetching import SessionNetClient  # noqa: E402  (import after sys.path manipulation)
+from src.data_layout import migrate_legacy_database_layout  # noqa: E402
+from src.paths import LOCAL_INDEX_DB, ONLINE_INDEX_DB  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -43,13 +45,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("data/processed/online_session_index.sqlite"),
+        default=ONLINE_INDEX_DB,
         help="SQLite output path.",
     )
     parser.add_argument(
         "--migrate-from",
         type=Path,
-        default=Path("data/processed/local_index.sqlite"),
+        default=LOCAL_INDEX_DB,
         help="Copy an existing SQLite database to the output path if output is missing.",
     )
     parser.add_argument(
@@ -424,6 +426,7 @@ def _maybe_migrate_database(output_path: Path, migrate_from: Path) -> None:
 
 def main() -> None:
     args = parse_args()
+    migrate_legacy_database_layout()
     logging.basicConfig(level=getattr(logging, args.log_level.upper(), logging.INFO))
     client = SessionNetClient(base_url=args.base_url)
     refresh_existing = args.refresh_existing or args.only_refresh

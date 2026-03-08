@@ -40,30 +40,35 @@ def build_controls(app, parent: ctk.CTkFrame) -> None:
     params_frame = ctk.CTkFrame(frame, fg_color="transparent")
     params_frame.grid(row=1, column=1, sticky="w", padx=(20, 0))
 
-    ctk.CTkLabel(params_frame, text="Year:", font=FIELD_FONT).grid(
+    app.data_tools_year_label = ctk.CTkLabel(params_frame, text="Year:", font=FIELD_FONT)
+    app.data_tools_year_label.grid(
         row=0, column=0, sticky="w", padx=(0, 6)
     )
-    ctk.CTkEntry(
+    app.data_tools_year_entry = ctk.CTkEntry(
         params_frame,
         textvariable=app.year_value,
         width=80,
         placeholder_text="2026",
-    ).grid(
+    )
+    app.data_tools_year_entry.grid(
         row=0, column=1, sticky="w", padx=(0, 12)
     )
-    ctk.CTkLabel(params_frame, text="Months (e.g. 5 6):", font=FIELD_FONT).grid(
+    app.data_tools_months_label = ctk.CTkLabel(params_frame, text="Months (e.g. 5 6):", font=FIELD_FONT)
+    app.data_tools_months_label.grid(
         row=0, column=2, sticky="w", padx=(0, 6)
     )
-    ctk.CTkEntry(
+    app.data_tools_months_entry = ctk.CTkEntry(
         params_frame,
         textvariable=app.months_value,
         width=140,
         placeholder_text="5 6 7",
-    ).grid(
+    )
+    app.data_tools_months_entry.grid(
         row=0, column=3, sticky="w"
     )
 
-    ctk.CTkCheckBox(frame, text="Verbose", variable=app.verbose_mode, font=FIELD_FONT).grid(
+    app.data_tools_verbose_check = ctk.CTkCheckBox(frame, text="Verbose", variable=app.verbose_mode, font=FIELD_FONT)
+    app.data_tools_verbose_check.grid(
         row=1, column=2, sticky="w", padx=(20, 0)
     )
 
@@ -125,7 +130,7 @@ def build_controls(app, parent: ctk.CTkFrame) -> None:
         app.export_frame,
         textvariable=app.export_db_path,
         font=FIELD_FONT,
-        placeholder_text="data/processed/local_index.sqlite",
+        placeholder_text="data/db/local_index.sqlite",
     ).grid(
         row=0, column=1, sticky="ew", padx=(0, 16), pady=(0, 6)
     )

@@ -8,7 +8,10 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 ├── configs/                # Konfigurationsdateien (JSON, YAML, ENV-Beispiele)
 ├── data/
 │   ├── raw/               # Unveränderte Quelldaten aus Zielsystemen
-│   └── processed/         # Aufbereitete Daten (normalisiert, analysiert)
+│   ├── db/                # SQLite-Infrastrukturdatenbanken
+│   ├── analysis_requests/ # Reproduzierbare Analyse-Eingabebatches (JSON)
+│   ├── analysis_outputs/  # Analyse-Ergebnisse (Markdown/JSON/Prompts)
+│   └── processed/         # Interne Normalisierungen/Ableitungen (ohne DBs)
 ├── docs/                  # Projektweite Dokumentation und Recherchen
 ├── logs/                  # Laufzeit- und Zugriffprotokolle
 ├── scripts/               # CLI-Werkzeuge für Betrieb, Wartung und Automatisierung
@@ -47,7 +50,9 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 ## Datenhaltung
 
 - Rohdaten bleiben unverändert in `data/raw/`. Eine Reproduzierbarkeit der Verarbeitungsschritte ist sicherzustellen.
-- Verarbeitete Daten in `data/processed/` enthalten Metadaten zur Herkunft (Sitzung, Quelle, Abrufzeit).
+- Verarbeitete Daten in `data/processed/` enthalten nur interne Normalisierungen/Ableitungen ohne SQLite-Infrastruktur.
+- SQLite-Datenbanken liegen unter `data/db/`.
+- Analyse-Eingaben liegen unter `data/analysis_requests/`, Analyse-Ausgaben unter `data/analysis_outputs/`.
 - Sensible Inhalte (personenbezogene Daten, API-Schlüssel) werden nicht eingecheckt. Für Beispiele wird auf `*.template`-Dateien zurückgegriffen.
 - Unterordner unter `data/raw/.../agenda/` bestehen ausschließlich aus der TOP-Nummer und dem offiziellen Titel; Zusätze wie „Berichterstatter …“ werden beim Sluggen entfernt, damit identische Punkte unabhängig vom Reporter gleich heißen.
 - Jede Sitzung erzeugt zusätzlich zur Dokumenten-`manifest.json` eine `agenda_summary.json`, die Nummer, Titel, Reporter:in, Status, abgeleiteten Beschluss (`accepted`/`rejected`/`null`) sowie ein Flag für vorhandene Dokumente enthält. So lassen sich auch zukünftige Sitzungen mit noch unvollständigen Angaben nachträglich aktualisieren.
@@ -63,8 +68,8 @@ Diese Regeln bilden das Fundament für den weiteren Projektverlauf und können b
 
 ## CLI-Indexdatenbanken
 
-- `scripts/build_local_index.py` erzeugt einen lokalen Index aus bereits heruntergeladenen Rohdaten (`data/raw/`) und schreibt standardmäßig nach `data/processed/local_index.sqlite`.
-- `scripts/build_online_index_db.py` erzeugt einen Online-Index ohne Dokumentdownloads und schreibt standardmäßig nach `data/processed/online_session_index.sqlite`. Mit `--refresh-existing` werden vorhandene Sitzungen neu eingelesen; `--only-refresh` aktualisiert ausschließlich bestehende Sitzungen.
+- `scripts/build_local_index.py` erzeugt einen lokalen Index aus bereits heruntergeladenen Rohdaten (`data/raw/`) und schreibt standardmäßig nach `data/db/local_index.sqlite`.
+- `scripts/build_online_index_db.py` erzeugt einen Online-Index ohne Dokumentdownloads und schreibt standardmäßig nach `data/db/online_session_index.sqlite`. Mit `--refresh-existing` werden vorhandene Sitzungen neu eingelesen; `--only-refresh` aktualisiert ausschließlich bestehende Sitzungen.
 - Beide Indexe enthalten in `documents` ein normalisiertes Feld `document_type` (`vorlage`, `beschlussvorlage`, `protokoll`, `bekanntmachung`, `sonstiges`) sowie Metadatenfelder `sha1` und `retrieved_at`.
 - `scripts/export_analysis_batch.py` exportiert aus einem Index einen reproduzierbaren JSON-Batch für nachgelagerte Analysen (inklusive Filteroptionen für Sitzung, Gremium, Zeitraum und Dokumenttyp).
 
@@ -77,4 +82,4 @@ Diese Regeln bilden das Fundament für den weiteren Projektverlauf und können b
 ## .gitignore & lokale Daten
 
 - Lokale venvs, Caches und Logs werden ueber `.gitignore` ausgeschlossen.
-- Rohdaten und verarbeitete Daten verbleiben unter `data/raw/` und `data/processed/` und werden nicht committet.
+- Rohdaten verbleiben unter `data/raw/`; DBs, Analyse-Requests und Analyse-Outputs liegen unter `data/db/`, `data/analysis_requests/` und `data/analysis_outputs/` und werden nicht committet.
