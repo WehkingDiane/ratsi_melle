@@ -296,7 +296,9 @@ def _extract_text_via_ocr(file_path: Path) -> list[str]:
             return []
 
         page_texts: list[str] = []
-        for image_path in sorted(tmp_path.glob("page-*.png")):
+        image_paths = list(tmp_path.glob("page-*.png"))
+        image_paths.sort(key=_ocr_page_sort_key)
+        for image_path in image_paths:
             ocr = subprocess.run(
                 ["tesseract", str(image_path), "stdout", "-l", "deu+eng", "--psm", "6"],
                 capture_output=True,
@@ -306,6 +308,13 @@ def _extract_text_via_ocr(file_path: Path) -> list[str]:
             if ocr.returncode == 0 and ocr.stdout:
                 page_texts.append(ocr.stdout)
         return page_texts
+
+
+def _ocr_page_sort_key(image_path: Path) -> tuple[int, str]:
+    match = re.search(r"page-(\d+)\.png$", image_path.name)
+    if not match:
+        return (10**9, image_path.name)
+    return (int(match.group(1)), image_path.name)
 
 
 def _iter_stream_candidates(stream: bytes) -> list[bytes]:
