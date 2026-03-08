@@ -73,6 +73,46 @@ def test_build_analysis_markdown_includes_structured_document_context() -> None:
     assert "## Quellen" in markdown
 
 
+def test_build_analysis_markdown_applies_mode_specific_fields() -> None:
+    documents = [
+        {
+            "agenda_item": "Oe 1",
+            "title": "Vorlage",
+            "document_type": "vorlage",
+            "extraction_status": "ok",
+            "content_parser_quality": "high",
+            "structured_fields": {
+                "beschlusstext": "Beschluss A",
+                "entscheidung": "angenommen",
+                "finanzbezug": "100 EUR",
+                "zustaendigkeit": "Rat",
+            },
+        }
+    ]
+    decision_md = build_analysis_markdown(
+        session={"date": "2026-01-15", "committee": "Rat"},
+        mode="decision_brief",
+        scope="session",
+        selected_tops=[],
+        documents=documents,
+        prompt="",
+        uncertainty_flags=["parser_low"],
+    )
+    financial_md = build_analysis_markdown(
+        session={"date": "2026-01-15", "committee": "Rat"},
+        mode="financial_impact",
+        scope="session",
+        selected_tops=[],
+        documents=documents,
+        prompt="",
+    )
+
+    assert "entscheidung: angenommen" in decision_md
+    assert "zustaendigkeit: Rat" in decision_md
+    assert "Unsicherheit: parser_low" in decision_md
+    assert "finanzbezug: 100 EUR" in financial_md
+
+
 def test_enrich_documents_for_analysis_accepts_legacy_session_path(tmp_path: Path) -> None:
     session_dir = tmp_path / "data" / "raw" / "2026" / "01" / "2026-01-15_Rat_902"
     document_dir = session_dir / "agenda" / "o1"

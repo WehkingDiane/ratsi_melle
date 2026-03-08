@@ -80,6 +80,7 @@ class AnalysisService:
             selected_tops=request.selected_tops,
             documents=sanitized_documents,
             prompt=request.prompt,
+            uncertainty_flags=uncertainty_flags,
         )
 
         with sqlite3.connect(db_path) as conn:

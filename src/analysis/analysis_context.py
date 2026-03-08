@@ -57,6 +57,7 @@ def build_analysis_markdown(
     selected_tops: list[str],
     documents: list[dict],
     prompt: str,
+    uncertainty_flags: list[str] | None = None,
 ) -> str:
     """Render a markdown summary for the local analysis workflow."""
 
@@ -77,7 +78,11 @@ def build_analysis_markdown(
         f"## {mode_title}",
         _mode_summary_text(mode),
     ]
+    if uncertainty_flags:
+        summary_lines.append("")
+        summary_lines.append(f"- Unsicherheit: {', '.join(uncertainty_flags)}")
 
+    field_keys = _mode_field_keys(mode)
     if documents:
         summary_lines.extend(["", "## Dokumentkontext"])
         for document in documents:
@@ -106,7 +111,7 @@ def build_analysis_markdown(
                     summary_lines.append(f"  - abschnitte: {', '.join(preview)}")
             fields = document.get("structured_fields")
             if isinstance(fields, dict) and fields:
-                for key in ("beschlusstext", "entscheidung", "begruendung", "finanzbezug", "zustaendigkeit"):
+                for key in field_keys:
                     value = fields.get(key)
                     if isinstance(value, str) and value.strip():
                         summary_lines.append(f"  - {key}: {_truncate(value, 240)}")
@@ -146,6 +151,16 @@ def _mode_summary_text(mode: str) -> str:
         "change_monitor": "Vergleich mit frueheren Staenden und Hervorhebung relevanter Aenderungen.",
     }
     return mapping.get(mode, "Analyse auf Basis der verfuegbaren Dokumente.")
+
+
+def _mode_field_keys(mode: str) -> tuple[str, ...]:
+    if mode == "decision_brief":
+        return ("beschlusstext", "entscheidung", "zustaendigkeit", "begruendung")
+    if mode == "financial_impact":
+        return ("finanzbezug", "begruendung", "entscheidung")
+    if mode == "summary":
+        return ("beschlusstext", "finanzbezug")
+    return ("beschlusstext", "entscheidung", "begruendung", "finanzbezug", "zustaendigkeit")
 
 def _truncate(value: str, max_chars: int) -> str:
     cleaned = " ".join(value.split())
