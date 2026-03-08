@@ -4,6 +4,8 @@ import json
 import sqlite3
 from pathlib import Path
 
+import pytest
+
 from src.analysis.schemas import ANALYSIS_OUTPUT_SCHEMA_VERSION
 from src.analysis.service import AnalysisRequest, AnalysisService
 
@@ -52,6 +54,19 @@ def _build_db(tmp_path: Path) -> Path:
             "VALUES (?, ?, ?, ?, ?, ?, ?)",
             ("7001", "Oe 1", "Vorlage Projekt", "vorlage", "agenda/o1/vorlage.txt", "https://example.org/vorlage", "text/plain"),
         )
+        conn.execute(
+            "INSERT INTO documents (session_id, agenda_item, title, document_type, local_path, url, content_type) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                "7001",
+                "Oe 2",
+                "Kontakt Max Mustermann max@example.org",
+                "hinweis",
+                "agenda/o1/vorlage.txt",
+                "https://example.org/kontakt",
+                "text/plain",
+            ),
+        )
         conn.commit()
     return db_path
 
@@ -73,13 +88,25 @@ def test_analysis_service_persists_versioned_outputs(tmp_path: Path, monkeypatch
         scope="session",
         selected_tops=[],
         prompt="Bitte zentrale Entscheidungen und Kosten nennen.",
+        mode="summary",
+        parameters={"temperature": 0.0},
     )
-    record = service.run_journalistic_analysis(request)
+    record = service.run_analysis(request)
 
     assert record.schema_version == ANALYSIS_OUTPUT_SCHEMA_VERSION
     assert record.job_id >= 1
-    assert record.document_count == 1
+    assert record.document_count == 2
+    assert record.mode == "summary"
+    assert record.parameters["temperature"] == 0.0
+    assert record.sensitive_data_masked is True
+    assert record.document_hashes
+    assert record.sources
+    assert record.draft_status == "draft"
+    assert record.hallucination_risk in {"low", "medium", "high"}
+    assert "run_at" in record.audit_trail
     assert "Dokumentkontext" in record.markdown
+    assert "max@example.org" not in record.markdown
+    assert "[EMAIL_MASKED]" in record.markdown
 
     json_output = summaries_dir / f"job_{record.job_id}.json"
     md_output = summaries_dir / f"job_{record.job_id}.md"
@@ -93,3 +120,53 @@ def test_analysis_service_persists_versioned_outputs(tmp_path: Path, monkeypatch
     payload = json.loads(json_output.read_text(encoding="utf-8"))
     assert payload["schema_version"] == ANALYSIS_OUTPUT_SCHEMA_VERSION
     assert payload["job_id"] == record.job_id
+    assert payload["mode"] == "summary"
+    assert payload["sensitive_data_masked"] is True
+
+
+def test_analysis_service_review_job_updates_status(tmp_path: Path) -> None:
+    db_path = _build_db(tmp_path)
+    service = AnalysisService()
+
+    request = AnalysisRequest(
+        db_path=db_path,
+        session={"session_id": "7001", "date": "2026-03-10", "committee": "Rat"},
+        scope="session",
+        selected_tops=[],
+        prompt="Kurzfassen.",
+    )
+    record = service.run_analysis(request)
+    service.review_job(
+        db_path,
+        job_id=record.job_id,
+        reviewer="qa@example.org",
+        status="approved",
+        notes="Faktenlage plausibel.",
+    )
+
+    with sqlite3.connect(db_path) as conn:
+        draft_status = conn.execute("SELECT draft_status FROM analysis_jobs WHERE id = ?", (record.job_id,)).fetchone()
+        review_row = conn.execute(
+            "SELECT reviewer, status, notes FROM analysis_reviews WHERE job_id = ? ORDER BY id DESC LIMIT 1",
+            (record.job_id,),
+        ).fetchone()
+
+    assert draft_status is not None and draft_status[0] == "approved"
+    assert review_row is not None
+    assert review_row[0] == "qa@example.org"
+    assert review_row[1] == "approved"
+
+
+def test_analysis_service_rejects_unknown_mode(tmp_path: Path) -> None:
+    db_path = _build_db(tmp_path)
+    service = AnalysisService()
+    request = AnalysisRequest(
+        db_path=db_path,
+        session={"session_id": "7001", "date": "2026-03-10", "committee": "Rat"},
+        scope="session",
+        selected_tops=[],
+        prompt="Kurzfassen.",
+        mode="unknown_mode",
+    )
+    with pytest.raises(ValueError):
+        service.run_analysis(request)

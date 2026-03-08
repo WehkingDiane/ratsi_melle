@@ -30,6 +30,7 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 - `python scripts/build_local_index.py` baut den lokalen SQLite-Index unter `data/db/local_index.sqlite`.
 - `python scripts/build_online_index_db.py 2024 --months 5 6` baut den Online-Index unter `data/db/online_session_index.sqlite` ohne Downloads.
 - `python scripts/export_analysis_batch.py --db-path data/db/local_index.sqlite --output data/analysis_requests/analysis_batch.json` exportiert einen reproduzierbaren Analyse-Batch (optional filterbar nach Sitzung, Zeitraum, Gremium, `document_type`).
+- `python scripts/review_analysis_job.py <job_id> --reviewer <kennung> --status approved --notes "..."` speichert eine menschliche Review-Entscheidung fuer einen Analyse-Job.
 
 ## GUI (modular)
 

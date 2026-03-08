@@ -2,6 +2,19 @@
 
 Dieses Dokument beschreibt den Task 4 der Projekt-Roadmap des Ratsinformations-Analysewerkzeugs. Ziel dieses Meilensteins ist der Entwurf und die Implementierung eines modularen Analysemoduls, das Dokumente, Tagesordnungspunkte und ganze Sitzungen auswertet und zuverlässige, reproduzierbare Ergebnisse liefert. Im Vergleich zur ursprünglichen Fassung legt diese Version besonderen Wert auf Datensicherheit, Transparenz und Risiko-Management, damit der Einsatz von KI vertrauenswürdig und nachvollziehbar bleibt.
 
+## Umsetzungsstand (2026-03-08)
+
+- Gestartet: Basismodul fuer sichere Analyse-API.
+- Umgesetzt:
+  - Analysemodus in API eingefuehrt (`summary`, `decision_brief`, `financial_impact`, weitere vorbereitet).
+  - Audit-Trail erweitert (Modus, Parameter, Dokument-Hashes, Modell-/Prompt-Metadaten).
+  - Unsicherheitsmarkierungen und Halluzinations-Risikoindikator in Analyse-Output integriert.
+  - Maskierung sensibler Daten (u. a. E-Mail, Telefon, IBAN) fuer Analyse-Outputs eingebaut.
+  - Menschliche Review-Funktion als CLI (`scripts/review_analysis_job.py`) ergänzt.
+- Offene Folgearbeit:
+  - GUI-Review-Flow fuer Freigabe/Kommentare.
+  - Erweiterte Bias-Metriken und strengere Plausibilitaetsregeln.
+
 ## 1 Zielbild
 
 Das Analysemodul soll strukturierte Informationen aus dem Ratsinformationssystem in mehreren Analyseebenen aufbereiten (Dokument, TOP, Sitzung, Vergleich). Unterschiedliche Zielgruppen (Journalist:innen, Bürger:innen, Ratsmitglieder) sollen Ergebnisse in passender Detailtiefe erhalten: von kurzen neutralen Zusammenfassungen über finanzielle Bewertungen bis hin zu thematischen Klassifikationen. Alle Analysen müssen nachvollziehbar, faktentreu und quellenbasiert sein.

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 
 
-ANALYSIS_OUTPUT_SCHEMA_VERSION = "1.0"
+ANALYSIS_OUTPUT_SCHEMA_VERSION = "1.1"
 
 
 @dataclass(frozen=True)
@@ -24,6 +24,18 @@ class AnalysisOutputRecord:
     markdown: str = ""
     document_count: int = 0
     source_db: str = ""
+    mode: str = "journalistic_brief"
+    parameters: dict[str, object] = field(default_factory=dict)
+    document_hashes: list[dict[str, str]] = field(default_factory=list)
+    uncertainty_flags: list[str] = field(default_factory=list)
+    hallucination_risk: str = "unknown"
+    sources: list[dict[str, str]] = field(default_factory=list)
+    sensitive_data_masked: bool = False
+    draft_status: str = "draft"
+    reviewer: str | None = None
+    reviewed_at: str | None = None
+    review_notes: str = ""
+    audit_trail: dict[str, object] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)

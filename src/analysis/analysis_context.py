@@ -52,6 +52,7 @@ def enrich_documents_for_analysis(documents: list[dict], *, max_text_chars: int 
 def build_analysis_markdown(
     *,
     session: dict,
+    mode: str,
     scope: str,
     selected_tops: list[str],
     documents: list[dict],
@@ -63,16 +64,18 @@ def build_analysis_markdown(
     doc_count = len(documents)
     headline = f"Analyse Sitzung {session.get('date')} - {session.get('committee') or '-'}"
 
+    mode_title = _mode_title(mode)
+
     summary_lines = [
         f"# {headline}",
         "",
+        f"- Modus: {mode}",
         f"- Scope: {scope}",
         f"- TOP-Auswahl: {top_text}",
         f"- Dokumente im Scope: {doc_count}",
         "",
-        "## Journalistische Kurzfassung",
-        "Die Sitzung enthielt mehrere politische Beratungen. "
-        "Die unten aufgefuehrten Dokumentfelder markieren inhaltliche Anker fuer weitere redaktionelle Pruefung.",
+        f"## {mode_title}",
+        _mode_summary_text(mode),
     ]
 
     if documents:
@@ -86,6 +89,9 @@ def build_analysis_markdown(
             summary_lines.append(
                 f"- {top_number} | {doc_type} | {title} | Extraktion: {extraction_status} | Parser: {parser_quality}"
             )
+            extracted_text = document.get("extracted_text")
+            if isinstance(extracted_text, str) and extracted_text.strip():
+                summary_lines.append(f"  - beleg_excerpt: {_truncate(extracted_text, 240)}")
             sections = document.get("detected_sections")
             if isinstance(sections, list) and sections:
                 preview = []
@@ -105,8 +111,41 @@ def build_analysis_markdown(
                     if isinstance(value, str) and value.strip():
                         summary_lines.append(f"  - {key}: {_truncate(value, 240)}")
 
+        summary_lines.extend(["", "## Quellen"])
+        for index, document in enumerate(documents, start=1):
+            title = document.get("title") or "(ohne Titel)"
+            url = document.get("url") or "-"
+            local_path = document.get("resolved_local_path") or document.get("local_path") or "-"
+            summary_lines.append(f"- [{index}] {title} | URL: {url} | Datei: {local_path}")
+
     summary_lines.extend(["", "## Prompt-Hinweis", prompt or "(kein Prompt gesetzt)"])
     return "\n".join(summary_lines)
+
+
+def _mode_title(mode: str) -> str:
+    mapping = {
+        "summary": "Neutrale Kurzfassung",
+        "decision_brief": "Beschlussorientierte Analyse",
+        "financial_impact": "Finanzielle Bewertung",
+        "journalistic_brief": "Journalistische Kurzfassung",
+        "citizen_explainer": "Buergererklaerung",
+        "topic_classifier": "Thematische Einordnung",
+        "change_monitor": "Aenderungsmonitoring",
+    }
+    return mapping.get(mode, "Analysezusammenfassung")
+
+
+def _mode_summary_text(mode: str) -> str:
+    mapping = {
+        "summary": "Neutrale, faktenbasierte Kurzbeschreibung mit Quellenhinweisen.",
+        "decision_brief": "Fokus auf Beschluesse, Verantwortlichkeiten und naechste Schritte.",
+        "financial_impact": "Fokus auf Kosten, Haushalt, Foerdermittel und finanzielle Risiken.",
+        "journalistic_brief": "Verdichtung fuer redaktionelle Pruefung mit Konfliktlinien und offenen Fragen.",
+        "citizen_explainer": "Leicht verstaendliche Einordnung fuer nicht-fachliches Publikum.",
+        "topic_classifier": "Thematische Zuordnung der Inhalte zu Politikfeldern.",
+        "change_monitor": "Vergleich mit frueheren Staenden und Hervorhebung relevanter Aenderungen.",
+    }
+    return mapping.get(mode, "Analyse auf Basis der verfuegbaren Dokumente.")
 
 def _truncate(value: str, max_chars: int) -> str:
     cleaned = " ".join(value.split())

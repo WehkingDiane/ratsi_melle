@@ -73,7 +73,11 @@ Die GUI ist modular aufgeteilt:
 - Analyse-Job-Workflow (aktuell lokaler/mockbarer Ablauf) mit Speicherung in:
   - `analysis_jobs`
   - `analysis_outputs`
+- Analyse-Outputs werden als Entwurf (`draft_status`) gefuehrt und enthalten Unsicherheitsmarker sowie Audit-Metadaten
+  (u. a. Modus, Parameter, Prompt-Version, Dokument-Hashes).
 - Artefakt-Export nach `data/analysis_outputs/summaries/` und Prompt-Ablage unter `data/analysis_outputs/prompts/`.
+- Menschliche Freigabe/Review ist zusaetzlich per CLI moeglich:
+  `python scripts/review_analysis_job.py <job_id> --reviewer <kennung> --status approved`.
 
 ### Settings / Service
 

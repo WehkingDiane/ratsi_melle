@@ -45,6 +45,7 @@ def test_enrich_documents_for_analysis_adds_structured_fields_from_local_file(tm
 def test_build_analysis_markdown_includes_structured_document_context() -> None:
     markdown = build_analysis_markdown(
         session={"date": "2026-01-15", "committee": "Rat"},
+        mode="summary",
         scope="tops",
         selected_tops=["Oe 1"],
         documents=[
@@ -54,6 +55,8 @@ def test_build_analysis_markdown_includes_structured_document_context() -> None:
                 "document_type": "beschlussvorlage",
                 "extraction_status": "ok",
                 "content_parser_quality": "high",
+                "url": "https://example.org/vorlage",
+                "resolved_local_path": "data/raw/2026/01/test.txt",
                 "structured_fields": {
                     "beschlusstext": "Der Rat beschliesst die Umsetzung des Projekts.",
                     "finanzbezug": "25.000 EUR im Haushaltsjahr 2026.",
@@ -67,6 +70,7 @@ def test_build_analysis_markdown_includes_structured_document_context() -> None:
     assert "beschlussvorlage" in markdown
     assert "25.000 EUR" in markdown
     assert "Bitte Kernthemen und Kosten benennen." in markdown
+    assert "## Quellen" in markdown
 
 
 def test_enrich_documents_for_analysis_accepts_legacy_session_path(tmp_path: Path) -> None:
