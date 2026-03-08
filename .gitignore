@@ -2,20 +2,31 @@
 __pycache__/
 .pytest_cache/
 logs/
+
+# Runtime data
 data/raw/
 data/processed/
+
+# Databases
 data/db/*
 !data/db/.gitkeep
+
+# Analysis artifacts
 data/analysis_requests/*
 !data/analysis_requests/.gitkeep
+
 data/analysis_outputs/*
 !data/analysis_outputs/.gitkeep
 !data/analysis_outputs/summaries/
 !data/analysis_outputs/prompts/
+
 data/analysis_outputs/summaries/*
 !data/analysis_outputs/summaries/.gitkeep
+
 data/analysis_outputs/prompts/*
 !data/analysis_outputs/prompts/.gitkeep
+
 data/models/*
 !data/models/.gitkeep
+
 configs/gui_settings.json
