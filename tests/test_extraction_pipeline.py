@@ -182,3 +182,27 @@ def test_extract_text_for_analysis_pdf_preserves_page_tree_order(tmp_path: Path)
     assert result.page_texts[1]["text"].startswith("Finanzielle Auswirkungen")
     assert result.detected_sections[0]["page"] == 1
     assert result.detected_sections[1]["page"] == 2
+
+
+def test_extract_text_for_analysis_pdf_uses_ocr_fallback(tmp_path: Path, monkeypatch) -> None:
+    pdf_path = tmp_path / "scan.pdf"
+    pdf_path.write_bytes(b"%PDF-1.4\n%%EOF\n")
+
+    monkeypatch.setattr(
+        "src.analysis.extraction_pipeline._extract_text_from_pdf",
+        lambda _path: ("", 1, [], []),
+    )
+    monkeypatch.setattr(
+        "src.analysis.extraction_pipeline._extract_text_via_ocr",
+        lambda _path: ["Beschlussvorschlag: OCR erkannter Text."],
+    )
+
+    result = extract_text_for_analysis(
+        pdf_path,
+        content_type="application/pdf",
+        max_text_chars=10_000,
+    )
+
+    assert result.extraction_status in {"ok", "partial"}
+    assert "OCR erkannter Text" in result.extracted_text
+    assert result.page_texts

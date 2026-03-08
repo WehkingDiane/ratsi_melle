@@ -401,10 +401,22 @@ class SessionNetClient:
         url = path if path.startswith("http") else urljoin(self.base_url, path)
         last_error: Optional[requests.RequestException] = None
         backoff = 1.0
+        method_upper = method.upper()
         for attempt in range(1, self.max_retries + 1):
             self._respect_rate_limit()
             try:
-                response = self.session.request(method, url, params=params, timeout=self.timeout, allow_redirects=True)
+                if method_upper == "GET":
+                    response = self.session.get(url, params=params, timeout=self.timeout)
+                elif method_upper == "HEAD":
+                    response = self.session.head(url, params=params, timeout=self.timeout, allow_redirects=True)
+                else:
+                    response = self.session.request(
+                        method_upper,
+                        url,
+                        params=params,
+                        timeout=self.timeout,
+                        allow_redirects=True,
+                    )
                 self._last_request_ts = time.monotonic()
                 response.raise_for_status()
                 return response
