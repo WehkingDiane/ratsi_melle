@@ -119,13 +119,12 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
    - ✅ Normalisierte Datenstruktur mit Metadaten entwerfen und implementieren.
      - ✅ Einheitliches Schema für zentrale Filterfelder ist umgesetzt (`session_id`, `date`, `committee`, `document_type`, `top_number`; `status` aktuell über `agenda_items`).
      - ✅ Felder für Analyse-Übergabe sind standardisiert (Quell-URL, lokaler Pfad, Hash, Extraktionszeitpunkt, Extraktions- und Parser-Qualität).
-   - ✅ Analyse-Export liefert strukturierte Dokumentkontexte für priorisierte Typen.
-     - ✅ `scripts/export_analysis_batch.py` kann Text-Extraktion und `structured_fields` für Analyse-Batches ausgeben.
-     - ✅ Der Analyse-Workflow in der GUI nutzt strukturierte Dokumentfelder als Kontext im generierten Markdown.
-   - ✅ Erweiterte PDF-Robustheit für Analyse-Export weiter ausgebaut.
-     - ✅ Basis-Extraktion und Qualitätskennzeichnung (inkl. OCR-Hinweis) sind vorhanden.
-     - ✅ Seitenbezogene PDF-Texte und Abschnittsanker werden in der Extraktionspipeline erkannt und fuer Export/Analyse bereitgestellt.
-     - ✅ OCR-Fallback ist integriert: gescannte/problematische PDFs werden bei fehlendem Textlayer ueber OCR-Werkzeuge verarbeitet (wenn verfuegbar).
+   - ✅ Analyse-Export liefert reproduzierbare Dokumentpakete mit Metadaten und Quellenreferenzen.
+     - ✅ `scripts/export_analysis_batch.py` erzeugt KI-taugliche Analyse-Batches ohne lokale PDF-/Text-Inhaltsanalyse.
+     - ✅ Der Analyse-Workflow in der GUI erzeugt eine lokale Analysegrundlage mit Quellenliste statt lokaler Inhaltsauswertung.
+   - ✅ Fruehere lokale PDF-Extraktionsarbeit bleibt vom KI-Analysepfad entkoppelt.
+     - ✅ Aktive Analyse-Batches enthalten nur noch Quellenreferenzen und Metadaten.
+     - ✅ Lokale PDF-/Text-Inhaltsanalyse ist nicht mehr Teil des aktuellen Analyseflusses.
    - ✅ Metadaten-Mapping für spätere Suche/Filterung konkretisiert.
      - ✅ Filterlogik für UI ist vorbereitet: Zeitraum-Presets, vergangen/heute/kommend, Gremium, Sitzungsstatus.
      - ✅ Exportformat für Analyse-Batches ist definiert, damit ausgewählte Sitzungen reproduzierbar weitergegeben werden können.

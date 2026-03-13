@@ -79,7 +79,8 @@ def test_analysis_service_persists_versioned_outputs(tmp_path: Path, monkeypatch
     assert record.schema_version == ANALYSIS_OUTPUT_SCHEMA_VERSION
     assert record.job_id >= 1
     assert record.document_count == 1
-    assert "Dokumentkontext" in record.markdown
+    assert "Quellen im Scope" in record.markdown
+    assert "lokale Quelle" in record.markdown
 
     json_output = summaries_dir / f"job_{record.job_id}.json"
     md_output = summaries_dir / f"job_{record.job_id}.md"

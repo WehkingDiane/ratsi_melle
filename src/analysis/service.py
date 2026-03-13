@@ -15,22 +15,22 @@ from src.paths import ANALYSIS_PROMPTS_DIR, ANALYSIS_SUMMARIES_DIR, DEFAULT_ANAL
 
 @dataclass(frozen=True)
 class AnalysisRequest:
-    """Input contract for the journalistic analysis workflow."""
+    """Input contract for the KI-oriented analysis preparation workflow."""
 
     db_path: Path
     session: dict
     scope: str
     selected_tops: list[str]
     prompt: str
-    model_name: str = "mock-journalism-v1"
-    prompt_version: str = "local-template-1"
+    model_name: str = "pending-provider"
+    prompt_version: str = "draft"
 
 
 class AnalysisService:
     """Service entry points used by GUI and other callers."""
 
     def run_journalistic_analysis(self, request: AnalysisRequest) -> AnalysisOutputRecord:
-        """Build markdown, persist job/output metadata, and write versioned artifacts."""
+        """Build a local analysis package summary and persist versioned artifacts."""
 
         db_path = request.db_path
         created_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")

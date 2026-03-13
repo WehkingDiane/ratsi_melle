@@ -5,7 +5,7 @@ from pathlib import Path
 from src.analysis.analysis_context import build_analysis_markdown, enrich_documents_for_analysis
 
 
-def test_enrich_documents_for_analysis_adds_structured_fields_from_local_file(tmp_path: Path) -> None:
+def test_enrich_documents_for_analysis_adds_source_path_metadata(tmp_path: Path) -> None:
     session_dir = tmp_path / "2026-01-15_Rat_902"
     document_dir = session_dir / "agenda" / "o1"
     document_dir.mkdir(parents=True, exist_ok=True)
@@ -37,12 +37,11 @@ def test_enrich_documents_for_analysis_adds_structured_fields_from_local_file(tm
 
     assert len(enriched) == 1
     entry = enriched[0]
-    assert entry["extraction_status"] == "ok"
-    assert entry["content_parser_status"] == "ok"
-    assert "25.000 EUR" in entry["structured_fields"]["finanzbezug"]
+    assert entry["source_file_available"] is True
+    assert entry["resolved_local_path"] == str(document_path)
 
 
-def test_build_analysis_markdown_includes_structured_document_context() -> None:
+def test_build_analysis_markdown_includes_source_list() -> None:
     markdown = build_analysis_markdown(
         session={"date": "2026-01-15", "committee": "Rat"},
         scope="tops",
@@ -52,20 +51,17 @@ def test_build_analysis_markdown_includes_structured_document_context() -> None:
                 "agenda_item": "Oe 1",
                 "title": "Beschlussvorlage Projekt",
                 "document_type": "beschlussvorlage",
-                "extraction_status": "ok",
-                "content_parser_quality": "high",
-                "structured_fields": {
-                    "beschlusstext": "Der Rat beschliesst die Umsetzung des Projekts.",
-                    "finanzbezug": "25.000 EUR im Haushaltsjahr 2026.",
-                },
+                "resolved_local_path": "/tmp/beschlussvorlage.txt",
+                "source_file_available": True,
+                "url": "https://example.org/beschlussvorlage",
             }
         ],
         prompt="Bitte Kernthemen und Kosten benennen.",
     )
 
-    assert "## Dokumentkontext" in markdown
+    assert "## Quellen im Scope" in markdown
     assert "beschlussvorlage" in markdown
-    assert "25.000 EUR" in markdown
+    assert "/tmp/beschlussvorlage.txt" in markdown
     assert "Bitte Kernthemen und Kosten benennen." in markdown
 
 
@@ -93,4 +89,4 @@ def test_enrich_documents_for_analysis_accepts_legacy_session_path(tmp_path: Pat
     enriched = enrich_documents_for_analysis(documents)
 
     assert enriched[0]["resolved_local_path"] == str(document_path)
-    assert enriched[0]["extraction_status"] in {"ok", "partial"}
+    assert enriched[0]["source_file_available"] is True

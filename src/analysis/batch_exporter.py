@@ -8,9 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Sequence
 
-from src.analysis.extraction_pipeline import extract_text_for_analysis
 from src.fetching.storage_layout import resolve_local_file_path
-from src.parsing.document_content import parse_document_content
 
 ALLOWED_DOCUMENT_TYPES = {
     "vorlage",
@@ -31,8 +29,6 @@ def export_analysis_batch(
     date_to: str | None = None,
     document_types: Sequence[str] | None = None,
     require_local_path: bool = False,
-    include_text_extraction: bool = False,
-    max_text_chars: int = 12000,
 ) -> int:
     """Create a JSON analysis batch from indexed session/doc rows."""
 
@@ -73,17 +69,10 @@ def export_analysis_batch(
             "content_type": row["content_type"],
             "content_length": row["content_length"],
         }
-        if include_text_extraction:
-            document.update(
-                _extract_document_payload(
-                    session_path=row["session_path"],
-                    local_path=row["local_path"],
-                    content_type=row["content_type"],
-                    document_type=row["document_type"],
-                    title=row["title"],
-                    max_text_chars=max_text_chars,
-                )
-            )
+        document["resolved_local_path"] = _resolve_document_path(
+            session_path=row["session_path"],
+            local_path=row["local_path"],
+        )
         documents.append(document)
 
     payload = {
@@ -96,8 +85,6 @@ def export_analysis_batch(
             "date_to": date_to,
             "document_types": normalized_types,
             "require_local_path": require_local_path,
-            "include_text_extraction": include_text_extraction,
-            "max_text_chars": max_text_chars,
         },
         "documents": documents,
     }
@@ -207,51 +194,6 @@ def _normalize_document_types(document_types: Sequence[str] | None) -> list[str]
     return normalized
 
 
-def _extract_document_payload(
-    *,
-    session_path: str | None,
-    local_path: str | None,
-    content_type: str | None,
-    document_type: str | None,
-    title: str | None,
-    max_text_chars: int,
-) -> dict[str, object]:
-    if max_text_chars < 1:
-        raise ValueError("--max-text-chars must be >= 1")
-
+def _resolve_document_path(*, session_path: str | None, local_path: str | None) -> str | None:
     resolved_path = resolve_local_file_path(session_path=session_path, local_path=local_path)
-    if resolved_path is None:
-        return {
-            "resolved_local_path": None,
-            "extraction_status": "missing_file",
-            "parsing_quality": "failed",
-            "extracted_text": "",
-            "extracted_char_count": 0,
-            "page_count": None,
-            "page_texts": [],
-            "detected_sections": [],
-            "extraction_error": "No local path available",
-            "ocr_needed": False,
-            "extraction_pipeline_version": None,
-            "extracted_at": None,
-            "content_parser_status": "missing_file",
-            "content_parser_quality": "failed",
-            "content_parser_version": None,
-            "structured_fields": {},
-            "matched_sections": [],
-        }
-
-    result = extract_text_for_analysis(
-        resolved_path,
-        content_type=content_type,
-        max_text_chars=max_text_chars,
-    )
-    payload = result.to_dict()
-    payload["resolved_local_path"] = str(resolved_path)
-    content_result = parse_document_content(
-        document_type=document_type,
-        text=result.extracted_text,
-        title=title,
-    )
-    payload.update(content_result.to_dict())
-    return payload
+    return str(resolved_path) if resolved_path is not None else None
