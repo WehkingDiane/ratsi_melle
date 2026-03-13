@@ -69,7 +69,7 @@ Die GUI ist modular aufgeteilt:
 - Filter: Zeitraum-Presets, manuelle Datumsgrenzen, Gremium, Suche, Sitzungsstatus (`vergangen`, `heute`, `kommend`).
 - Sitzungsliste aus `sessions`.
 - TOP-Auswahl aus `agenda_items`.
-- Analysemodi in der GUI: `summary`, `decision_brief`, `financial_impact`, `citizen_explainer`, `topic_classifier`.
+- Analysemodi in der GUI: `summary`, `decision_brief`, `financial_impact`, `journalistic_brief`, `citizen_explainer`, `topic_classifier`.
 - Scope:
   - ganze Sitzung
   - ausgewaehlte TOPs
@@ -77,6 +77,7 @@ Die GUI ist modular aufgeteilt:
   - `analysis_jobs`
   - `analysis_outputs`
 - Job-Historie pro Sitzung direkt in der Analyseansicht.
+- `journalistic_brief` erzeugt eine sitzungsweite Verdichtung mit Konfliktlinien, offenen Fragen und priorisierten Folgeaufgaben.
 - TOP-Analyse gruppiert Dokumente pro Tagesordnungspunkt und markiert Inkonsistenzen in Beschluss-, Finanz- und Zuständigkeitsangaben.
 - Analyse-Outputs werden als Entwurf (`draft_status`) gefuehrt und enthalten Unsicherheitsmarker sowie Audit-Metadaten
   (u. a. Modus, Parameter, Prompt-Version, Dokument-Hashes).

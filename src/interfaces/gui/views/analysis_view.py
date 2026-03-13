@@ -121,7 +121,7 @@ def build_analysis_view(app, parent: ctk.CTkFrame) -> None:
     app.analysis_mode_box = ctk.CTkComboBox(
         mode_row,
         variable=app.analysis_mode,
-        values=["summary", "decision_brief", "financial_impact", "citizen_explainer", "topic_classifier"],
+        values=["summary", "decision_brief", "financial_impact", "journalistic_brief", "citizen_explainer", "topic_classifier"],
         width=220,
     )
     app.analysis_mode_box.pack(side="left", padx=(10, 0))

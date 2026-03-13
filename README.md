@@ -38,7 +38,7 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 - Einstiegspunkt: `python -m src.interfaces.gui.gui_launcher`
 - Architektur und Erweiterungshinweise: `docs/gui.md`
 - Die aktuelle Oberfläche ist eine Developer-GUI fuer interne Workflows; eine finale Endnutzer-GUI ist noch nicht umgesetzt.
-- Analyse-Ansicht mit Moduswahl (`summary`, `decision_brief`, `financial_impact`, `citizen_explainer`, `topic_classifier`) sowie Review-Historie und Freigabe-Workflow.
+- Analyse-Ansicht mit Moduswahl (`summary`, `decision_brief`, `financial_impact`, `journalistic_brief`, `citizen_explainer`, `topic_classifier`) sowie Review-Historie und Freigabe-Workflow.
 - GUI-Quellcode liegt unter `src/interfaces/gui/` und ist in `app.py`, `views/`, `services/` und `config.py` aufgeteilt.
 
 ## Zeilenenden (Windows/Linux)

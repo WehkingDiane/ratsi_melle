@@ -216,3 +216,31 @@ def test_analysis_service_includes_top_titles_for_top_scope(tmp_path: Path, monk
     assert "### Oe 1 - Projektbeschluss" in record.markdown
     assert "Themenklassifikation" in record.markdown
     assert "### Oe 2" not in record.markdown
+
+
+def test_analysis_service_builds_session_summary_for_journalistic_brief(tmp_path: Path, monkeypatch) -> None:
+    db_path = _build_db(tmp_path)
+    service = AnalysisService()
+
+    summaries_dir = tmp_path / "data" / "analysis_outputs" / "summaries"
+    prompts_dir = tmp_path / "data" / "analysis_outputs" / "prompts"
+    latest_md = summaries_dir / "analysis_latest.md"
+    monkeypatch.setattr("src.analysis.service.ANALYSIS_SUMMARIES_DIR", summaries_dir)
+    monkeypatch.setattr("src.analysis.service.ANALYSIS_PROMPTS_DIR", prompts_dir)
+    monkeypatch.setattr("src.analysis.service.DEFAULT_ANALYSIS_MARKDOWN", latest_md)
+
+    request = AnalysisRequest(
+        db_path=db_path,
+        session={"session_id": "7001", "date": "2026-03-10", "committee": "Rat", "meeting_name": "Ratssitzung"},
+        scope="session",
+        selected_tops=[],
+        prompt="Verdichte die Sitzung journalistisch.",
+        mode="journalistic_brief",
+    )
+
+    record = service.run_analysis(request)
+
+    assert record.mode == "journalistic_brief"
+    assert "## Sitzungsanalyse" in record.markdown
+    assert "Konfliktlinien:" in record.markdown
+    assert "Priorisierte Folgeaufgaben:" in record.markdown

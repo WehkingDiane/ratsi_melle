@@ -138,6 +138,7 @@ Zusaetzlich kann ueber `Analysemodus` gesteuert werden, welche Ausgabe erzeugt w
 - `summary`
 - `decision_brief`
 - `financial_impact`
+- `journalistic_brief`
 - `citizen_explainer`
 - `topic_classifier`
 
@@ -156,6 +157,7 @@ Die Analyse nutzt jetzt nicht nur Metadaten, sondern auch Dokumentkontext aus lo
   (Modus, Prompt-Version, Dokument-Hashes)
 
 Der erzeugte Markdown-Text enthaelt einen Abschnitt `Dokumentkontext`, in dem erkannte Inhalte kompakt aufgefuehrt werden.
+Im Modus `journalistic_brief` wird zusaetzlich eine `Sitzungsanalyse` mit Konfliktlinien, offenen Fragen und priorisierten Folgeaufgaben ausgegeben.
 Bei TOP-Scope wird zusaetzlich eine `TOP-Analyse` mit Dokumentmix, Themenhinweisen und Inkonsistenz-Markierungen erzeugt.
 Ergebnisse werden zunaechst als Entwurf (`draft_status = draft`) gespeichert.
 

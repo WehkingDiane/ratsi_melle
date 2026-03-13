@@ -98,6 +98,9 @@ def build_analysis_markdown(
 
     field_keys = _mode_field_keys(mode)
     if documents:
+        session_sections = _build_session_sections(session, documents, mode)
+        if session_sections:
+            summary_lines.extend(["", "## Sitzungsanalyse", *session_sections])
         top_sections = _build_top_sections(documents, mode)
         if top_sections:
             summary_lines.extend(["", "## TOP-Analyse", *top_sections])
@@ -171,6 +174,8 @@ def _mode_summary_text(mode: str) -> str:
 
 
 def _mode_field_keys(mode: str) -> tuple[str, ...]:
+    if mode == "journalistic_brief":
+        return ("entscheidung", "beschlusstext", "begruendung", "finanzbezug", "zustaendigkeit")
     if mode == "decision_brief":
         return ("beschlusstext", "entscheidung", "zustaendigkeit", "begruendung")
     if mode == "financial_impact":
@@ -184,12 +189,48 @@ def _mode_field_keys(mode: str) -> tuple[str, ...]:
     return ("beschlusstext", "entscheidung", "begruendung", "finanzbezug", "zustaendigkeit")
 
 
-def _build_top_sections(documents: list[dict], mode: str) -> list[str]:
+def _build_session_sections(session: dict, documents: list[dict], mode: str) -> list[str]:
+    if mode != "journalistic_brief":
+        return []
+
+    top_groups = _group_documents_by_top(documents)
+    if not top_groups:
+        return []
+
+    lines = [
+        f"- Sitzung: {session.get('meeting_name') or session.get('committee') or 'Unbekannt'}",
+        f"- TOPs im Scope: {len(top_groups)}",
+        f"- Dominante Themen: {', '.join(_infer_topics(documents) or ['keine klaren Themenschwerpunkte'])}",
+    ]
+
+    conflicts = _session_conflicts(top_groups)
+    lines.append(f"- Konfliktlinien: {', '.join(conflicts) if conflicts else 'keine klaren Konfliktlinien erkannt'}")
+
+    open_questions = _session_open_questions(top_groups)
+    if open_questions:
+        lines.append("- Offene Fragen:")
+        for question in open_questions[:3]:
+            lines.append(f"  - {question}")
+
+    follow_ups = _session_follow_ups(top_groups)
+    if follow_ups:
+        lines.append("- Priorisierte Folgeaufgaben:")
+        for task in follow_ups[:3]:
+            lines.append(f"  - {task}")
+
+    return lines
+
+
+def _group_documents_by_top(documents: list[dict]) -> dict[str, list[dict]]:
     grouped: dict[str, list[dict]] = {}
     for document in documents:
         top_number = str(document.get("agenda_item") or "-")
         grouped.setdefault(top_number, []).append(document)
+    return grouped
 
+
+def _build_top_sections(documents: list[dict], mode: str) -> list[str]:
+    grouped = _group_documents_by_top(documents)
     if not grouped:
         return []
 
@@ -210,6 +251,9 @@ def _build_top_sections(documents: list[dict], mode: str) -> list[str]:
 
         if mode == "citizen_explainer":
             lines.append(f"- Kurz erklaert: {_build_citizen_note(top_documents, agenda_title)}")
+        elif mode == "journalistic_brief":
+            brief = _build_journalistic_brief(top_documents, agenda_title)
+            lines.extend([f"- {entry}" for entry in brief])
         elif mode == "topic_classifier":
             lines.append(f"- Themenklassifikation: {', '.join(topics or ['allgemeine Verwaltung'])}")
         else:
@@ -307,6 +351,63 @@ def _build_citizen_note(documents: list[dict], agenda_title: str) -> str:
     topics = _infer_topics(documents)
     topic_text = f" Themen: {', '.join(topics)}." if topics else ""
     return f"Zu diesem TOP liegen {doc_count} Dokumente vor. Thema: {agenda_title}.{topic_text}".strip()
+
+
+def _build_journalistic_brief(documents: list[dict], agenda_title: str) -> list[str]:
+    summary_bits = _top_summary_bits(documents, "journalistic_brief")
+    inconsistencies = _top_inconsistencies(documents)
+    topics = _infer_topics(documents)
+    lines = [
+        f"Redaktioneller Fokus: {agenda_title}",
+        f"Kernaussagen: {' | '.join(summary_bits) if summary_bits else 'noch keine belastbaren Kernaussagen'}",
+        f"Konfliktpunkte: {', '.join(inconsistencies) if inconsistencies else 'keine klaren Konfliktpunkte'}",
+    ]
+    if topics:
+        lines.append(f"Themenlage: {', '.join(topics)}")
+    if _top_needs_follow_up(documents):
+        lines.append("Offene Punkte: weitere Verifikation oder politische Einordnung sinnvoll")
+    return lines
+
+
+def _session_conflicts(top_groups: dict[str, list[dict]]) -> list[str]:
+    conflicts: list[str] = []
+    for top_number, documents in sorted(top_groups.items()):
+        inconsistencies = _top_inconsistencies(documents)
+        if inconsistencies:
+            conflicts.append(f"{top_number}: {', '.join(inconsistencies)}")
+    return conflicts
+
+
+def _session_open_questions(top_groups: dict[str, list[dict]]) -> list[str]:
+    questions: list[str] = []
+    for top_number, documents in sorted(top_groups.items()):
+        title = _top_title(documents)
+        if _top_needs_follow_up(documents):
+            questions.append(f"{top_number} ({title}): Welche Fakten oder Entscheidungen muessen noch abgesichert werden?")
+    return questions
+
+
+def _session_follow_ups(top_groups: dict[str, list[dict]]) -> list[str]:
+    follow_ups: list[str] = []
+    for top_number, documents in sorted(top_groups.items()):
+        title = _top_title(documents)
+        fields = _distinct_field_values(documents, "zustaendigkeit")
+        if fields:
+            follow_ups.append(f"{top_number} ({title}): Rueckfrage bei {fields[0]} zu naechsten Schritten.")
+        elif _top_needs_follow_up(documents):
+            follow_ups.append(f"{top_number} ({title}): politische Bewertung und Quellenlage nachrecherchieren.")
+    return follow_ups
+
+
+def _top_needs_follow_up(documents: list[dict]) -> bool:
+    if _top_inconsistencies(documents):
+        return True
+    for document in documents:
+        extraction_status = str(document.get("extraction_status") or "")
+        parser_quality = str(document.get("content_parser_quality") or "")
+        if extraction_status in {"missing_file", "ocr_needed", "error"} or parser_quality in {"failed", "low"}:
+            return True
+    return False
 
 
 def _truncate(value: str, max_chars: int) -> str:

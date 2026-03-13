@@ -4,20 +4,21 @@ Dieses Dokument beschreibt den Task 4 der Projekt-Roadmap des Ratsinformations-A
 
 Der aktuelle GUI-Bezug in diesem Dokument meint die vorhandene Developer-GUI fuer interne Workflows. Eine finale Endnutzer-GUI ist noch nicht begonnen beziehungsweise nicht fertig. Auch die langfristige Code- bzw. Technologiesprache des Gesamtprojekts bleibt derzeit offen.
 
-## Umsetzungsstand (2026-03-08)
+## Umsetzungsstand (2026-03-13)
 
-- Gestartet: Basismodul fuer sichere Analyse-API.
 - Umgesetzt:
-  - Analysemodus in API eingefuehrt (`summary`, `decision_brief`, `financial_impact`, weitere vorbereitet).
-  - Audit-Trail erweitert (Modus, Parameter, Dokument-Hashes, Modell-/Prompt-Metadaten).
-  - Unsicherheitsmarkierungen und Halluzinations-Risikoindikator in Analyse-Output integriert.
-  - Maskierung sensibler Daten (u. a. E-Mail, Telefon, IBAN) fuer Analyse-Outputs eingebaut.
-  - Menschliche Review-Funktion in GUI und CLI (`scripts/review_analysis_job.py`) ergänzt.
-  - Deterministische Plausibilitaetsflags und Bias-/Balance-Metriken im Analyse-Output ergänzt.
-  - TOP-Analyse gruppiert Dokumente je Tagesordnungspunkt und markiert Inkonsistenzen; `citizen_explainer` und `topic_classifier` sind in der GUI freigeschaltet.
-- Offene Folgearbeit:
-  - Erweiterte inhaltliche Bias-Metriken fuer spaetere Analysemodi.
-  - Sitzungsweite Verdichtung und journalistische Perspektive ueber mehrere TOPs.
+  - Einheitliche Analyse-API mit `AnalysisRequest`, `AnalysisService` und versioniertem `AnalysisOutputRecord`.
+  - Analysemodi `summary`, `decision_brief` und `financial_impact` fuer Dokument- und TOP-nahe Ausgaben produktiv nutzbar.
+  - Zusaetzliche Modi `journalistic_brief`, `citizen_explainer` und `topic_classifier` in der Developer-GUI freigeschaltet.
+  - Audit-Trail erweitert um Modus, Parameter, Prompt-Version, Modellname und Dokument-Hashes.
+  - Sicherheitsmechanismen fuer sensible Daten sowie Unsicherheits-, Plausibilitaets- und Bias-/Balance-Signale im Output.
+  - Menschliche Review-Funktion in Developer-GUI und CLI (`scripts/review_analysis_job.py`).
+  - TOP-Analyse mit Gruppierung pro Tagesordnungspunkt, Themenhinweisen und Inkonsistenz-Markierungen.
+  - Sitzungsweite Verdichtung fuer `journalistic_brief` mit Konfliktlinien, offenen Fragen und priorisierten Folgeaufgaben.
+- Noch offen:
+  - Vergleichs- und Monitoringanalyse (`change_monitor`).
+  - Weitergehende inhaltliche Bias-Metriken und strengere Fachregeln fuer spaetere Modi.
+  - Tiefere Akteurs- und Konfliktanalysen fuer journalistische Ausgabe.
 
 ## 1 Zielbild
 
@@ -104,10 +105,14 @@ Analyseergebnisse sind stets als Entwurf zu kennzeichnen. Reviewer:innen sehen B
 
 ## 8 Empfohlene Umsetzungsreihenfolge
 
-- Phase 1 - Basismodule: Analyse-Schnittstelle und Datenmodelle (`AnalysisRequest`, `AnalysisOutputRecord`) samt Audit-Trail; Implementierung der Dokumentanalyse mit den Modi `summary`, `decision_brief` und `financial_impact`; Tests zur Maskierung sensibler Daten.
-- Phase 2 - TOP-Analyse und Priorisierung: Zusammenführung mehrerer Dokumente pro TOP; Integration des Modus `citizen_explainer` und eines Thema-Klassifikators; Markierung von Inkonsistenzen.
-- Phase 3 - Sitzungsanalyse und journalistische Perspektive: Sitzungsweite Verdichtung; Einführung des Modus `journalistic_brief`; Konflikt- und Akteursanalysen.
-- Phase 4 - Vergleichs- und Monitoringanalysen: Entwicklung des `change_monitor`-Modus; Aufbau einer Benachrichtigungs-/Warteschlangenlogik.
+- Phase 1 - Basismodule: erledigt.
+  Analyse-Schnittstelle, Datenmodelle, Audit-Trail, Sicherheitsmechanismen und die Modi `summary`, `decision_brief` und `financial_impact` sind vorhanden.
+- Phase 2 - TOP-Analyse und Priorisierung: weitgehend erledigt.
+  Mehrere Dokumente pro TOP werden zusammengefuehrt, `citizen_explainer` und `topic_classifier` sind verfuegbar, Inkonsistenzen werden markiert.
+- Phase 3 - Sitzungsanalyse und journalistische Perspektive: teilweise erledigt.
+  Sitzungsweite Verdichtung und `journalistic_brief` als End-to-End-Workflow sind vorhanden; vertiefte Konflikt- und Akteursanalysen stehen noch aus.
+- Phase 4 - Vergleichs- und Monitoringanalysen: offen.
+  `change_monitor` ist als Modus vorbereitet, aber noch nicht fachlich umgesetzt.
 
 ## 9 Offene Architekturfragen
 
@@ -121,10 +126,12 @@ Analyseergebnisse sind stets als Entwurf zu kennzeichnen. Reviewer:innen sehen B
 
 Ein erster nutzbarer Meilenstein umfasst:
 
-- Eine einheitliche Analyse-API mit Audit-Trail, Logging und Unsicherheitskennzeichnung.
-- Mindestens zwei Analysemodi (z. B. `summary` und `decision_brief`) für die Dokumentanalyse.
-- Nachvollziehbare Ergebnisse mit Quellenbezug, strukturierten Feldern und Unsicherheitsmarkierungen.
-- Speicherung von Modell- und Prompt-Metadaten wie in Abschnitt 7.3.
-- Sicherheitsmechanismen zum Maskieren personenbezogener Daten und zur Erkennung von Halluzinationen.
-- Unit-Tests für Kernflüsse und Fehlerfälle, die auch die Reproduzierbarkeit und das Bias-Handling prüfen.
-- Eine menschliche Review-Funktion in GUI oder CLI, um Analysen als Entwurf zu kennzeichnen, zu kommentieren und freizugeben.
+- Einheitliche Analyse-API mit Audit-Trail, Logging und nachvollziehbaren Artefakten: erreicht.
+- Mehrere Analysemodi fuer Dokumentanalyse (`summary`, `decision_brief`, `financial_impact`): erreicht.
+- Nachvollziehbare Ergebnisse mit Quellenbezug, strukturierten Feldern und Qualitaetssignalen: erreicht.
+- Speicherung von Modell-, Prompt- und Review-Metadaten wie in Abschnitt 7.3: erreicht.
+- Sicherheitsmechanismen zum Maskieren personenbezogener Daten sowie Halluzinations-/Plausibilitaetsindikatoren: erreicht.
+- Unit-Tests fuer Kernfluesse und Fehlerfaelle: erreicht.
+- Menschliche Review-Funktion in Developer-GUI oder CLI: erreicht.
+
+Der erste Meilenstein kann damit als funktional erreicht gelten. Die naechsten Arbeiten betreffen vor allem Sitzungsanalyse, journalistische Verdichtung und Monitoring.
