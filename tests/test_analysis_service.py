@@ -70,6 +70,11 @@ def _build_db(tmp_path: Path) -> Path:
         conn.execute(
             "INSERT INTO documents (session_id, agenda_item, title, document_type, local_path, url, content_type) "
             "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("7001", "Oe 1", "Protokoll Projekt", "protokoll", "agenda/o1/vorlage.txt", "https://example.org/protokoll", "text/plain"),
+        )
+        conn.execute(
+            "INSERT INTO documents (session_id, agenda_item, title, document_type, local_path, url, content_type) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
                 "7001",
                 "Oe 2",
@@ -108,7 +113,7 @@ def test_analysis_service_persists_versioned_outputs(tmp_path: Path, monkeypatch
 
     assert record.schema_version == ANALYSIS_OUTPUT_SCHEMA_VERSION
     assert record.job_id >= 1
-    assert record.document_count == 2
+    assert record.document_count == 3
     assert record.mode == "summary"
     assert record.parameters["temperature"] == 0.0
     assert record.sensitive_data_masked is True
@@ -244,3 +249,31 @@ def test_analysis_service_builds_session_summary_for_journalistic_brief(tmp_path
     assert "## Sitzungsanalyse" in record.markdown
     assert "Konfliktlinien:" in record.markdown
     assert "Priorisierte Folgeaufgaben:" in record.markdown
+
+
+def test_analysis_service_builds_change_monitor_output(tmp_path: Path, monkeypatch) -> None:
+    db_path = _build_db(tmp_path)
+    service = AnalysisService()
+
+    summaries_dir = tmp_path / "data" / "analysis_outputs" / "summaries"
+    prompts_dir = tmp_path / "data" / "analysis_outputs" / "prompts"
+    latest_md = summaries_dir / "analysis_latest.md"
+    monkeypatch.setattr("src.analysis.service.ANALYSIS_SUMMARIES_DIR", summaries_dir)
+    monkeypatch.setattr("src.analysis.service.ANALYSIS_PROMPTS_DIR", prompts_dir)
+    monkeypatch.setattr("src.analysis.service.DEFAULT_ANALYSIS_MARKDOWN", latest_md)
+
+    request = AnalysisRequest(
+        db_path=db_path,
+        session={"session_id": "7001", "date": "2026-03-10", "committee": "Rat", "meeting_name": "Ratssitzung"},
+        scope="tops",
+        selected_tops=["Oe 1"],
+        prompt="Vergleiche die Dokumentlage.",
+        mode="change_monitor",
+    )
+
+    record = service.run_analysis(request)
+
+    assert record.mode == "change_monitor"
+    assert "## Sitzungsanalyse" in record.markdown
+    assert "Beobachtete Aenderungen:" in record.markdown
+    assert "Aenderungssignale:" in record.markdown

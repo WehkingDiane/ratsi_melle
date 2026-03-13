@@ -196,6 +196,43 @@ def test_build_analysis_markdown_adds_session_summary_for_journalistic_brief() -
     assert "Priorisierte Folgeaufgaben:" in markdown
 
 
+def test_build_analysis_markdown_adds_change_monitor_sections() -> None:
+    markdown = build_analysis_markdown(
+        session={"date": "2026-01-15", "committee": "Rat", "meeting_name": "Ratssitzung Januar"},
+        mode="change_monitor",
+        scope="tops",
+        selected_tops=["Oe 1"],
+        documents=[
+            {
+                "agenda_item": "Oe 1",
+                "agenda_title": "Projektbeschluss",
+                "title": "Vorlage Projekt",
+                "document_type": "vorlage",
+                "extraction_status": "ok",
+                "content_parser_quality": "high",
+                "structured_fields": {"beschlusstext": "Annahme", "finanzbezug": "100 EUR"},
+                "extracted_text": "Projekt und Kosten.",
+            },
+            {
+                "agenda_item": "Oe 1",
+                "agenda_title": "Projektbeschluss",
+                "title": "Protokoll Projekt",
+                "document_type": "protokoll",
+                "extraction_status": "ok",
+                "content_parser_quality": "high",
+                "structured_fields": {"entscheidung": "vertagt", "finanzbezug": "150 EUR"},
+                "extracted_text": "Projekt, Abstimmung und Kosten.",
+            },
+        ],
+        prompt="",
+    )
+
+    assert "## Sitzungsanalyse" in markdown
+    assert "Beobachtete Aenderungen:" in markdown
+    assert "## TOP-Analyse" in markdown
+    assert "Aenderungssignale: mehrere Dokumenttypen, veraenderter Beschlussstand, veraenderter Finanzbezug" in markdown
+
+
 def test_enrich_documents_for_analysis_accepts_legacy_session_path(tmp_path: Path) -> None:
     session_dir = tmp_path / "data" / "raw" / "2026" / "01" / "2026-01-15_Rat_902"
     document_dir = session_dir / "agenda" / "o1"

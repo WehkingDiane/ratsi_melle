@@ -1888,6 +1888,7 @@ class GuiLauncher:
             "journalistic_brief": "Verdichte die Sitzung journalistisch. Nenne Kernaussagen, Konfliktlinien, offene Fragen und priorisierte Folgeaufgaben.",
             "citizen_explainer": "Erklaere den TOP in einfacher Sprache. Vermeide Fachjargon und nenne, was fuer Buergerinnen und Buerger wichtig ist.",
             "topic_classifier": "Ordne den TOP thematisch ein. Nenne die wichtigsten Politikfelder und begruende die Zuordnung knapp.",
+            "change_monitor": "Vergleiche die Dokumentlage im Scope. Nenne veraenderte Beschlussstaende, Finanzangaben, Zustaendigkeiten und weiteren Beobachtungsbedarf.",
         }.get(mode, self.analysis_prompt_value)
         self.analysis_prompt_box.delete("1.0", "end")
         self.analysis_prompt_box.insert("1.0", default_prompt)

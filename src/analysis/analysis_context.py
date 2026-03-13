@@ -174,6 +174,8 @@ def _mode_summary_text(mode: str) -> str:
 
 
 def _mode_field_keys(mode: str) -> tuple[str, ...]:
+    if mode == "change_monitor":
+        return ("entscheidung", "beschlusstext", "finanzbezug", "zustaendigkeit")
     if mode == "journalistic_brief":
         return ("entscheidung", "beschlusstext", "begruendung", "finanzbezug", "zustaendigkeit")
     if mode == "decision_brief":
@@ -190,7 +192,7 @@ def _mode_field_keys(mode: str) -> tuple[str, ...]:
 
 
 def _build_session_sections(session: dict, documents: list[dict], mode: str) -> list[str]:
-    if mode != "journalistic_brief":
+    if mode not in {"journalistic_brief", "change_monitor"}:
         return []
 
     top_groups = _group_documents_by_top(documents)
@@ -202,6 +204,16 @@ def _build_session_sections(session: dict, documents: list[dict], mode: str) -> 
         f"- TOPs im Scope: {len(top_groups)}",
         f"- Dominante Themen: {', '.join(_infer_topics(documents) or ['keine klaren Themenschwerpunkte'])}",
     ]
+
+    if mode == "change_monitor":
+        changes = _session_change_signals(top_groups)
+        lines.append(f"- Beobachtete Aenderungen: {', '.join(changes) if changes else 'keine markanten Aenderungen im Scope'}")
+        follow_ups = _session_follow_ups(top_groups)
+        if follow_ups:
+            lines.append("- Beobachtungsbedarf:")
+            for task in follow_ups[:3]:
+                lines.append(f"  - {task}")
+        return lines
 
     conflicts = _session_conflicts(top_groups)
     lines.append(f"- Konfliktlinien: {', '.join(conflicts) if conflicts else 'keine klaren Konfliktlinien erkannt'}")
@@ -251,6 +263,8 @@ def _build_top_sections(documents: list[dict], mode: str) -> list[str]:
 
         if mode == "citizen_explainer":
             lines.append(f"- Kurz erklaert: {_build_citizen_note(top_documents, agenda_title)}")
+        elif mode == "change_monitor":
+            lines.extend([f"- {entry}" for entry in _build_change_monitor_note(top_documents, agenda_title)])
         elif mode == "journalistic_brief":
             brief = _build_journalistic_brief(top_documents, agenda_title)
             lines.extend([f"- {entry}" for entry in brief])
@@ -369,6 +383,19 @@ def _build_journalistic_brief(documents: list[dict], agenda_title: str) -> list[
     return lines
 
 
+def _build_change_monitor_note(documents: list[dict], agenda_title: str) -> list[str]:
+    change_signals = _top_change_signals(documents)
+    doc_titles = sorted({str(document.get("title") or "(ohne Titel)") for document in documents})
+    lines = [
+        f"Monitoring-Fokus: {agenda_title}",
+        f"Dokumentvarianten: {', '.join(doc_titles[:3])}",
+        f"Aenderungssignale: {', '.join(change_signals) if change_signals else 'keine klaren Feldabweichungen'}",
+    ]
+    if _top_needs_follow_up(documents):
+        lines.append("Beobachtung: weitere Versionen oder Beschlussstaende pruefen")
+    return lines
+
+
 def _session_conflicts(top_groups: dict[str, list[dict]]) -> list[str]:
     conflicts: list[str] = []
     for top_number, documents in sorted(top_groups.items()):
@@ -399,8 +426,17 @@ def _session_follow_ups(top_groups: dict[str, list[dict]]) -> list[str]:
     return follow_ups
 
 
+def _session_change_signals(top_groups: dict[str, list[dict]]) -> list[str]:
+    changes: list[str] = []
+    for top_number, documents in sorted(top_groups.items()):
+        signals = _top_change_signals(documents)
+        if signals:
+            changes.append(f"{top_number}: {', '.join(signals)}")
+    return changes
+
+
 def _top_needs_follow_up(documents: list[dict]) -> bool:
-    if _top_inconsistencies(documents):
+    if _top_inconsistencies(documents) or _top_change_signals(documents):
         return True
     for document in documents:
         extraction_status = str(document.get("extraction_status") or "")
@@ -408,6 +444,19 @@ def _top_needs_follow_up(documents: list[dict]) -> bool:
         if extraction_status in {"missing_file", "ocr_needed", "error"} or parser_quality in {"failed", "low"}:
             return True
     return False
+
+
+def _top_change_signals(documents: list[dict]) -> list[str]:
+    signals: list[str] = []
+    if len({_doc_type(document) for document in documents}) > 1:
+        signals.append("mehrere Dokumenttypen")
+    if len(_distinct_field_values(documents, "beschlusstext", "entscheidung")) > 1:
+        signals.append("veraenderter Beschlussstand")
+    if len(_distinct_field_values(documents, "finanzbezug")) > 1:
+        signals.append("veraenderter Finanzbezug")
+    if len(_distinct_field_values(documents, "zustaendigkeit")) > 1:
+        signals.append("veraenderte Zustaendigkeit")
+    return signals
 
 
 def _truncate(value: str, max_chars: int) -> str:

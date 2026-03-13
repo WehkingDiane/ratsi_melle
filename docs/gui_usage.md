@@ -141,6 +141,7 @@ Zusaetzlich kann ueber `Analysemodus` gesteuert werden, welche Ausgabe erzeugt w
 - `journalistic_brief`
 - `citizen_explainer`
 - `topic_classifier`
+- `change_monitor`
 
 ### 5. Analyse starten
 
@@ -158,6 +159,7 @@ Die Analyse nutzt jetzt nicht nur Metadaten, sondern auch Dokumentkontext aus lo
 
 Der erzeugte Markdown-Text enthaelt einen Abschnitt `Dokumentkontext`, in dem erkannte Inhalte kompakt aufgefuehrt werden.
 Im Modus `journalistic_brief` wird zusaetzlich eine `Sitzungsanalyse` mit Konfliktlinien, offenen Fragen und priorisierten Folgeaufgaben ausgegeben.
+Im Modus `change_monitor` werden zusaetzlich beobachtete Aenderungen und weiterer Beobachtungsbedarf im Scope hervorgehoben.
 Bei TOP-Scope wird zusaetzlich eine `TOP-Analyse` mit Dokumentmix, Themenhinweisen und Inkonsistenz-Markierungen erzeugt.
 Ergebnisse werden zunaechst als Entwurf (`draft_status = draft`) gespeichert.
 
