@@ -69,6 +69,7 @@ def test_build_analysis_markdown_includes_structured_document_context() -> None:
     assert "## Dokumentkontext" in markdown
     assert "beschlussvorlage" in markdown
     assert "25.000 EUR" in markdown
+    assert "beleg_excerpt:" not in markdown
     assert "Bitte Kernthemen und Kosten benennen." in markdown
     assert "## Quellen" in markdown
 
@@ -234,6 +235,53 @@ def test_build_analysis_markdown_adds_change_monitor_sections() -> None:
     assert "## TOP-Analyse" in markdown
     assert "Aenderungssignale: mehrere Dokumenttypen, veraenderter Beschlussstand, veraenderter Finanzbezug, historische Vorversion vorhanden" in markdown
     assert "Vorversion Vorlage Projekt: 2026-01-10 (Rat Januar)" in markdown
+
+
+def test_build_analysis_markdown_keeps_readable_excerpt() -> None:
+    markdown = build_analysis_markdown(
+        session={"date": "2026-01-15", "committee": "Rat"},
+        mode="summary",
+        scope="session",
+        selected_tops=[],
+        documents=[
+            {
+                "agenda_item": "Oe 1",
+                "title": "Lesbares Dokument",
+                "document_type": "vorlage",
+                "extraction_status": "ok",
+                "content_parser_quality": "high",
+                "extracted_text": "Dies ist eine gut lesbare Zusammenfassung mit klaren Woertern und nachvollziehbaren Saetzen fuer den Bericht.",
+                "structured_fields": {},
+            }
+        ],
+        prompt="",
+    )
+
+    assert "beleg_excerpt: Dies ist eine gut lesbare Zusammenfassung" in markdown
+
+
+def test_build_analysis_markdown_suppresses_unreadable_excerpt() -> None:
+    markdown = build_analysis_markdown(
+        session={"date": "2026-01-15", "committee": "Rat"},
+        mode="summary",
+        scope="session",
+        selected_tops=[],
+        documents=[
+            {
+                "agenda_item": "Oe 1",
+                "title": "Unlesbares Dokument",
+                "document_type": "sonstiges",
+                "extraction_status": "ok",
+                "content_parser_quality": "failed",
+                "extracted_text": "qzxv ## @@ %% 1234 qzxv @@ ## %% qzxv ### @@ %% 1234 qzxv @@ ## %% qzxv",
+                "structured_fields": {},
+            }
+        ],
+        prompt="",
+    )
+
+    assert "unterdrueckt, Textqualitaet unzureichend" in markdown
+    assert "qzxv ## @@" not in markdown
 
 
 def test_enrich_documents_for_analysis_accepts_legacy_session_path(tmp_path: Path) -> None:

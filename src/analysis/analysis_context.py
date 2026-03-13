@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import unicodedata
 from pathlib import Path
 
 from src.analysis.extraction_pipeline import extract_text_for_analysis
@@ -116,7 +117,9 @@ def build_analysis_markdown(
             )
             extracted_text = document.get("extracted_text")
             if isinstance(extracted_text, str) and extracted_text.strip():
-                summary_lines.append(f"  - beleg_excerpt: {_truncate(extracted_text, 240)}")
+                excerpt_line = _build_excerpt_line(document)
+                if excerpt_line:
+                    summary_lines.append(excerpt_line)
             sections = document.get("detected_sections")
             if isinstance(sections, list) and sections:
                 preview = []
@@ -398,6 +401,23 @@ def _build_change_monitor_note(documents: list[dict], agenda_title: str) -> list
     return lines
 
 
+def _build_excerpt_line(document: dict) -> str | None:
+    extracted_text = document.get("extracted_text")
+    if not isinstance(extracted_text, str):
+        return None
+
+    cleaned = _truncate(extracted_text, 240)
+    if _is_readable_excerpt(cleaned):
+        return f"  - beleg_excerpt: {cleaned}"
+
+    parser_quality = str(document.get("content_parser_quality") or "n/a")
+    extraction_status = str(document.get("extraction_status") or "n/a")
+    return (
+        "  - beleg_excerpt: (unterdrueckt, Textqualitaet unzureichend "
+        f"bei Extraktion={extraction_status}, Parser={parser_quality})"
+    )
+
+
 def _session_conflicts(top_groups: dict[str, list[dict]]) -> list[str]:
     conflicts: list[str] = []
     for top_number, documents in sorted(top_groups.items()):
@@ -450,6 +470,39 @@ def _top_historical_lines(documents: list[dict]) -> list[str]:
         signal_text = ", ".join(signals) if isinstance(signals, list) and signals else "keine Feldabweichungen"
         lines.append(f"Vorversion {title}: {previous_date} ({previous_session}) | Signale: {signal_text}")
     return lines[:3]
+
+
+def _is_readable_excerpt(text: str) -> bool:
+    if not text.strip():
+        return False
+
+    normalized = " ".join(text.split())
+    if len(normalized) < 40:
+        return True
+
+    control_chars = sum(1 for char in normalized if unicodedata.category(char).startswith("C"))
+    if control_chars:
+        return False
+
+    allowed_punctuation = set(".,;:!?()[]%/-+\"'")
+    unusual_chars = sum(
+        1
+        for char in normalized
+        if not (char.isalnum() or char.isspace() or char in allowed_punctuation or char in "äöüÄÖÜß")
+    )
+    unusual_ratio = unusual_chars / len(normalized)
+
+    words = [word for word in normalized.split() if word]
+    vowel_words = [
+        word for word in words
+        if any(vowel in word.lower() for vowel in ("a", "e", "i", "o", "u", "ä", "ö", "ü"))
+    ]
+    vowel_ratio = len(vowel_words) / len(words) if words else 0.0
+
+    alpha_chars = sum(1 for char in normalized if char.isalpha())
+    alpha_ratio = alpha_chars / len(normalized)
+
+    return unusual_ratio < 0.12 and vowel_ratio >= 0.6 and alpha_ratio >= 0.45
 
 
 def _top_needs_follow_up(documents: list[dict]) -> bool:
