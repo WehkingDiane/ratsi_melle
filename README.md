@@ -7,6 +7,7 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 ## Leitprinzipien für die Umsetzung
 
 - **Technologieoffenheit:** Programmiersprache, Frameworks und Infrastruktur sind frei wählbar. Bewährt haben sich Skriptsprachen (z. B. Python, JavaScript/TypeScript) ebenso wie kompilierte Sprachen (z. B. Go, Rust), solange sie Webzugriffe, Datenhaltung und optionale KI-Anbindungen unterstützen.
+- **Aktueller Stand der Implementierung:** Die derzeit vorhandene GUI ist eine interne Developer-GUI fuer Daten-, Export- und Analyse-Workflows. Eine finale Endnutzer-GUI ist noch nicht begonnen beziehungsweise nicht fertig, und auch die langfristige Code- bzw. Technologiesprache ist bewusst noch nicht festgelegt.
 - **Modularer Aufbau:** Funktionen wie Datenerfassung, Analyse, Speicherung und Darstellung sollen klar getrennt sein, damit einzelne Module unabhängig weiterentwickelt oder ausgetauscht werden können.
 - **Nachvollziehbarkeit & Transparenz:** Alle gewonnenen Daten, Zwischenschritte und Analyseergebnisse müssen dauerhaft nachvollziehbar, versionierbar und für Dritte überprüfbar sein.
 - **Erweiterbarkeit:** Die Lösung soll sich leicht auf andere Kommunen oder Informationsquellen übertragen lassen und Platz für zusätzliche Auswertungen oder Visualisierungen bieten.
@@ -36,6 +37,7 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 
 - Einstiegspunkt: `python -m src.interfaces.gui.gui_launcher`
 - Architektur und Erweiterungshinweise: `docs/gui.md`
+- Die aktuelle Oberfläche ist eine Developer-GUI fuer interne Workflows; eine finale Endnutzer-GUI ist noch nicht umgesetzt.
 - Analyse-Ansicht mit Moduswahl (`summary`, `decision_brief`, `financial_impact`, `citizen_explainer`, `topic_classifier`) sowie Review-Historie und Freigabe-Workflow.
 - GUI-Quellcode liegt unter `src/interfaces/gui/` und ist in `app.py`, `views/`, `services/` und `config.py` aufgeteilt.
 

@@ -2,6 +2,8 @@
 
 Dieses Dokument beschreibt den Task 4 der Projekt-Roadmap des Ratsinformations-Analysewerkzeugs. Ziel dieses Meilensteins ist der Entwurf und die Implementierung eines modularen Analysemoduls, das Dokumente, Tagesordnungspunkte und ganze Sitzungen auswertet und zuverlässige, reproduzierbare Ergebnisse liefert. Im Vergleich zur ursprünglichen Fassung legt diese Version besonderen Wert auf Datensicherheit, Transparenz und Risiko-Management, damit der Einsatz von KI vertrauenswürdig und nachvollziehbar bleibt.
 
+Der aktuelle GUI-Bezug in diesem Dokument meint die vorhandene Developer-GUI fuer interne Workflows. Eine finale Endnutzer-GUI ist noch nicht begonnen beziehungsweise nicht fertig. Auch die langfristige Code- bzw. Technologiesprache des Gesamtprojekts bleibt derzeit offen.
+
 ## Umsetzungsstand (2026-03-08)
 
 - Gestartet: Basismodul fuer sichere Analyse-API.

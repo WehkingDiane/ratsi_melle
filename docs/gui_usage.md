@@ -1,6 +1,9 @@
 # GUI-Anleitung
 
 Diese Anleitung beschreibt die Nutzung der Desktop-GUI unter `src/interfaces/gui/`.
+Der aktuelle Stand ist eine Developer-GUI fuer interne Arbeitsablaeufe. Eine finale Endnutzer-GUI ist noch nicht begonnen beziehungsweise nicht fertig.
+
+> Hinweis: Die langfristige Code- bzw. Technologiesprache des Gesamtprojekts ist weiterhin offen und noch nicht festgelegt.
 
 ## Voraussetzungen
 

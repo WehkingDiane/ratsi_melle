@@ -1,8 +1,10 @@
 # GUI-Dokumentation
 
 Diese Datei beschreibt die aktuelle Desktop-GUI unter `src/interfaces/gui/`.
+Gemeint ist die interne Developer-GUI fuer Daten-, Export- und Analyse-Workflows. Eine finale Endnutzer-GUI ist noch nicht begonnen beziehungsweise nicht fertig.
 
 > Hinweis: Die GUI ist noch nicht fertig. Die Oberflaeche und die zugrunde liegende Architektur werden kontinuierlich erweitert und iterativ verbessert.
+> Hinweis: Auch die langfristige Implementierungssprache bzw. der finale Technologie-Stack ist fuer das Gesamtprojekt noch nicht verbindlich festgelegt.
 
 ## Ziel
 
