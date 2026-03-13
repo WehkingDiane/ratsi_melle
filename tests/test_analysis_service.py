@@ -43,11 +43,24 @@ def _build_db(tmp_path: Path) -> Path:
                 url TEXT,
                 content_type TEXT
             );
+            CREATE TABLE agenda_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT,
+                number TEXT,
+                title TEXT
+            );
             """
         )
         conn.execute(
             "INSERT INTO sessions (session_id, date, committee, meeting_name, session_path) VALUES (?, ?, ?, ?, ?)",
             ("7001", "2026-03-10", "Rat", "Ratssitzung", str(session_dir)),
+        )
+        conn.executemany(
+            "INSERT INTO agenda_items (session_id, number, title) VALUES (?, ?, ?)",
+            [
+                ("7001", "Oe 1", "Projektbeschluss"),
+                ("7001", "Oe 2", "Kontakt und Information"),
+            ],
         )
         conn.execute(
             "INSERT INTO documents (session_id, agenda_item, title, document_type, local_path, url, content_type) "
@@ -175,3 +188,31 @@ def test_analysis_service_rejects_unknown_mode(tmp_path: Path) -> None:
     )
     with pytest.raises(ValueError):
         service.run_analysis(request)
+
+
+def test_analysis_service_includes_top_titles_for_top_scope(tmp_path: Path, monkeypatch) -> None:
+    db_path = _build_db(tmp_path)
+    service = AnalysisService()
+
+    summaries_dir = tmp_path / "data" / "analysis_outputs" / "summaries"
+    prompts_dir = tmp_path / "data" / "analysis_outputs" / "prompts"
+    latest_md = summaries_dir / "analysis_latest.md"
+    monkeypatch.setattr("src.analysis.service.ANALYSIS_SUMMARIES_DIR", summaries_dir)
+    monkeypatch.setattr("src.analysis.service.ANALYSIS_PROMPTS_DIR", prompts_dir)
+    monkeypatch.setattr("src.analysis.service.DEFAULT_ANALYSIS_MARKDOWN", latest_md)
+
+    request = AnalysisRequest(
+        db_path=db_path,
+        session={"session_id": "7001", "date": "2026-03-10", "committee": "Rat"},
+        scope="tops",
+        selected_tops=["Oe 1"],
+        prompt="Ordne den TOP thematisch ein.",
+        mode="topic_classifier",
+    )
+
+    record = service.run_analysis(request)
+
+    assert "## TOP-Analyse" in record.markdown
+    assert "### Oe 1 - Projektbeschluss" in record.markdown
+    assert "Themenklassifikation" in record.markdown
+    assert "### Oe 2" not in record.markdown

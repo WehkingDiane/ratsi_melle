@@ -135,6 +135,8 @@ Zusaetzlich kann ueber `Analysemodus` gesteuert werden, welche Ausgabe erzeugt w
 - `summary`
 - `decision_brief`
 - `financial_impact`
+- `citizen_explainer`
+- `topic_classifier`
 
 ### 5. Analyse starten
 
@@ -151,6 +153,7 @@ Die Analyse nutzt jetzt nicht nur Metadaten, sondern auch Dokumentkontext aus lo
   (Modus, Prompt-Version, Dokument-Hashes)
 
 Der erzeugte Markdown-Text enthaelt einen Abschnitt `Dokumentkontext`, in dem erkannte Inhalte kompakt aufgefuehrt werden.
+Bei TOP-Scope wird zusaetzlich eine `TOP-Analyse` mit Dokumentmix, Themenhinweisen und Inkonsistenz-Markierungen erzeugt.
 Ergebnisse werden zunaechst als Entwurf (`draft_status = draft`) gespeichert.
 
 ### 6. Review freigeben

@@ -292,8 +292,9 @@ class AnalysisService:
             params.extend(selected_tops)
 
         query = (
-            "SELECT d.agenda_item, d.title, d.document_type, d.local_path, d.url, d.content_type, s.session_path "
+            "SELECT d.agenda_item, ai.title AS agenda_title, d.title, d.document_type, d.local_path, d.url, d.content_type, s.session_path "
             "FROM documents d JOIN sessions s ON s.session_id = d.session_id "
+            "LEFT JOIN agenda_items ai ON ai.session_id = d.session_id AND ai.number = d.agenda_item "
             f"WHERE {where} ORDER BY COALESCE(d.agenda_item,''), d.title"
         )
         with sqlite3.connect(db_path) as conn:

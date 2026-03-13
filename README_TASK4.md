@@ -12,9 +12,10 @@ Dieses Dokument beschreibt den Task 4 der Projekt-Roadmap des Ratsinformations-A
   - Maskierung sensibler Daten (u. a. E-Mail, Telefon, IBAN) fuer Analyse-Outputs eingebaut.
   - Menschliche Review-Funktion in GUI und CLI (`scripts/review_analysis_job.py`) ergänzt.
   - Deterministische Plausibilitaetsflags und Bias-/Balance-Metriken im Analyse-Output ergänzt.
+  - TOP-Analyse gruppiert Dokumente je Tagesordnungspunkt und markiert Inkonsistenzen; `citizen_explainer` und `topic_classifier` sind in der GUI freigeschaltet.
 - Offene Folgearbeit:
   - Erweiterte inhaltliche Bias-Metriken fuer spaetere Analysemodi.
-  - TOP-Analyse mit Inkonsistenz-Markierung ueber mehrere Dokumente.
+  - Sitzungsweite Verdichtung und journalistische Perspektive ueber mehrere TOPs.
 
 ## 1 Zielbild
 

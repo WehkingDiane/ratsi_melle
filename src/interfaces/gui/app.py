@@ -1885,6 +1885,8 @@ class GuiLauncher:
             "summary": "Erstelle eine neutrale Zusammenfassung. Nenne Kernthemen, Entscheidungen, Kosten und offene Punkte.",
             "decision_brief": "Fasse den Beschluss zusammen. Nenne Zuständigkeiten, naechste Schritte und offene Entscheidungen.",
             "financial_impact": "Analysiere die finanziellen Auswirkungen. Nenne Kosten, Finanzierung, Haushaltsbezug und Risiken.",
+            "citizen_explainer": "Erklaere den TOP in einfacher Sprache. Vermeide Fachjargon und nenne, was fuer Buergerinnen und Buerger wichtig ist.",
+            "topic_classifier": "Ordne den TOP thematisch ein. Nenne die wichtigsten Politikfelder und begruende die Zuordnung knapp.",
         }.get(mode, self.analysis_prompt_value)
         self.analysis_prompt_box.delete("1.0", "end")
         self.analysis_prompt_box.insert("1.0", default_prompt)

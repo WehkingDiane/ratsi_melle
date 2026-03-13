@@ -98,6 +98,9 @@ def build_analysis_markdown(
 
     field_keys = _mode_field_keys(mode)
     if documents:
+        top_sections = _build_top_sections(documents, mode)
+        if top_sections:
+            summary_lines.extend(["", "## TOP-Analyse", *top_sections])
         summary_lines.extend(["", "## Dokumentkontext"])
         for document in documents:
             title = document.get("title") or "(ohne Titel)"
@@ -172,9 +175,138 @@ def _mode_field_keys(mode: str) -> tuple[str, ...]:
         return ("beschlusstext", "entscheidung", "zustaendigkeit", "begruendung")
     if mode == "financial_impact":
         return ("finanzbezug", "begruendung", "entscheidung")
+    if mode == "topic_classifier":
+        return ("titel", "begruendung", "finanzbezug")
+    if mode == "citizen_explainer":
+        return ("beschlusstext", "begruendung", "finanzbezug")
     if mode == "summary":
         return ("beschlusstext", "finanzbezug")
     return ("beschlusstext", "entscheidung", "begruendung", "finanzbezug", "zustaendigkeit")
+
+
+def _build_top_sections(documents: list[dict], mode: str) -> list[str]:
+    grouped: dict[str, list[dict]] = {}
+    for document in documents:
+        top_number = str(document.get("agenda_item") or "-")
+        grouped.setdefault(top_number, []).append(document)
+
+    if not grouped:
+        return []
+
+    lines: list[str] = []
+    for top_number, top_documents in sorted(grouped.items()):
+        agenda_title = _top_title(top_documents)
+        lines.append(f"### {top_number} - {agenda_title}")
+        lines.append(f"- Dokumente: {len(top_documents)}")
+        lines.append(f"- Dokumenttypen: {', '.join(sorted({_doc_type(doc) for doc in top_documents}))}")
+        inconsistencies = _top_inconsistencies(top_documents)
+        lines.append(
+            f"- Inkonsistenzen: {', '.join(inconsistencies) if inconsistencies else 'keine auffaelligen Widersprueche'}"
+        )
+
+        topics = _infer_topics(top_documents)
+        if topics:
+            lines.append(f"- Themenhinweise: {', '.join(topics)}")
+
+        if mode == "citizen_explainer":
+            lines.append(f"- Kurz erklaert: {_build_citizen_note(top_documents, agenda_title)}")
+        elif mode == "topic_classifier":
+            lines.append(f"- Themenklassifikation: {', '.join(topics or ['allgemeine Verwaltung'])}")
+        else:
+            summary_bits = _top_summary_bits(top_documents, mode)
+            if summary_bits:
+                lines.append(f"- Kernaussagen: {' | '.join(summary_bits)}")
+        lines.append("")
+    if lines and not lines[-1]:
+        lines.pop()
+    return lines
+
+
+def _top_title(documents: list[dict]) -> str:
+    for document in documents:
+        agenda_title = document.get("agenda_title")
+        if isinstance(agenda_title, str) and agenda_title.strip():
+            return agenda_title.strip()
+    for document in documents:
+        title = document.get("title")
+        if isinstance(title, str) and title.strip():
+            return title.strip()
+    return "(ohne TOP-Titel)"
+
+
+def _doc_type(document: dict) -> str:
+    return str(document.get("document_type") or "unbekannt")
+
+
+def _top_inconsistencies(documents: list[dict]) -> list[str]:
+    inconsistencies: list[str] = []
+    if len(_distinct_field_values(documents, "entscheidung", "beschlusstext")) > 1:
+        inconsistencies.append("abweichende Beschlusssignale")
+    if len(_distinct_field_values(documents, "finanzbezug")) > 1:
+        inconsistencies.append("abweichende Finanzangaben")
+    if len(_distinct_field_values(documents, "zustaendigkeit")) > 1:
+        inconsistencies.append("abweichende Zustaendigkeiten")
+    return inconsistencies
+
+
+def _top_summary_bits(documents: list[dict], mode: str) -> list[str]:
+    fields = _mode_field_keys(mode)
+    values: list[str] = []
+    for key in fields:
+        for value in _distinct_field_values(documents, key):
+            values.append(f"{key}: {_truncate(value, 140)}")
+            if len(values) >= 3:
+                return values
+    return values
+
+
+def _distinct_field_values(documents: list[dict], key: str, *extra_keys: str) -> list[str]:
+    values: list[str] = []
+    seen: set[str] = set()
+    for document in documents:
+        fields = document.get("structured_fields")
+        if not isinstance(fields, dict):
+            continue
+        for field_key in (key, *extra_keys):
+            value = fields.get(field_key)
+            if isinstance(value, str) and value.strip():
+                normalized = " ".join(value.split())
+                if normalized not in seen:
+                    seen.add(normalized)
+                    values.append(normalized)
+    return values
+
+
+def _infer_topics(documents: list[dict]) -> list[str]:
+    text_parts: list[str] = []
+    for document in documents:
+        text_parts.extend(
+            [
+                str(document.get("agenda_title") or ""),
+                str(document.get("title") or ""),
+                str(document.get("extracted_text") or ""),
+            ]
+        )
+        fields = document.get("structured_fields")
+        if isinstance(fields, dict):
+            text_parts.append(" ".join(str(value) for value in fields.values() if isinstance(value, str)))
+    text = " ".join(text_parts).lower()
+    topic_keywords = {
+        "Finanzen": ("haushalt", "finanz", "eur", "kosten", "foerder"),
+        "Verkehr": ("verkehr", "strasse", "mobil", "park", "radweg"),
+        "Bildung": ("schule", "kita", "bildung", "schueler"),
+        "Soziales": ("sozial", "jugend", "famil", "wohnen", "pflege"),
+        "Umwelt": ("klima", "umwelt", "energie", "gruen", "solar"),
+    }
+    matches = [topic for topic, keywords in topic_keywords.items() if any(keyword in text for keyword in keywords)]
+    return matches[:3]
+
+
+def _build_citizen_note(documents: list[dict], agenda_title: str) -> str:
+    doc_count = len(documents)
+    topics = _infer_topics(documents)
+    topic_text = f" Themen: {', '.join(topics)}." if topics else ""
+    return f"Zu diesem TOP liegen {doc_count} Dokumente vor. Thema: {agenda_title}.{topic_text}".strip()
 
 
 def _truncate(value: str, max_chars: int) -> str:

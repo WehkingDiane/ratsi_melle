@@ -117,6 +117,43 @@ def test_build_analysis_markdown_applies_mode_specific_fields() -> None:
     assert "finanzbezug: 100 EUR" in financial_md
 
 
+def test_build_analysis_markdown_groups_documents_by_top_and_marks_inconsistencies() -> None:
+    markdown = build_analysis_markdown(
+        session={"date": "2026-01-15", "committee": "Rat"},
+        mode="topic_classifier",
+        scope="tops",
+        selected_tops=["Oe 1", "Oe 2"],
+        documents=[
+            {
+                "agenda_item": "Oe 1",
+                "agenda_title": "Haushalt 2026",
+                "title": "Vorlage Haushalt",
+                "document_type": "vorlage",
+                "extraction_status": "ok",
+                "content_parser_quality": "high",
+                "structured_fields": {"finanzbezug": "100 EUR", "beschlusstext": "Annahme"},
+                "extracted_text": "Haushalt und Kosten fuer 2026.",
+            },
+            {
+                "agenda_item": "Oe 1",
+                "agenda_title": "Haushalt 2026",
+                "title": "Protokoll Haushalt",
+                "document_type": "protokoll",
+                "extraction_status": "ok",
+                "content_parser_quality": "high",
+                "structured_fields": {"entscheidung": "vertagt", "finanzbezug": "150 EUR"},
+                "extracted_text": "Finanzberatung im Ausschuss.",
+            },
+        ],
+        prompt="",
+    )
+
+    assert "## TOP-Analyse" in markdown
+    assert "### Oe 1 - Haushalt 2026" in markdown
+    assert "Inkonsistenzen: abweichende Beschlusssignale, abweichende Finanzangaben" in markdown
+    assert "Themenklassifikation: Finanzen" in markdown
+
+
 def test_enrich_documents_for_analysis_accepts_legacy_session_path(tmp_path: Path) -> None:
     session_dir = tmp_path / "data" / "raw" / "2026" / "01" / "2026-01-15_Rat_902"
     document_dir = session_dir / "agenda" / "o1"
