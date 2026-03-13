@@ -67,17 +67,19 @@ Die GUI ist modular aufgeteilt:
 - Filter: Zeitraum-Presets, manuelle Datumsgrenzen, Gremium, Suche, Sitzungsstatus (`vergangen`, `heute`, `kommend`).
 - Sitzungsliste aus `sessions`.
 - TOP-Auswahl aus `agenda_items`.
+- Analysemodi in der GUI: `summary`, `decision_brief`, `financial_impact`.
 - Scope:
   - ganze Sitzung
   - ausgewaehlte TOPs
 - Analyse-Job-Workflow (aktuell lokaler/mockbarer Ablauf) mit Speicherung in:
   - `analysis_jobs`
   - `analysis_outputs`
+- Job-Historie pro Sitzung direkt in der Analyseansicht.
 - Analyse-Outputs werden als Entwurf (`draft_status`) gefuehrt und enthalten Unsicherheitsmarker sowie Audit-Metadaten
   (u. a. Modus, Parameter, Prompt-Version, Dokument-Hashes).
-- Artefakt-Export nach `data/analysis_outputs/summaries/` und Prompt-Ablage unter `data/analysis_outputs/prompts/`.
-- Menschliche Freigabe/Review ist zusaetzlich per CLI moeglich:
+- Menschliche Freigabe/Review direkt in der GUI mit Reviewer-Kennung, Status und Notizen; CLI bleibt zusaetzlich verfuegbar:
   `python scripts/review_analysis_job.py <job_id> --reviewer <kennung> --status approved`.
+- Artefakt-Export nach `data/analysis_outputs/summaries/` und Prompt-Ablage unter `data/analysis_outputs/prompts/`.
 
 ### Settings / Service
 

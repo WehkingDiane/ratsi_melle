@@ -130,6 +130,12 @@ Im Prompt-Feld kann die Auswertung gesteuert werden, z. B.:
 Erstelle eine neutrale Zusammenfassung. Nenne Kernthemen, Entscheidungen, Kosten und offene Punkte.
 ```
 
+Zusaetzlich kann ueber `Analysemodus` gesteuert werden, welche Ausgabe erzeugt wird:
+
+- `summary`
+- `decision_brief`
+- `financial_impact`
+
 ### 5. Analyse starten
 
 Mit `Analyse starten` wird ein lokaler Markdown-Text erzeugt.
@@ -145,10 +151,23 @@ Die Analyse nutzt jetzt nicht nur Metadaten, sondern auch Dokumentkontext aus lo
 
 Der erzeugte Markdown-Text enthaelt einen Abschnitt `Dokumentkontext`, in dem erkannte Inhalte kompakt aufgefuehrt werden.
 Ergebnisse werden zunaechst als Entwurf (`draft_status = draft`) gespeichert.
-Eine manuelle Freigabe ist per CLI moeglich:
+
+### 6. Review freigeben
+
+Im unteren Bereich der Analyseansicht wird die Job-Historie der aktuell gewaehlten Sitzung angezeigt.
+Ein Klick auf einen Job laedt Ergebnis und Review-Status.
+
+Fuer die Freigabe:
+
+- `Reviewer` ausfuellen
+- Review-Status waehlen (`approved`, `changes_requested`, `rejected`)
+- optional Notizen hinterlegen
+- `Review speichern`
+
+Die CLI bleibt fuer denselben Schritt weiterhin verfuegbar:
 `python scripts/review_analysis_job.py <job_id> --reviewer <kennung> --status approved --notes "..."`.
 
-### 6. Ergebnis exportieren
+### 7. Ergebnis exportieren
 
 Mit `Markdown exportieren` wird das aktuelle Analyseergebnis nach
 `data/analysis_outputs/summaries/analysis_latest.md` geschrieben.

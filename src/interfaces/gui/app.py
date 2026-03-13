@@ -177,7 +177,12 @@ class GuiLauncher:
         self.analysis_result_text: ctk.CTkTextbox | None = None
         self.analysis_status_label: ctk.CTkLabel | None = None
         self.analysis_selected_session_label: ctk.CTkLabel | None = None
+        self.analysis_job_summary_label: ctk.CTkLabel | None = None
         self.analysis_prompt_box: ctk.CTkTextbox | None = None
+        self.analysis_mode_box: ctk.CTkComboBox | None = None
+        self.analysis_job_list_frame: ctk.CTkScrollableFrame | None = None
+        self.analysis_reviewer_entry: ctk.CTkEntry | None = None
+        self.analysis_review_notes_box: ctk.CTkTextbox | None = None
         self.analysis_date_preset_box: ctk.CTkComboBox | None = None
         self.analysis_committee_box: ctk.CTkComboBox | None = None
         self.analysis_session_status_box: ctk.CTkComboBox | None = None
@@ -189,9 +194,12 @@ class GuiLauncher:
         self.analysis_session_status = ctk.StringVar(value="vergangen")
         self.analysis_search = ctk.StringVar(value="")
         self.analysis_scope = ctk.StringVar(value="session")
+        self.analysis_mode = ctk.StringVar(value="summary")
+        self.analysis_reviewer = ctk.StringVar(value="")
+        self.analysis_review_status = ctk.StringVar(value="approved")
         self.analysis_prompt_value = (
-            "Erstelle eine journalistische, neutrale Zusammenfassung. "
-            "Nenne Kernthemen, Entscheidungen und offene Punkte."
+            "Erstelle eine neutrale Zusammenfassung. "
+            "Nenne Kernthemen, Entscheidungen, Kosten und offene Punkte."
         )
         self.export_profile = ctk.StringVar(value="Standardbatch (empfohlen)")
         self.export_date_preset = ctk.StringVar(value="Dieses Jahr")
@@ -199,8 +207,10 @@ class GuiLauncher:
         self.export_document_profile = ctk.StringVar(value="Priorisierte Dokumente")
 
         self.analysis_sessions: list[dict] = []
+        self.analysis_jobs: list[dict] = []
         self.analysis_top_vars: dict[str, ctk.BooleanVar] = {}
         self.analysis_current_session: dict | None = None
+        self.analysis_current_job_id: int | None = None
 
         self.spinner_running = False
         self.spinner_index = 0
@@ -1583,6 +1593,7 @@ class GuiLauncher:
             return
 
         self.analysis_current_session = session_row
+        self.analysis_current_job_id = None
         if self.analysis_selected_session_label:
             self.analysis_selected_session_label.configure(
                 text=(
@@ -1590,12 +1601,14 @@ class GuiLauncher:
                     f"{session_row['meeting_name'] or '-'}"
                 )
             )
+        self._set_analysis_job_summary()
 
         self.analysis_top_vars.clear()
         for child in self.analysis_tops_frame.winfo_children():
             child.destroy()
 
         if not agenda_rows:
+            self._refresh_analysis_jobs()
             ctk.CTkLabel(self.analysis_tops_frame, text="Keine TOPs vorhanden.", font=FIELD_FONT).pack(
                 anchor="w", padx=6, pady=6
             )
@@ -1614,6 +1627,7 @@ class GuiLauncher:
                 font=FIELD_FONT,
             ).pack(anchor="w", padx=6, pady=3)
 
+        self._refresh_analysis_jobs()
         self._set_analysis_status("Sitzung geladen.")
 
     def _start_analysis_job(self) -> None:
@@ -1654,6 +1668,7 @@ class GuiLauncher:
             "scope": scope,
             "selected_tops": selected_tops,
             "db_path": str(db_path),
+            "mode": self.analysis_mode.get().strip() or "summary",
         }
 
     def _run_analysis_job_worker(self, payload: dict, prompt: str) -> None:
@@ -1661,20 +1676,189 @@ class GuiLauncher:
         session = payload["session"]
         scope = payload["scope"]
         selected_tops = payload["selected_tops"]
+        mode = payload["mode"]
         request = AnalysisRequest(
             db_path=db_path,
             session=session,
             scope=scope,
             selected_tops=selected_tops,
             prompt=prompt,
+            mode=mode,
         )
 
         try:
-            result = self.analysis_service.run_journalistic_analysis(request)
-            self.root.after(0, lambda: self._set_analysis_result(result.markdown))
-            self.root.after(0, lambda: self._set_analysis_status(f"Analyse abgeschlossen (Job {result.job_id})."))
+            result = self.analysis_service.run_analysis(request)
+            self.root.after(0, lambda: self._handle_analysis_result(result))
         except Exception as exc:
             self.root.after(0, lambda: self._set_analysis_status(f"Analyse fehlgeschlagen: {exc}"))
+
+    def _handle_analysis_result(self, result) -> None:
+        self.analysis_current_job_id = result.job_id
+        self._set_analysis_result(result.markdown)
+        self.analysis_review_status.set("approved")
+        if self.analysis_review_notes_box:
+            self.analysis_review_notes_box.delete("1.0", "end")
+        self._set_analysis_job_summary(
+            job_id=result.job_id,
+            mode=result.mode,
+            draft_status=result.draft_status,
+            reviewer=result.reviewer,
+            reviewed_at=result.reviewed_at,
+        )
+        self._refresh_analysis_jobs()
+        self._set_analysis_status(f"Analyse abgeschlossen (Job {result.job_id}, Modus {result.mode}).")
+
+    def _refresh_analysis_jobs(self) -> None:
+        db_path = self._resolve_db_path(self.export_db_path.get())
+        session = self.analysis_current_session
+        if not session:
+            self.analysis_jobs = []
+            self._render_analysis_job_list()
+            return
+
+        try:
+            self.analysis_jobs = self.analysis_store.list_analysis_jobs(db_path, str(session["session_id"]))
+        except sqlite3.Error as exc:
+            self.analysis_jobs = []
+            self._set_analysis_status(f"DB error: {exc}")
+        self._render_analysis_job_list()
+
+    def _render_analysis_job_list(self) -> None:
+        if not self.analysis_job_list_frame:
+            return
+        for child in self.analysis_job_list_frame.winfo_children():
+            child.destroy()
+
+        if not self.analysis_jobs:
+            ctk.CTkLabel(
+                self.analysis_job_list_frame,
+                text="Noch keine Analysejobs fuer diese Sitzung.",
+                font=FIELD_FONT,
+                anchor="w",
+                justify="left",
+            ).pack(fill="x", padx=6, pady=6)
+            return
+
+        for row in self.analysis_jobs:
+            text = (
+                f"Job {row.get('id')} | {row.get('mode') or '-'} | "
+                f"Status: {row.get('draft_status') or row.get('status') or '-'}\n"
+                f"{row.get('created_at') or ''}"
+            )
+            ctk.CTkButton(
+                self.analysis_job_list_frame,
+                text=text,
+                command=lambda job_id=row.get("id"): self._load_analysis_job_detail(int(job_id)),
+                anchor="w",
+                height=52,
+                fg_color="#1F2937",
+                hover_color="#374151",
+                font=FIELD_FONT,
+            ).pack(fill="x", padx=6, pady=4)
+
+    def _load_analysis_job_detail(self, job_id: int) -> None:
+        db_path = self._resolve_db_path(self.export_db_path.get())
+        if not db_path.exists():
+            return
+
+        try:
+            job = self.analysis_store.load_latest_analysis_output(db_path, job_id)
+            review = self.analysis_store.load_latest_review(db_path, job_id)
+        except sqlite3.Error as exc:
+            self._set_analysis_status(f"DB error: {exc}")
+            return
+
+        if job is None:
+            self._set_analysis_status("Analysejob nicht gefunden.")
+            return
+
+        self.analysis_current_job_id = job_id
+        self._set_analysis_result(str(job.get("content") or ""))
+        self.analysis_mode.set(str(job.get("mode") or "summary"))
+        self.analysis_review_status.set(str((review or {}).get("status") or "approved"))
+        if self.analysis_reviewer_entry and review and review.get("reviewer"):
+            self.analysis_reviewer.set(str(review["reviewer"]))
+        if self.analysis_review_notes_box:
+            self.analysis_review_notes_box.delete("1.0", "end")
+            self.analysis_review_notes_box.insert("1.0", str((review or {}).get("notes") or ""))
+        self._set_analysis_job_summary(
+            job_id=job_id,
+            mode=str(job.get("mode") or "summary"),
+            draft_status=str(job.get("draft_status") or job.get("status") or "unknown"),
+            reviewer=str((review or {}).get("reviewer") or ""),
+            reviewed_at=str((review or {}).get("reviewed_at") or ""),
+        )
+        self._set_analysis_status(f"Analysejob {job_id} geladen.")
+
+    def _submit_analysis_review(self) -> None:
+        if self.analysis_current_job_id is None:
+            self._set_analysis_status("Bitte zuerst einen Analysejob auswaehlen.")
+            return
+
+        reviewer = self.analysis_reviewer.get().strip()
+        if not reviewer:
+            self._set_analysis_status("Bitte eine Reviewer-Kennung angeben.")
+            return
+
+        notes = ""
+        if self.analysis_review_notes_box:
+            notes = self.analysis_review_notes_box.get("1.0", "end").strip()
+
+        self._set_analysis_status(f"Review wird gespeichert fuer Job {self.analysis_current_job_id}...")
+        thread = threading.Thread(
+            target=self._run_analysis_review_worker,
+            args=(self.analysis_current_job_id, reviewer, self.analysis_review_status.get().strip(), notes),
+            daemon=True,
+        )
+        thread.start()
+
+    def _run_analysis_review_worker(self, job_id: int, reviewer: str, status: str, notes: str) -> None:
+        db_path = self._resolve_db_path(self.export_db_path.get())
+        try:
+            self.analysis_service.review_job(db_path, job_id=job_id, reviewer=reviewer, status=status, notes=notes)
+            self.root.after(0, lambda: self._handle_analysis_review_saved(job_id, reviewer, status, notes))
+        except Exception as exc:
+            self.root.after(0, lambda: self._set_analysis_status(f"Review fehlgeschlagen: {exc}"))
+
+    def _handle_analysis_review_saved(self, job_id: int, reviewer: str, status: str, notes: str) -> None:
+        if self.analysis_review_notes_box:
+            self.analysis_review_notes_box.delete("1.0", "end")
+            self.analysis_review_notes_box.insert("1.0", notes)
+        self._set_analysis_job_summary(
+            job_id=job_id,
+            mode=self.analysis_mode.get().strip() or "summary",
+            draft_status=status,
+            reviewer=reviewer,
+            reviewed_at=datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        )
+        self._refresh_analysis_jobs()
+        self._set_analysis_status(f"Review gespeichert fuer Job {job_id} ({status}).")
+
+    def _set_analysis_job_summary(
+        self,
+        *,
+        job_id: int | None = None,
+        mode: str = "",
+        draft_status: str = "",
+        reviewer: str = "",
+        reviewed_at: str = "",
+    ) -> None:
+        if not self.analysis_job_summary_label:
+            return
+        if job_id is None:
+            self.analysis_job_summary_label.configure(text="Kein Analysejob ausgewaehlt.")
+            return
+
+        parts = [
+            f"Job {job_id}",
+            f"Modus: {mode or '-'}",
+            f"Review-Status: {draft_status or '-'}",
+        ]
+        if reviewer:
+            parts.append(f"Reviewer: {reviewer}")
+        if reviewed_at:
+            parts.append(f"Geprueft: {reviewed_at}")
+        self.analysis_job_summary_label.configure(text=" | ".join(parts))
 
     def _selected_top_numbers(self) -> list[str]:
         selected: list[str] = []
@@ -1696,11 +1880,14 @@ class GuiLauncher:
     def _reset_analysis_prompt(self) -> None:
         if not self.analysis_prompt_box:
             return
+        mode = self.analysis_mode.get().strip() or "summary"
+        default_prompt = {
+            "summary": "Erstelle eine neutrale Zusammenfassung. Nenne Kernthemen, Entscheidungen, Kosten und offene Punkte.",
+            "decision_brief": "Fasse den Beschluss zusammen. Nenne Zuständigkeiten, naechste Schritte und offene Entscheidungen.",
+            "financial_impact": "Analysiere die finanziellen Auswirkungen. Nenne Kosten, Finanzierung, Haushaltsbezug und Risiken.",
+        }.get(mode, self.analysis_prompt_value)
         self.analysis_prompt_box.delete("1.0", "end")
-        self.analysis_prompt_box.insert(
-            "1.0",
-            "Erstelle eine journalistische, neutrale Zusammenfassung. Nenne Kernthemen, Entscheidungen und offene Punkte.",
-        )
+        self.analysis_prompt_box.insert("1.0", default_prompt)
 
     def _export_analysis_markdown(self) -> None:
         if not self.analysis_result_text:

@@ -87,7 +87,8 @@ def build_analysis_view(app, parent: ctk.CTkFrame) -> None:
 
     right_panel = ctk.CTkFrame(parent)
     right_panel.grid(row=1, column=1, sticky="nsew", padx=(10, 20), pady=(0, 20))
-    right_panel.grid_rowconfigure(5, weight=1)
+    right_panel.grid_rowconfigure(6, weight=1)
+    right_panel.grid_rowconfigure(10, weight=1)
     right_panel.grid_columnconfigure(0, weight=1)
 
     app.analysis_selected_session_label = ctk.CTkLabel(
@@ -114,15 +115,26 @@ def build_analysis_view(app, parent: ctk.CTkFrame) -> None:
     app.analysis_tops_frame = ctk.CTkScrollableFrame(right_panel, height=160)
     app.analysis_tops_frame.grid(row=3, column=0, sticky="ew", padx=12)
 
+    mode_row = ctk.CTkFrame(right_panel, fg_color="transparent")
+    mode_row.grid(row=4, column=0, sticky="ew", padx=12, pady=(10, 4))
+    ctk.CTkLabel(mode_row, text="Analysemodus", font=FIELD_FONT).pack(side="left")
+    app.analysis_mode_box = ctk.CTkComboBox(
+        mode_row,
+        variable=app.analysis_mode,
+        values=["summary", "decision_brief", "financial_impact"],
+        width=220,
+    )
+    app.analysis_mode_box.pack(side="left", padx=(10, 0))
+
     ctk.CTkLabel(right_panel, text="Prompt", font=FIELD_FONT).grid(
-        row=4, column=0, sticky="w", padx=12, pady=(10, 4)
+        row=5, column=0, sticky="w", padx=12, pady=(10, 4)
     )
     app.analysis_prompt_box = ctk.CTkTextbox(right_panel, height=90, font=LOG_FONT)
-    app.analysis_prompt_box.grid(row=5, column=0, sticky="nsew", padx=12)
+    app.analysis_prompt_box.grid(row=6, column=0, sticky="nsew", padx=12)
     app.analysis_prompt_box.insert("1.0", app.analysis_prompt_value)
 
     action_row = ctk.CTkFrame(right_panel, fg_color="transparent")
-    action_row.grid(row=6, column=0, sticky="ew", padx=12, pady=(10, 0))
+    action_row.grid(row=7, column=0, sticky="ew", padx=12, pady=(10, 0))
     ctk.CTkButton(
         action_row,
         text="Analyse starten",
@@ -149,10 +161,67 @@ def build_analysis_view(app, parent: ctk.CTkFrame) -> None:
     ).pack(side="left", padx=(10, 0))
 
     app.analysis_status_label = ctk.CTkLabel(right_panel, text="Bereit", font=FIELD_FONT, anchor="w")
-    app.analysis_status_label.grid(row=7, column=0, sticky="ew", padx=12, pady=(10, 4))
+    app.analysis_status_label.grid(row=8, column=0, sticky="ew", padx=12, pady=(10, 4))
+
+    app.analysis_job_summary_label = ctk.CTkLabel(
+        right_panel,
+        text="Kein Analysejob ausgewaehlt.",
+        font=FIELD_FONT,
+        anchor="w",
+    )
+    app.analysis_job_summary_label.grid(row=9, column=0, sticky="ew", padx=12, pady=(0, 4))
 
     app.analysis_result_text = ctk.CTkTextbox(right_panel, height=170, font=LOG_FONT)
-    app.analysis_result_text.grid(row=8, column=0, sticky="nsew", padx=12, pady=(0, 12))
+    app.analysis_result_text.grid(row=10, column=0, sticky="nsew", padx=12, pady=(0, 12))
+
+    review_frame = ctk.CTkFrame(right_panel)
+    review_frame.grid(row=11, column=0, sticky="ew", padx=12, pady=(0, 12))
+    review_frame.grid_columnconfigure(0, weight=1)
+    review_frame.grid_columnconfigure(1, weight=1)
+
+    ctk.CTkLabel(review_frame, text="Job-Historie", font=FIELD_FONT).grid(
+        row=0, column=0, sticky="w", padx=(10, 6), pady=(10, 4)
+    )
+    ctk.CTkLabel(review_frame, text="Review", font=FIELD_FONT).grid(
+        row=0, column=1, sticky="w", padx=(6, 10), pady=(10, 4)
+    )
+
+    app.analysis_job_list_frame = ctk.CTkScrollableFrame(review_frame, height=120)
+    app.analysis_job_list_frame.grid(row=1, column=0, sticky="nsew", padx=(10, 6), pady=(0, 10))
+
+    reviewer_frame = ctk.CTkFrame(review_frame, fg_color="transparent")
+    reviewer_frame.grid(row=1, column=1, sticky="nsew", padx=(6, 10), pady=(0, 10))
+    reviewer_frame.grid_columnconfigure(0, weight=1)
+
+    ctk.CTkLabel(reviewer_frame, text="Reviewer", font=FIELD_FONT).grid(row=0, column=0, sticky="w", pady=(0, 4))
+    app.analysis_reviewer_entry = ctk.CTkEntry(
+        reviewer_frame,
+        textvariable=app.analysis_reviewer,
+        placeholder_text="name oder mail",
+    )
+    app.analysis_reviewer_entry.grid(row=1, column=0, sticky="ew", pady=(0, 8))
+
+    ctk.CTkLabel(reviewer_frame, text="Status", font=FIELD_FONT).grid(row=2, column=0, sticky="w", pady=(0, 4))
+    ctk.CTkComboBox(
+        reviewer_frame,
+        variable=app.analysis_review_status,
+        values=["approved", "changes_requested", "rejected"],
+        width=180,
+    ).grid(row=3, column=0, sticky="w", pady=(0, 8))
+
+    ctk.CTkLabel(reviewer_frame, text="Notizen", font=FIELD_FONT).grid(row=4, column=0, sticky="w", pady=(0, 4))
+    app.analysis_review_notes_box = ctk.CTkTextbox(reviewer_frame, height=90, font=LOG_FONT)
+    app.analysis_review_notes_box.grid(row=5, column=0, sticky="ew")
+
+    ctk.CTkButton(
+        reviewer_frame,
+        text="Review speichern",
+        command=app._submit_analysis_review,
+        fg_color="#B45309",
+        hover_color="#92400E",
+        font=BUTTON_FONT,
+    ).grid(row=6, column=0, sticky="w", pady=(10, 0))
 
     app._refresh_analysis_committee_options()
     app._refresh_analysis_sessions()
+    app._render_analysis_job_list()

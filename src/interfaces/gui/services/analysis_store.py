@@ -154,6 +154,83 @@ class AnalysisStore:
             rows = conn.execute(query, tuple(params)).fetchall()
         return [dict(row) for row in rows]
 
+    def list_analysis_jobs(self, db_path: Path, session_id: str, *, limit: int = 20) -> list[dict]:
+        if not db_path.exists():
+            return []
+
+        with sqlite3.connect(db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            self.ensure_analysis_tables(conn)
+            rows = conn.execute(
+                """
+                SELECT
+                    j.id,
+                    j.created_at,
+                    j.session_id,
+                    j.scope,
+                    j.mode,
+                    j.status,
+                    j.draft_status,
+                    j.model_name,
+                    j.prompt_version,
+                    j.parameters_json,
+                    o.metadata_json
+                FROM analysis_jobs j
+                LEFT JOIN analysis_outputs o
+                    ON o.job_id = j.id
+                    AND o.id = (
+                        SELECT MAX(id) FROM analysis_outputs WHERE job_id = j.id
+                    )
+                WHERE j.session_id = ?
+                ORDER BY j.id DESC
+                LIMIT ?
+                """,
+                (session_id, limit),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def load_latest_review(self, db_path: Path, job_id: int) -> dict | None:
+        if not db_path.exists():
+            return None
+
+        with sqlite3.connect(db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            self.ensure_analysis_tables(conn)
+            row = conn.execute(
+                """
+                SELECT job_id, reviewed_at, reviewer, status, notes
+                FROM analysis_reviews
+                WHERE job_id = ?
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (job_id,),
+            ).fetchone()
+        return dict(row) if row else None
+
+    def load_latest_analysis_output(self, db_path: Path, job_id: int) -> dict | None:
+        if not db_path.exists():
+            return None
+
+        with sqlite3.connect(db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            self.ensure_analysis_tables(conn)
+            row = conn.execute(
+                """
+                SELECT j.id, j.created_at, j.scope, j.mode, j.status, j.draft_status, o.content, o.metadata_json
+                FROM analysis_jobs j
+                LEFT JOIN analysis_outputs o
+                    ON o.job_id = j.id
+                    AND o.id = (
+                        SELECT MAX(id) FROM analysis_outputs WHERE job_id = j.id
+                    )
+                WHERE j.id = ?
+                LIMIT 1
+                """,
+                (job_id,),
+            ).fetchone()
+        return dict(row) if row else None
+
     def ensure_analysis_tables(self, conn: sqlite3.Connection) -> None:
         conn.executescript(
             """
@@ -163,9 +240,12 @@ class AnalysisStore:
                 session_id TEXT NOT NULL,
                 scope TEXT NOT NULL,
                 top_numbers_json TEXT,
+                mode TEXT,
                 model_name TEXT,
                 prompt_version TEXT,
+                parameters_json TEXT,
                 status TEXT NOT NULL,
+                draft_status TEXT,
                 error_message TEXT
             );
 
@@ -175,7 +255,28 @@ class AnalysisStore:
                 output_format TEXT NOT NULL,
                 content TEXT NOT NULL,
                 created_at TEXT NOT NULL,
+                metadata_json TEXT,
+                FOREIGN KEY(job_id) REFERENCES analysis_jobs(id)
+            );
+
+            CREATE TABLE IF NOT EXISTS analysis_reviews (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                job_id INTEGER NOT NULL,
+                reviewed_at TEXT NOT NULL,
+                reviewer TEXT NOT NULL,
+                status TEXT NOT NULL,
+                notes TEXT NOT NULL,
                 FOREIGN KEY(job_id) REFERENCES analysis_jobs(id)
             );
             """
         )
+        self._ensure_column(conn, "analysis_jobs", "mode", "TEXT")
+        self._ensure_column(conn, "analysis_jobs", "parameters_json", "TEXT")
+        self._ensure_column(conn, "analysis_jobs", "draft_status", "TEXT")
+        self._ensure_column(conn, "analysis_outputs", "metadata_json", "TEXT")
+
+    @staticmethod
+    def _ensure_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
+        columns = {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+        if column not in columns:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
