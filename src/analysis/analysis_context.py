@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from src.fetching.storage_layout import resolve_local_file_path
 
 
@@ -15,8 +17,9 @@ def enrich_documents_for_analysis(documents: list[dict]) -> list[dict]:
             session_path=_as_text(entry.get("session_path")),
             local_path=_as_text(entry.get("local_path")),
         )
+        existing_path = _existing_file_path(resolved_path)
         entry["resolved_local_path"] = str(resolved_path) if resolved_path else None
-        entry["source_file_available"] = resolved_path is not None
+        entry["source_file_available"] = existing_path is not None
         enriched.append(entry)
     return enriched
 
@@ -68,3 +71,9 @@ def build_analysis_markdown(
 
 def _as_text(value: object) -> str:
     return value if isinstance(value, str) else ""
+
+
+def _existing_file_path(path: Path | None) -> Path | None:
+    if path is None:
+        return None
+    return path if path.is_file() else None

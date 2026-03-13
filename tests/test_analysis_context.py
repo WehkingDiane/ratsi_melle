@@ -90,3 +90,24 @@ def test_enrich_documents_for_analysis_accepts_legacy_session_path(tmp_path: Pat
 
     assert enriched[0]["resolved_local_path"] == str(document_path)
     assert enriched[0]["source_file_available"] is True
+
+
+def test_enrich_documents_for_analysis_marks_missing_resolved_file_as_unavailable(tmp_path: Path) -> None:
+    session_dir = tmp_path / "data" / "raw" / "2026" / "01" / "2026-01-15_Rat_902"
+    session_dir.mkdir(parents=True, exist_ok=True)
+
+    documents = [
+        {
+            "agenda_item": "Oe 1",
+            "title": "Beschlussvorlage Projekt",
+            "document_type": "beschlussvorlage",
+            "local_path": "agenda/o1/fehlend.txt",
+            "session_path": str(session_dir),
+            "content_type": "text/plain",
+        }
+    ]
+
+    enriched = enrich_documents_for_analysis(documents)
+
+    assert enriched[0]["resolved_local_path"] is not None
+    assert enriched[0]["source_file_available"] is False
