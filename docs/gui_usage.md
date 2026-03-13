@@ -24,7 +24,7 @@ Die GUI ist in mehrere Bereiche gegliedert:
 
 - `Data Tools`: Skriptnahe Funktionen wie Download und Index-Build
 - `Analyse-Batch Export`: Developer-Werkzeug fuer reproduzierbare JSON-Exports inkl. Vorschau
-- `Analysis`: Auswahl von Sitzungen und Erzeugung eines Analyse-Markdowns
+- `Analysis`: Auswahl von Sitzungen und Erzeugung einer lokalen Analysegrundlage
 - weitere technische Bereiche wie Service- und Einstellungsansichten
 
 Leere Eingabefelder enthalten Beispiel-Platzhalter, damit das erwartete Format direkt sichtbar ist, etwa fuer Monate (`5 6 7`) oder Datumswerte (`2026-01-01`).
@@ -56,7 +56,7 @@ Standardziel ist `data/db/local_index.sqlite`.
 
 In `Analyse-Batch Export`:
 
-- `Exportprofil` waehlen, z. B. `Standardbatch (empfohlen)` oder `Rat mit Text-Extraktion`
+- `Exportprofil` waehlen, z. B. `Standardbatch (empfohlen)` oder `Rat (nur Quellenpaket)`
 - optional `Zeitraum`, `Gremium aus DB` und `Dokumentprofil` nutzen
 - falls noetig Feinsteuerung ueber:
   - `DB-Pfad`
@@ -65,7 +65,6 @@ In `Analyse-Batch Export`:
   - `Dokumenttypen (kommagetrennt)`
   - `Von` / `Bis`
   - `Nur lokale Dateien`
-  - `Text-Extraktion einbeziehen`
 - `Analyse-Batch als JSON erzeugen` klicken
 
 Nach erfolgreichem Lauf zeigt die rechte Seite:
@@ -77,28 +76,16 @@ Nach erfolgreichem Lauf zeigt die rechte Seite:
 
 Die Exportdatei liegt damit getrennt von den SQLite-Datenbanken und kann spaeter direkt als KI-/Analyse-Eingang weiterverwendet werden.
 
-Wichtige Wirkung von `Include text extraction`:
-
-- lokale Dokumente werden gelesen
-- Text wird extrahiert
-- fuer `vorlage`, `beschlussvorlage` und `protokoll` werden strukturierte Felder erzeugt
-
 Relevante Exportfelder:
 
-- `extraction_status`
-- `parsing_quality`
-- `content_parser_status`
-- `content_parser_quality`
-- `structured_fields`
-- `matched_sections`
-
-Beispiele fuer `structured_fields`:
-
-- `beschlusstext`
-- `begruendung`
-- `finanzbezug`
-- `zustaendigkeit`
-- `entscheidung`
+- `session_id`
+- `top_number`
+- `top_title`
+- `document_type`
+- `url`
+- `local_path`
+- `resolved_local_path`
+- `sha1`
 
 ## Analyse-Ansicht verwenden
 
@@ -127,22 +114,18 @@ In `Analysis`:
 Im Prompt-Feld kann die Auswertung gesteuert werden, z. B.:
 
 ```text
-Erstelle eine neutrale Zusammenfassung. Nenne Kernthemen, Entscheidungen, Kosten und offene Punkte.
+Erstelle spaeter ueber einen KI-Provider eine neutrale TOP-Analyse. Nenne Kernthemen, Entscheidungen, Unsicherheiten und Quellenbezug.
 ```
 
 ### 5. Analyse starten
 
-Mit `Analyse starten` wird ein lokaler Markdown-Text erzeugt.
+Mit `Analyse starten` wird eine lokale Analysegrundlage als Markdown erzeugt.
 
-Die Analyse nutzt jetzt nicht nur Metadaten, sondern auch Dokumentkontext aus lokalen Dateien:
+Diese Ausgabe enthaelt bewusst keine lokale PDF- oder Text-Inhaltsanalyse mehr. Sie dient nur als vorbereitender Kontext fuer eine spaetere KI-Analyse und listet insbesondere:
 
-- Dokumenttyp
-- Extraktionsstatus
-- Parser-Qualitaet
-- erkannte PDF-Abschnitte und Seitenkontext
-- strukturierte Felder aus Beschlussvorlagen und Protokollen
-
-Der erzeugte Markdown-Text enthaelt einen Abschnitt `Dokumentkontext`, in dem erkannte Inhalte kompakt aufgefuehrt werden.
+- Scope und TOP-Auswahl
+- Dokumente im Scope
+- Quellenpfade und Quell-URLs
 
 ### 6. Ergebnis exportieren
 
@@ -159,16 +142,12 @@ Pruefen:
 - wurde `python scripts/build_local_index.py` bereits ausgefuehrt
 - sind die gesetzten Filter zu restriktiv
 
-### Keine strukturierten Dokumentfelder im Export
+### Im Export fehlen lokale Quelldateien
 
 Pruefen:
 
-- `Include text extraction` ist aktiviert
 - das Dokument hat einen lokalen Pfad
-- der Dokumenttyp ist einer der priorisierten Typen:
-  - `vorlage`
-  - `beschlussvorlage`
-  - `protokoll`
+- `Nur lokale Dateien` ist passend gesetzt
 
 ### GUI startet unter WSL nicht
 
@@ -181,5 +160,4 @@ Pruefen:
 
 - GUI-Architektur: `docs/gui.md`
 - Analyse-Kontext: `src/analysis/analysis_context.py`
-- Inhaltsparser: `src/parsing/document_content.py`
 - Batch-Export: `scripts/export_analysis_batch.py`

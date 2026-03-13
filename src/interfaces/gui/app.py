@@ -76,8 +76,6 @@ class GuiLauncher:
         self.export_date_to = ctk.StringVar(value="")
         self.export_document_types = ctk.StringVar(value="")
         self.export_require_local_path = ctk.BooleanVar(value=False)
-        self.export_include_text_extraction = ctk.BooleanVar(value=False)
-        self.export_max_text_chars = ctk.StringVar(value="12000")
         self.export_field_defaults = {
             "db_path": str(LOCAL_INDEX_DB.relative_to(REPO_ROOT)),
             "output_path": str(DEFAULT_ANALYSIS_BATCH.relative_to(REPO_ROOT)),
@@ -85,7 +83,6 @@ class GuiLauncher:
             "date_from": "2026-01-01",
             "date_to": "2026-12-31",
             "document_types": "vorlage, beschlussvorlage, protokoll",
-            "max_text_chars": "12000",
         }
         self.export_profiles = {
             "Standardbatch (empfohlen)": {
@@ -93,28 +90,24 @@ class GuiLauncher:
                 "document_types": "vorlage, beschlussvorlage, protokoll",
                 "date_preset": "Dieses Jahr",
                 "require_local_path": True,
-                "include_text_extraction": True,
             },
-            "Rat mit Text-Extraktion": {
+            "Rat (nur Quellenpaket)": {
                 "committees": "Rat",
                 "document_types": "vorlage, beschlussvorlage, protokoll",
                 "date_preset": "Dieses Jahr",
                 "require_local_path": True,
-                "include_text_extraction": True,
             },
             "Nur Protokolle": {
                 "committees": "",
                 "document_types": "protokoll",
                 "date_preset": "Dieses Jahr",
                 "require_local_path": True,
-                "include_text_extraction": True,
             },
-            "Roh-Export ohne Text": {
+            "Roh-Export": {
                 "committees": "",
                 "document_types": "",
                 "date_preset": "Dieses Jahr",
                 "require_local_path": False,
-                "include_text_extraction": False,
             },
         }
         self.export_date_presets = {
@@ -190,8 +183,8 @@ class GuiLauncher:
         self.analysis_search = ctk.StringVar(value="")
         self.analysis_scope = ctk.StringVar(value="session")
         self.analysis_prompt_value = (
-            "Erstelle eine journalistische, neutrale Zusammenfassung. "
-            "Nenne Kernthemen, Entscheidungen und offene Punkte."
+            "Erstelle spaeter ueber einen KI-Provider eine neutrale TOP-Analyse. "
+            "Nenne Kernthemen, Entscheidungen, Unsicherheiten und Quellenbezug."
         )
         self.export_profile = ctk.StringVar(value="Standardbatch (empfohlen)")
         self.export_date_preset = ctk.StringVar(value="Dieses Jahr")
@@ -345,7 +338,7 @@ class GuiLauncher:
             ),
             "analysis": ViewConfig(
                 key="analysis",
-                label="Journalistische Analyse",
+                label="KI-Analyse Vorbereitung",
                 builder=self._build_analysis_view,
             ),
             "settings": ViewConfig(
@@ -535,7 +528,6 @@ class GuiLauncher:
             self.export_date_from,
             self.export_date_to,
             self.export_document_types,
-            self.export_max_text_chars,
             self.analysis_date_preset,
             self.analysis_date_from,
             self.analysis_date_to,
@@ -547,7 +539,6 @@ class GuiLauncher:
         for var in (
             self.verbose_mode,
             self.export_require_local_path,
-            self.export_include_text_extraction,
         ):
             var.trace_add("write", lambda *_: self._update_run_state())
 
@@ -569,8 +560,6 @@ class GuiLauncher:
             self.export_date_to.set(self.export_field_defaults["date_to"])
         if not self.export_document_types.get().strip():
             self.export_document_types.set(self.export_field_defaults["document_types"])
-        if not self.export_max_text_chars.get().strip():
-            self.export_max_text_chars.set(self.export_field_defaults["max_text_chars"])
 
     def _update_dynamic_controls(self) -> None:
         if self.export_frame:
@@ -671,9 +660,6 @@ class GuiLauncher:
             valid_to, err_to = self._validate_iso_date(self.export_date_to.get().strip())
             if not valid_to:
                 return False, f"Date to: {err_to}"
-            max_chars = self.export_max_text_chars.get().strip()
-            if max_chars and not (max_chars.isdigit() and int(max_chars) >= 1):
-                return False, "Max text chars must be an integer >= 1."
 
         return True, ""
 
@@ -917,7 +903,6 @@ class GuiLauncher:
         date_to = self.export_date_to.get().strip()
         committees = [entry.strip() for entry in self.export_committees.get().split(",") if entry.strip()]
         doc_types = [entry.strip() for entry in self.export_document_types.get().split(",") if entry.strip()]
-        max_chars = int(self.export_max_text_chars.get().strip() or "12000")
         resolved_db = self._resolve_db_path(db_path)
         resolved_output = self._resolve_output_path(output_path)
 
@@ -934,8 +919,6 @@ class GuiLauncher:
                 date_to=date_to or None,
                 document_types=doc_types,
                 require_local_path=self.export_require_local_path.get(),
-                include_text_extraction=self.export_include_text_extraction.get(),
-                max_text_chars=max_chars,
             )
         except Exception as exc:  # pragma: no cover - defensive
             self._append_log(f"[ERROR] Export failed: {exc}")
@@ -984,7 +967,6 @@ class GuiLauncher:
         self.export_committees.set(str(profile.get("committees", "")))
         self.export_document_types.set(str(profile.get("document_types", "")))
         self.export_require_local_path.set(bool(profile.get("require_local_path", False)))
-        self.export_include_text_extraction.set(bool(profile.get("include_text_extraction", False)))
         preset = str(profile.get("date_preset", "Benutzerdefiniert"))
         if preset in self.export_date_presets:
             self.export_date_preset.set(preset)
@@ -1051,8 +1033,6 @@ class GuiLauncher:
             parts.append(f"to={self.export_date_to.get().strip()}")
         if self.export_require_local_path.get():
             parts.append("require_local_path=true")
-        if self.export_include_text_extraction.get():
-            parts.append("text_extraction=true,max_text_chars=" + (self.export_max_text_chars.get().strip() or "12000"))
         return "; ".join(parts) if parts else "none"
 
     def _resolve_output_path(self, output_path: str) -> Path:
@@ -1167,10 +1147,6 @@ class GuiLauncher:
         self.export_date_to.set(str(payload.get("export_date_to", self.export_date_to.get())))
         self.export_document_types.set(str(payload.get("export_document_types", self.export_document_types.get())))
         self.export_require_local_path.set(bool(payload.get("export_require_local_path", self.export_require_local_path.get())))
-        self.export_include_text_extraction.set(
-            bool(payload.get("export_include_text_extraction", self.export_include_text_extraction.get()))
-        )
-        self.export_max_text_chars.set(str(payload.get("export_max_text_chars", self.export_max_text_chars.get())))
 
         self.analysis_date_preset.set(str(payload.get("analysis_date_preset", self.analysis_date_preset.get())))
         self.analysis_date_from.set(str(payload.get("analysis_date_from", self.analysis_date_from.get())))
@@ -1206,8 +1182,6 @@ class GuiLauncher:
             "export_date_to": self.export_date_to.get(),
             "export_document_types": self.export_document_types.get(),
             "export_require_local_path": bool(self.export_require_local_path.get()),
-            "export_include_text_extraction": bool(self.export_include_text_extraction.get()),
-            "export_max_text_chars": self.export_max_text_chars.get(),
             "analysis_date_preset": self.analysis_date_preset.get(),
             "analysis_date_from": self.analysis_date_from.get(),
             "analysis_date_to": self.analysis_date_to.get(),
@@ -1634,7 +1608,7 @@ class GuiLauncher:
             self._set_analysis_status("Keine Daten fuer die Analyse gefunden.")
             return
 
-        self._set_analysis_status("Analyse laeuft...")
+        self._set_analysis_status("Analysegrundlage wird erstellt...")
         thread = threading.Thread(target=self._run_analysis_job_worker, args=(payload, prompt), daemon=True)
         thread.start()
 
@@ -1672,7 +1646,10 @@ class GuiLauncher:
         try:
             result = self.analysis_service.run_journalistic_analysis(request)
             self.root.after(0, lambda: self._set_analysis_result(result.markdown))
-            self.root.after(0, lambda: self._set_analysis_status(f"Analyse abgeschlossen (Job {result.job_id})."))
+            self.root.after(
+                0,
+                lambda: self._set_analysis_status(f"Analysegrundlage erstellt (Job {result.job_id})."),
+            )
         except Exception as exc:
             self.root.after(0, lambda: self._set_analysis_status(f"Analyse fehlgeschlagen: {exc}"))
 
@@ -1699,7 +1676,8 @@ class GuiLauncher:
         self.analysis_prompt_box.delete("1.0", "end")
         self.analysis_prompt_box.insert(
             "1.0",
-            "Erstelle eine journalistische, neutrale Zusammenfassung. Nenne Kernthemen, Entscheidungen und offene Punkte.",
+            "Erstelle spaeter ueber einen KI-Provider eine neutrale TOP-Analyse. "
+            "Nenne Kernthemen, Entscheidungen, Unsicherheiten und Quellenbezug.",
         )
 
     def _export_analysis_markdown(self) -> None:

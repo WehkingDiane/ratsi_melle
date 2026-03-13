@@ -70,17 +70,6 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Export only rows with a non-empty local_path.",
     )
-    parser.add_argument(
-        "--include-text-extraction",
-        action="store_true",
-        help="Extract local document text and include extraction quality metadata.",
-    )
-    parser.add_argument(
-        "--max-text-chars",
-        type=int,
-        default=12000,
-        help="Maximum number of extracted characters included per document.",
-    )
     return parser.parse_args()
 
 
@@ -96,8 +85,6 @@ def main() -> None:
         date_to=args.date_to,
         document_types=args.document_types,
         require_local_path=args.require_local_path,
-        include_text_extraction=args.include_text_extraction,
-        max_text_chars=args.max_text_chars,
     )
     print(f"Exported {count} documents to {args.output}")
 

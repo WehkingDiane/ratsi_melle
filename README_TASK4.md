@@ -1,266 +1,206 @@
 # Task 4: Analysemodul entwickeln
 
-Diese Datei beschreibt Task 4 aus `README.md` ausführlich. Das Analysemodul ist ein zentraler Hauptbestandteil des Projekts und soll bewusst so strukturiert werden, dass spaetere Funktionserweiterungen moeglich bleiben.
+Diese Datei konkretisiert Task 4 aus [README.md](/mnt/c/users/diane/git/ratsi_melle/README.md). Sie beschreibt den inhaltlichen Rahmen fuer das Analysemodul, ohne sich auf die aktuelle Developer-GUI zu beschraenken.
 
-## Zielbild
+Wichtiger Grundsatz:
+Die spaetere vollstaendige inhaltliche Analyse soll ueber KI laufen. Regelbasierte Verfahren bleiben wichtig fuer Vorstrukturierung, Qualitaetspruefung, Quellenbezug und Reproduzierbarkeit, aber nicht als alleinige Endanalyse fuer komplexe PDF-Dokumente.
 
-Das Analysemodul soll Dokumente, Tagesordnungspunkte und ganze Sitzungen so auswerten, dass daraus nachvollziehbare, reproduzierbare und fuer unterschiedliche Zielgruppen nutzbare Ergebnisse entstehen.
+## Ausgangspunkt
 
-Die Analyse soll nicht nur eine einzige Zusammenfassung erzeugen, sondern mehrere Modi unterstuetzen, die je nach Anwendungsfall aktiviert werden koennen.
+Das Projektziel aus `README.md` bleibt unveraendert:
 
-## Leitprinzipien
+- kommunalpolitische Informationen automatisch einsammeln
+- Dokumente und Sitzungen strukturiert aufbereiten
+- nachvollziehbare und verstaendliche Analysen erzeugen
+- spaetere Recherche, Auswertung und Darstellung unterstuetzen
 
-- Faktentreue vor Sprachglanz
-- klare Trennung zwischen Quelle, Extraktion, Analyse und Interpretation
-- reproduzierbare Ergebnisse durch gespeicherte Parameter
-- Kombination aus regelbasierten und KI-gestuetzten Verfahren
-- erweiterbare Architektur fuer weitere Analysearten
+Fuer Task 4 bedeutet das:
+Es braucht ein Analysemodul, das Dokumente, Tagesordnungspunkte und ganze Sitzungen verarbeiten kann, dabei aber klar zwischen vorbereitender Logik und eigentlicher KI-Analyse trennt.
 
-## Analyseziele
+## 1. Analyseziele, Qualitaetskriterien und Ausgabeformate
 
-Folgende Ergebnisarten sollten unterstuetzt werden:
+### Analyseziele
 
-- kurze neutrale Zusammenfassung
-- ausfuehrliche Zusammenfassung
-- strukturierte Extraktion relevanter Inhalte
-- Beschlussanalyse
-- Finanzanalyse
-- Themenklassifikation
-- Priorisierung politisch relevanter Dokumente
-- Vergleich ueber Sitzungen oder Zeitraeume
+Das Analysemodul soll mindestens diese Ziele unterstuetzen:
 
-## Empfohlene Analyseebenen
+- Kernaussagen aus Dokumenten und TOPs erfassen
+- Beschlusslagen und moegliche Verfahrensschritte sichtbar machen
+- finanzielle Hinweise und politische Relevanz erkennbar machen
+- Unterschiede zwischen Dokumenten, Vorlagen und spaeteren Staenden festhalten
+- sitzungsweite Uebersichten aus einzelnen TOP-Analysen ableiten
 
-### 1. Dokumentanalyse
+### Qualitaetskriterien
 
-Ein einzelnes Dokument wird separat analysiert.
+Jede Analyse muss sich an klaren Kriterien messen lassen:
 
-Typische Anwendungsfaelle:
+- Faktentreue
+- Quellenbezug
+- Nachvollziehbarkeit
+- klare Trennung zwischen belegter Aussage und Unsicherheit
+- reproduzierbare Eingaben und Ausgaben
+- menschlich pruefbare Ergebnisse
 
-- Vorlage zusammenfassen
-- Beschlussvorlage in Kernaussagen zerlegen
-- Protokoll-Auszug auf Entscheidungen pruefen
+Wichtige Konsequenz:
+Wenn Dokumente nur schlecht extrahierbar sind oder die Quellenlage duenn ist, darf die Analyse keine Sicherheit vortaeuschen. In solchen Faellen muss die Ausgabe Unsicherheit explizit markieren.
 
-Typische Ausgaben:
+### Ausgabeformate
 
-- Worum geht es?
-- Welche Entscheidung ist vorgesehen oder getroffen?
-- Welche Kosten oder Risiken werden genannt?
-- Welche Stellen oder Gremien sind betroffen?
+Das Modul sollte mehrere Ausgabeschichten beherrschen:
 
-### 2. TOP-Analyse
+- lesbarer Markdown-Bericht fuer Sichtung und Review
+- strukturierte JSON-Ausgabe fuer Weiterverarbeitung
+- Quellenliste mit Dokumentreferenzen
+- spaeter optional exportierbare Artefakte fuer GUI, API oder Redaktion
 
-Alle Dokumente zu einem Tagesordnungspunkt werden zusammengefuehrt und gemeinsam bewertet.
+## 2. Mehrere Analysemodi fuer Dokumente, TOPs und ganze Sitzungen
 
-Typische Anwendungsfaelle:
+Task 4 soll nicht nur eine einzige Analyseform liefern. Stattdessen braucht es mehrere Modi und Analyseebenen.
 
-- Vorlage plus Anlagen plus spaeterer Beschluss
-- verschiedene Dokumente zu einem einzigen Sachverhalt
+### Dokumentebene
 
-Typische Ausgaben:
+Moegliche Ziele:
 
-- Kernthema des TOP
-- Beschlusslage
-- offene Fragen
-- Finanzbezug
-- Unterschiede zwischen Vorlage und Beschluss
+- kurzes Inhaltsprofil eines einzelnen Dokuments
+- Hinweise auf Beschluss, Finanzierung, Zustaendigkeit oder offene Fragen
+- Qualitaetseinschaetzung der Extraktion
 
-### 3. Sitzungsanalyse
+### TOP-Ebene
 
-Alle relevanten Dokumente einer Sitzung werden zu einer uebergeordneten Analyse verdichtet.
+Diese Ebene ist fuer die spaetere KI-Analyse besonders wichtig.
 
-Typische Ausgaben:
+Empfohlener Standardfall:
 
-- wichtigste Themen der Sitzung
-- zentrale Entscheidungen
-- oeffentlich relevante Punkte
-- wiederkehrende Konfliktlinien
-- offene Folgeaufgaben
+- genau ein TOP wird analysiert
+- alle zugeordneten Dokumente werden gebuendelt
+- die KI erstellt daraus eine inhaltliche Zusammenfassung des TOPs
 
-### 4. Vergleichs- und Monitoringanalyse
+Typische Ausgabe fuer einen TOP:
 
-Mehrere Sitzungen oder Dokumentstaende werden ueber Zeitraeume hinweg verglichen.
+- `top_summary`
+- `decision_signal`
+- `financial_signal`
+- `public_relevance`
+- `open_questions`
+- `source_citations`
+- `confidence`
 
-Typische Anwendungsfaelle:
+### Sitzungsebene
 
-- Thema ueber mehrere Monate verfolgen
-- neue Beschluesse gegen fruehere Vorlagen vergleichen
-- geaenderte Dokumente erkennen und hervorheben
+Eine Sitzungsanalyse sollte nicht direkt aus allen Rohdokumenten auf einmal entstehen.
+Sinnvoller ist:
 
-Typische Ausgaben:
+1. einzelne TOPs analysieren
+2. die Ergebnisse pruefen
+3. daraus eine uebergeordnete Sitzungsverdichtung bauen
 
-- was ist neu
-- was hat sich geaendert
-- welche Themen nehmen zu
-- welche Entscheidungen wurden fortgeschrieben oder revidiert
+Das reduziert Halluzinationsrisiken und erhoeht die Nachvollziehbarkeit.
 
-## Empfohlene Analysemodi
+## 3. KI- und regelbasierte Verfahren kombinierbar machen
 
-Die folgenden Modi sind als erster sinnvoller Zielkatalog zu verstehen:
+Task 4 soll einen echten Hybridansatz festlegen.
 
-### `summary`
+### Regelbasierte Aufgaben
 
-Kurze neutrale Zusammenfassung eines Dokuments, TOPs oder einer Sitzung.
+Regeln sind sinnvoll fuer:
 
-### `decision_brief`
+- Einlesen und Strukturieren von Metadaten
+- Dokumenttyp-Erkennung
+- Extraktionsqualitaet
+- Maskierung sensibler Daten
+- Vorfilterung unbrauchbarer Dokumente
+- Hashing, Logging und Artefaktablage
 
-Fokus auf Beschlussinhalt, Entscheidung, Zustaendigkeit und naechste Schritte.
+### KI-basierte Aufgaben
 
-### `financial_impact`
+Die eigentliche inhaltliche Analyse soll ueber KI laufen, insbesondere fuer:
 
-Fokus auf Kosten, Finanzierung, Haushaltsbezug, Foerdermittel und Risiken.
+- Zusammenfassung von PDF-Inhalten
+- Zusammenfuehrung mehrerer Dokumente zu einem TOP
+- Erkennen politischer Relevanz
+- Formulierung verstaendlicher Ausgaben fuer unterschiedliche Zielgruppen
+- spaetere sitzungsweite Verdichtung
 
-### `citizen_explainer`
+### Austauschbare Schnittstellen
 
-Leicht verstaendliche Erklaerung fuer Buergerinnen und Buerger ohne Fachsprache.
+Die KI-Anbindung darf nicht direkt in GUI oder Einzelskripte verdrahtet werden.
+Noetig ist eine austauschbare Schnittstelle mit klaren Ein- und Ausgaben.
 
-### `journalistic_brief`
+Empfohlen wird eine Trennung in:
 
-Arbeitsmodus fuer journalistische Auswertung mit Kernaussagen, Konfliktlinien und offenen Fragen.
+- lokale Vorbereitung des Analyse-Pakets
+- Modell-Client oder Provider-Adapter
+- standardisierte Antwortstruktur
+- nachgelagerte Qualitaets- und Review-Schicht
 
-### `topic_classifier`
+### Empfohlene KI-Uebergabe pro TOP
 
-Thematische Einordnung, z. B. Verkehr, Schule, Haushalt, Bau, Soziales, Klima.
+Der wichtigste Zielpfad fuer Task 4 ist eine KI-Analyse pro TOP.
 
-### `change_monitor`
+Ein geeignetes Eingabepaket sollte enthalten:
 
-Vergleich neuer Dokumente oder Sitzungen mit frueheren Staenden.
+- `session_id`
+- Datum
+- Gremium
+- `top_number`
+- `top_title`
+- Dokumentliste mit Titel, Typ, URL, Pfad und Qualitaetsstatus
+- extrahierte Texte oder direkt uebergebene PDFs, sofern die Schnittstelle dies erlaubt
 
-## Fachliche Analysearten
+Die KI soll daraus fuer genau einen TOP eine belastbare Inhaltszusammenfassung erzeugen.
 
-Unabhaengig vom Modus sollten folgende fachliche Perspektiven unterstuetzt werden:
+## 4. Reproduzierbarkeit, Quellenbezug und menschliche Nachpruefung
 
-- Zusammenfassung
-- Beschlussanalyse
-- Finanzanalyse
-- Akteursanalyse
-- Themenklassifikation
-- Priorisierung
-- Unsicherheits- und Lueckenhinweise
+Task 4 ist nur sinnvoll, wenn Analyseergebnisse spaeter nachvollzogen werden koennen.
 
-## Kombination von KI und Regeln
+### Reproduzierbarkeit
 
-Ein rein KI-basiertes System ist fuer diesen Anwendungsfall nicht ideal. Sinnvoller ist ein Hybridansatz.
-
-### Regelbasiert geeignet fuer
-
-- Datum, Gremium, Dokumenttyp
-- Beschlussformeln
-- Finanzielle Schluesselwoerter
-- strukturierte Kernfelder
-- technische Vorfilterung
-
-### KI geeignet fuer
-
-- Verdichtung laengerer Inhalte
-- Formulierung verschiedener Ausgabeformen
-- thematische Einordnung
-- Zusammenfuehrung mehrerer Dokumente
-- Erkennen indirekter Zusammenhaenge
-
-### Hybridmodus
-
-Empfehlung:
-
-- erst strukturierte Extraktion
-- dann KI-Analyse auf basisbereinigtem Kontext
-- danach Plausibilitaets- und Qualitaetspruefung
-
-## Modell- und Schnittstellenstrategie
-
-Das Analysemodul sollte mehrere Modelle oder Provider unterstuetzen koennen.
-
-Moegliche Varianten:
-
-- lokale Modelle fuer Datenschutz oder Offline-Betrieb
-- API-basierte Modelle fuer hoehere Qualitaet
-- kleine schnelle Modelle fuer Vorfilterung
-- groessere Modelle fuer Endauswertung
-
-Dafuer braucht es eine einheitliche Schnittstelle fuer:
-
-- Eingabekontext
-- Prompting
-- Modellname
-- Modellversion
-- Antwortformat
-- Fehlerbehandlung
-- Logging
-
-## Reproduzierbarkeit und Nachvollziehbarkeit
-
-Zu jeder Analyse sollten mindestens gespeichert werden:
+Zu jeder Analyse sollen mindestens gespeichert werden:
 
 - Analysemodus
-- Modellname
-- Modellversion
-- Prompt oder Prompt-Version
-- Eingabedokumente
+- Eingabekontext
+- verwendete Dokumente
 - Dokument-Hashes
-- Analysezeitpunkt
+- Prompt oder Prompt-Version
+- Modellname oder Provider
 - Parameter der Ausfuehrung
+- Zeitstempel
 
-Ausgaben sollten moeglichst enthalten:
+### Quellenbezug
 
-- Ergebnistext
-- strukturierte Felder
-- Quellenbezug
-- Hinweise auf Unsicherheit
+Jede belastbare Aussage soll auf konkrete Quellen zurueckfuehrbar sein.
+Das gilt besonders fuer spaetere KI-Ausgaben.
 
-## Menschliche Nachpruefung
+Mindesterwartung:
 
-Analyseergebnisse sollen als bearbeitbare Arbeitsgrundlage dienen und nicht als unpruefbare Endwahrheit.
+- Quelle pro Aussage oder Abschnitt nachvollziehbar
+- Dokumentreferenzen sichtbar
+- unklare oder unbelegte Aussagen markiert
 
-Deshalb sinnvoll:
+### Menschliche Nachpruefung
 
-- Ergebnisse als Entwurf kennzeichnen
-- Belegstellen oder Kurzquellen ausgeben
-- offene Fragen sichtbar machen
-- unsichere Aussagen markieren
-- Export fuer redaktionelle Nachbearbeitung erlauben
+Analyseergebnisse duerfen nicht als ungepruefte Endwahrheit behandelt werden.
 
-## Empfohlene Umsetzungsreihenfolge
+Deshalb braucht Task 4:
 
-### Phase 1
+- Draft-Status fuer neue Analysen
+- sichtbare Unsicherheitsmarker
+- Review-Moeglichkeit durch Menschen
+- Freigabe oder Ablehnung mit Notizen
 
-- Einzel-Dokumentanalyse
-- neutrale Zusammenfassung
-- Beschluss- und Finanzfokus
+## Zielbild fuer den ersten sinnvollen Ausbau
 
-### Phase 2
+Ein brauchbarer erster Ausbau von Task 4 waere erreicht, wenn:
 
-- TOP-Analyse
-- Zusammenfuehrung mehrerer Dokumente
-- bessere Priorisierung
+- Analyseziele, Qualitaetskriterien und Ausgabeformate klar definiert sind
+- mehrere Analysemodi fuer Dokument, TOP und Sitzung konzeptionell festgelegt sind
+- eine austauschbare KI-Schnittstelle vorgesehen ist
+- der Standardpfad fuer echte Inhaltsanalyse ueber KI pro TOP definiert ist
+- Quellenbezug, Reproduzierbarkeit und Review verbindlich vorgesehen sind
 
-### Phase 3
+## Offene Punkte
 
-- Sitzungsanalyse
-- journalistischer Modus
-- Buerger-Erklaermodus
-
-### Phase 4
-
-- Vergleichsanalyse
-- Monitoring geaenderter oder neuer Dokumente
-- automatisierte Benachrichtigung oder Warteschlangenlogik
-
-## Offene Architekturfragen
-
-- Welche Analyseergebnisse werden dauerhaft gespeichert?
-- Welche nur on-demand erzeugt?
-- Welche Modelle duerfen lokal laufen?
-- Welche Ergebnisse muessen mit Quellenbeleg ausgegeben werden?
-- Welche Modi kommen zuerst in die Developer-GUI?
-- Welche Modi spaeter in die finale User-Oberflaeche?
-
-## Definition of Done fuer einen ersten sinnvollen Meilenstein
-
-Task 4 muss nicht komplett abgeschlossen sein, um nutzbar zu werden. Ein realistischer erster Meilenstein waere:
-
-- einheitliche Analyse-Schnittstelle
-- mindestens zwei Analysemodi
-- Analyse auf Dokument- und TOP-Ebene
-- Speicherung von Modell-, Prompt- und Kontext-Metadaten
-- nachvollziehbare Ausgaben mit Quellenbezug
-- Tests fuer Kernfluesse und Fehlerfaelle
+- Welche KI-Schnittstelle soll spaeter konkret angebunden werden?
+- Soll die KI Texte, PDFs oder beides pro TOP erhalten?
+- Welche Antwortstruktur ist fuer GUI und API gleichermassen tragfaehig?
+- Welche Teile der Analyse bleiben lokal regelbasiert, welche gehen verpflichtend an die KI?
+- Wie streng muessen Quellen- und Review-Regeln fuer spaetere Endnutzer-Ausgaben sein?

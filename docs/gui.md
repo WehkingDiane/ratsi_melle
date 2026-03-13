@@ -62,7 +62,7 @@ Die GUI ist modular aufgeteilt:
 - Vorschau des erzeugten JSON-Inhalts direkt in der GUI.
 - Umsetzung nutzt die Analyse-API (`src/analysis/batch_exporter.py`) statt direktem Skriptaufruf.
 
-### Journalistische Analyse
+### KI-Analyse Vorbereitung
 
 - Filter: Zeitraum-Presets, manuelle Datumsgrenzen, Gremium, Suche, Sitzungsstatus (`vergangen`, `heute`, `kommend`).
 - Sitzungsliste aus `sessions`.
@@ -70,9 +70,10 @@ Die GUI ist modular aufgeteilt:
 - Scope:
   - ganze Sitzung
   - ausgewaehlte TOPs
-- Analyse-Job-Workflow (aktuell lokaler/mockbarer Ablauf) mit Speicherung in:
+- Analyse-Job-Workflow fuer eine lokale Analysegrundlage mit Speicherung in:
   - `analysis_jobs`
   - `analysis_outputs`
+- Die aktive Ausgabe enthaelt Quellenliste und Scope-Kontext, aber keine lokale PDF-/Text-Inhaltsanalyse.
 - Artefakt-Export nach `data/analysis_outputs/summaries/` und Prompt-Ablage unter `data/analysis_outputs/prompts/`.
 
 ### Settings / Service

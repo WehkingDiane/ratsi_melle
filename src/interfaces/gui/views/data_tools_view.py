@@ -201,23 +201,6 @@ def build_controls(app, parent: ctk.CTkFrame) -> None:
         variable=app.export_require_local_path,
         font=FIELD_FONT,
     ).grid(row=3, column=0, sticky="w", pady=(0, 2))
-    ctk.CTkCheckBox(
-        app.export_frame,
-        text="Include text extraction",
-        variable=app.export_include_text_extraction,
-        font=FIELD_FONT,
-    ).grid(row=3, column=1, sticky="w", pady=(0, 2))
-    ctk.CTkLabel(app.export_frame, text="Max text chars:", font=FIELD_FONT).grid(
-        row=3, column=2, sticky="w", padx=(0, 6), pady=(0, 2)
-    )
-    ctk.CTkEntry(
-        app.export_frame,
-        textvariable=app.export_max_text_chars,
-        width=160,
-        placeholder_text="12000",
-    ).grid(
-        row=3, column=3, sticky="w", pady=(0, 2)
-    )
 
     app.validation_label = ctk.CTkLabel(
         frame,

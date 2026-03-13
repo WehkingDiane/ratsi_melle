@@ -108,25 +108,14 @@ def build_export_view(app, parent: ctk.CTkFrame) -> None:
         row=5, column=1, sticky="ew", padx=12, pady=(0, 8)
     )
 
-    ctk.CTkLabel(controls, text="Max Textzeichen", font=FIELD_FONT).grid(row=4, column=2, sticky="w", padx=12, pady=(0, 6))
-    ctk.CTkEntry(controls, textvariable=app.export_max_text_chars, font=FIELD_FONT, width=180).grid(
-        row=5, column=2, sticky="ew", padx=12, pady=(0, 8)
-    )
-
     toggle_row = ctk.CTkFrame(controls, fg_color="transparent")
-    toggle_row.grid(row=5, column=3, sticky="w", padx=12, pady=(0, 8))
+    toggle_row.grid(row=5, column=2, columnspan=2, sticky="w", padx=12, pady=(0, 8))
     ctk.CTkCheckBox(
         toggle_row,
         text="Nur lokale Dateien",
         variable=app.export_require_local_path,
         font=FIELD_FONT,
     ).pack(anchor="w")
-    ctk.CTkCheckBox(
-        toggle_row,
-        text="Text-Extraktion einbeziehen",
-        variable=app.export_include_text_extraction,
-        font=FIELD_FONT,
-    ).pack(anchor="w", pady=(6, 0))
 
     action_row = ctk.CTkFrame(controls, fg_color="transparent")
     action_row.grid(row=6, column=0, columnspan=4, sticky="ew", padx=12, pady=(4, 12))

@@ -129,6 +129,7 @@ def test_export_analysis_batch_writes_expected_payload(tmp_path: Path) -> None:
     assert docs[0]["retrieved_at"] == "2025-09-18T10:00:00Z"
     assert {entry["document_type"] for entry in docs} == {"protokoll", "beschlussvorlage"}
     assert any(entry["top_number"] == "Ö 1" and entry["top_title"] == "Haushalt" for entry in docs)
+    assert all("resolved_local_path" in entry for entry in docs)
 
 
 def test_normalize_document_types_rejects_unknown_values() -> None:
@@ -138,44 +139,6 @@ def test_normalize_document_types_rejects_unknown_values() -> None:
         assert "Unsupported document type" in str(exc)
     else:  # pragma: no cover - defensive
         raise AssertionError("Expected ValueError for unsupported document type")
-
-
-def test_export_analysis_batch_includes_text_extraction(tmp_path: Path) -> None:
-    db_path = _build_db(tmp_path)
-    output_path = tmp_path / "data" / "analysis_requests" / "analysis_batch_with_text.json"
-
-    count = export_analysis_batch.export_analysis_batch(
-        db_path,
-        output_path,
-        session_ids=["901"],
-        include_text_extraction=True,
-        max_text_chars=10_000,
-    )
-
-    assert count == 2
-    payload = json.loads(output_path.read_text(encoding="utf-8"))
-    assert payload["filters"]["include_text_extraction"] is True
-    assert payload["filters"]["max_text_chars"] == 10_000
-
-    docs = payload["documents"]
-    assert len(docs) == 2
-    for entry in docs:
-        assert entry["extraction_status"] in {"ok", "partial"}
-        assert entry["parsing_quality"] in {"low", "medium", "high"}
-        assert entry["extracted_char_count"] > 0
-        assert entry["resolved_local_path"]
-        assert entry["extraction_pipeline_version"] == "1.2"
-        assert isinstance(entry["extracted_at"], str)
-        assert entry["content_parser_status"] == "ok"
-        assert entry["content_parser_quality"] in {"low", "medium", "high"}
-        assert entry["content_parser_version"] == "1.0"
-        assert isinstance(entry["structured_fields"], dict)
-        assert isinstance(entry["matched_sections"], list)
-
-    by_type = {entry["document_type"]: entry for entry in docs}
-    assert "Freigabe der Mittel" in by_type["beschlussvorlage"]["structured_fields"]["beschlusstext"]
-    assert "50000 EUR" in by_type["beschlussvorlage"]["structured_fields"]["finanzbezug"]
-    assert "einstimmig angenommen" in by_type["protokoll"]["structured_fields"]["entscheidung"]
 
 
 def test_resolve_local_file_path_accepts_windows_separators() -> None:
