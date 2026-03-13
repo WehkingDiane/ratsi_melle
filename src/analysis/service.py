@@ -22,25 +22,21 @@ from src.paths import ANALYSIS_PROMPTS_DIR, ANALYSIS_SUMMARIES_DIR, DEFAULT_ANAL
 
 SUPPORTED_ANALYSIS_MODES = {
     "summary",
-    "decision_brief",
-    "financial_impact",
     "citizen_explainer",
-    "journalistic_brief",
     "topic_classifier",
-    "change_monitor",
 }
 
 
 @dataclass(frozen=True)
 class AnalysisRequest:
-    """Input contract for the journalistic analysis workflow."""
+    """Input contract for the local title-based analysis workflow."""
 
     db_path: Path
     session: dict
     scope: str
     selected_tops: list[str]
     prompt: str
-    mode: str = "journalistic_brief"
+    mode: str = "summary"
     model_name: str = "mock-journalism-v1"
     prompt_version: str = "local-template-1"
     parameters: dict[str, object] | None = None
@@ -62,14 +58,6 @@ class AnalysisService:
             selected_tops=request.selected_tops,
         )
         documents = enrich_documents_for_analysis(documents)
-        if request.mode == "change_monitor":
-            previous_documents = self._load_previous_documents(
-                db_path=db_path,
-                session=request.session,
-                current_documents=documents,
-            )
-            previous_documents = enrich_documents_for_analysis(previous_documents)
-            documents = self._annotate_change_history(documents, previous_documents)
         sanitized_documents: list[dict] = []
         sensitive_data_masked = False
         for document in documents:
@@ -185,7 +173,7 @@ class AnalysisService:
     def run_journalistic_analysis(self, request: AnalysisRequest) -> AnalysisOutputRecord:
         """Backward-compatible wrapper for existing GUI calls."""
 
-        if request.mode == "journalistic_brief":
+        if request.mode in SUPPORTED_ANALYSIS_MODES:
             return self.run_analysis(request)
         adapted = AnalysisRequest(
             db_path=request.db_path,
@@ -193,7 +181,7 @@ class AnalysisService:
             scope=request.scope,
             selected_tops=request.selected_tops,
             prompt=request.prompt,
-            mode="journalistic_brief",
+            mode="summary",
             model_name=request.model_name,
             prompt_version=request.prompt_version,
             parameters=request.parameters,

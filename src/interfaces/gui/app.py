@@ -1884,32 +1884,20 @@ class GuiLauncher:
             return
         mode = self._normalize_analysis_mode(self.analysis_mode.get().strip() or "summary")
         default_prompt = {
-            "summary": "Erstelle eine neutrale Zusammenfassung. Nenne Kernthemen, Entscheidungen, Kosten und offene Punkte.",
-            "decision_brief": "Fasse den Beschluss zusammen. Nenne Zuständigkeiten, naechste Schritte und offene Entscheidungen.",
-            "financial_impact": "Analysiere die finanziellen Auswirkungen. Nenne Kosten, Finanzierung, Haushaltsbezug und Risiken.",
-            "journalistic_brief": (
-                "Erstelle einen lokalen Vorbereitungsbericht fuer spaetere KI-gestuetzte redaktionelle Sichtung. "
-                "Nenne nur extrahierbare Signale, Konflikthinweise, Datenluecken und Nachrecherchebedarf."
-            ),
-            "citizen_explainer": "Erklaere den TOP in einfacher Sprache. Vermeide Fachjargon und nenne, was fuer Buergerinnen und Buerger wichtig ist.",
-            "topic_classifier": "Ordne den TOP thematisch ein. Nenne die wichtigsten Politikfelder und begruende die Zuordnung knapp.",
-            "change_monitor": "Vergleiche die Dokumentlage im Scope. Nenne veraenderte Beschlussstaende, Finanzangaben, Zustaendigkeiten und weiteren Beobachtungsbedarf.",
+            "summary": "Erstelle eine knappe, titelbasierte Uebersicht der Sitzung oder der ausgewaehlten TOPs.",
+            "citizen_explainer": "Erklaere die TOPs nur anhand der Titel in einfacher Sprache.",
+            "topic_classifier": "Ordne die TOPs nur anhand der Titel thematisch ein.",
         }.get(mode, self.analysis_prompt_value)
         self.analysis_prompt_box.delete("1.0", "end")
         self.analysis_prompt_box.insert("1.0", default_prompt)
 
     @staticmethod
     def _normalize_analysis_mode(value: str) -> str:
-        if value.startswith("journalistic_brief"):
-            return "journalistic_brief"
         return value
 
     @staticmethod
     def _display_analysis_mode(value: str) -> str:
-        normalized = GuiLauncher._normalize_analysis_mode(value)
-        return {
-            "journalistic_brief": "journalistic_brief (KI-Platzhalter)",
-        }.get(normalized, normalized)
+        return GuiLauncher._normalize_analysis_mode(value)
 
     def _export_analysis_markdown(self) -> None:
         if not self.analysis_result_text:

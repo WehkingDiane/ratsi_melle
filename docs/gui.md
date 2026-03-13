@@ -64,12 +64,12 @@ Die GUI ist modular aufgeteilt:
 - Vorschau des erzeugten JSON-Inhalts direkt in der GUI.
 - Umsetzung nutzt die Analyse-API (`src/analysis/batch_exporter.py`) statt direktem Skriptaufruf.
 
-### Analyse und Vorbereitung
+### Lokale Analyse
 
 - Filter: Zeitraum-Presets, manuelle Datumsgrenzen, Gremium, Suche, Sitzungsstatus (`vergangen`, `heute`, `kommend`).
 - Sitzungsliste aus `sessions`.
 - TOP-Auswahl aus `agenda_items`.
-- Analysemodi in der GUI: `summary`, `decision_brief`, `financial_impact`, `journalistic_brief`, `citizen_explainer`, `topic_classifier`, `change_monitor`.
+- Analysemodi in der GUI: `summary`, `citizen_explainer`, `topic_classifier`.
 - Scope:
   - ganze Sitzung
   - ausgewaehlte TOPs
@@ -77,10 +77,9 @@ Die GUI ist modular aufgeteilt:
   - `analysis_jobs`
   - `analysis_outputs`
 - Job-Historie pro Sitzung direkt in der Analyseansicht.
-- `journalistic_brief` ist in der GUI bewusst als `KI-Platzhalter` gekennzeichnet. Lokal entsteht hier nur ein Vorbereitungsbericht mit extrahierbaren Signalen, Konflikthinweisen, Datenluecken und Nachrecherchebedarf.
-- Die eigentliche redaktionelle Verdichtung fuer diesen Modus ist spaeter als KI-gestuetzter Workflow mit Dokumentuebergabe vorgesehen und noch nicht produktiv angebunden.
-- `change_monitor` hebt Aenderungssignale wie veraenderte Beschlussstaende, Finanzangaben oder Zustaendigkeiten hervor und vergleicht passende Vorversionen aus frueheren Sitzungen.
-- TOP-Analyse gruppiert Dokumente pro Tagesordnungspunkt und markiert Inkonsistenzen in Beschluss-, Finanz- und Zuständigkeitsangaben.
+- Die lokale Analyse ist bewusst auf reine Titelanalyse beschraenkt.
+- TOP-Analyse gruppiert Dokumente pro Tagesordnungspunkt und leitet nur aus TOP- und Dokumenttiteln Hinweise ab.
+- Beschluss-, Finanz-, Monitoring- und redaktionelle Modi sind aus der lokalen Analyse entfernt, bis eine belastbare KI-gestuetzte Dokumentanalyse angebunden ist.
 - Analyse-Outputs werden als Entwurf (`draft_status`) gefuehrt und enthalten Unsicherheitsmarker sowie Audit-Metadaten
   (u. a. Modus, Parameter, Prompt-Version, Dokument-Hashes).
 - Qualitaetssignale enthalten zusaetzlich Plausibilitaetsflags und Bias-/Balance-Metriken fuer den Review-Schritt.

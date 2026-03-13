@@ -136,31 +136,23 @@ Erstelle eine neutrale Zusammenfassung. Nenne Kernthemen, Entscheidungen, Kosten
 Zusaetzlich kann ueber `Analysemodus` gesteuert werden, welche Ausgabe erzeugt wird:
 
 - `summary`
-- `decision_brief`
-- `financial_impact`
-- `journalistic_brief (KI-Platzhalter)`
 - `citizen_explainer`
 - `topic_classifier`
-- `change_monitor`
 
 ### 5. Analyse starten
 
 Mit `Analyse starten` wird ein lokaler Markdown-Text erzeugt.
 
-Die Analyse nutzt jetzt nicht nur Metadaten, sondern auch Dokumentkontext aus lokalen Dateien:
+Die lokale Analyse nutzt bewusst nur Titel und einfache Metadaten:
 
+- TOP-Titel
+- Dokumenttitel
 - Dokumenttyp
-- Extraktionsstatus
-- Parser-Qualitaet
-- erkannte PDF-Abschnitte und Seitenkontext
-- strukturierte Felder aus Beschlussvorlagen und Protokollen
 - Unsicherheitsmarker, Plausibilitaetsflags, Bias-Metriken und Audit-Metadaten
   (Modus, Prompt-Version, Dokument-Hashes)
 
-Der erzeugte Markdown-Text enthaelt einen Abschnitt `Dokumentkontext`, in dem erkannte Inhalte kompakt aufgefuehrt werden.
-Im Modus `journalistic_brief (KI-Platzhalter)` wird lokal nur ein `Vorbereitungsbericht` erzeugt. Dieser ist keine fertige journalistische Analyse, sondern listet extrahierbare Signale, Konflikthinweise, Datenluecken und Nachrecherchebedarf fuer einen spaeteren KI- oder Review-Schritt.
-Im Modus `change_monitor` werden zusaetzlich beobachtete Aenderungen, passende Vorversionen aus frueheren Sitzungen und weiterer Beobachtungsbedarf im Scope hervorgehoben.
-Bei TOP-Scope wird zusaetzlich eine `TOP-Analyse` mit Dokumentmix, Themenhinweisen und Inkonsistenz-Markierungen erzeugt.
+Der erzeugte Markdown-Text enthaelt einen Abschnitt `Dokumenttitel`, in dem die Titel kompakt aufgefuehrt werden.
+Bei TOP-Scope wird zusaetzlich eine `TOP-Analyse` mit Dokumentmix und titelbasierten Themenhinweisen erzeugt.
 Ergebnisse werden zunaechst als Entwurf (`draft_status = draft`) gespeichert.
 
 ### 6. Review freigeben

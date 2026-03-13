@@ -24,7 +24,7 @@ class AnalysisOutputRecord:
     markdown: str = ""
     document_count: int = 0
     source_db: str = ""
-    mode: str = "journalistic_brief"
+    mode: str = "summary"
     parameters: dict[str, object] = field(default_factory=dict)
     document_hashes: list[dict[str, str]] = field(default_factory=list)
     uncertainty_flags: list[str] = field(default_factory=list)

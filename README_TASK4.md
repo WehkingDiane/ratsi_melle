@@ -8,17 +8,14 @@ Der aktuelle GUI-Bezug in diesem Dokument meint die vorhandene Developer-GUI fue
 
 - Umgesetzt:
   - Einheitliche Analyse-API mit `AnalysisRequest`, `AnalysisService` und versioniertem `AnalysisOutputRecord`.
-  - Analysemodi `summary`, `decision_brief` und `financial_impact` fuer Dokument- und TOP-nahe Ausgaben produktiv nutzbar.
-  - Zusaetzliche Modi `journalistic_brief`, `citizen_explainer` und `topic_classifier` in der Developer-GUI freigeschaltet.
+  - Lokale Analyse auf titelbasierte Modi `summary`, `citizen_explainer` und `topic_classifier` reduziert.
   - Audit-Trail erweitert um Modus, Parameter, Prompt-Version, Modellname und Dokument-Hashes.
   - Sicherheitsmechanismen fuer sensible Daten sowie Unsicherheits-, Plausibilitaets- und Bias-/Balance-Signale im Output.
   - Menschliche Review-Funktion in Developer-GUI und CLI (`scripts/review_analysis_job.py`).
-  - TOP-Analyse mit Gruppierung pro Tagesordnungspunkt, Themenhinweisen und Inkonsistenz-Markierungen.
-  - Lokaler Vorbereitungsbericht fuer `journalistic_brief` mit Konflikthinweisen, Datenluecken und Nachrecherchebedarf.
-  - Erster Monitoring-Modus `change_monitor` mit Aenderungssignalen, Vorversionsvergleich und Beobachtungsbedarf im Scope.
+  - TOP-Analyse mit Gruppierung pro Tagesordnungspunkt und titelbasierten Themenhinweisen.
 - Noch offen:
+  - Echte KI-gestuetzte Analysepfade fuer Beschluss-, Finanz-, Monitoring- und redaktionelle Verdichtung.
   - Weitergehende inhaltliche Bias-Metriken und strengere Fachregeln fuer spaetere Modi.
-  - Echte KI-gestuetzte redaktionelle Verdichtung mit Dokumentuebergabe, Quellenpflicht und belastbaren Belegausgaben.
   - Breitere Zeitreihen- und Benachrichtigungslogik ueber mehrere Sitzungen hinweg.
 
 ## 1 Zielbild
@@ -68,13 +65,9 @@ Mehrere Sitzungen oder Dokumentstände werden über Zeiträume hinweg verglichen
 
 Um die Analyseziele abzudecken, werden verschiedene Modi definiert:
 
-- `summary` - neutrale Kurzfassung mit Quellenangaben.
-- `decision_brief` - Fokus auf Beschlussinhalt, Zuständigkeit und nächste Schritte.
-- `financial_impact` - Analyse von Kosten, Finanzierung, Haushalt, Fördermitteln und Risiken.
-- `citizen_explainer` - leicht verständliche Erklärungen ohne Fachsprache.
-- `journalistic_brief` - lokaler Vorbereitungsbericht als KI-Platzhalter; keine fertige journalistische Analyse.
-- `topic_classifier` - thematische Einordnung.
-- `change_monitor` - Vergleich neuer Dokumente mit früheren Ständen.
+- `summary` - neutrale, lokale Titeluebersicht.
+- `citizen_explainer` - leicht verstaendliche, titelbasierte Einordnung.
+- `topic_classifier` - titelbasierte thematische Einordnung.
 
 Jeder Modus definiert klar, welche Eingaben er benötigt und welche strukturierten Felder er ausgibt; weitere Modi lassen sich später ergänzen.
 
@@ -106,14 +99,14 @@ Analyseergebnisse sind stets als Entwurf zu kennzeichnen. Reviewer:innen sehen B
 
 ## 8 Empfohlene Umsetzungsreihenfolge
 
-- Phase 1 - Basismodule: erledigt.
-  Analyse-Schnittstelle, Datenmodelle, Audit-Trail, Sicherheitsmechanismen und die Modi `summary`, `decision_brief` und `financial_impact` sind vorhanden.
-- Phase 2 - TOP-Analyse und Priorisierung: weitgehend erledigt.
-  Mehrere Dokumente pro TOP werden zusammengefuehrt, `citizen_explainer` und `topic_classifier` sind verfuegbar, Inkonsistenzen werden markiert.
-- Phase 3 - Sitzungsanalyse und KI-gestuetzte redaktionelle Perspektive: teilweise erledigt.
-  Ein lokaler Vorbereitungsbericht fuer `journalistic_brief` ist vorhanden; die eigentliche KI-gestuetzte redaktionelle Verdichtung mit Dokumentuebergabe steht noch aus.
+- Phase 1 - Basismodule: teilweise erledigt.
+  Analyse-Schnittstelle, Datenmodelle, Audit-Trail und Sicherheitsmechanismen sind vorhanden; lokal aktiv bleiben bewusst nur titelbasierte Modi.
+- Phase 2 - TOP-Analyse und Priorisierung: teilweise erledigt.
+  Mehrere Dokumente pro TOP werden zusammengefuehrt, lokale Themenhinweise bleiben auf Titelbasis beschraenkt.
+- Phase 3 - KI-gestuetzte Verdichtung: offen.
+  Beschluss-, Finanz- und redaktionelle Analyse sollen kuenftig ueber echte Dokumentuebergabe an KI-Modelle erfolgen.
 - Phase 4 - Vergleichs- und Monitoringanalysen: offen.
-  Ein erster `change_monitor` mit Vorversionsvergleich ist vorhanden; tiefere Zeitreihen-, Versions- und Benachrichtigungslogik stehen noch aus.
+  Zeitreihen-, Versions- und Benachrichtigungslogik sollen erst mit belastbarer KI-/Dokumentenbasis weitergefuehrt werden.
 
 ## 9 Offene Architekturfragen
 
@@ -128,7 +121,7 @@ Analyseergebnisse sind stets als Entwurf zu kennzeichnen. Reviewer:innen sehen B
 Ein erster nutzbarer Meilenstein umfasst:
 
 - Einheitliche Analyse-API mit Audit-Trail, Logging und nachvollziehbaren Artefakten: erreicht.
-- Mehrere Analysemodi fuer Dokumentanalyse (`summary`, `decision_brief`, `financial_impact`): erreicht.
+- Mehrere lokale, klar abgegrenzte Titelmodi fuer Dokument- und TOP-Sichtung (`summary`, `citizen_explainer`, `topic_classifier`): erreicht.
 - Nachvollziehbare Ergebnisse mit Quellenbezug, strukturierten Feldern und Qualitaetssignalen: erreicht.
 - Speicherung von Modell-, Prompt- und Review-Metadaten wie in Abschnitt 7.3: erreicht.
 - Sicherheitsmechanismen zum Maskieren personenbezogener Daten sowie Halluzinations-/Plausibilitaetsindikatoren: erreicht.

@@ -42,7 +42,7 @@ def test_enrich_documents_for_analysis_adds_structured_fields_from_local_file(tm
     assert "25.000 EUR" in entry["structured_fields"]["finanzbezug"]
 
 
-def test_build_analysis_markdown_includes_structured_document_context() -> None:
+def test_build_analysis_markdown_includes_title_based_document_context() -> None:
     markdown = build_analysis_markdown(
         session={"date": "2026-01-15", "committee": "Rat"},
         mode="summary",
@@ -66,59 +66,38 @@ def test_build_analysis_markdown_includes_structured_document_context() -> None:
         prompt="Bitte Kernthemen und Kosten benennen.",
     )
 
-    assert "## Dokumentkontext" in markdown
+    assert "## Dokumenttitel" in markdown
     assert "beschlussvorlage" in markdown
-    assert "25.000 EUR" in markdown
     assert "beleg_excerpt:" not in markdown
     assert "Bitte Kernthemen und Kosten benennen." in markdown
     assert "## Quellen" in markdown
 
 
-def test_build_analysis_markdown_applies_mode_specific_fields() -> None:
-    documents = [
-        {
-            "agenda_item": "Oe 1",
-            "title": "Vorlage",
-            "document_type": "vorlage",
-            "extraction_status": "ok",
-            "content_parser_quality": "high",
-            "structured_fields": {
-                "beschlusstext": "Beschluss A",
-                "entscheidung": "angenommen",
-                "finanzbezug": "100 EUR",
-                "zustaendigkeit": "Rat",
-            },
-        }
-    ]
-    decision_md = build_analysis_markdown(
+def test_build_analysis_markdown_shows_title_based_quality_signals() -> None:
+    markdown = build_analysis_markdown(
         session={"date": "2026-01-15", "committee": "Rat"},
-        mode="decision_brief",
+        mode="summary",
         scope="session",
         selected_tops=[],
-        documents=documents,
+        documents=[
+            {
+                "agenda_item": "Oe 1",
+                "title": "Vorlage",
+                "document_type": "vorlage",
+            }
+        ],
         prompt="",
         uncertainty_flags=["parser_low"],
-        plausibility_flags=["conflicting_decision_signals"],
+        plausibility_flags=["title_only_local_analysis"],
         bias_metrics={"source_balance": "single_document", "evidence_balance": "moderate", "document_type_diversity": 1},
     )
-    financial_md = build_analysis_markdown(
-        session={"date": "2026-01-15", "committee": "Rat"},
-        mode="financial_impact",
-        scope="session",
-        selected_tops=[],
-        documents=documents,
-        prompt="",
-    )
 
-    assert "entscheidung: angenommen" in decision_md
-    assert "zustaendigkeit: Rat" in decision_md
-    assert "Unsicherheit: parser_low" in decision_md
-    assert "Plausibilitaet: conflicting_decision_signals" in decision_md
-    assert "Bias-Metriken: source_balance=single_document" in decision_md
-    assert "finanzbezug: 100 EUR" in financial_md
+    assert "Unsicherheit: parser_low" in markdown
+    assert "Plausibilitaet: title_only_local_analysis" in markdown
+    assert "Bias-Metriken: source_balance=single_document" in markdown
 
 
-def test_build_analysis_markdown_groups_documents_by_top_and_marks_inconsistencies() -> None:
+def test_build_analysis_markdown_groups_documents_by_top_and_classifies_topics() -> None:
     markdown = build_analysis_markdown(
         session={"date": "2026-01-15", "committee": "Rat"},
         mode="topic_classifier",
@@ -151,14 +130,13 @@ def test_build_analysis_markdown_groups_documents_by_top_and_marks_inconsistenci
 
     assert "## TOP-Analyse" in markdown
     assert "### Oe 1 - Haushalt 2026" in markdown
-    assert "Inkonsistenzen: abweichende Beschlusssignale, abweichende Finanzangaben" in markdown
     assert "Themenklassifikation: Finanzen" in markdown
 
 
-def test_build_analysis_markdown_adds_preparation_report_for_journalistic_brief() -> None:
+def test_build_analysis_markdown_adds_session_overview_for_summary() -> None:
     markdown = build_analysis_markdown(
         session={"date": "2026-01-15", "committee": "Rat", "meeting_name": "Ratssitzung Januar"},
-        mode="journalistic_brief",
+        mode="summary",
         scope="session",
         selected_tops=[],
         documents=[
@@ -190,78 +168,13 @@ def test_build_analysis_markdown_adds_preparation_report_for_journalistic_brief(
         prompt="",
     )
 
-    assert "## Vorbereitungsbericht" in markdown
+    assert "## Sitzungsueberblick" in markdown
     assert "Sitzung: Ratssitzung Januar" in markdown
-    assert "Hinweis: lokaler Vorbereitungsbericht ohne KI-Verdichtung" in markdown
-    assert "Konflikthinweise:" in markdown
-    assert "Offene Punkte fuer KI oder Redaktion:" in markdown
-    assert "Empfohlene Nachrecherche:" in markdown
+    assert "Hinweis: lokale Analyse nutzt nur TOP- und Dokumenttitel" in markdown
+    assert "Dominante Titelthemen:" in markdown
 
 
-def test_build_analysis_markdown_adds_change_monitor_sections() -> None:
-    markdown = build_analysis_markdown(
-        session={"date": "2026-01-15", "committee": "Rat", "meeting_name": "Ratssitzung Januar"},
-        mode="change_monitor",
-        scope="tops",
-        selected_tops=["Oe 1"],
-        documents=[
-            {
-                "agenda_item": "Oe 1",
-                "agenda_title": "Projektbeschluss",
-                "title": "Vorlage Projekt",
-                "document_type": "vorlage",
-                "extraction_status": "ok",
-                "content_parser_quality": "high",
-                "structured_fields": {"beschlusstext": "Annahme", "finanzbezug": "100 EUR"},
-                "extracted_text": "Projekt und Kosten.",
-                "historical_reference": {"date": "2026-01-10", "meeting_name": "Rat Januar"},
-                "historical_change_signals": ["datei_hash_geaendert", "finanzbezug_geaendert"],
-            },
-            {
-                "agenda_item": "Oe 1",
-                "agenda_title": "Projektbeschluss",
-                "title": "Protokoll Projekt",
-                "document_type": "protokoll",
-                "extraction_status": "ok",
-                "content_parser_quality": "high",
-                "structured_fields": {"entscheidung": "vertagt", "finanzbezug": "150 EUR"},
-                "extracted_text": "Projekt, Abstimmung und Kosten.",
-            },
-        ],
-        prompt="",
-    )
-
-    assert "## Sitzungsanalyse" in markdown
-    assert "Beobachtete Aenderungen:" in markdown
-    assert "## TOP-Analyse" in markdown
-    assert "Aenderungssignale: mehrere Dokumenttypen, veraenderter Beschlussstand, veraenderter Finanzbezug, historische Vorversion vorhanden" in markdown
-    assert "Vorversion Vorlage Projekt: 2026-01-10 (Rat Januar)" in markdown
-
-
-def test_build_analysis_markdown_keeps_readable_excerpt() -> None:
-    markdown = build_analysis_markdown(
-        session={"date": "2026-01-15", "committee": "Rat"},
-        mode="summary",
-        scope="session",
-        selected_tops=[],
-        documents=[
-            {
-                "agenda_item": "Oe 1",
-                "title": "Lesbares Dokument",
-                "document_type": "vorlage",
-                "extraction_status": "ok",
-                "content_parser_quality": "high",
-                "extracted_text": "Dies ist eine gut lesbare Zusammenfassung mit klaren Woertern und nachvollziehbaren Saetzen fuer den Bericht.",
-                "structured_fields": {},
-            }
-        ],
-        prompt="",
-    )
-
-    assert "beleg_excerpt: Dies ist eine gut lesbare Zusammenfassung" in markdown
-
-
-def test_build_analysis_markdown_suppresses_unreadable_excerpt() -> None:
+def test_build_analysis_markdown_omits_excerpts_for_title_based_output() -> None:
     markdown = build_analysis_markdown(
         session={"date": "2026-01-15", "committee": "Rat"},
         mode="summary",
@@ -281,7 +194,7 @@ def test_build_analysis_markdown_suppresses_unreadable_excerpt() -> None:
         prompt="",
     )
 
-    assert "unterdrueckt, Textqualitaet unzureichend" in markdown
+    assert "beleg_excerpt:" not in markdown
     assert "qzxv ## @@" not in markdown
 
 

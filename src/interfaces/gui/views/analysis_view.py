@@ -123,12 +123,8 @@ def build_analysis_view(app, parent: ctk.CTkFrame) -> None:
         variable=app.analysis_mode,
         values=[
             "summary",
-            "decision_brief",
-            "financial_impact",
-            "journalistic_brief (KI-Platzhalter)",
             "citizen_explainer",
             "topic_classifier",
-            "change_monitor",
         ],
         width=220,
     )
