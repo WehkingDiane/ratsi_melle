@@ -101,7 +101,8 @@ def build_analysis_markdown(
     if documents:
         session_sections = _build_session_sections(session, documents, mode)
         if session_sections:
-            summary_lines.extend(["", "## Sitzungsanalyse", *session_sections])
+            section_heading = "## Vorbereitungsbericht" if mode == "journalistic_brief" else "## Sitzungsanalyse"
+            summary_lines.extend(["", section_heading, *session_sections])
         top_sections = _build_top_sections(documents, mode)
         if top_sections:
             summary_lines.extend(["", "## TOP-Analyse", *top_sections])
@@ -155,7 +156,7 @@ def _mode_title(mode: str) -> str:
         "summary": "Neutrale Kurzfassung",
         "decision_brief": "Beschlussorientierte Analyse",
         "financial_impact": "Finanzielle Bewertung",
-        "journalistic_brief": "Journalistische Kurzfassung",
+        "journalistic_brief": "Vorbereitungsbericht",
         "citizen_explainer": "Buergererklaerung",
         "topic_classifier": "Thematische Einordnung",
         "change_monitor": "Aenderungsmonitoring",
@@ -168,7 +169,10 @@ def _mode_summary_text(mode: str) -> str:
         "summary": "Neutrale, faktenbasierte Kurzbeschreibung mit Quellenhinweisen.",
         "decision_brief": "Fokus auf Beschluesse, Verantwortlichkeiten und naechste Schritte.",
         "financial_impact": "Fokus auf Kosten, Haushalt, Foerdermittel und finanzielle Risiken.",
-        "journalistic_brief": "Verdichtung fuer redaktionelle Pruefung mit Konfliktlinien und offenen Fragen.",
+        "journalistic_brief": (
+            "Lokaler Vorbereitungsbericht fuer spaetere KI-gestuetzte redaktionelle Sichtung. "
+            "Enthaelt nur auslesbare Signale, Konflikthinweise und offene Fragen aus dem Dokumentbestand."
+        ),
         "citizen_explainer": "Leicht verstaendliche Einordnung fuer nicht-fachliches Publikum.",
         "topic_classifier": "Thematische Zuordnung der Inhalte zu Politikfeldern.",
         "change_monitor": "Vergleich mit frueheren Staenden und Hervorhebung relevanter Aenderungen.",
@@ -218,18 +222,20 @@ def _build_session_sections(session: dict, documents: list[dict], mode: str) -> 
                 lines.append(f"  - {task}")
         return lines
 
+    lines.append("- Hinweis: lokaler Vorbereitungsbericht ohne KI-Verdichtung; Aussagen beruhen nur auf extrahierten Dokumentsignalen.")
+
     conflicts = _session_conflicts(top_groups)
-    lines.append(f"- Konfliktlinien: {', '.join(conflicts) if conflicts else 'keine klaren Konfliktlinien erkannt'}")
+    lines.append(f"- Konflikthinweise: {', '.join(conflicts) if conflicts else 'keine klaren Konflikthinweise erkannt'}")
 
     open_questions = _session_open_questions(top_groups)
     if open_questions:
-        lines.append("- Offene Fragen:")
+        lines.append("- Offene Punkte fuer KI oder Redaktion:")
         for question in open_questions[:3]:
             lines.append(f"  - {question}")
 
     follow_ups = _session_follow_ups(top_groups)
     if follow_ups:
-        lines.append("- Priorisierte Folgeaufgaben:")
+        lines.append("- Empfohlene Nachrecherche:")
         for task in follow_ups[:3]:
             lines.append(f"  - {task}")
 
@@ -375,14 +381,18 @@ def _build_journalistic_brief(documents: list[dict], agenda_title: str) -> list[
     inconsistencies = _top_inconsistencies(documents)
     topics = _infer_topics(documents)
     lines = [
-        f"Redaktioneller Fokus: {agenda_title}",
-        f"Kernaussagen: {' | '.join(summary_bits) if summary_bits else 'noch keine belastbaren Kernaussagen'}",
-        f"Konfliktpunkte: {', '.join(inconsistencies) if inconsistencies else 'keine klaren Konfliktpunkte'}",
+        f"Vorbereitungsfokus: {agenda_title}",
+        (
+            f"Extrahierbare Signale: {' | '.join(summary_bits)}"
+            if summary_bits
+            else "Extrahierbare Signale: keine belastbaren Kernaussagen aus lokalem Parsing"
+        ),
+        f"Konflikthinweise: {', '.join(inconsistencies) if inconsistencies else 'keine klaren Konflikthinweise'}",
     ]
     if topics:
         lines.append(f"Themenlage: {', '.join(topics)}")
     if _top_needs_follow_up(documents):
-        lines.append("Offene Punkte: weitere Verifikation oder politische Einordnung sinnvoll")
+        lines.append("Offene Punkte: fuer KI-Verdichtung oder manuelle Einordnung weitere Verifikation sinnvoll")
     return lines
 
 

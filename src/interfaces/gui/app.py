@@ -1668,7 +1668,7 @@ class GuiLauncher:
             "scope": scope,
             "selected_tops": selected_tops,
             "db_path": str(db_path),
-            "mode": self.analysis_mode.get().strip() or "summary",
+            "mode": self._normalize_analysis_mode(self.analysis_mode.get().strip() or "summary"),
         }
 
     def _run_analysis_job_worker(self, payload: dict, prompt: str) -> None:
@@ -1706,7 +1706,9 @@ class GuiLauncher:
             reviewed_at=result.reviewed_at,
         )
         self._refresh_analysis_jobs()
-        self._set_analysis_status(f"Analyse abgeschlossen (Job {result.job_id}, Modus {result.mode}).")
+        self._set_analysis_status(
+            f"Analyse abgeschlossen (Job {result.job_id}, Modus {self._display_analysis_mode(result.mode)})."
+        )
 
     def _refresh_analysis_jobs(self) -> None:
         db_path = self._resolve_db_path(self.export_db_path.get())
@@ -1741,7 +1743,7 @@ class GuiLauncher:
 
         for row in self.analysis_jobs:
             text = (
-                f"Job {row.get('id')} | {row.get('mode') or '-'} | "
+                f"Job {row.get('id')} | {self._display_analysis_mode(str(row.get('mode') or '-'))} | "
                 f"Status: {row.get('draft_status') or row.get('status') or '-'}\n"
                 f"{row.get('created_at') or ''}"
             )
@@ -1774,7 +1776,7 @@ class GuiLauncher:
 
         self.analysis_current_job_id = job_id
         self._set_analysis_result(str(job.get("content") or ""))
-        self.analysis_mode.set(str(job.get("mode") or "summary"))
+        self.analysis_mode.set(self._display_analysis_mode(str(job.get("mode") or "summary")))
         self.analysis_review_status.set(str((review or {}).get("status") or "approved"))
         if self.analysis_reviewer_entry and review and review.get("reviewer"):
             self.analysis_reviewer.set(str(review["reviewer"]))
@@ -1826,7 +1828,7 @@ class GuiLauncher:
             self.analysis_review_notes_box.insert("1.0", notes)
         self._set_analysis_job_summary(
             job_id=job_id,
-            mode=self.analysis_mode.get().strip() or "summary",
+            mode=self._display_analysis_mode(self.analysis_mode.get().strip() or "summary"),
             draft_status=status,
             reviewer=reviewer,
             reviewed_at=datetime.utcnow().isoformat(timespec="seconds") + "Z",
@@ -1851,7 +1853,7 @@ class GuiLauncher:
 
         parts = [
             f"Job {job_id}",
-            f"Modus: {mode or '-'}",
+            f"Modus: {self._display_analysis_mode(mode) if mode else '-'}",
             f"Review-Status: {draft_status or '-'}",
         ]
         if reviewer:
@@ -1880,18 +1882,34 @@ class GuiLauncher:
     def _reset_analysis_prompt(self) -> None:
         if not self.analysis_prompt_box:
             return
-        mode = self.analysis_mode.get().strip() or "summary"
+        mode = self._normalize_analysis_mode(self.analysis_mode.get().strip() or "summary")
         default_prompt = {
             "summary": "Erstelle eine neutrale Zusammenfassung. Nenne Kernthemen, Entscheidungen, Kosten und offene Punkte.",
             "decision_brief": "Fasse den Beschluss zusammen. Nenne Zuständigkeiten, naechste Schritte und offene Entscheidungen.",
             "financial_impact": "Analysiere die finanziellen Auswirkungen. Nenne Kosten, Finanzierung, Haushaltsbezug und Risiken.",
-            "journalistic_brief": "Verdichte die Sitzung journalistisch. Nenne Kernaussagen, Konfliktlinien, offene Fragen und priorisierte Folgeaufgaben.",
+            "journalistic_brief": (
+                "Erstelle einen lokalen Vorbereitungsbericht fuer spaetere KI-gestuetzte redaktionelle Sichtung. "
+                "Nenne nur extrahierbare Signale, Konflikthinweise, Datenluecken und Nachrecherchebedarf."
+            ),
             "citizen_explainer": "Erklaere den TOP in einfacher Sprache. Vermeide Fachjargon und nenne, was fuer Buergerinnen und Buerger wichtig ist.",
             "topic_classifier": "Ordne den TOP thematisch ein. Nenne die wichtigsten Politikfelder und begruende die Zuordnung knapp.",
             "change_monitor": "Vergleiche die Dokumentlage im Scope. Nenne veraenderte Beschlussstaende, Finanzangaben, Zustaendigkeiten und weiteren Beobachtungsbedarf.",
         }.get(mode, self.analysis_prompt_value)
         self.analysis_prompt_box.delete("1.0", "end")
         self.analysis_prompt_box.insert("1.0", default_prompt)
+
+    @staticmethod
+    def _normalize_analysis_mode(value: str) -> str:
+        if value.startswith("journalistic_brief"):
+            return "journalistic_brief"
+        return value
+
+    @staticmethod
+    def _display_analysis_mode(value: str) -> str:
+        normalized = GuiLauncher._normalize_analysis_mode(value)
+        return {
+            "journalistic_brief": "journalistic_brief (KI-Platzhalter)",
+        }.get(normalized, normalized)
 
     def _export_analysis_markdown(self) -> None:
         if not self.analysis_result_text:

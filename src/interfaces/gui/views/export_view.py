@@ -25,7 +25,7 @@ def build_export_view(app, parent: ctk.CTkFrame) -> None:
         text=(
             "Erzeugt eine reproduzierbare JSON-Datei mit gefilterten Sitzungen und Dokumenten. "
             "Die Datei ist fuer Modelltests, API-Weitergabe und spaetere Vergleiche gedacht, "
-            "nicht fuer die direkte journalistische Analyse in der GUI."
+            "nicht fuer eine direkte fertige Redaktionsausgabe in der GUI."
         ),
         font=FIELD_FONT,
         anchor="w",

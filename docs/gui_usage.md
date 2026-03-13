@@ -138,7 +138,7 @@ Zusaetzlich kann ueber `Analysemodus` gesteuert werden, welche Ausgabe erzeugt w
 - `summary`
 - `decision_brief`
 - `financial_impact`
-- `journalistic_brief`
+- `journalistic_brief (KI-Platzhalter)`
 - `citizen_explainer`
 - `topic_classifier`
 - `change_monitor`
@@ -158,7 +158,7 @@ Die Analyse nutzt jetzt nicht nur Metadaten, sondern auch Dokumentkontext aus lo
   (Modus, Prompt-Version, Dokument-Hashes)
 
 Der erzeugte Markdown-Text enthaelt einen Abschnitt `Dokumentkontext`, in dem erkannte Inhalte kompakt aufgefuehrt werden.
-Im Modus `journalistic_brief` wird zusaetzlich eine `Sitzungsanalyse` mit Konfliktlinien, offenen Fragen und priorisierten Folgeaufgaben ausgegeben.
+Im Modus `journalistic_brief (KI-Platzhalter)` wird lokal nur ein `Vorbereitungsbericht` erzeugt. Dieser ist keine fertige journalistische Analyse, sondern listet extrahierbare Signale, Konflikthinweise, Datenluecken und Nachrecherchebedarf fuer einen spaeteren KI- oder Review-Schritt.
 Im Modus `change_monitor` werden zusaetzlich beobachtete Aenderungen, passende Vorversionen aus frueheren Sitzungen und weiterer Beobachtungsbedarf im Scope hervorgehoben.
 Bei TOP-Scope wird zusaetzlich eine `TOP-Analyse` mit Dokumentmix, Themenhinweisen und Inkonsistenz-Markierungen erzeugt.
 Ergebnisse werden zunaechst als Entwurf (`draft_status = draft`) gespeichert.

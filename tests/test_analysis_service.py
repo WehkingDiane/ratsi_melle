@@ -271,16 +271,16 @@ def test_analysis_service_builds_session_summary_for_journalistic_brief(tmp_path
         session={"session_id": "7001", "date": "2026-03-10", "committee": "Rat", "meeting_name": "Ratssitzung"},
         scope="session",
         selected_tops=[],
-        prompt="Verdichte die Sitzung journalistisch.",
+        prompt="Erstelle einen lokalen Vorbereitungsbericht fuer spaetere KI-gestuetzte redaktionelle Sichtung.",
         mode="journalistic_brief",
     )
 
     record = service.run_analysis(request)
 
     assert record.mode == "journalistic_brief"
-    assert "## Sitzungsanalyse" in record.markdown
-    assert "Konfliktlinien:" in record.markdown
-    assert "Priorisierte Folgeaufgaben:" in record.markdown
+    assert "## Vorbereitungsbericht" in record.markdown
+    assert "Konflikthinweise:" in record.markdown
+    assert "Empfohlene Nachrecherche:" in record.markdown
 
 
 def test_analysis_service_builds_change_monitor_output(tmp_path: Path, monkeypatch) -> None:

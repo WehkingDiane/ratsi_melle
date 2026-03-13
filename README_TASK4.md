@@ -14,11 +14,11 @@ Der aktuelle GUI-Bezug in diesem Dokument meint die vorhandene Developer-GUI fue
   - Sicherheitsmechanismen fuer sensible Daten sowie Unsicherheits-, Plausibilitaets- und Bias-/Balance-Signale im Output.
   - Menschliche Review-Funktion in Developer-GUI und CLI (`scripts/review_analysis_job.py`).
   - TOP-Analyse mit Gruppierung pro Tagesordnungspunkt, Themenhinweisen und Inkonsistenz-Markierungen.
-  - Sitzungsweite Verdichtung fuer `journalistic_brief` mit Konfliktlinien, offenen Fragen und priorisierten Folgeaufgaben.
+  - Lokaler Vorbereitungsbericht fuer `journalistic_brief` mit Konflikthinweisen, Datenluecken und Nachrecherchebedarf.
   - Erster Monitoring-Modus `change_monitor` mit Aenderungssignalen, Vorversionsvergleich und Beobachtungsbedarf im Scope.
 - Noch offen:
   - Weitergehende inhaltliche Bias-Metriken und strengere Fachregeln fuer spaetere Modi.
-  - Tiefere Akteurs- und Konfliktanalysen fuer journalistische Ausgabe.
+  - Echte KI-gestuetzte redaktionelle Verdichtung mit Dokumentuebergabe, Quellenpflicht und belastbaren Belegausgaben.
   - Breitere Zeitreihen- und Benachrichtigungslogik ueber mehrere Sitzungen hinweg.
 
 ## 1 Zielbild
@@ -58,7 +58,7 @@ Alle Dokumente zu einem Tagesordnungspunkt werden gemeinsam analysiert. Über di
 
 ### 4.3 Sitzungsanalyse
 
-Die Gesamtheit der relevanten Dokumente einer Sitzung wird verdichtet. Neben wichtigen Themen und Entscheidungen sollen Konfliktlinien identifiziert, offene Folgeaufgaben priorisiert und jede Aussage mit einer Quellenverlinkung versehen werden.
+Die Gesamtheit der relevanten Dokumente einer Sitzung wird zunaechst lokal zu einem Vorbereitungsbericht verdichtet. Dieser Bericht markiert Themen, Konflikthinweise, Datenluecken und Nachrecherchebedarf. Eine spaetere KI-Verdichtung darf erst auf dieser qualitaetsgeprueften Dokumentbasis aufsetzen und muss jede belastbare Aussage mit Quellenbezug ausgeben.
 
 ### 4.4 Vergleichs- und Monitoringanalyse
 
@@ -72,7 +72,7 @@ Um die Analyseziele abzudecken, werden verschiedene Modi definiert:
 - `decision_brief` - Fokus auf Beschlussinhalt, Zuständigkeit und nächste Schritte.
 - `financial_impact` - Analyse von Kosten, Finanzierung, Haushalt, Fördermitteln und Risiken.
 - `citizen_explainer` - leicht verständliche Erklärungen ohne Fachsprache.
-- `journalistic_brief` - Kernaussagen, Konfliktlinien und offene Fragen.
+- `journalistic_brief` - lokaler Vorbereitungsbericht als KI-Platzhalter; keine fertige journalistische Analyse.
 - `topic_classifier` - thematische Einordnung.
 - `change_monitor` - Vergleich neuer Dokumente mit früheren Ständen.
 
@@ -110,8 +110,8 @@ Analyseergebnisse sind stets als Entwurf zu kennzeichnen. Reviewer:innen sehen B
   Analyse-Schnittstelle, Datenmodelle, Audit-Trail, Sicherheitsmechanismen und die Modi `summary`, `decision_brief` und `financial_impact` sind vorhanden.
 - Phase 2 - TOP-Analyse und Priorisierung: weitgehend erledigt.
   Mehrere Dokumente pro TOP werden zusammengefuehrt, `citizen_explainer` und `topic_classifier` sind verfuegbar, Inkonsistenzen werden markiert.
-- Phase 3 - Sitzungsanalyse und journalistische Perspektive: teilweise erledigt.
-  Sitzungsweite Verdichtung und `journalistic_brief` als End-to-End-Workflow sind vorhanden; vertiefte Konflikt- und Akteursanalysen stehen noch aus.
+- Phase 3 - Sitzungsanalyse und KI-gestuetzte redaktionelle Perspektive: teilweise erledigt.
+  Ein lokaler Vorbereitungsbericht fuer `journalistic_brief` ist vorhanden; die eigentliche KI-gestuetzte redaktionelle Verdichtung mit Dokumentuebergabe steht noch aus.
 - Phase 4 - Vergleichs- und Monitoringanalysen: offen.
   Ein erster `change_monitor` mit Vorversionsvergleich ist vorhanden; tiefere Zeitreihen-, Versions- und Benachrichtigungslogik stehen noch aus.
 
@@ -135,4 +135,4 @@ Ein erster nutzbarer Meilenstein umfasst:
 - Unit-Tests fuer Kernfluesse und Fehlerfaelle: erreicht.
 - Menschliche Review-Funktion in Developer-GUI oder CLI: erreicht.
 
-Der erste Meilenstein kann damit als funktional erreicht gelten. Die naechsten Arbeiten betreffen vor allem Sitzungsanalyse, journalistische Verdichtung und Monitoring.
+Der erste Meilenstein kann damit als funktional erreicht gelten. Die naechsten Arbeiten betreffen vor allem KI-gestuetzte Verdichtung auf Dokumentbasis, sitzungsweite Vorbereitung und Monitoring.

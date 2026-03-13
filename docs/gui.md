@@ -9,7 +9,7 @@ Gemeint ist die interne Developer-GUI fuer Daten-, Export- und Analyse-Workflows
 ## Ziel
 
 - Daten-Workflows (Fetch/Index/Export) direkt aus der Oberflaeche ausfuehren.
-- Vergangene Sitzungen fuer journalistische KI-Aufbereitung auswaehlbar machen.
+- Vergangene Sitzungen fuer KI-gestuetzte redaktionelle Aufbereitung vorbereiten.
 - Die GUI so strukturieren, dass weitere Seiten (`Settings`, `Service`, spaeter weitere) einfach ergaenzt werden koennen.
 
 ## Starten
@@ -64,7 +64,7 @@ Die GUI ist modular aufgeteilt:
 - Vorschau des erzeugten JSON-Inhalts direkt in der GUI.
 - Umsetzung nutzt die Analyse-API (`src/analysis/batch_exporter.py`) statt direktem Skriptaufruf.
 
-### Journalistische Analyse
+### Analyse und Vorbereitung
 
 - Filter: Zeitraum-Presets, manuelle Datumsgrenzen, Gremium, Suche, Sitzungsstatus (`vergangen`, `heute`, `kommend`).
 - Sitzungsliste aus `sessions`.
@@ -77,7 +77,8 @@ Die GUI ist modular aufgeteilt:
   - `analysis_jobs`
   - `analysis_outputs`
 - Job-Historie pro Sitzung direkt in der Analyseansicht.
-- `journalistic_brief` erzeugt eine sitzungsweite Verdichtung mit Konfliktlinien, offenen Fragen und priorisierten Folgeaufgaben.
+- `journalistic_brief` ist in der GUI bewusst als `KI-Platzhalter` gekennzeichnet. Lokal entsteht hier nur ein Vorbereitungsbericht mit extrahierbaren Signalen, Konflikthinweisen, Datenluecken und Nachrecherchebedarf.
+- Die eigentliche redaktionelle Verdichtung fuer diesen Modus ist spaeter als KI-gestuetzter Workflow mit Dokumentuebergabe vorgesehen und noch nicht produktiv angebunden.
 - `change_monitor` hebt Aenderungssignale wie veraenderte Beschlussstaende, Finanzangaben oder Zustaendigkeiten hervor und vergleicht passende Vorversionen aus frueheren Sitzungen.
 - TOP-Analyse gruppiert Dokumente pro Tagesordnungspunkt und markiert Inkonsistenzen in Beschluss-, Finanz- und Zuständigkeitsangaben.
 - Analyse-Outputs werden als Entwurf (`draft_status`) gefuehrt und enthalten Unsicherheitsmarker sowie Audit-Metadaten

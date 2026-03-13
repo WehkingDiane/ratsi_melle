@@ -2,7 +2,7 @@
 
 ## Projektvision
 
-Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen aus dem Ratsinformationssystem der Stadt Melle automatisch einsammeln, analysieren und verständlich aufbereiten.** Vergangene Sitzungen sollen journalistisch zusammengefasst und kommende Sitzungen strukturiert vorbereitet werden um einen Überblick zuerhalten.
+Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen aus dem Ratsinformationssystem der Stadt Melle automatisch einsammeln, analysieren und verständlich aufbereiten.** Vergangene Sitzungen sollen fuer Recherche und spaetere KI-gestuetzte Verdichtung vorbereitet und kommende Sitzungen strukturiert aufbereitet werden, um einen Ueberblick zu erhalten.
 
 ## Leitprinzipien für die Umsetzung
 
@@ -38,7 +38,7 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 - Einstiegspunkt: `python -m src.interfaces.gui.gui_launcher`
 - Architektur und Erweiterungshinweise: `docs/gui.md`
 - Die aktuelle Oberfläche ist eine Developer-GUI fuer interne Workflows; eine finale Endnutzer-GUI ist noch nicht umgesetzt.
-- Analyse-Ansicht mit Moduswahl (`summary`, `decision_brief`, `financial_impact`, `journalistic_brief`, `citizen_explainer`, `topic_classifier`, `change_monitor`) sowie Review-Historie und Freigabe-Workflow.
+- Analyse-Ansicht mit Moduswahl (`summary`, `decision_brief`, `financial_impact`, `journalistic_brief` als KI-Platzhalter, `citizen_explainer`, `topic_classifier`, `change_monitor`) sowie Review-Historie und Freigabe-Workflow.
 - GUI-Quellcode liegt unter `src/interfaces/gui/` und ist in `app.py`, `views/`, `services/` und `config.py` aufgeteilt.
 
 ## Zeilenenden (Windows/Linux)
@@ -56,8 +56,8 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
    - Normalisieren von Dateiformaten (HTML, PDF, Text) und Extrahieren relevanter Inhalte.
    - Strukturierte Ablage in einer revisionssicheren Ordner- oder Datenbankstruktur.
 3. **Analyse & Zusammenfassung**
-   - Einbindung eines Analysemoduls (z. B. regelbasiert oder KI-gestützt), das Texte bewertet, verdichtet und thematisch einordnet.
-   - Ausgabe verständlicher Kurzfassungen, Schlagworte und möglicher Auswirkungen.
+   - Einbindung eines Analysemoduls (z. B. regelbasiert oder KI-gestuetzt), das Texte bewertet, verdichtet und thematisch einordnet.
+   - Ausgabe verstaendlicher Kurzfassungen, Schlagworte und moeglicher Auswirkungen.
 4. **Darstellung & Zugriff**
    - Benutzeroberfläche oder API für Recherche, Filterung und Export der Daten.
    - Optionale Dashboards für Trends, Themencluster oder Zeitleisten.

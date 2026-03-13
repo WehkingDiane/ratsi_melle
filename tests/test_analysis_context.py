@@ -155,7 +155,7 @@ def test_build_analysis_markdown_groups_documents_by_top_and_marks_inconsistenci
     assert "Themenklassifikation: Finanzen" in markdown
 
 
-def test_build_analysis_markdown_adds_session_summary_for_journalistic_brief() -> None:
+def test_build_analysis_markdown_adds_preparation_report_for_journalistic_brief() -> None:
     markdown = build_analysis_markdown(
         session={"date": "2026-01-15", "committee": "Rat", "meeting_name": "Ratssitzung Januar"},
         mode="journalistic_brief",
@@ -190,11 +190,12 @@ def test_build_analysis_markdown_adds_session_summary_for_journalistic_brief() -
         prompt="",
     )
 
-    assert "## Sitzungsanalyse" in markdown
+    assert "## Vorbereitungsbericht" in markdown
     assert "Sitzung: Ratssitzung Januar" in markdown
-    assert "Konfliktlinien:" in markdown
-    assert "Offene Fragen:" in markdown
-    assert "Priorisierte Folgeaufgaben:" in markdown
+    assert "Hinweis: lokaler Vorbereitungsbericht ohne KI-Verdichtung" in markdown
+    assert "Konflikthinweise:" in markdown
+    assert "Offene Punkte fuer KI oder Redaktion:" in markdown
+    assert "Empfohlene Nachrecherche:" in markdown
 
 
 def test_build_analysis_markdown_adds_change_monitor_sections() -> None:
