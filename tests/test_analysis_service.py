@@ -103,8 +103,11 @@ def test_analysis_service_persists_versioned_outputs(tmp_path: Path, monkeypatch
     assert record.sources
     assert record.draft_status == "draft"
     assert record.hallucination_risk in {"low", "medium", "high"}
+    assert isinstance(record.bias_metrics, dict)
+    assert isinstance(record.plausibility_flags, list)
     assert "run_at" in record.audit_trail
     assert "Dokumentkontext" in record.markdown
+    assert "## Qualitaetssignale" in record.markdown
     assert "max@example.org" not in record.markdown
     assert "[EMAIL_MASKED]" in record.markdown
 
@@ -122,6 +125,8 @@ def test_analysis_service_persists_versioned_outputs(tmp_path: Path, monkeypatch
     assert payload["job_id"] == record.job_id
     assert payload["mode"] == "summary"
     assert payload["sensitive_data_masked"] is True
+    assert "bias_metrics" in payload
+    assert "plausibility_flags" in payload
 
 
 def test_analysis_service_review_job_updates_status(tmp_path: Path) -> None:

@@ -147,7 +147,8 @@ Die Analyse nutzt jetzt nicht nur Metadaten, sondern auch Dokumentkontext aus lo
 - Parser-Qualitaet
 - erkannte PDF-Abschnitte und Seitenkontext
 - strukturierte Felder aus Beschlussvorlagen und Protokollen
-- Unsicherheitsmarker und Audit-Metadaten (Modus, Prompt-Version, Dokument-Hashes)
+- Unsicherheitsmarker, Plausibilitaetsflags, Bias-Metriken und Audit-Metadaten
+  (Modus, Prompt-Version, Dokument-Hashes)
 
 Der erzeugte Markdown-Text enthaelt einen Abschnitt `Dokumentkontext`, in dem erkannte Inhalte kompakt aufgefuehrt werden.
 Ergebnisse werden zunaechst als Entwurf (`draft_status = draft`) gespeichert.

@@ -10,10 +10,11 @@ Dieses Dokument beschreibt den Task 4 der Projekt-Roadmap des Ratsinformations-A
   - Audit-Trail erweitert (Modus, Parameter, Dokument-Hashes, Modell-/Prompt-Metadaten).
   - Unsicherheitsmarkierungen und Halluzinations-Risikoindikator in Analyse-Output integriert.
   - Maskierung sensibler Daten (u. a. E-Mail, Telefon, IBAN) fuer Analyse-Outputs eingebaut.
-  - Menschliche Review-Funktion als CLI (`scripts/review_analysis_job.py`) ergänzt.
+  - Menschliche Review-Funktion in GUI und CLI (`scripts/review_analysis_job.py`) ergänzt.
+  - Deterministische Plausibilitaetsflags und Bias-/Balance-Metriken im Analyse-Output ergänzt.
 - Offene Folgearbeit:
-  - GUI-Review-Flow fuer Freigabe/Kommentare.
-  - Erweiterte Bias-Metriken und strengere Plausibilitaetsregeln.
+  - Erweiterte inhaltliche Bias-Metriken fuer spaetere Analysemodi.
+  - TOP-Analyse mit Inkonsistenz-Markierung ueber mehrere Dokumente.
 
 ## 1 Zielbild
 

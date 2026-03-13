@@ -97,6 +97,8 @@ def test_build_analysis_markdown_applies_mode_specific_fields() -> None:
         documents=documents,
         prompt="",
         uncertainty_flags=["parser_low"],
+        plausibility_flags=["conflicting_decision_signals"],
+        bias_metrics={"source_balance": "single_document", "evidence_balance": "moderate", "document_type_diversity": 1},
     )
     financial_md = build_analysis_markdown(
         session={"date": "2026-01-15", "committee": "Rat"},
@@ -110,6 +112,8 @@ def test_build_analysis_markdown_applies_mode_specific_fields() -> None:
     assert "entscheidung: angenommen" in decision_md
     assert "zustaendigkeit: Rat" in decision_md
     assert "Unsicherheit: parser_low" in decision_md
+    assert "Plausibilitaet: conflicting_decision_signals" in decision_md
+    assert "Bias-Metriken: source_balance=single_document" in decision_md
     assert "finanzbezug: 100 EUR" in financial_md
 
 

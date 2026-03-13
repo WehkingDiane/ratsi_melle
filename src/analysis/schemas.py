@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 
 
-ANALYSIS_OUTPUT_SCHEMA_VERSION = "1.1"
+ANALYSIS_OUTPUT_SCHEMA_VERSION = "1.2"
 
 
 @dataclass(frozen=True)
@@ -28,6 +28,8 @@ class AnalysisOutputRecord:
     parameters: dict[str, object] = field(default_factory=dict)
     document_hashes: list[dict[str, str]] = field(default_factory=list)
     uncertainty_flags: list[str] = field(default_factory=list)
+    plausibility_flags: list[str] = field(default_factory=list)
+    bias_metrics: dict[str, object] = field(default_factory=dict)
     hallucination_risk: str = "unknown"
     sources: list[dict[str, str]] = field(default_factory=list)
     sensitive_data_masked: bool = False

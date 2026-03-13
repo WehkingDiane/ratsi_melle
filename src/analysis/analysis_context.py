@@ -58,6 +58,8 @@ def build_analysis_markdown(
     documents: list[dict],
     prompt: str,
     uncertainty_flags: list[str] | None = None,
+    plausibility_flags: list[str] | None = None,
+    bias_metrics: dict[str, object] | None = None,
 ) -> str:
     """Render a markdown summary for the local analysis workflow."""
 
@@ -78,9 +80,21 @@ def build_analysis_markdown(
         f"## {mode_title}",
         _mode_summary_text(mode),
     ]
-    if uncertainty_flags:
+    if uncertainty_flags or plausibility_flags or bias_metrics:
         summary_lines.append("")
+        summary_lines.append("## Qualitaetssignale")
+    if uncertainty_flags:
         summary_lines.append(f"- Unsicherheit: {', '.join(uncertainty_flags)}")
+    if plausibility_flags:
+        summary_lines.append(f"- Plausibilitaet: {', '.join(plausibility_flags)}")
+    if bias_metrics:
+        balance = bias_metrics.get("source_balance", "-")
+        evidence = bias_metrics.get("evidence_balance", "-")
+        diversity = bias_metrics.get("document_type_diversity", "-")
+        summary_lines.append(
+            f"- Bias-Metriken: source_balance={balance}, evidence_balance={evidence}, "
+            f"document_type_diversity={diversity}"
+        )
 
     field_keys = _mode_field_keys(mode)
     if documents:
@@ -161,6 +175,7 @@ def _mode_field_keys(mode: str) -> tuple[str, ...]:
     if mode == "summary":
         return ("beschlusstext", "finanzbezug")
     return ("beschlusstext", "entscheidung", "begruendung", "finanzbezug", "zustaendigkeit")
+
 
 def _truncate(value: str, max_chars: int) -> str:
     cleaned = " ".join(value.split())

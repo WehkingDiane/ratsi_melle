@@ -77,6 +77,7 @@ Die GUI ist modular aufgeteilt:
 - Job-Historie pro Sitzung direkt in der Analyseansicht.
 - Analyse-Outputs werden als Entwurf (`draft_status`) gefuehrt und enthalten Unsicherheitsmarker sowie Audit-Metadaten
   (u. a. Modus, Parameter, Prompt-Version, Dokument-Hashes).
+- Qualitaetssignale enthalten zusaetzlich Plausibilitaetsflags und Bias-/Balance-Metriken fuer den Review-Schritt.
 - Menschliche Freigabe/Review direkt in der GUI mit Reviewer-Kennung, Status und Notizen; CLI bleibt zusaetzlich verfuegbar:
   `python scripts/review_analysis_job.py <job_id> --reviewer <kennung> --status approved`.
 - Artefakt-Export nach `data/analysis_outputs/summaries/` und Prompt-Ablage unter `data/analysis_outputs/prompts/`.

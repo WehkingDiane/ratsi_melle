@@ -10,6 +10,8 @@ from pathlib import Path
 
 from src.analysis.analysis_context import build_analysis_markdown, enrich_documents_for_analysis
 from src.analysis.safety import (
+    derive_bias_metrics,
+    derive_plausibility_flags,
     derive_uncertainty_flags,
     estimate_hallucination_risk,
     hash_document,
@@ -69,8 +71,14 @@ class AnalysisService:
 
         parameters = dict(request.parameters or {})
         uncertainty_flags = derive_uncertainty_flags(sanitized_documents)
+        plausibility_flags = derive_plausibility_flags(sanitized_documents, request.mode)
+        bias_metrics = derive_bias_metrics(sanitized_documents)
         document_hashes = [hash_document(document) for document in sanitized_documents]
-        hallucination_risk = estimate_hallucination_risk(sanitized_documents, uncertainty_flags)
+        hallucination_risk = estimate_hallucination_risk(
+            sanitized_documents,
+            uncertainty_flags,
+            plausibility_flags,
+        )
         source_refs = self._build_source_references(sanitized_documents)
 
         markdown = build_analysis_markdown(
@@ -81,6 +89,8 @@ class AnalysisService:
             documents=sanitized_documents,
             prompt=request.prompt,
             uncertainty_flags=uncertainty_flags,
+            plausibility_flags=plausibility_flags,
+            bias_metrics=bias_metrics,
         )
 
         with sqlite3.connect(db_path) as conn:
@@ -114,6 +124,8 @@ class AnalysisService:
                         {
                             "mode": request.mode,
                             "uncertainty_flags": uncertainty_flags,
+                            "plausibility_flags": plausibility_flags,
+                            "bias_metrics": bias_metrics,
                             "hallucination_risk": hallucination_risk,
                             "document_hashes": document_hashes,
                         },
@@ -132,6 +144,8 @@ class AnalysisService:
             "parameters": parameters,
             "source_db": str(db_path),
             "document_hashes": document_hashes,
+            "plausibility_flags": plausibility_flags,
+            "bias_metrics": bias_metrics,
         }
         record = AnalysisOutputRecord(
             job_id=job_id,
@@ -149,6 +163,8 @@ class AnalysisService:
             parameters=parameters,
             document_hashes=document_hashes,
             uncertainty_flags=uncertainty_flags,
+            plausibility_flags=plausibility_flags,
+            bias_metrics=bias_metrics,
             hallucination_risk=hallucination_risk,
             sources=source_refs,
             sensitive_data_masked=sensitive_data_masked,

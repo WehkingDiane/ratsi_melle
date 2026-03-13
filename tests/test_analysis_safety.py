@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from src.analysis.safety import (
+    derive_bias_metrics,
+    derive_plausibility_flags,
     derive_uncertainty_flags,
     estimate_hallucination_risk,
     hash_document,
@@ -48,3 +50,43 @@ def test_uncertainty_and_risk_flags() -> None:
     assert "source_ocr_needed" in flags
     assert "parser_low" in flags
     assert estimate_hallucination_risk(documents, flags) in {"high", "medium"}
+
+
+def test_plausibility_flags_detect_conflicts_and_missing_financial_evidence() -> None:
+    documents = [
+        {
+            "structured_fields": {
+                "entscheidung": "angenommen",
+                "zustaendigkeit": "Rat",
+            },
+            "extracted_text": "Kurztext",
+        },
+        {
+            "structured_fields": {
+                "entscheidung": "vertagt",
+                "zustaendigkeit": "Ausschuss",
+            },
+            "extracted_text": "Auch kurz.",
+        },
+    ]
+
+    flags = derive_plausibility_flags(documents, "financial_impact")
+
+    assert "conflicting_decision_signals" in flags
+    assert "conflicting_responsibility_signals" in flags
+    assert "missing_financial_evidence" in flags
+    assert "limited_source_context" in flags
+
+
+def test_bias_metrics_describe_source_balance() -> None:
+    metrics = derive_bias_metrics(
+        [
+            {"document_type": "vorlage", "agenda_item": "Oe 1", "structured_fields": {"entscheidung": "a"}},
+            {"document_type": "protokoll", "agenda_item": "Oe 2", "structured_fields": {"entscheidung": "b"}},
+        ]
+    )
+
+    assert metrics["document_count"] == 2
+    assert metrics["document_type_diversity"] == 2
+    assert metrics["source_balance"] == "mixed_sources"
+    assert metrics["evidence_balance"] in {"moderate", "broad"}
