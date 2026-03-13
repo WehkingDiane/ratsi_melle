@@ -78,7 +78,7 @@ Die GUI ist modular aufgeteilt:
   - `analysis_outputs`
 - Job-Historie pro Sitzung direkt in der Analyseansicht.
 - `journalistic_brief` erzeugt eine sitzungsweite Verdichtung mit Konfliktlinien, offenen Fragen und priorisierten Folgeaufgaben.
-- `change_monitor` hebt Aenderungssignale wie veraenderte Beschlussstaende, Finanzangaben oder Zustaendigkeiten hervor.
+- `change_monitor` hebt Aenderungssignale wie veraenderte Beschlussstaende, Finanzangaben oder Zustaendigkeiten hervor und vergleicht passende Vorversionen aus frueheren Sitzungen.
 - TOP-Analyse gruppiert Dokumente pro Tagesordnungspunkt und markiert Inkonsistenzen in Beschluss-, Finanz- und Zuständigkeitsangaben.
 - Analyse-Outputs werden als Entwurf (`draft_status`) gefuehrt und enthalten Unsicherheitsmarker sowie Audit-Metadaten
   (u. a. Modus, Parameter, Prompt-Version, Dokument-Hashes).

@@ -212,6 +212,8 @@ def test_build_analysis_markdown_adds_change_monitor_sections() -> None:
                 "content_parser_quality": "high",
                 "structured_fields": {"beschlusstext": "Annahme", "finanzbezug": "100 EUR"},
                 "extracted_text": "Projekt und Kosten.",
+                "historical_reference": {"date": "2026-01-10", "meeting_name": "Rat Januar"},
+                "historical_change_signals": ["datei_hash_geaendert", "finanzbezug_geaendert"],
             },
             {
                 "agenda_item": "Oe 1",
@@ -230,7 +232,8 @@ def test_build_analysis_markdown_adds_change_monitor_sections() -> None:
     assert "## Sitzungsanalyse" in markdown
     assert "Beobachtete Aenderungen:" in markdown
     assert "## TOP-Analyse" in markdown
-    assert "Aenderungssignale: mehrere Dokumenttypen, veraenderter Beschlussstand, veraenderter Finanzbezug" in markdown
+    assert "Aenderungssignale: mehrere Dokumenttypen, veraenderter Beschlussstand, veraenderter Finanzbezug, historische Vorversion vorhanden" in markdown
+    assert "Vorversion Vorlage Projekt: 2026-01-10 (Rat Januar)" in markdown
 
 
 def test_enrich_documents_for_analysis_accepts_legacy_session_path(tmp_path: Path) -> None:

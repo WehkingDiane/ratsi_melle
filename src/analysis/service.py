@@ -62,6 +62,14 @@ class AnalysisService:
             selected_tops=request.selected_tops,
         )
         documents = enrich_documents_for_analysis(documents)
+        if request.mode == "change_monitor":
+            previous_documents = self._load_previous_documents(
+                db_path=db_path,
+                session=request.session,
+                current_documents=documents,
+            )
+            previous_documents = enrich_documents_for_analysis(previous_documents)
+            documents = self._annotate_change_history(documents, previous_documents)
         sanitized_documents: list[dict] = []
         sensitive_data_masked = False
         for document in documents:
@@ -292,7 +300,8 @@ class AnalysisService:
             params.extend(selected_tops)
 
         query = (
-            "SELECT d.agenda_item, ai.title AS agenda_title, d.title, d.document_type, d.local_path, d.url, d.content_type, s.session_path "
+            "SELECT d.session_id, s.date, s.committee, s.meeting_name, d.agenda_item, ai.title AS agenda_title, "
+            "d.title, d.document_type, d.local_path, d.url, d.content_type, d.sha1, d.retrieved_at, s.session_path "
             "FROM documents d JOIN sessions s ON s.session_id = d.session_id "
             "LEFT JOIN agenda_items ai ON ai.session_id = d.session_id AND ai.number = d.agenda_item "
             f"WHERE {where} ORDER BY COALESCE(d.agenda_item,''), d.title"
@@ -301,6 +310,141 @@ class AnalysisService:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(query, tuple(params)).fetchall()
         return [dict(row) for row in rows]
+
+    def _load_previous_documents(
+        self,
+        *,
+        db_path: Path,
+        session: dict,
+        current_documents: list[dict],
+    ) -> list[dict]:
+        if not db_path.exists() or not current_documents:
+            return []
+
+        committee = str(session.get("committee") or "").strip()
+        session_date = str(session.get("date") or "").strip()
+        if not committee or not session_date:
+            return []
+
+        urls = sorted({str(doc.get("url") or "").strip() for doc in current_documents if str(doc.get("url") or "").strip()})
+        title_type_pairs = sorted(
+            {
+                (str(doc.get("title") or "").strip(), str(doc.get("document_type") or "").strip())
+                for doc in current_documents
+                if str(doc.get("title") or "").strip() and str(doc.get("document_type") or "").strip()
+            }
+        )
+        if not urls and not title_type_pairs:
+            return []
+
+        where_parts = ["s.committee = ?", "s.date < ?"]
+        params: list[object] = [committee, session_date]
+
+        match_parts: list[str] = []
+        if urls:
+            placeholders = ", ".join("?" for _ in urls)
+            match_parts.append(f"d.url IN ({placeholders})")
+            params.extend(urls)
+        if title_type_pairs:
+            pair_parts: list[str] = []
+            for title, document_type in title_type_pairs:
+                pair_parts.append("(d.title = ? AND d.document_type = ?)")
+                params.extend([title, document_type])
+            match_parts.append("(" + " OR ".join(pair_parts) + ")")
+
+        where_parts.append("(" + " OR ".join(match_parts) + ")")
+        query = (
+            "SELECT d.session_id, s.date, s.committee, s.meeting_name, d.agenda_item, ai.title AS agenda_title, "
+            "d.title, d.document_type, d.local_path, d.url, d.content_type, d.sha1, d.retrieved_at, s.session_path "
+            "FROM documents d JOIN sessions s ON s.session_id = d.session_id "
+            "LEFT JOIN agenda_items ai ON ai.session_id = d.session_id AND ai.number = d.agenda_item "
+            f"WHERE {' AND '.join(where_parts)} "
+            "ORDER BY s.date DESC, COALESCE(d.retrieved_at, '') DESC, d.id DESC"
+        )
+        with sqlite3.connect(db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(query, tuple(params)).fetchall()
+        return [dict(row) for row in rows]
+
+    def _annotate_change_history(self, documents: list[dict], previous_documents: list[dict]) -> list[dict]:
+        indexed_previous: dict[tuple[str, str], list[dict]] = {}
+        for previous in previous_documents:
+            for key in self._comparison_keys(previous):
+                indexed_previous.setdefault(key, []).append(previous)
+
+        annotated: list[dict] = []
+        for document in documents:
+            entry = dict(document)
+            previous = self._latest_previous_match(entry, indexed_previous)
+            if previous is not None:
+                entry["historical_reference"] = {
+                    "session_id": previous.get("session_id"),
+                    "date": previous.get("date"),
+                    "meeting_name": previous.get("meeting_name"),
+                    "title": previous.get("title"),
+                    "document_type": previous.get("document_type"),
+                    "url": previous.get("url"),
+                    "sha1": previous.get("sha1"),
+                }
+                entry["historical_change_signals"] = self._compare_document_versions(previous, entry)
+            else:
+                entry["historical_reference"] = None
+                entry["historical_change_signals"] = []
+            annotated.append(entry)
+        return annotated
+
+    @staticmethod
+    def _comparison_keys(document: dict) -> list[tuple[str, str]]:
+        keys: list[tuple[str, str]] = []
+        url = str(document.get("url") or "").strip()
+        if url:
+            keys.append(("url", url))
+        title = str(document.get("title") or "").strip()
+        document_type = str(document.get("document_type") or "").strip()
+        if title and document_type:
+            keys.append(("title_type", f"{title}|{document_type}"))
+        return keys
+
+    def _latest_previous_match(
+        self,
+        document: dict,
+        indexed_previous: dict[tuple[str, str], list[dict]],
+    ) -> dict | None:
+        candidates: list[dict] = []
+        for key in self._comparison_keys(document):
+            candidates.extend(indexed_previous.get(key, []))
+        if not candidates:
+            return None
+        unique_candidates = {
+            (str(candidate.get("session_id") or ""), str(candidate.get("title") or ""), str(candidate.get("url") or "")): candidate
+            for candidate in candidates
+        }
+        ordered = sorted(
+            unique_candidates.values(),
+            key=lambda item: (str(item.get("date") or ""), str(item.get("retrieved_at") or "")),
+            reverse=True,
+        )
+        return ordered[0] if ordered else None
+
+    @staticmethod
+    def _compare_document_versions(previous: dict, current: dict) -> list[str]:
+        signals: list[str] = []
+        if str(previous.get("sha1") or "") and str(current.get("sha1") or "") and previous.get("sha1") != current.get("sha1"):
+            signals.append("datei_hash_geaendert")
+        if str(previous.get("title") or "") != str(current.get("title") or ""):
+            signals.append("titel_geaendert")
+        previous_fields = previous.get("structured_fields") if isinstance(previous.get("structured_fields"), dict) else {}
+        current_fields = current.get("structured_fields") if isinstance(current.get("structured_fields"), dict) else {}
+        for field_name, signal in (
+            ("beschlusstext", "beschlusstext_geaendert"),
+            ("entscheidung", "entscheidung_geaendert"),
+            ("finanzbezug", "finanzbezug_geaendert"),
+            ("zustaendigkeit", "zustaendigkeit_geaendert"),
+        ):
+            if str(previous_fields.get(field_name) or "").strip() != str(current_fields.get(field_name) or "").strip():
+                if str(previous_fields.get(field_name) or "").strip() or str(current_fields.get(field_name) or "").strip():
+                    signals.append(signal)
+        return signals
 
     @staticmethod
     def _validate_mode(mode: str) -> None:

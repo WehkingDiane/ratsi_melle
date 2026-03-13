@@ -386,11 +386,13 @@ def _build_journalistic_brief(documents: list[dict], agenda_title: str) -> list[
 def _build_change_monitor_note(documents: list[dict], agenda_title: str) -> list[str]:
     change_signals = _top_change_signals(documents)
     doc_titles = sorted({str(document.get("title") or "(ohne Titel)") for document in documents})
+    history_lines = _top_historical_lines(documents)
     lines = [
         f"Monitoring-Fokus: {agenda_title}",
         f"Dokumentvarianten: {', '.join(doc_titles[:3])}",
         f"Aenderungssignale: {', '.join(change_signals) if change_signals else 'keine klaren Feldabweichungen'}",
     ]
+    lines.extend(history_lines)
     if _top_needs_follow_up(documents):
         lines.append("Beobachtung: weitere Versionen oder Beschlussstaende pruefen")
     return lines
@@ -435,6 +437,21 @@ def _session_change_signals(top_groups: dict[str, list[dict]]) -> list[str]:
     return changes
 
 
+def _top_historical_lines(documents: list[dict]) -> list[str]:
+    lines: list[str] = []
+    for document in documents:
+        reference = document.get("historical_reference")
+        signals = document.get("historical_change_signals")
+        if not isinstance(reference, dict) or not reference:
+            continue
+        title = str(document.get("title") or "(ohne Titel)")
+        previous_date = str(reference.get("date") or "?")
+        previous_session = str(reference.get("meeting_name") or reference.get("session_id") or "?")
+        signal_text = ", ".join(signals) if isinstance(signals, list) and signals else "keine Feldabweichungen"
+        lines.append(f"Vorversion {title}: {previous_date} ({previous_session}) | Signale: {signal_text}")
+    return lines[:3]
+
+
 def _top_needs_follow_up(documents: list[dict]) -> bool:
     if _top_inconsistencies(documents) or _top_change_signals(documents):
         return True
@@ -456,6 +473,8 @@ def _top_change_signals(documents: list[dict]) -> list[str]:
         signals.append("veraenderter Finanzbezug")
     if len(_distinct_field_values(documents, "zustaendigkeit")) > 1:
         signals.append("veraenderte Zustaendigkeit")
+    if any(isinstance(document.get("historical_change_signals"), list) and document.get("historical_change_signals") for document in documents):
+        signals.append("historische Vorversion vorhanden")
     return signals
 
 

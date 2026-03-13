@@ -15,11 +15,11 @@ Der aktuelle GUI-Bezug in diesem Dokument meint die vorhandene Developer-GUI fue
   - Menschliche Review-Funktion in Developer-GUI und CLI (`scripts/review_analysis_job.py`).
   - TOP-Analyse mit Gruppierung pro Tagesordnungspunkt, Themenhinweisen und Inkonsistenz-Markierungen.
   - Sitzungsweite Verdichtung fuer `journalistic_brief` mit Konfliktlinien, offenen Fragen und priorisierten Folgeaufgaben.
-  - Erster Monitoring-Modus `change_monitor` mit Aenderungssignalen und Beobachtungsbedarf im Scope.
+  - Erster Monitoring-Modus `change_monitor` mit Aenderungssignalen, Vorversionsvergleich und Beobachtungsbedarf im Scope.
 - Noch offen:
   - Weitergehende inhaltliche Bias-Metriken und strengere Fachregeln fuer spaetere Modi.
   - Tiefere Akteurs- und Konfliktanalysen fuer journalistische Ausgabe.
-  - Echte zeitliche Vergleiche ueber mehrere Sitzungen oder Dokumentversionen hinweg.
+  - Breitere Zeitreihen- und Benachrichtigungslogik ueber mehrere Sitzungen hinweg.
 
 ## 1 Zielbild
 
@@ -113,7 +113,7 @@ Analyseergebnisse sind stets als Entwurf zu kennzeichnen. Reviewer:innen sehen B
 - Phase 3 - Sitzungsanalyse und journalistische Perspektive: teilweise erledigt.
   Sitzungsweite Verdichtung und `journalistic_brief` als End-to-End-Workflow sind vorhanden; vertiefte Konflikt- und Akteursanalysen stehen noch aus.
 - Phase 4 - Vergleichs- und Monitoringanalysen: offen.
-  Ein erster `change_monitor` ist vorhanden; echte Zeitreihen-, Versions- und Benachrichtigungslogik stehen noch aus.
+  Ein erster `change_monitor` mit Vorversionsvergleich ist vorhanden; tiefere Zeitreihen-, Versions- und Benachrichtigungslogik stehen noch aus.
 
 ## 9 Offene Architekturfragen
 
