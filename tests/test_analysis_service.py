@@ -156,7 +156,7 @@ def test_analysis_service_persists_versioned_outputs(tmp_path: Path, monkeypatch
     assert isinstance(record.bias_metrics, dict)
     assert isinstance(record.plausibility_flags, list)
     assert "run_at" in record.audit_trail
-    assert "Dokumenttitel" in record.markdown
+    assert "Kurzquellen" in record.markdown
     assert "## Qualitaetssignale" in record.markdown
     assert "max@example.org" not in record.markdown
     assert "[EMAIL_MASKED]" in record.markdown

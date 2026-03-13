@@ -42,7 +42,7 @@ def test_enrich_documents_for_analysis_adds_structured_fields_from_local_file(tm
     assert "25.000 EUR" in entry["structured_fields"]["finanzbezug"]
 
 
-def test_build_analysis_markdown_includes_title_based_document_context() -> None:
+def test_build_analysis_markdown_includes_compact_title_based_source_preview() -> None:
     markdown = build_analysis_markdown(
         session={"date": "2026-01-15", "committee": "Rat"},
         mode="summary",
@@ -66,7 +66,8 @@ def test_build_analysis_markdown_includes_title_based_document_context() -> None
         prompt="Bitte Kernthemen und Kosten benennen.",
     )
 
-    assert "## Dokumenttitel" in markdown
+    assert "## Kurzquellen" in markdown
+    assert "Oe 1: Beschlussvorlage Projekt" in markdown
     assert "beschlussvorlage" in markdown
     assert "beleg_excerpt:" not in markdown
     assert "Bitte Kernthemen und Kosten benennen." in markdown

@@ -89,6 +89,65 @@ Ein reines KI-System ist ungeeignet. Daher gelten:
 
 Eine einheitliche API kapselt den Umgang mit Modellen: Eingabekontext, Prompt, Modellname/-version, definierte Antwortformate, Fehler-/Bias-Handling und Logging sind standardisiert. So lässt sich flexibel zwischen lokalen und externen Modellen wählen.
 
+### 7.2.1 Empfohlene KI-Uebergabe pro TOP
+
+Die naechste sinnvolle Ausbaustufe ist keine komplette Sitzungsanalyse auf einmal, sondern eine gezielte Uebergabe pro Tagesordnungspunkt.
+
+Empfohlener Ablauf fuer einen einzelnen TOP:
+
+1. Lokale Vorbereitung
+   - Auswahl genau eines TOPs.
+   - Sammeln aller zugeordneten Dokumente dieses TOPs.
+   - Qualitaetsbewertung pro Dokument: `ok`, `partial`, `ocr_needed`, `failed`.
+   - Entfernung oder Markierung unbrauchbarer Dokumente.
+
+2. Evidence-Paket bauen
+   - `session_id`, Datum, Gremium, Sitzungsname
+   - `top_number`, `top_title`
+   - Liste der Dokumente mit:
+     - `document_id`
+     - `title`
+     - `document_type`
+     - `url`
+     - lokaler Pfad oder Dateireferenz
+     - Extraktionsqualitaet
+     - kurzer lokaler Titelhinweis
+   - pro brauchbarem Dokument entweder:
+     - extrahierter Text in begrenzter Laenge
+     - oder direkt das PDF / die Datei fuer eine Modell- oder API-Anbindung mit Dokumentuebergabe
+
+3. KI-Auftrag
+   - Die KI soll nicht die gesamte Sitzung auf einmal bewerten.
+   - Die KI bekommt den Auftrag:
+     - Inhalt dieses einen TOPs zusammenfassen
+     - Kernaussage des TOPs benennen
+     - moegliche Entscheidung oder Verfahrensschritt benennen
+     - erkennbare Kosten-/Finanzhinweise nennen
+     - offene Fragen oder Unsicherheiten nennen
+     - nur Aussagen treffen, die auf uebergebenen Dokumenten beruhen
+     - bei fehlender Beleglage explizit `unklar` ausgeben
+
+4. Erwartetes strukturiertes Antwortformat
+   - `top_summary`
+   - `decision_signal`
+   - `financial_signal`
+   - `public_relevance`
+   - `open_questions`
+   - `source_citations`
+   - `confidence`
+
+5. Nachgelagerte lokale Kontrolle
+   - Pruefen, ob fuer die Antwort Quellenzitate vorhanden sind.
+   - Pruefen, ob Aussagen nur auf Dokumenten mit ausreichender Qualitaet beruhen.
+   - Ausgabe als `draft` speichern.
+   - Review durch Menschen erzwingen, bevor eine spaetere Endnutzer-GUI Inhalte als belastbar zeigt.
+
+Wichtige konzeptionelle Entscheidung:
+
+- Lokale Analyse bleibt kurz und titelbasiert.
+- Vollstaendige inhaltliche Analyse soll kuenftig topweise an eine KI uebergeben werden.
+- Erst wenn die TOP-Analyse stabil ist, sollte eine sitzungsweite KI-Verdichtung aus mehreren bereits geprueften TOP-Ergebnissen folgen.
+
 ### 7.3 Reproduzierbarkeit und Auditierbarkeit
 
 Bei jeder Analyse werden Analysemodus, Prompt-Version, Modellname/-version, Parameter, Zeitstempel, Hashes der Dokumente und der vollständige Prompt gespeichert. Ergebnisse enthalten strukturierte Felder, Quellenverweise, Unsicherheitsmarkierungen und Reviewer-Metadaten.
@@ -115,6 +174,7 @@ Analyseergebnisse sind stets als Entwurf zu kennzeichnen. Reviewer:innen sehen B
 - Welche Modelle dürfen lokal ausgeführt werden; wann darf externe KI genutzt werden? Welche Datenschutz- und Lizenzanforderungen gelten?
 - Welche Ergebnisse müssen zwingend mit Quellenbeleg ausgegeben werden und wie werden sie im GUI dargestellt?
 - Welche Analysemodi kommen zuerst in die Developer-GUI; welche später in die Endnutzer-Oberfläche?
+- Soll die KI nur Textpakete erhalten oder direkt PDF-/Dateiuploads pro TOP verarbeiten?
 
 ## 10 Definition of Done (erster Meilenstein)
 

@@ -104,12 +104,9 @@ def build_analysis_markdown(
         top_sections = _build_top_sections(documents, mode)
         if top_sections:
             summary_lines.extend(["", "## TOP-Analyse", *top_sections])
-        summary_lines.extend(["", "## Dokumenttitel"])
-        for document in documents:
-            title = document.get("title") or "(ohne Titel)"
-            doc_type = document.get("document_type") or "unbekannt"
-            top_number = document.get("agenda_item") or "-"
-            summary_lines.append(f"- {top_number} | {doc_type} | {title}")
+        summary_lines.extend(["", "## Kurzquellen"])
+        for line in _build_source_preview(documents):
+            summary_lines.append(line)
 
         summary_lines.extend(["", "## Quellen"])
         for index, document in enumerate(documents, start=1):
@@ -155,6 +152,7 @@ def _build_session_sections(session: dict, documents: list[dict], mode: str) -> 
     lines = [
         f"- Sitzung: {session.get('meeting_name') or session.get('committee') or 'Unbekannt'}",
         f"- TOPs im Scope: {len(top_groups)}",
+        f"- Dokumente im Scope: {len(documents)}",
         f"- Dominante Titelthemen: {', '.join(_infer_topics(documents) or ['keine klaren Themenschwerpunkte'])}",
     ]
     lines.append("- Hinweis: lokale Analyse nutzt nur TOP- und Dokumenttitel, keine inhaltliche PDF-Auswertung.")
@@ -186,6 +184,7 @@ def _build_top_sections(documents: list[dict], mode: str) -> list[str]:
         lines.append(f"### {top_number} - {agenda_title}")
         lines.append(f"- Dokumente: {len(top_documents)}")
         lines.append(f"- Dokumenttypen: {', '.join(sorted({_doc_type(doc) for doc in top_documents}))}")
+        lines.append(f"- Relevante Titel: {', '.join(_top_document_titles(top_documents)[:3])}")
         topics = _infer_topics(top_documents)
         if topics:
             lines.append(f"- Themenhinweise: {', '.join(topics)}")
@@ -200,6 +199,29 @@ def _build_top_sections(documents: list[dict], mode: str) -> list[str]:
     if lines and not lines[-1]:
         lines.pop()
     return lines
+
+
+def _build_source_preview(documents: list[dict]) -> list[str]:
+    lines: list[str] = []
+    for top_number, top_documents in sorted(_group_documents_by_top(documents).items()):
+        titles = _top_document_titles(top_documents)
+        if not titles:
+            continue
+        lines.append(f"- {top_number}: {', '.join(titles[:3])}")
+    return lines[:8]
+
+
+def _top_document_titles(documents: list[dict]) -> list[str]:
+    titles: list[str] = []
+    seen: set[str] = set()
+    for document in documents:
+        title = document.get("title")
+        if isinstance(title, str) and title.strip():
+            normalized = " ".join(title.split())
+            if normalized not in seen:
+                seen.add(normalized)
+                titles.append(normalized)
+    return titles
 
 
 def _top_title(documents: list[dict]) -> str:
