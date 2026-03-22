@@ -20,6 +20,7 @@ from CTkMenuBar import CTkMenuBar, CustomDropdownMenu
 from src.analysis.batch_exporter import export_analysis_batch
 from src.analysis.providers import PROVIDER_NONE
 from src.analysis.service import AnalysisRequest, AnalysisService
+from src.interfaces.gui.dialogs.api_keys_dialog import ApiKeysDialog
 from src.interfaces.gui.views.analysis_view import PROVIDER_LABELS as _PROVIDER_LABELS
 
 _PROVIDER_LABEL_TO_ID: dict[str, str] = {
@@ -327,6 +328,8 @@ class GuiLauncher:
         file_dropdown = CustomDropdownMenu(widget=file_btn)
         file_dropdown.add_option("Clear log", self._clear_log)
         file_dropdown.add_separator()
+        file_dropdown.add_option("API-Keys verwalten", self._open_api_keys_dialog)
+        file_dropdown.add_separator()
         file_dropdown.add_option("Exit", self._on_close)
 
         theme_btn = self.menubar.add_cascade("Theme")
@@ -511,6 +514,9 @@ class GuiLauncher:
             f"Version: {__version__}\n"
             "Includes data tooling and analysis preparation view.",
         )
+
+    def _open_api_keys_dialog(self) -> None:
+        ApiKeysDialog(self.root)
 
     def _clear_log(self) -> None:
         if not self.log_text:
