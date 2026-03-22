@@ -59,15 +59,26 @@ class OllamaProvider(KiProvider):
     def default_model(self) -> str:
         return _DEFAULT_MODEL
 
-    def analyze(self, *, prompt: str, context: str, model: str | None = None) -> KiResponse:
+    def analyze(
+        self,
+        *,
+        prompt: str,
+        context: str,
+        model: str | None = None,
+        extra_options: dict | None = None,
+    ) -> KiResponse:
         model_name = model or self.default_model
         user_message = _build_user_message(prompt, context)
+
+        options: dict = {"temperature": 0.3}
+        if extra_options:
+            options.update(extra_options)
 
         payload = {
             "model": model_name,
             "prompt": user_message,
             "stream": False,
-            "options": {"temperature": 0.3},
+            "options": options,
         }
         response = self._requests.post(
             f"{self._base_url}/api/generate",
