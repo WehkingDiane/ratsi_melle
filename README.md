@@ -132,6 +132,9 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
    - 🚧 Analyseziele, Qualitätskriterien und Ausgabeformate festlegen.
    - 🚧 Mehrere Analysemodi für Dokumente, TOPs und ganze Sitzungen unterstützen.
    - 🚧 KI- und regelbasierte Verfahren kombinierbar machen und über austauschbare Schnittstellen anbinden.
+     - ✅ Austauschbare Provider-Infrastruktur implementiert (`src/analysis/providers/`): Claude, Codex (OpenAI), Ollama (lokal, ≤ 8B).
+     - 🚧 GUI-Anbindung: Provider- und Modellauswahl in der Analyse-Ansicht ergänzen.
+     - 🚧 Volltextübergabe pro TOP an den gewählten Provider umsetzen.
    - 🚧 Reproduzierbarkeit, Quellenbezug und menschliche Nachprüfung sicherstellen.
    - Details und Ausbaupfade stehen in `README_TASK4.md`.
 5. **Benutzerzugang gestalten**
