@@ -18,7 +18,16 @@ import customtkinter as ctk
 from CTkMenuBar import CTkMenuBar, CustomDropdownMenu
 
 from src.analysis.batch_exporter import export_analysis_batch
+from src.analysis.providers import PROVIDER_NONE
 from src.analysis.service import AnalysisRequest, AnalysisService
+from src.interfaces.gui.views.analysis_view import PROVIDER_LABELS as _PROVIDER_LABELS
+
+_PROVIDER_LABEL_TO_ID: dict[str, str] = {
+    "Kein Provider (nur Grundlage)": PROVIDER_NONE,
+    "Claude (Anthropic)": "claude",
+    "Codex (OpenAI)": "codex",
+    "Ollama (lokal, \u22648B)": "ollama",
+}
 from src.data_layout import migrate_legacy_database_layout
 from src.paths import DEFAULT_ANALYSIS_BATCH, DEFAULT_ANALYSIS_MARKDOWN, LOCAL_INDEX_DB, ONLINE_INDEX_DB
 from src.version import __version__
@@ -174,6 +183,8 @@ class GuiLauncher:
         self.analysis_date_preset_box: ctk.CTkComboBox | None = None
         self.analysis_committee_box: ctk.CTkComboBox | None = None
         self.analysis_session_status_box: ctk.CTkComboBox | None = None
+        self.analysis_provider_box: ctk.CTkComboBox | None = None
+        self.analysis_model_entry: ctk.CTkEntry | None = None
 
         self.analysis_date_preset = ctk.StringVar(value="Benutzerdefiniert")
         self.analysis_date_from = ctk.StringVar(value="")
@@ -182,6 +193,8 @@ class GuiLauncher:
         self.analysis_session_status = ctk.StringVar(value="vergangen")
         self.analysis_search = ctk.StringVar(value="")
         self.analysis_scope = ctk.StringVar(value="session")
+        self.analysis_provider = ctk.StringVar(value=_PROVIDER_LABELS[0])
+        self.analysis_model_name = ctk.StringVar(value="")
         self.analysis_prompt_value = (
             "Erstelle spaeter ueber einen KI-Provider eine neutrale TOP-Analyse. "
             "Nenne Kernthemen, Entscheidungen, Unsicherheiten und Quellenbezug."
@@ -1608,8 +1621,20 @@ class GuiLauncher:
             self._set_analysis_status("Keine Daten fuer die Analyse gefunden.")
             return
 
-        self._set_analysis_status("Analysegrundlage wird erstellt...")
-        thread = threading.Thread(target=self._run_analysis_job_worker, args=(payload, prompt), daemon=True)
+        provider_id = _PROVIDER_LABEL_TO_ID.get(self.analysis_provider.get(), PROVIDER_NONE)
+        model_name = self.analysis_model_name.get().strip()
+
+        if provider_id == PROVIDER_NONE:
+            self._set_analysis_status("Analysegrundlage wird erstellt...")
+        else:
+            label = self.analysis_provider.get()
+            self._set_analysis_status(f"KI-Analyse laeuft ({label})...")
+
+        thread = threading.Thread(
+            target=self._run_analysis_job_worker,
+            args=(payload, prompt, provider_id, model_name),
+            daemon=True,
+        )
         thread.start()
 
     def _build_analysis_payload(self) -> dict | None:
@@ -1630,7 +1655,9 @@ class GuiLauncher:
             "db_path": str(db_path),
         }
 
-    def _run_analysis_job_worker(self, payload: dict, prompt: str) -> None:
+    def _run_analysis_job_worker(
+        self, payload: dict, prompt: str, provider_id: str, model_name: str
+    ) -> None:
         db_path = Path(payload["db_path"])
         session = payload["session"]
         scope = payload["scope"]
@@ -1641,15 +1668,19 @@ class GuiLauncher:
             scope=scope,
             selected_tops=selected_tops,
             prompt=prompt,
+            provider_id=provider_id,
+            model_name=model_name,
         )
 
         try:
             result = self.analysis_service.run_journalistic_analysis(request)
-            self.root.after(0, lambda: self._set_analysis_result(result.markdown))
-            self.root.after(
-                0,
-                lambda: self._set_analysis_status(f"Analysegrundlage erstellt (Job {result.job_id})."),
-            )
+            display_text = result.ki_response if result.ki_response else result.markdown
+            self.root.after(0, lambda: self._set_analysis_result(display_text))
+            if result.ki_response:
+                status = f"KI-Analyse abgeschlossen (Job {result.job_id}, Modell: {result.model_name})."
+            else:
+                status = f"Analysegrundlage erstellt (Job {result.job_id})."
+            self.root.after(0, lambda: self._set_analysis_status(status))
         except Exception as exc:
             self.root.after(0, lambda: self._set_analysis_status(f"Analyse fehlgeschlagen: {exc}"))
 
