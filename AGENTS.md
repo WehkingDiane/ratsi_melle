@@ -59,13 +59,22 @@
 
 - NIEMALS auf Branch `main` arbeiten.
 - Wenn der aktuelle Branch `main` ist, STOPPEN und zuerst einen neuen Branch erstellen.
-- Jeder vom Agent erstellte Branch MUSS mit `codex/` beginnen.
-- Bevorzugte Muster:
+- Das Branch-Praefix haengt vom ausfuehrenden Agent ab:
+  - **Codex** (OpenAI Codex): Branch MUSS mit `codex/` beginnen.
+  - **Claude** (Anthropic Claude Code): Branch MUSS mit `claude/` beginnen.
+- Bevorzugte Muster fuer Codex:
   - codex/feature/*kurze-beschreibung*
   - codex/fix/*kurze-beschreibung*
   - codex/security/*kurze-beschreibung*
   - codex/refactor/*kurze-beschreibung*
   - codex/chore/*kurze-beschreibung*
+- Bevorzugte Muster fuer Claude:
+  - claude/feature/*kurze-beschreibung*
+  - claude/fix/*kurze-beschreibung*
+  - claude/security/*kurze-beschreibung*
+  - claude/refactor/*kurze-beschreibung*
+  - claude/chore/*kurze-beschreibung*
+- Andere Coding-Agenten verwenden analog ihr eigenes Praefix (z. B. `gemini/`, `gpt/`), sodass immer erkennbar ist, welches System die Aenderungen vorgenommen hat.
 
 ### Aenderungsdisziplin
 
