@@ -22,6 +22,7 @@ class AnalysisOutputRecord:
     prompt_version: str = ""
     prompt_text: str = ""
     markdown: str = ""
+    ki_response: str = ""
     document_count: int = 0
     source_db: str = ""
 

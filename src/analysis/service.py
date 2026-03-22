@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
 from src.analysis.analysis_context import build_analysis_markdown, enrich_documents_for_analysis
+from src.analysis.providers.registry import PROVIDER_NONE
 from src.analysis.schemas import AnalysisOutputRecord
 from src.paths import ANALYSIS_PROMPTS_DIR, ANALYSIS_SUMMARIES_DIR, DEFAULT_ANALYSIS_MARKDOWN
 
@@ -22,15 +23,17 @@ class AnalysisRequest:
     scope: str
     selected_tops: list[str]
     prompt: str
-    model_name: str = "pending-provider"
+    provider_id: str = PROVIDER_NONE
+    model_name: str = ""
     prompt_version: str = "draft"
+    provider_kwargs: dict = field(default_factory=dict)
 
 
 class AnalysisService:
     """Service entry points used by GUI and other callers."""
 
     def run_journalistic_analysis(self, request: AnalysisRequest) -> AnalysisOutputRecord:
-        """Build a local analysis package summary and persist versioned artifacts."""
+        """Build a local analysis package and optionally call a KI provider."""
 
         db_path = request.db_path
         created_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -49,6 +52,9 @@ class AnalysisService:
             prompt=request.prompt,
         )
 
+        # Resolve effective model name (provider default when not overridden)
+        effective_model = request.model_name or request.provider_id
+
         with sqlite3.connect(db_path) as conn:
             self.ensure_analysis_tables(conn)
             cur = conn.execute(
@@ -59,7 +65,7 @@ class AnalysisService:
                     request.session["session_id"],
                     request.scope,
                     json.dumps(request.selected_tops, ensure_ascii=False),
-                    request.model_name,
+                    effective_model,
                     request.prompt_version,
                     "running",
                     None,
@@ -70,7 +76,27 @@ class AnalysisService:
                 "INSERT INTO analysis_outputs (job_id, output_format, content, created_at) VALUES (?, ?, ?, ?)",
                 (job_id, "markdown", markdown, created_at),
             )
-            conn.execute("UPDATE analysis_jobs SET status = ? WHERE id = ?", ("done", job_id))
+            conn.commit()
+
+        ki_response_text = ""
+        error_message: str | None = None
+
+        if request.provider_id != PROVIDER_NONE:
+            ki_response_text, effective_model, error_message = self._call_provider(
+                request=request, context=markdown
+            )
+
+        final_status = "error" if error_message else "done"
+        with sqlite3.connect(db_path) as conn:
+            if ki_response_text:
+                conn.execute(
+                    "INSERT INTO analysis_outputs (job_id, output_format, content, created_at) VALUES (?, ?, ?, ?)",
+                    (job_id, "ki_response", ki_response_text, created_at),
+                )
+            conn.execute(
+                "UPDATE analysis_jobs SET status = ?, error_message = ?, model_name = ? WHERE id = ?",
+                (final_status, error_message, effective_model, job_id),
+            )
             conn.commit()
 
         record = AnalysisOutputRecord(
@@ -79,15 +105,37 @@ class AnalysisService:
             session_id=str(request.session["session_id"]),
             scope=request.scope,
             top_numbers=list(request.selected_tops),
-            model_name=request.model_name,
+            model_name=effective_model,
             prompt_version=request.prompt_version,
             prompt_text=request.prompt,
             markdown=markdown,
+            ki_response=ki_response_text,
             document_count=len(documents),
             source_db=str(db_path),
         )
         self.persist_analysis_artifacts(record)
         return record
+
+    def _call_provider(
+        self, *, request: AnalysisRequest, context: str
+    ) -> tuple[str, str, str | None]:
+        """Dispatch to the configured KI provider.
+
+        Returns:
+            Tuple of (response_text, effective_model_name, error_message_or_None).
+        """
+        from src.analysis.providers.registry import build_provider
+
+        try:
+            provider = build_provider(request.provider_id, **request.provider_kwargs)
+            ki = provider.analyze(
+                prompt=request.prompt,
+                context=context,
+                model=request.model_name or None,
+            )
+            return ki.response_text, ki.model_name, None
+        except Exception as exc:  # noqa: BLE001
+            return "", request.model_name or request.provider_id, str(exc)
 
     def persist_analysis_artifacts(self, record: AnalysisOutputRecord) -> None:
         """Persist markdown, prompt and versioned JSON output to analysis output dirs."""
