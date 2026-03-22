@@ -186,6 +186,9 @@ class GuiLauncher:
         self.analysis_session_status_box: ctk.CTkComboBox | None = None
         self.analysis_provider_box: ctk.CTkComboBox | None = None
         self.analysis_model_entry: ctk.CTkEntry | None = None
+        self.settings_api_key_entries: dict[str, ctk.CTkEntry] = {}
+        self.settings_key_source_labels: dict[str, ctk.CTkLabel] = {}
+        self._settings_api_key_feedback: ctk.CTkLabel | None = None
 
         self.analysis_date_preset = ctk.StringVar(value="Benutzerdefiniert")
         self.analysis_date_from = ctk.StringVar(value="")
@@ -517,6 +520,50 @@ class GuiLauncher:
 
     def _open_api_keys_dialog(self) -> None:
         ApiKeysDialog(self.root)
+
+    # ------------------------------------------------------------------
+    # Settings view – API key helpers
+    # ------------------------------------------------------------------
+
+    def _save_settings_api_key(self, provider_id: str) -> None:
+        from src.config.secrets import set_api_key
+
+        entries: dict = getattr(self, "settings_api_key_entries", {})
+        entry = entries.get(provider_id)
+        if not entry:
+            return
+        value = entry.get().strip()
+        if not value:
+            self._set_settings_api_key_feedback("Bitte Key eingeben, dann Speichern klicken.")
+            return
+        try:
+            set_api_key(provider_id, value)
+            entry.delete(0, "end")
+            self._set_settings_api_key_feedback(f"Key fuer '{provider_id}' gespeichert.")
+        except Exception as exc:  # noqa: BLE001
+            self._set_settings_api_key_feedback(f"Fehler: {exc}", error=True)
+        self._refresh_settings_api_key_status()
+
+    def _delete_settings_api_key(self, provider_id: str) -> None:
+        from src.config.secrets import delete_api_key
+
+        delete_api_key(provider_id)
+        self._set_settings_api_key_feedback(f"Key fuer '{provider_id}' geloescht.")
+        self._refresh_settings_api_key_status()
+
+    def _refresh_settings_api_key_status(self) -> None:
+        from src.config.secrets import key_source
+
+        labels: dict = getattr(self, "settings_key_source_labels", {})
+        for provider_id, label in labels.items():
+            source = key_source(provider_id)
+            color = "gray50" if source == "nicht gesetzt" else "#22C55E"
+            label.configure(text=f"  {source}", text_color=color)
+
+    def _set_settings_api_key_feedback(self, msg: str, *, error: bool = False) -> None:
+        fb: ctk.CTkLabel | None = getattr(self, "_settings_api_key_feedback", None)
+        if fb:
+            fb.configure(text=msg, text_color="#EF4444" if error else "gray60")
 
     def _clear_log(self) -> None:
         if not self.log_text:
