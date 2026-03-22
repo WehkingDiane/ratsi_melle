@@ -30,3 +30,6 @@ data/models/*
 !data/models/.gitkeep
 
 configs/gui_settings.json
+
+# Claude Code worktrees
+.claude/
