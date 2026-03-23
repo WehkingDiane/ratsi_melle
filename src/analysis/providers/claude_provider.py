@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import base64
+from pathlib import Path
+
 from src.analysis.providers.base import KiProvider, KiResponse
 from src.config.secrets import get_api_key as _get_api_key
 
@@ -38,14 +41,21 @@ class ClaudeProvider(KiProvider):
     def default_model(self) -> str:
         return _DEFAULT_MODEL
 
-    def analyze(self, *, prompt: str, context: str, model: str | None = None) -> KiResponse:
+    def analyze(
+        self,
+        *,
+        prompt: str,
+        context: str,
+        model: str | None = None,
+        pdf_paths: list[Path] | None = None,
+    ) -> KiResponse:
         model_name = model or self.default_model
-        user_message = _build_user_message(prompt, context)
+        content = _build_content_blocks(prompt, context, pdf_paths)
 
         message = self._client.messages.create(
             model=model_name,
             max_tokens=self._max_tokens,
-            messages=[{"role": "user", "content": user_message}],
+            messages=[{"role": "user", "content": content}],
         )
         response_text = message.content[0].text if message.content else ""
         return KiResponse(
@@ -57,7 +67,40 @@ class ClaudeProvider(KiProvider):
         )
 
 
-def _build_user_message(prompt: str, context: str) -> str:
+def _build_content_blocks(
+    prompt: str, context: str, pdf_paths: list[Path] | None
+) -> list[dict] | str:
+    """Build the message content – plain string when no PDFs, list of blocks otherwise."""
+    if not pdf_paths:
+        return _build_text_message(prompt, context)
+
+    blocks: list[dict] = []
+    if context:
+        truncated = context[:_MAX_CONTEXT_CHARS]
+        blocks.append({"type": "text", "text": f"## Analysegrundlage\n\n{truncated}"})
+
+    for pdf_path in pdf_paths:
+        try:
+            pdf_data = base64.standard_b64encode(pdf_path.read_bytes()).decode("ascii")
+            blocks.append({
+                "type": "document",
+                "source": {
+                    "type": "base64",
+                    "media_type": "application/pdf",
+                    "data": pdf_data,
+                },
+            })
+        except OSError:
+            blocks.append({
+                "type": "text",
+                "text": f"[PDF nicht lesbar: {pdf_path.name}]",
+            })
+
+    blocks.append({"type": "text", "text": f"## Analyseauftrag\n\n{prompt}"})
+    return blocks
+
+
+def _build_text_message(prompt: str, context: str) -> str:
     truncated_context = context[:_MAX_CONTEXT_CHARS]
     return (
         f"## Analysegrundlage\n\n{truncated_context}\n\n"
