@@ -27,6 +27,8 @@ class AnalysisOutputRecord:
     source_db: str = ""
     session_path: str = ""
     session_date: str = ""
+    status: str = "done"
+    error_message: str = ""
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)

@@ -119,6 +119,8 @@ class AnalysisService:
             source_db=str(db_path),
             session_path=session_path,
             session_date=str(request.session.get("date", "")),
+            status=final_status,
+            error_message=error_message or "",
         )
         self.persist_analysis_artifacts(record)
         return record
