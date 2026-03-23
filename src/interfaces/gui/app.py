@@ -1930,7 +1930,8 @@ class GuiLauncher:
                 status = f"Analysegrundlage erstellt (Job {result.job_id})."
             self.root.after(0, lambda: self._set_analysis_status(status))
         except Exception as exc:
-            self.root.after(0, lambda: self._set_analysis_status(f"Analyse fehlgeschlagen: {exc}"))
+            msg = str(exc)
+            self.root.after(0, lambda: self._set_analysis_status(f"Analyse fehlgeschlagen: {msg}"))
 
     def _selected_top_numbers(self) -> list[str]:
         selected: list[str] = []

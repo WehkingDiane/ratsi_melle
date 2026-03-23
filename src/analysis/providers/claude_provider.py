@@ -12,7 +12,7 @@ def _resolve_key(provider_id: str) -> str | None:
     except Exception:  # noqa: BLE001
         return None
 
-_DEFAULT_MODEL = "claude-haiku-4-5-20251001"
+_DEFAULT_MODEL = "claude-3-5-haiku-20241022"
 _MAX_CONTEXT_CHARS = 180_000  # safe margin below 200k token context
 
 

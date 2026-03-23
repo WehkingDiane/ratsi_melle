@@ -236,7 +236,9 @@ class AnalysisService:
 
         job_stem = _job_stem(record)
         md_content = record.markdown
-        if record.ki_response:
+        # Only append KI response for session/tops scope; document scope already
+        # embeds the answer under "## KI-Antwort" inside record.markdown
+        if record.ki_response and record.scope != "document":
             md_content += f"\n\n## KI-Analyse\n\n{record.ki_response}\n"
         (output_dir / f"{job_stem}.md").write_text(md_content, encoding="utf-8")
         (output_dir / f"{job_stem}.json").write_text(
