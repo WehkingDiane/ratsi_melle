@@ -1914,10 +1914,12 @@ class GuiLauncher:
                 import sqlite3 as _sqlite3
                 with _sqlite3.connect(db_path) as _conn:
                     _row = _conn.execute(
-                        "SELECT error_message FROM analysis_jobs WHERE id = ?", (result.job_id,)
+                        "SELECT status, error_message FROM analysis_jobs WHERE id = ?", (result.job_id,)
                     ).fetchone()
-                err = _row[0] if _row and _row[0] else "Unbekannter Fehler"
-                status = f"KI-Fehler (Job {result.job_id}): {err}"
+                if _row and _row[0] == "error":
+                    status = f"KI-Fehler (Job {result.job_id}): {_row[1] or 'Unbekannter Fehler'}"
+                else:
+                    status = f"Analysegrundlage erstellt, Antwort leer (Job {result.job_id})."
             else:
                 status = f"Analysegrundlage erstellt (Job {result.job_id})."
             self.root.after(0, lambda: self._set_analysis_status(status))

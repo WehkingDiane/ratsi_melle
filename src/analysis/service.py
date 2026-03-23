@@ -251,9 +251,11 @@ class AnalysisService:
                 year, month, folder = p.parts[-3], p.parts[-2], p.parts[-1]
                 if year.isdigit() and month.isdigit():
                     return ANALYSIS_OUTPUTS_DIR / year / month / folder
-        # Fallback: use session date (not run time) so online-DB sessions land in the right month
+        # Fallback: construct per-session folder from session_date + session_id
+        # so online-DB sessions (no session_path) still get isolated directories
         date_src = record.session_date or record.created_at[:10]
-        return ANALYSIS_OUTPUTS_DIR / date_src[:4] / date_src[5:7]
+        folder = f"{date_src}-{record.session_id}" if record.session_id else date_src
+        return ANALYSIS_OUTPUTS_DIR / date_src[:4] / date_src[5:7] / folder
 
     def export_markdown(self, markdown: str, target: Path = DEFAULT_ANALYSIS_MARKDOWN) -> Path:
         """Export markdown to the standard analysis output location."""
