@@ -137,6 +137,80 @@ class AnalysisService:
         except Exception as exc:  # noqa: BLE001
             return "", request.model_name or request.provider_id, str(exc)
 
+    def save_document_analysis(
+        self,
+        *,
+        db_path: Path,
+        session: dict,
+        document: dict,
+        prompt: str,
+        ki_response: str,
+        model_name: str,
+        extraction_quality: str,
+        extraction_chars: int,
+    ) -> AnalysisOutputRecord:
+        """Persist a document-level KI analysis result to the DB and file artifacts."""
+
+        created_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        top_number = str(document.get("agenda_item") or "")
+        doc_title = str(document.get("title") or "")
+        doc_type = str(document.get("document_type") or "")
+
+        markdown = (
+            f"# Dokument-Analyse: {doc_title}\n\n"
+            f"- TOP: {top_number}\n"
+            f"- Typ: {doc_type}\n"
+            f"- Extraktionsqualitaet: {extraction_quality} ({extraction_chars} Zeichen)\n"
+            f"- Modell: {model_name}\n\n"
+            f"## KI-Antwort\n\n{ki_response}"
+        )
+
+        with sqlite3.connect(db_path) as conn:
+            self.ensure_analysis_tables(conn)
+            cur = conn.execute(
+                "INSERT INTO analysis_jobs "
+                "(created_at, session_id, scope, top_numbers_json, model_name, prompt_version, status, error_message) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    created_at,
+                    str(session["session_id"]),
+                    "document",
+                    json.dumps([top_number], ensure_ascii=False),
+                    model_name,
+                    "draft",
+                    "done",
+                    None,
+                ),
+            )
+            job_id = int(cur.lastrowid)
+            conn.execute(
+                "INSERT INTO analysis_outputs (job_id, output_format, content, created_at) VALUES (?, ?, ?, ?)",
+                (job_id, "markdown", markdown, created_at),
+            )
+            if ki_response:
+                conn.execute(
+                    "INSERT INTO analysis_outputs (job_id, output_format, content, created_at) VALUES (?, ?, ?, ?)",
+                    (job_id, "ki_response", ki_response, created_at),
+                )
+            conn.commit()
+
+        record = AnalysisOutputRecord(
+            job_id=job_id,
+            created_at=created_at,
+            session_id=str(session["session_id"]),
+            scope="document",
+            top_numbers=[top_number],
+            model_name=model_name,
+            prompt_version="draft",
+            prompt_text=prompt,
+            markdown=markdown,
+            ki_response=ki_response,
+            document_count=1,
+            source_db=str(db_path),
+        )
+        self.persist_analysis_artifacts(record)
+        return record
+
     def persist_analysis_artifacts(self, record: AnalysisOutputRecord) -> None:
         """Persist markdown, prompt and versioned JSON output to analysis output dirs."""
 

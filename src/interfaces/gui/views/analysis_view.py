@@ -95,7 +95,8 @@ def build_analysis_view(app, parent: ctk.CTkFrame) -> None:
 
     right_panel = ctk.CTkFrame(parent)
     right_panel.grid(row=1, column=1, sticky="nsew", padx=(10, 20), pady=(0, 20))
-    right_panel.grid_rowconfigure(7, weight=1)  # prompt box expands
+    right_panel.grid_rowconfigure(7, minsize=70)   # prompt box – fixed minimum
+    right_panel.grid_rowconfigure(11, weight=1)  # result text expands
     right_panel.grid_columnconfigure(0, weight=1)
 
     app.analysis_selected_session_label = ctk.CTkLabel(
@@ -119,23 +120,23 @@ def build_analysis_view(app, parent: ctk.CTkFrame) -> None:
     ctk.CTkLabel(right_panel, text="Tagesordnung", font=FIELD_FONT).grid(
         row=2, column=0, sticky="w", padx=12, pady=(10, 4)
     )
-    app.analysis_tops_frame = ctk.CTkScrollableFrame(right_panel, height=120)
+    app.analysis_tops_frame = ctk.CTkScrollableFrame(right_panel, height=90)
     app.analysis_tops_frame.grid(row=3, column=0, sticky="ew", padx=12)
 
     app.analysis_docs_label = ctk.CTkLabel(
         right_panel, text="Dokumente im TOP", font=FIELD_FONT
     )
-    app.analysis_docs_label.grid(row=4, column=0, sticky="w", padx=12, pady=(10, 4))
+    app.analysis_docs_label.grid(row=4, column=0, sticky="w", padx=12, pady=(8, 2))
 
-    app.analysis_docs_frame = ctk.CTkScrollableFrame(right_panel, height=110)
+    app.analysis_docs_frame = ctk.CTkScrollableFrame(right_panel, height=90)
     app.analysis_docs_frame.grid(row=5, column=0, sticky="ew", padx=12)
     app.analysis_docs_frame.grid_columnconfigure(1, weight=1)
 
     ctk.CTkLabel(right_panel, text="Prompt", font=FIELD_FONT).grid(
-        row=6, column=0, sticky="w", padx=12, pady=(10, 4)
+        row=6, column=0, sticky="w", padx=12, pady=(8, 2)
     )
-    app.analysis_prompt_box = ctk.CTkTextbox(right_panel, height=90, font=LOG_FONT)
-    app.analysis_prompt_box.grid(row=7, column=0, sticky="nsew", padx=12)
+    app.analysis_prompt_box = ctk.CTkTextbox(right_panel, height=70, font=LOG_FONT)
+    app.analysis_prompt_box.grid(row=7, column=0, sticky="ew", padx=12)
     app.analysis_prompt_box.insert("1.0", app.analysis_prompt_value)
 
     # --- Provider selection row ---
@@ -189,7 +190,7 @@ def build_analysis_view(app, parent: ctk.CTkFrame) -> None:
     app.analysis_status_label = ctk.CTkLabel(right_panel, text="Bereit", font=FIELD_FONT, anchor="w")
     app.analysis_status_label.grid(row=10, column=0, sticky="ew", padx=12, pady=(10, 4))
 
-    app.analysis_result_text = ctk.CTkTextbox(right_panel, height=170, font=LOG_FONT)
+    app.analysis_result_text = ctk.CTkTextbox(right_panel, font=LOG_FONT)
     app.analysis_result_text.grid(row=11, column=0, sticky="nsew", padx=12, pady=(0, 12))
 
     app._refresh_analysis_committee_options()

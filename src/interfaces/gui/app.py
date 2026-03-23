@@ -1801,17 +1801,35 @@ class GuiLauncher:
                 context=context,
                 model=model_name or None,
             )
-            self.root.after(0, lambda: self._set_analysis_result(ki.response_text))
-            self.root.after(
-                0,
-                lambda: self._set_analysis_status(
-                    f"Dokument-Analyse abgeschlossen (Modell: {ki.model_name})."
-                ),
-            )
         except Exception as exc:  # noqa: BLE001
             self.root.after(
                 0, lambda: self._set_analysis_status(f"Analyse fehlgeschlagen: {exc}")
             )
+            return
+
+        db_path = self._resolve_db_path(self.export_db_path.get())
+        if db_path.exists() and self.analysis_current_session:
+            try:
+                self.analysis_service.save_document_analysis(
+                    db_path=db_path,
+                    session=self.analysis_current_session,
+                    document=doc,
+                    prompt=prompt,
+                    ki_response=ki.response_text,
+                    model_name=ki.model_name,
+                    extraction_quality=extraction.parsing_quality,
+                    extraction_chars=extraction.extracted_char_count,
+                )
+            except Exception:  # noqa: BLE001
+                pass  # save failure does not block display
+
+        self.root.after(0, lambda: self._set_analysis_result(ki.response_text))
+        self.root.after(
+            0,
+            lambda: self._set_analysis_status(
+                f"Dokument-Analyse abgeschlossen (Modell: {ki.model_name})."
+            ),
+        )
 
     def _start_analysis_job(self) -> None:
         if not self.analysis_current_session:
