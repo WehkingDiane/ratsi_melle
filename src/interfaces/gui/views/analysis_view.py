@@ -93,10 +93,8 @@ def build_analysis_view(app, parent: ctk.CTkFrame) -> None:
     app.analysis_session_list_frame = ctk.CTkScrollableFrame(left_panel)
     app.analysis_session_list_frame.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 12))
 
-    right_panel = ctk.CTkFrame(parent)
+    right_panel = ctk.CTkScrollableFrame(parent)
     right_panel.grid(row=1, column=1, sticky="nsew", padx=(10, 20), pady=(0, 20))
-    right_panel.grid_rowconfigure(7, minsize=70)   # prompt box – fixed minimum
-    right_panel.grid_rowconfigure(11, weight=1)  # result text expands
     right_panel.grid_columnconfigure(0, weight=1)
 
     app.analysis_selected_session_label = ctk.CTkLabel(
@@ -190,8 +188,8 @@ def build_analysis_view(app, parent: ctk.CTkFrame) -> None:
     app.analysis_status_label = ctk.CTkLabel(right_panel, text="Bereit", font=FIELD_FONT, anchor="w")
     app.analysis_status_label.grid(row=10, column=0, sticky="ew", padx=12, pady=(10, 4))
 
-    app.analysis_result_text = ctk.CTkTextbox(right_panel, font=LOG_FONT)
-    app.analysis_result_text.grid(row=11, column=0, sticky="nsew", padx=12, pady=(0, 12))
+    app.analysis_result_text = ctk.CTkTextbox(right_panel, height=300, font=LOG_FONT)
+    app.analysis_result_text.grid(row=11, column=0, sticky="ew", padx=12, pady=(0, 12))
 
     app._refresh_analysis_committee_options()
     app._refresh_analysis_sessions()
