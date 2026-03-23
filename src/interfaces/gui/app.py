@@ -24,13 +24,6 @@ from src.analysis.providers import PROVIDER_NONE
 from src.analysis.service import AnalysisRequest, AnalysisService
 from src.interfaces.gui.dialogs.api_keys_dialog import ApiKeysDialog
 from src.interfaces.gui.views.analysis_view import PROVIDER_LABELS as _PROVIDER_LABELS
-
-_PROVIDER_LABEL_TO_ID: dict[str, str] = {
-    "Kein Provider (nur Grundlage)": PROVIDER_NONE,
-    "Claude (Anthropic)": "claude",
-    "Codex (OpenAI)": "codex",
-    "Ollama (lokal, \u22648B)": "ollama",
-}
 from src.data_layout import migrate_legacy_database_layout
 from src.paths import DEFAULT_ANALYSIS_BATCH, DEFAULT_ANALYSIS_MARKDOWN, LOCAL_INDEX_DB, ONLINE_INDEX_DB
 from src.version import __version__
@@ -51,6 +44,13 @@ from .views import analysis_view, data_tools_view, export_view, service_view, se
 
 
 configure_theme()
+
+_PROVIDER_LABEL_TO_ID: dict[str, str] = {
+    "Kein Provider (nur Grundlage)": PROVIDER_NONE,
+    "Claude (Anthropic)": "claude",
+    "Codex (OpenAI)": "codex",
+    "Ollama (lokal, \u22648B)": "ollama",
+}
 
 
 @dataclass(frozen=True)
@@ -1538,8 +1538,7 @@ class GuiLauncher:
 
     def _on_analysis_provider_changed(self, _value: str | None = None) -> None:
         """Clear the model-name override when the provider changes to avoid cross-provider confusion."""
-        if hasattr(self, "analysis_model_name"):
-            self.analysis_model_name.set("")
+        self.analysis_model_name.set("")
 
     def _on_analysis_date_preset_changed(self, _value: str | None = None) -> None:
         date_from, date_to = self.analysis_store.resolve_date_range(
@@ -1830,8 +1829,9 @@ class GuiLauncher:
                     extraction_quality=extraction.parsing_quality,
                     extraction_chars=extraction.extracted_char_count,
                 )
-            except Exception:  # noqa: BLE001
-                pass  # save failure does not block display
+            except Exception as exc:  # noqa: BLE001
+                import logging
+                logging.getLogger(__name__).warning("save_document_analysis fehlgeschlagen: %s", exc)
 
         self.root.after(0, lambda: self._set_analysis_result(ki.response_text))
         self.root.after(

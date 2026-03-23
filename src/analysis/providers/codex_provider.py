@@ -3,14 +3,7 @@
 from __future__ import annotations
 
 from src.analysis.providers.base import KiProvider, KiResponse
-
-
-def _resolve_key(provider_id: str) -> str | None:
-    try:
-        from src.config.secrets import get_api_key
-        return get_api_key(provider_id)
-    except Exception:  # noqa: BLE001
-        return None
+from src.config.secrets import get_api_key as _get_api_key
 
 _DEFAULT_MODEL = "gpt-4o-mini"
 _MAX_CONTEXT_CHARS = 100_000
@@ -33,7 +26,7 @@ class CodexProvider(KiProvider):
                 "openai SDK not installed. Run: pip install openai"
             ) from exc
 
-        resolved_key = api_key or _resolve_key("codex")
+        resolved_key = api_key or _get_api_key("codex")
         self._client = openai.OpenAI(api_key=resolved_key) if resolved_key else openai.OpenAI()
         self._max_tokens = max_tokens
 

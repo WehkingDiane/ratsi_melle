@@ -3,14 +3,7 @@
 from __future__ import annotations
 
 from src.analysis.providers.base import KiProvider, KiResponse
-
-
-def _resolve_key(provider_id: str) -> str | None:
-    try:
-        from src.config.secrets import get_api_key
-        return get_api_key(provider_id)
-    except Exception:  # noqa: BLE001
-        return None
+from src.config.secrets import get_api_key as _get_api_key
 
 _DEFAULT_MODEL = "claude-3-5-haiku-20241022"
 _MAX_CONTEXT_CHARS = 180_000  # safe margin below 200k token context
@@ -33,7 +26,7 @@ class ClaudeProvider(KiProvider):
                 "anthropic SDK not installed. Run: pip install anthropic"
             ) from exc
 
-        resolved_key = api_key or _resolve_key("claude")
+        resolved_key = api_key or _get_api_key("claude")
         self._client = anthropic.Anthropic(api_key=resolved_key) if resolved_key else anthropic.Anthropic()
         self._max_tokens = max_tokens
 

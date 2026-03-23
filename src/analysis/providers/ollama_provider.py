@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-import json
-
 from src.analysis.providers.base import KiProvider, KiResponse
 
 _DEFAULT_MODEL = "llama3.2:3b"
 _DEFAULT_BASE_URL = "http://localhost:11434"
 _MAX_CONTEXT_CHARS = 24_000  # conservative for small local models
 
-# Models known to fit within 8B parameters
+# Models known to work well with Ollama (up to ~8B parameters).
+# Used to populate model selection in the GUI.
 SUPPORTED_MODELS: tuple[str, ...] = (
     "llama3.2:3b",
     "llama3.2:1b",
@@ -23,6 +22,7 @@ SUPPORTED_MODELS: tuple[str, ...] = (
     "mistral:7b",
     "qwen2.5:7b",
     "qwen2.5:3b",
+    "qwen3:8b",
 )
 
 
@@ -65,14 +65,11 @@ class OllamaProvider(KiProvider):
         prompt: str,
         context: str,
         model: str | None = None,
-        extra_options: dict | None = None,
     ) -> KiResponse:
         model_name = model or self.default_model
         user_message = _build_user_message(prompt, context)
 
         options: dict = {"temperature": 0.3}
-        if extra_options:
-            options.update(extra_options)
 
         payload = {
             "model": model_name,
