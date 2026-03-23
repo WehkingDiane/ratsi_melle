@@ -74,7 +74,7 @@ Die GUI ist modular aufgeteilt:
   - `analysis_jobs`
   - `analysis_outputs`
 - Die aktive Ausgabe enthaelt Quellenliste und Scope-Kontext, aber keine lokale PDF-/Text-Inhaltsanalyse.
-- Artefakt-Export nach `data/analysis_outputs/summaries/` und Prompt-Ablage unter `data/analysis_outputs/prompts/`.
+- Artefakt-Export nach `data/analysis_outputs/YYYY/MM/session-ordner/` (spiegelt `data/raw/`-Struktur) und Prompt-Ablage unter `data/analysis_outputs/prompts/`.
 
 ### Settings / Service
 

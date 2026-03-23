@@ -17,8 +17,13 @@ from typing import Callable
 import customtkinter as ctk
 from CTkMenuBar import CTkMenuBar, CustomDropdownMenu
 
+from src.analysis.analysis_context import enrich_documents_for_analysis
 from src.analysis.batch_exporter import export_analysis_batch
+from src.analysis.extraction_pipeline import extract_text_for_analysis
+from src.analysis.providers import PROVIDER_NONE
 from src.analysis.service import AnalysisRequest, AnalysisService
+from src.interfaces.gui.dialogs.api_keys_dialog import ApiKeysDialog
+from src.interfaces.gui.views.analysis_view import PROVIDER_LABELS as _PROVIDER_LABELS
 from src.data_layout import migrate_legacy_database_layout
 from src.paths import DEFAULT_ANALYSIS_BATCH, DEFAULT_ANALYSIS_MARKDOWN, LOCAL_INDEX_DB, ONLINE_INDEX_DB
 from src.version import __version__
@@ -39,6 +44,13 @@ from .views import analysis_view, data_tools_view, export_view, service_view, se
 
 
 configure_theme()
+
+_PROVIDER_LABEL_TO_ID: dict[str, str] = {
+    "Kein Provider (nur Grundlage)": PROVIDER_NONE,
+    "Claude (Anthropic)": "claude",
+    "Codex (OpenAI)": "codex",
+    "Ollama (lokal, \u22648B)": "ollama",
+}
 
 
 @dataclass(frozen=True)
@@ -174,6 +186,13 @@ class GuiLauncher:
         self.analysis_date_preset_box: ctk.CTkComboBox | None = None
         self.analysis_committee_box: ctk.CTkComboBox | None = None
         self.analysis_session_status_box: ctk.CTkComboBox | None = None
+        self.analysis_provider_box: ctk.CTkComboBox | None = None
+        self.analysis_model_entry: ctk.CTkEntry | None = None
+        self.analysis_docs_frame: ctk.CTkScrollableFrame | None = None
+        self.analysis_docs_label: ctk.CTkLabel | None = None
+        self.settings_api_key_entries: dict[str, ctk.CTkEntry] = {}
+        self.settings_key_source_labels: dict[str, ctk.CTkLabel] = {}
+        self._settings_api_key_feedback: ctk.CTkLabel | None = None
 
         self.analysis_date_preset = ctk.StringVar(value="Benutzerdefiniert")
         self.analysis_date_from = ctk.StringVar(value="")
@@ -182,6 +201,8 @@ class GuiLauncher:
         self.analysis_session_status = ctk.StringVar(value="vergangen")
         self.analysis_search = ctk.StringVar(value="")
         self.analysis_scope = ctk.StringVar(value="session")
+        self.analysis_provider = ctk.StringVar(value=_PROVIDER_LABELS[0])
+        self.analysis_model_name = ctk.StringVar(value="")
         self.analysis_prompt_value = (
             "Erstelle spaeter ueber einen KI-Provider eine neutrale TOP-Analyse. "
             "Nenne Kernthemen, Entscheidungen, Unsicherheiten und Quellenbezug."
@@ -313,6 +334,8 @@ class GuiLauncher:
         file_btn = self.menubar.add_cascade("File")
         file_dropdown = CustomDropdownMenu(widget=file_btn)
         file_dropdown.add_option("Clear log", self._clear_log)
+        file_dropdown.add_separator()
+        file_dropdown.add_option("API-Keys verwalten", self._open_api_keys_dialog)
         file_dropdown.add_separator()
         file_dropdown.add_option("Exit", self._on_close)
 
@@ -498,6 +521,53 @@ class GuiLauncher:
             f"Version: {__version__}\n"
             "Includes data tooling and analysis preparation view.",
         )
+
+    def _open_api_keys_dialog(self) -> None:
+        ApiKeysDialog(self.root)
+
+    # ------------------------------------------------------------------
+    # Settings view – API key helpers
+    # ------------------------------------------------------------------
+
+    def _save_settings_api_key(self, provider_id: str) -> None:
+        from src.config.secrets import set_api_key
+
+        entries: dict = getattr(self, "settings_api_key_entries", {})
+        entry = entries.get(provider_id)
+        if not entry:
+            return
+        value = entry.get().strip()
+        if not value:
+            self._set_settings_api_key_feedback("Bitte Key eingeben, dann Speichern klicken.")
+            return
+        try:
+            set_api_key(provider_id, value)
+            entry.delete(0, "end")
+            self._set_settings_api_key_feedback(f"Key fuer '{provider_id}' gespeichert.")
+        except Exception as exc:  # noqa: BLE001
+            self._set_settings_api_key_feedback(f"Fehler: {exc}", error=True)
+        self._refresh_settings_api_key_status()
+
+    def _delete_settings_api_key(self, provider_id: str) -> None:
+        from src.config.secrets import delete_api_key
+
+        delete_api_key(provider_id)
+        self._set_settings_api_key_feedback(f"Key fuer '{provider_id}' geloescht.")
+        self._refresh_settings_api_key_status()
+
+    def _refresh_settings_api_key_status(self) -> None:
+        from src.config.secrets import key_source
+
+        labels: dict = getattr(self, "settings_key_source_labels", {})
+        for provider_id, label in labels.items():
+            source = key_source(provider_id)
+            color = "gray50" if source == "nicht gesetzt" else "#22C55E"
+            label.configure(text=f"  {source}", text_color=color)
+
+    def _set_settings_api_key_feedback(self, msg: str, *, error: bool = False) -> None:
+        fb: ctk.CTkLabel | None = getattr(self, "_settings_api_key_feedback", None)
+        if fb:
+            fb.configure(text=msg, text_color="#EF4444" if error else "gray60")
 
     def _clear_log(self) -> None:
         if not self.log_text:
@@ -1466,6 +1536,10 @@ class GuiLauncher:
         if self.analysis_committee_box:
             self.analysis_committee_box.configure(values=committees)
 
+    def _on_analysis_provider_changed(self, _value: str | None = None) -> None:
+        """Clear the model-name override when the provider changes to avoid cross-provider confusion."""
+        self.analysis_model_name.set("")
+
     def _on_analysis_date_preset_changed(self, _value: str | None = None) -> None:
         date_from, date_to = self.analysis_store.resolve_date_range(
             self.analysis_date_preset.get().strip(),
@@ -1586,9 +1660,186 @@ class GuiLauncher:
                 text=info,
                 variable=var,
                 font=FIELD_FONT,
+                command=self._refresh_analysis_documents,
             ).pack(anchor="w", padx=6, pady=3)
 
         self._set_analysis_status("Sitzung geladen.")
+        self._refresh_analysis_documents()
+
+    def _refresh_analysis_documents(self) -> None:
+        """Reload and render the document list for the currently selected TOPs."""
+        if not self.analysis_docs_frame or not self.analysis_current_session:
+            return
+
+        db_path = self._resolve_db_path(self.export_db_path.get())
+        for child in self.analysis_docs_frame.winfo_children():
+            child.destroy()
+
+        selected_tops = self._selected_top_numbers()
+        if not selected_tops or not db_path.exists():
+            ctk.CTkLabel(
+                self.analysis_docs_frame,
+                text="TOP auswaehlen um Dokumente zu sehen.",
+                font=FIELD_FONT,
+                text_color="gray60",
+            ).pack(anchor="w", padx=6, pady=6)
+            return
+
+        session_id = str(self.analysis_current_session["session_id"])
+        docs = self.analysis_store.load_documents(db_path, session_id, "tops", selected_tops)
+        docs = enrich_documents_for_analysis(docs)
+
+        if not docs:
+            ctk.CTkLabel(
+                self.analysis_docs_frame,
+                text="Keine Dokumente fuer die gewaehlten TOPs.",
+                font=FIELD_FONT,
+                text_color="gray60",
+            ).pack(anchor="w", padx=6, pady=6)
+            return
+
+        for doc in docs:
+            row = ctk.CTkFrame(self.analysis_docs_frame, fg_color="transparent")
+            row.pack(fill="x", padx=4, pady=2)
+
+            available = bool(doc.get("source_file_available"))
+            dot_color = "#22C55E" if available else "#6B7280"
+            ctk.CTkLabel(row, text="●", font=FIELD_FONT, text_color=dot_color, width=16).pack(
+                side="left"
+            )
+
+            top_num = doc.get("agenda_item") or "-"
+            doc_type = doc.get("document_type") or "-"
+            title = str(doc.get("title") or "")
+            label_text = f"{top_num} | {doc_type} | {title[:40]}{'…' if len(title) > 40 else ''}"
+            ctk.CTkLabel(row, text=label_text, font=FIELD_FONT, anchor="w").pack(
+                side="left", fill="x", expand=True, padx=(4, 8)
+            )
+
+            ctk.CTkButton(
+                row,
+                text="Analysieren",
+                width=100,
+                fg_color="#1D4ED8",
+                hover_color="#1E40AF",
+                font=BUTTON_FONT,
+                command=lambda d=doc: self._start_document_analysis(d),
+            ).pack(side="right")
+
+    def _start_document_analysis(self, doc: dict) -> None:
+        """Trigger a document-level analysis for a single document row."""
+        prompt = ""
+        if self.analysis_prompt_box:
+            prompt = self.analysis_prompt_box.get("1.0", "end").strip()
+
+        provider_id = _PROVIDER_LABEL_TO_ID.get(self.analysis_provider.get(), PROVIDER_NONE)
+        model_name = self.analysis_model_name.get().strip()
+
+        title = str(doc.get("title") or "Dokument")[:50]
+        if provider_id == PROVIDER_NONE:
+            self._set_analysis_status(f"Text wird extrahiert: {title}…")
+        else:
+            self._set_analysis_status(f"Dokument-Analyse laeuft: {title}…")
+
+        # Capture UI state now so the worker is not affected by later session changes
+        session_snapshot = self.analysis_current_session
+        db_path_snapshot = self._resolve_db_path(self.export_db_path.get())
+
+        thread = threading.Thread(
+            target=self._run_document_analysis_worker,
+            args=(doc, prompt, provider_id, model_name, session_snapshot, db_path_snapshot),
+            daemon=True,
+        )
+        thread.start()
+
+    def _run_document_analysis_worker(
+        self, doc: dict, prompt: str, provider_id: str, model_name: str,
+        session: dict | None, db_path: Path,
+    ) -> None:
+        resolved_path_str = doc.get("resolved_local_path")
+        if not resolved_path_str:
+            self.root.after(
+                0, lambda: self._set_analysis_status("Dokument nicht lokal verfuegbar.")
+            )
+            return
+
+        resolved_path = Path(resolved_path_str)
+        if not resolved_path.is_file():
+            self.root.after(
+                0, lambda: self._set_analysis_status(f"Datei nicht gefunden: {resolved_path.name}")
+            )
+            return
+
+        extraction = extract_text_for_analysis(
+            resolved_path,
+            content_type=doc.get("content_type"),
+            max_text_chars=40_000,
+        )
+
+        if not extraction.extracted_text:
+            msg = f"Textextraktion fehlgeschlagen ({extraction.extraction_status})."
+            self.root.after(0, lambda: self._set_analysis_status(msg))
+            return
+
+        context = (
+            f"TOP: {doc.get('agenda_item') or '-'}\n"
+            f"Dokument: {doc.get('title') or '-'}\n"
+            f"Typ: {doc.get('document_type') or '-'}\n"
+            f"Qualitaet: {extraction.parsing_quality} "
+            f"({extraction.extracted_char_count} Zeichen, {extraction.page_count or '?'} Seiten)\n\n"
+            f"{extraction.extracted_text}"
+        )
+
+        if provider_id == PROVIDER_NONE:
+            self.root.after(0, lambda: self._set_analysis_result(context))
+            self.root.after(
+                0,
+                lambda: self._set_analysis_status(
+                    f"Text extrahiert ({extraction.extracted_char_count} Zeichen, "
+                    f"Qualitaet: {extraction.parsing_quality})."
+                ),
+            )
+            return
+
+        try:
+            from src.analysis.providers.registry import build_provider
+
+            provider = build_provider(provider_id)
+            ki = provider.analyze(
+                prompt=prompt,
+                context=context,
+                model=model_name or None,
+            )
+        except Exception as exc:  # noqa: BLE001
+            msg = str(exc)
+            self.root.after(
+                0, lambda: self._set_analysis_status(f"Analyse fehlgeschlagen: {msg}")
+            )
+            return
+
+        if db_path.exists() and session:
+            try:
+                self.analysis_service.save_document_analysis(
+                    db_path=db_path,
+                    session=session,
+                    document=doc,
+                    prompt=prompt,
+                    ki_response=ki.response_text,
+                    model_name=ki.model_name,
+                    extraction_quality=extraction.parsing_quality,
+                    extraction_chars=extraction.extracted_char_count,
+                )
+            except Exception as exc:  # noqa: BLE001
+                import logging
+                logging.getLogger(__name__).warning("save_document_analysis fehlgeschlagen: %s", exc)
+
+        self.root.after(0, lambda: self._set_analysis_result(ki.response_text))
+        self.root.after(
+            0,
+            lambda: self._set_analysis_status(
+                f"Dokument-Analyse abgeschlossen (Modell: {ki.model_name})."
+            ),
+        )
 
     def _start_analysis_job(self) -> None:
         if not self.analysis_current_session:
@@ -1608,8 +1859,20 @@ class GuiLauncher:
             self._set_analysis_status("Keine Daten fuer die Analyse gefunden.")
             return
 
-        self._set_analysis_status("Analysegrundlage wird erstellt...")
-        thread = threading.Thread(target=self._run_analysis_job_worker, args=(payload, prompt), daemon=True)
+        provider_id = _PROVIDER_LABEL_TO_ID.get(self.analysis_provider.get(), PROVIDER_NONE)
+        model_name = self.analysis_model_name.get().strip()
+
+        if provider_id == PROVIDER_NONE:
+            self._set_analysis_status("Analysegrundlage wird erstellt...")
+        else:
+            label = self.analysis_provider.get()
+            self._set_analysis_status(f"KI-Analyse laeuft ({label})...")
+
+        thread = threading.Thread(
+            target=self._run_analysis_job_worker,
+            args=(payload, prompt, provider_id, model_name),
+            daemon=True,
+        )
         thread.start()
 
     def _build_analysis_payload(self) -> dict | None:
@@ -1630,7 +1893,9 @@ class GuiLauncher:
             "db_path": str(db_path),
         }
 
-    def _run_analysis_job_worker(self, payload: dict, prompt: str) -> None:
+    def _run_analysis_job_worker(
+        self, payload: dict, prompt: str, provider_id: str, model_name: str
+    ) -> None:
         db_path = Path(payload["db_path"])
         session = payload["session"]
         scope = payload["scope"]
@@ -1641,17 +1906,32 @@ class GuiLauncher:
             scope=scope,
             selected_tops=selected_tops,
             prompt=prompt,
+            provider_id=provider_id,
+            model_name=model_name,
         )
 
         try:
             result = self.analysis_service.run_journalistic_analysis(request)
-            self.root.after(0, lambda: self._set_analysis_result(result.markdown))
-            self.root.after(
-                0,
-                lambda: self._set_analysis_status(f"Analysegrundlage erstellt (Job {result.job_id})."),
-            )
+            display_text = result.ki_response if result.ki_response else result.markdown
+            self.root.after(0, lambda: self._set_analysis_result(display_text))
+            if result.ki_response:
+                status = f"KI-Analyse abgeschlossen (Job {result.job_id}, Modell: {result.model_name})."
+            elif provider_id != "none":
+                import sqlite3 as _sqlite3
+                with _sqlite3.connect(db_path) as _conn:
+                    _row = _conn.execute(
+                        "SELECT status, error_message FROM analysis_jobs WHERE id = ?", (result.job_id,)
+                    ).fetchone()
+                if _row and _row[0] == "error":
+                    status = f"KI-Fehler (Job {result.job_id}): {_row[1] or 'Unbekannter Fehler'}"
+                else:
+                    status = f"Analysegrundlage erstellt, Antwort leer (Job {result.job_id})."
+            else:
+                status = f"Analysegrundlage erstellt (Job {result.job_id})."
+            self.root.after(0, lambda: self._set_analysis_status(status))
         except Exception as exc:
-            self.root.after(0, lambda: self._set_analysis_status(f"Analyse fehlgeschlagen: {exc}"))
+            msg = str(exc)
+            self.root.after(0, lambda: self._set_analysis_status(f"Analyse fehlgeschlagen: {msg}"))
 
     def _selected_top_numbers(self) -> list[str]:
         selected: list[str] = []

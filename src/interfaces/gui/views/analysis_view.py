@@ -6,6 +6,14 @@ import customtkinter as ctk
 
 from ..config import BUTTON_FONT, FIELD_FONT, LABEL_FONT, LOG_FONT
 
+# Human-readable labels shown in the provider ComboBox (order matters)
+PROVIDER_LABELS: list[str] = [
+    "Kein Provider (nur Grundlage)",
+    "Claude (Anthropic)",
+    "Codex (OpenAI)",
+    "Ollama (lokal, \u22648B)",
+]
+
 
 def build_analysis_view(app, parent: ctk.CTkFrame) -> None:
     parent.grid_columnconfigure(0, weight=2)
@@ -85,9 +93,8 @@ def build_analysis_view(app, parent: ctk.CTkFrame) -> None:
     app.analysis_session_list_frame = ctk.CTkScrollableFrame(left_panel)
     app.analysis_session_list_frame.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0, 12))
 
-    right_panel = ctk.CTkFrame(parent)
+    right_panel = ctk.CTkScrollableFrame(parent)
     right_panel.grid(row=1, column=1, sticky="nsew", padx=(10, 20), pady=(0, 20))
-    right_panel.grid_rowconfigure(5, weight=1)
     right_panel.grid_columnconfigure(0, weight=1)
 
     app.analysis_selected_session_label = ctk.CTkLabel(
@@ -111,18 +118,49 @@ def build_analysis_view(app, parent: ctk.CTkFrame) -> None:
     ctk.CTkLabel(right_panel, text="Tagesordnung", font=FIELD_FONT).grid(
         row=2, column=0, sticky="w", padx=12, pady=(10, 4)
     )
-    app.analysis_tops_frame = ctk.CTkScrollableFrame(right_panel, height=160)
+    app.analysis_tops_frame = ctk.CTkScrollableFrame(right_panel, height=90)
     app.analysis_tops_frame.grid(row=3, column=0, sticky="ew", padx=12)
 
-    ctk.CTkLabel(right_panel, text="Prompt", font=FIELD_FONT).grid(
-        row=4, column=0, sticky="w", padx=12, pady=(10, 4)
+    app.analysis_docs_label = ctk.CTkLabel(
+        right_panel, text="Dokumente im TOP", font=FIELD_FONT
     )
-    app.analysis_prompt_box = ctk.CTkTextbox(right_panel, height=90, font=LOG_FONT)
-    app.analysis_prompt_box.grid(row=5, column=0, sticky="nsew", padx=12)
+    app.analysis_docs_label.grid(row=4, column=0, sticky="w", padx=12, pady=(8, 2))
+
+    app.analysis_docs_frame = ctk.CTkScrollableFrame(right_panel, height=90)
+    app.analysis_docs_frame.grid(row=5, column=0, sticky="ew", padx=12)
+    app.analysis_docs_frame.grid_columnconfigure(1, weight=1)
+
+    ctk.CTkLabel(right_panel, text="Prompt", font=FIELD_FONT).grid(
+        row=6, column=0, sticky="w", padx=12, pady=(8, 2)
+    )
+    app.analysis_prompt_box = ctk.CTkTextbox(right_panel, height=70, font=LOG_FONT)
+    app.analysis_prompt_box.grid(row=7, column=0, sticky="ew", padx=12)
     app.analysis_prompt_box.insert("1.0", app.analysis_prompt_value)
 
+    # --- Provider selection row ---
+    provider_row = ctk.CTkFrame(right_panel, fg_color="transparent")
+    provider_row.grid(row=8, column=0, sticky="ew", padx=12, pady=(10, 0))
+    ctk.CTkLabel(provider_row, text="KI-Provider:", font=FIELD_FONT).pack(side="left")
+    app.analysis_provider_box = ctk.CTkComboBox(
+        provider_row,
+        variable=app.analysis_provider,
+        values=PROVIDER_LABELS,
+        width=220,
+        command=app._on_analysis_provider_changed,
+    )
+    app.analysis_provider_box.pack(side="left", padx=(6, 16))
+    ctk.CTkLabel(provider_row, text="Modell:", font=FIELD_FONT).pack(side="left")
+    app.analysis_model_entry = ctk.CTkEntry(
+        provider_row,
+        textvariable=app.analysis_model_name,
+        placeholder_text="(Provider-Standard)",
+        width=180,
+    )
+    app.analysis_model_entry.pack(side="left", padx=(6, 0))
+
+    # --- Action buttons ---
     action_row = ctk.CTkFrame(right_panel, fg_color="transparent")
-    action_row.grid(row=6, column=0, sticky="ew", padx=12, pady=(10, 0))
+    action_row.grid(row=9, column=0, sticky="ew", padx=12, pady=(10, 0))
     ctk.CTkButton(
         action_row,
         text="Analyse starten",
@@ -149,10 +187,10 @@ def build_analysis_view(app, parent: ctk.CTkFrame) -> None:
     ).pack(side="left", padx=(10, 0))
 
     app.analysis_status_label = ctk.CTkLabel(right_panel, text="Bereit", font=FIELD_FONT, anchor="w")
-    app.analysis_status_label.grid(row=7, column=0, sticky="ew", padx=12, pady=(10, 4))
+    app.analysis_status_label.grid(row=10, column=0, sticky="ew", padx=12, pady=(10, 4))
 
-    app.analysis_result_text = ctk.CTkTextbox(right_panel, height=170, font=LOG_FONT)
-    app.analysis_result_text.grid(row=8, column=0, sticky="nsew", padx=12, pady=(0, 12))
+    app.analysis_result_text = ctk.CTkTextbox(right_panel, height=300, font=LOG_FONT)
+    app.analysis_result_text.grid(row=11, column=0, sticky="ew", padx=12, pady=(0, 12))
 
     app._refresh_analysis_committee_options()
     app._refresh_analysis_sessions()

@@ -1,0 +1,5 @@
+[tool.pytest.ini_options]
+addopts = "-m 'not live'"
+markers = [
+    "live: marks tests as requiring real external API calls (deselect with -m 'not live')",
+]

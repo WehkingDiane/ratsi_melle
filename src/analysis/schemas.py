@@ -22,8 +22,13 @@ class AnalysisOutputRecord:
     prompt_version: str = ""
     prompt_text: str = ""
     markdown: str = ""
+    ki_response: str = ""
     document_count: int = 0
     source_db: str = ""
+    session_path: str = ""
+    session_date: str = ""
+    status: str = "done"
+    error_message: str = ""
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)

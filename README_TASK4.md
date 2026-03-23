@@ -132,6 +132,25 @@ Empfohlen wird eine Trennung in:
 - standardisierte Antwortstruktur
 - nachgelagerte Qualitaets- und Review-Schicht
 
+#### Implementierte Provider-Infrastruktur (`src/analysis/providers/`)
+
+Die Provider-Architektur ist als erstes Gerüst vorhanden:
+
+Datei | Inhalt
+--- | ---
+`base.py` | Abstraktes `KiProvider`-Interface und `KiResponse`-Dataclass
+`registry.py` | `build_provider(provider_id)` — Fabrik, die Provider-IDs auf Instanzen abbildet
+`claude_provider.py` | Anthropic Claude via `anthropic` SDK (Standard: `claude-haiku-4-5`)
+`codex_provider.py` | OpenAI via `openai` SDK (Standard: `gpt-4o-mini`)
+`ollama_provider.py` | Lokales Ollama via HTTP-API, Modelle <= 8B (Standard: `llama3.2:3b`)
+
+Bekannte Provider-IDs: `none`, `claude`, `codex`, `ollama`.
+
+`AnalysisRequest` nimmt `provider_id` und optionale `provider_kwargs` entgegen.
+`AnalysisService` ruft den Provider auf, wenn `provider_id != "none"`, und speichert
+Antwort sowie Fehler reproduzierbar in der Datenbank.
+SDKs werden lazy importiert — ein fehlendes Paket löst eine klare `ImportError`-Meldung aus.
+
 ### Empfohlene KI-Uebergabe pro TOP
 
 Der wichtigste Zielpfad fuer Task 4 ist eine KI-Analyse pro TOP.
@@ -199,8 +218,9 @@ Ein brauchbarer erster Ausbau von Task 4 waere erreicht, wenn:
 
 ## Offene Punkte
 
-- Welche KI-Schnittstelle soll spaeter konkret angebunden werden?
-- Soll die KI Texte, PDFs oder beides pro TOP erhalten?
+- ✅ Welche KI-Schnittstellen werden angebunden? Claude, Codex (OpenAI) und Ollama (lokal, ≤ 8B) sind als erste Provider implementiert.
+- Soll die KI Texte, PDFs oder beides pro TOP erhalten? (Aktuell: nur Metadaten und Quellenreferenzen; Volltextuebergabe ist naechster Schritt.)
 - Welche Antwortstruktur ist fuer GUI und API gleichermassen tragfaehig?
 - Welche Teile der Analyse bleiben lokal regelbasiert, welche gehen verpflichtend an die KI?
 - Wie streng muessen Quellen- und Review-Regeln fuer spaetere Endnutzer-Ausgaben sein?
+- GUI-Anbindung: Welcher Provider und welches Modell soll in der Analyse-Ansicht waehlbar sein?
