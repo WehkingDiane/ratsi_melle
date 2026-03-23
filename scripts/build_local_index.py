@@ -169,18 +169,32 @@ def _populate(conn: sqlite3.Connection, data_root: Path, refresh_existing: bool,
         for row in conn.execute("SELECT session_id FROM sessions").fetchall()
         if row and row[0]
     }
+    # Sessions already in DB but with 0 documents are treated as incomplete and
+    # refreshed automatically, regardless of --refresh-existing, so that a
+    # partial fetch followed by a full fetch is corrected on the next index build.
+    incomplete = {
+        row[0]
+        for row in conn.execute(
+            "SELECT session_id FROM sessions WHERE session_id NOT IN "
+            "(SELECT DISTINCT session_id FROM documents)"
+        ).fetchall()
+        if row and row[0]
+    }
 
     for session in iter_session_folders(data_root):
-        if session.session_id in existing and not refresh_existing:
+        is_existing = session.session_id in existing
+        is_incomplete = session.session_id in incomplete
+        needs_refresh = refresh_existing or is_incomplete
+        if is_existing and not needs_refresh:
             continue
-        if session.session_id not in existing and only_refresh:
+        if not is_existing and only_refresh:
             continue
         year, month = _split_date(session.date)
         manifest = load_json(session.path / "manifest.json")
         session_info = manifest.get("session") if isinstance(manifest, dict) else {}
         if not isinstance(session_info, dict):
             session_info = {}
-        if session.session_id in existing and refresh_existing:
+        if is_existing and needs_refresh:
             conn.execute("DELETE FROM agenda_items WHERE session_id = ?", (session.session_id,))
             conn.execute("DELETE FROM documents WHERE session_id = ?", (session.session_id,))
         conn.execute(
