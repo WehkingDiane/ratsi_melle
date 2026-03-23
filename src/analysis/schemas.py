@@ -25,6 +25,7 @@ class AnalysisOutputRecord:
     ki_response: str = ""
     document_count: int = 0
     source_db: str = ""
+    session_path: str = ""
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)

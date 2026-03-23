@@ -194,7 +194,7 @@ def test_service_with_ollama_provider(tmp_path: Path, monkeypatch) -> None:
     summaries_dir = tmp_path / "summaries"
     prompts_dir = tmp_path / "prompts"
     latest_md = summaries_dir / "analysis_latest.md"
-    monkeypatch.setattr("src.analysis.service.ANALYSIS_SUMMARIES_DIR", summaries_dir)
+    monkeypatch.setattr("src.analysis.service.ANALYSIS_OUTPUTS_DIR", summaries_dir)
     monkeypatch.setattr("src.analysis.service.ANALYSIS_PROMPTS_DIR", prompts_dir)
     monkeypatch.setattr("src.analysis.service.DEFAULT_ANALYSIS_MARKDOWN", latest_md)
 
@@ -220,7 +220,7 @@ def test_service_without_provider_leaves_ki_response_empty(tmp_path: Path, monke
     summaries_dir = tmp_path / "summaries"
     prompts_dir = tmp_path / "prompts"
     latest_md = summaries_dir / "analysis_latest.md"
-    monkeypatch.setattr("src.analysis.service.ANALYSIS_SUMMARIES_DIR", summaries_dir)
+    monkeypatch.setattr("src.analysis.service.ANALYSIS_OUTPUTS_DIR", summaries_dir)
     monkeypatch.setattr("src.analysis.service.ANALYSIS_PROMPTS_DIR", prompts_dir)
     monkeypatch.setattr("src.analysis.service.DEFAULT_ANALYSIS_MARKDOWN", latest_md)
 
@@ -242,7 +242,7 @@ def test_service_provider_error_stored_in_db(tmp_path: Path, monkeypatch) -> Non
     summaries_dir = tmp_path / "summaries"
     prompts_dir = tmp_path / "prompts"
     latest_md = summaries_dir / "analysis_latest.md"
-    monkeypatch.setattr("src.analysis.service.ANALYSIS_SUMMARIES_DIR", summaries_dir)
+    monkeypatch.setattr("src.analysis.service.ANALYSIS_OUTPUTS_DIR", summaries_dir)
     monkeypatch.setattr("src.analysis.service.ANALYSIS_PROMPTS_DIR", prompts_dir)
     monkeypatch.setattr("src.analysis.service.DEFAULT_ANALYSIS_MARKDOWN", latest_md)
 

@@ -8,10 +8,13 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
+import re
+import unicodedata
+
 from src.analysis.analysis_context import build_analysis_markdown, enrich_documents_for_analysis
 from src.analysis.providers.registry import PROVIDER_NONE
 from src.analysis.schemas import AnalysisOutputRecord
-from src.paths import ANALYSIS_PROMPTS_DIR, ANALYSIS_SUMMARIES_DIR, DEFAULT_ANALYSIS_MARKDOWN
+from src.paths import ANALYSIS_OUTPUTS_DIR, ANALYSIS_PROMPTS_DIR, ANALYSIS_SUMMARIES_DIR, DEFAULT_ANALYSIS_MARKDOWN
 
 
 @dataclass(frozen=True)
@@ -37,13 +40,15 @@ class AnalysisService:
 
         db_path = request.db_path
         created_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        session_id = str(request.session["session_id"])
         documents = self._load_documents(
             db_path=db_path,
-            session_id=str(request.session["session_id"]),
+            session_id=session_id,
             scope=request.scope,
             selected_tops=request.selected_tops,
         )
         documents = enrich_documents_for_analysis(documents)
+        session_path = self._get_session_path(db_path, session_id)
         markdown = build_analysis_markdown(
             session=request.session,
             scope=request.scope,
@@ -102,7 +107,7 @@ class AnalysisService:
         record = AnalysisOutputRecord(
             job_id=job_id,
             created_at=created_at,
-            session_id=str(request.session["session_id"]),
+            session_id=session_id,
             scope=request.scope,
             top_numbers=list(request.selected_tops),
             model_name=effective_model,
@@ -112,6 +117,7 @@ class AnalysisService:
             ki_response=ki_response_text,
             document_count=len(documents),
             source_db=str(db_path),
+            session_path=session_path,
         )
         self.persist_analysis_artifacts(record)
         return record
@@ -155,6 +161,7 @@ class AnalysisService:
         top_number = str(document.get("agenda_item") or "")
         doc_title = str(document.get("title") or "")
         doc_type = str(document.get("document_type") or "")
+        session_path = str(document.get("session_path") or "")
 
         markdown = (
             f"# Dokument-Analyse: {doc_title}\n\n"
@@ -207,6 +214,7 @@ class AnalysisService:
             ki_response=ki_response,
             document_count=1,
             source_db=str(db_path),
+            session_path=session_path,
         )
         self.persist_analysis_artifacts(record)
         return record
@@ -214,17 +222,33 @@ class AnalysisService:
     def persist_analysis_artifacts(self, record: AnalysisOutputRecord) -> None:
         """Persist markdown, prompt and versioned JSON output to analysis output dirs."""
 
-        ANALYSIS_SUMMARIES_DIR.mkdir(parents=True, exist_ok=True)
+        output_dir = self._resolve_output_dir(record)
+        output_dir.mkdir(parents=True, exist_ok=True)
         ANALYSIS_PROMPTS_DIR.mkdir(parents=True, exist_ok=True)
+        DEFAULT_ANALYSIS_MARKDOWN.parent.mkdir(parents=True, exist_ok=True)
 
-        job_stem = f"job_{record.job_id}"
-        (ANALYSIS_SUMMARIES_DIR / f"{job_stem}.md").write_text(record.markdown + "\n", encoding="utf-8")
-        (ANALYSIS_SUMMARIES_DIR / f"{job_stem}.json").write_text(
+        job_stem = _job_stem(record)
+        (output_dir / f"{job_stem}.md").write_text(record.markdown + "\n", encoding="utf-8")
+        (output_dir / f"{job_stem}.json").write_text(
             json.dumps(record.to_dict(), indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
-        (ANALYSIS_PROMPTS_DIR / f"{job_stem}.txt").write_text(record.prompt_text + "\n", encoding="utf-8")
+        (ANALYSIS_PROMPTS_DIR / f"job_{record.job_id}.txt").write_text(
+            record.prompt_text + "\n", encoding="utf-8"
+        )
         DEFAULT_ANALYSIS_MARKDOWN.write_text(record.markdown + "\n", encoding="utf-8")
+
+    def _resolve_output_dir(self, record: AnalysisOutputRecord) -> Path:
+        """Compute session-oriented output directory mirroring the raw data structure."""
+        if record.session_path:
+            p = Path(record.session_path)
+            # session_path: data/raw/YYYY/MM/YYYY-MM-DD-Committee-ID
+            # parts[-3]=YYYY, parts[-2]=MM, parts[-1]=session-folder-name
+            if len(p.parts) >= 3:
+                return ANALYSIS_OUTPUTS_DIR / p.parts[-3] / p.parts[-2] / p.parts[-1]
+        # Fallback: derive YYYY/MM from created_at timestamp
+        year_month = record.created_at[:7]  # "2026-03"
+        return ANALYSIS_OUTPUTS_DIR / year_month[:4] / year_month[5:]
 
     def export_markdown(self, markdown: str, target: Path = DEFAULT_ANALYSIS_MARKDOWN) -> Path:
         """Export markdown to the standard analysis output location."""
@@ -288,3 +312,37 @@ class AnalysisService:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(query, tuple(params)).fetchall()
         return [dict(row) for row in rows]
+
+    def _get_session_path(self, db_path: Path, session_id: str) -> str:
+        """Return the session_path for a given session, or empty string if not found."""
+        if not db_path.exists():
+            return ""
+        with sqlite3.connect(db_path) as conn:
+            row = conn.execute(
+                "SELECT session_path FROM sessions WHERE session_id = ?", (session_id,)
+            ).fetchone()
+        return str(row[0]) if row and row[0] else ""
+
+
+# ---------------------------------------------------------------------------
+# Module-level helpers
+# ---------------------------------------------------------------------------
+
+def _slugify(text: str) -> str:
+    """Convert arbitrary text to a safe, ASCII filename slug."""
+    # Normalise unicode: decompose accents, then map common German chars explicitly
+    replacements = {"Ä": "Ae", "Ö": "Oe", "Ü": "Ue", "ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss"}
+    for src, dst in replacements.items():
+        text = text.replace(src, dst)
+    # Strip remaining non-ASCII via NFKD + encode
+    text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+    # Replace any non-alphanumeric character with hyphen
+    text = re.sub(r"[^a-zA-Z0-9]+", "-", text)
+    return text.strip("-")[:30]
+
+
+def _job_stem(record: AnalysisOutputRecord) -> str:
+    """Build a semantic filename stem for a job's output files."""
+    tops_slug = "-".join(_slugify(t) for t in record.top_numbers[:3] if t) or "all"
+    model_slug = _slugify(record.model_name) or "none"
+    return f"job_{record.job_id}-{record.scope}-{tops_slug}-{model_slug}"
