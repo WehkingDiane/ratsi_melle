@@ -17,7 +17,9 @@ from typing import Callable
 import customtkinter as ctk
 from CTkMenuBar import CTkMenuBar, CustomDropdownMenu
 
+from src.analysis.analysis_context import enrich_documents_for_analysis
 from src.analysis.batch_exporter import export_analysis_batch
+from src.analysis.extraction_pipeline import extract_text_for_analysis
 from src.analysis.providers import PROVIDER_NONE
 from src.analysis.service import AnalysisRequest, AnalysisService
 from src.interfaces.gui.dialogs.api_keys_dialog import ApiKeysDialog
@@ -186,6 +188,8 @@ class GuiLauncher:
         self.analysis_session_status_box: ctk.CTkComboBox | None = None
         self.analysis_provider_box: ctk.CTkComboBox | None = None
         self.analysis_model_entry: ctk.CTkEntry | None = None
+        self.analysis_docs_frame: ctk.CTkScrollableFrame | None = None
+        self.analysis_docs_label: ctk.CTkLabel | None = None
         self.settings_api_key_entries: dict[str, ctk.CTkEntry] = {}
         self.settings_key_source_labels: dict[str, ctk.CTkLabel] = {}
         self._settings_api_key_feedback: ctk.CTkLabel | None = None
@@ -1652,9 +1656,162 @@ class GuiLauncher:
                 text=info,
                 variable=var,
                 font=FIELD_FONT,
+                command=self._refresh_analysis_documents,
             ).pack(anchor="w", padx=6, pady=3)
 
         self._set_analysis_status("Sitzung geladen.")
+        self._refresh_analysis_documents()
+
+    def _refresh_analysis_documents(self) -> None:
+        """Reload and render the document list for the currently selected TOPs."""
+        if not self.analysis_docs_frame or not self.analysis_current_session:
+            return
+
+        db_path = self._resolve_db_path(self.export_db_path.get())
+        for child in self.analysis_docs_frame.winfo_children():
+            child.destroy()
+
+        selected_tops = self._selected_top_numbers()
+        if not selected_tops or not db_path.exists():
+            ctk.CTkLabel(
+                self.analysis_docs_frame,
+                text="TOP auswaehlen um Dokumente zu sehen.",
+                font=FIELD_FONT,
+                text_color="gray60",
+            ).pack(anchor="w", padx=6, pady=6)
+            return
+
+        session_id = str(self.analysis_current_session["session_id"])
+        docs = self.analysis_store.load_documents(db_path, session_id, "tops", selected_tops)
+        docs = enrich_documents_for_analysis(docs)
+
+        if not docs:
+            ctk.CTkLabel(
+                self.analysis_docs_frame,
+                text="Keine Dokumente fuer die gewaehlten TOPs.",
+                font=FIELD_FONT,
+                text_color="gray60",
+            ).pack(anchor="w", padx=6, pady=6)
+            return
+
+        for doc in docs:
+            row = ctk.CTkFrame(self.analysis_docs_frame, fg_color="transparent")
+            row.pack(fill="x", padx=4, pady=2)
+
+            available = bool(doc.get("source_file_available"))
+            dot_color = "#22C55E" if available else "#6B7280"
+            ctk.CTkLabel(row, text="●", font=FIELD_FONT, text_color=dot_color, width=16).pack(
+                side="left"
+            )
+
+            top_num = doc.get("agenda_item") or "-"
+            doc_type = doc.get("document_type") or "-"
+            title = str(doc.get("title") or "")
+            label_text = f"{top_num} | {doc_type} | {title[:40]}{'…' if len(title) > 40 else ''}"
+            ctk.CTkLabel(row, text=label_text, font=FIELD_FONT, anchor="w").pack(
+                side="left", fill="x", expand=True, padx=(4, 8)
+            )
+
+            ctk.CTkButton(
+                row,
+                text="Analysieren",
+                width=100,
+                fg_color="#1D4ED8",
+                hover_color="#1E40AF",
+                font=BUTTON_FONT,
+                command=lambda d=doc: self._start_document_analysis(d),
+            ).pack(side="right")
+
+    def _start_document_analysis(self, doc: dict) -> None:
+        """Trigger a document-level analysis for a single document row."""
+        prompt = ""
+        if self.analysis_prompt_box:
+            prompt = self.analysis_prompt_box.get("1.0", "end").strip()
+
+        provider_id = _PROVIDER_LABEL_TO_ID.get(self.analysis_provider.get(), PROVIDER_NONE)
+        model_name = self.analysis_model_name.get().strip()
+
+        title = str(doc.get("title") or "Dokument")[:50]
+        if provider_id == PROVIDER_NONE:
+            self._set_analysis_status(f"Text wird extrahiert: {title}…")
+        else:
+            self._set_analysis_status(f"Dokument-Analyse laeuft: {title}…")
+
+        thread = threading.Thread(
+            target=self._run_document_analysis_worker,
+            args=(doc, prompt, provider_id, model_name),
+            daemon=True,
+        )
+        thread.start()
+
+    def _run_document_analysis_worker(
+        self, doc: dict, prompt: str, provider_id: str, model_name: str
+    ) -> None:
+        resolved_path_str = doc.get("resolved_local_path")
+        if not resolved_path_str:
+            self.root.after(
+                0, lambda: self._set_analysis_status("Dokument nicht lokal verfuegbar.")
+            )
+            return
+
+        resolved_path = Path(resolved_path_str)
+        if not resolved_path.is_file():
+            self.root.after(
+                0, lambda: self._set_analysis_status(f"Datei nicht gefunden: {resolved_path.name}")
+            )
+            return
+
+        extraction = extract_text_for_analysis(
+            resolved_path,
+            content_type=doc.get("content_type"),
+            max_text_chars=40_000,
+        )
+
+        if not extraction.extracted_text:
+            msg = f"Textextraktion fehlgeschlagen ({extraction.extraction_status})."
+            self.root.after(0, lambda: self._set_analysis_status(msg))
+            return
+
+        context = (
+            f"TOP: {doc.get('agenda_item') or '-'}\n"
+            f"Dokument: {doc.get('title') or '-'}\n"
+            f"Typ: {doc.get('document_type') or '-'}\n"
+            f"Qualitaet: {extraction.parsing_quality} "
+            f"({extraction.extracted_char_count} Zeichen, {extraction.page_count or '?'} Seiten)\n\n"
+            f"{extraction.extracted_text}"
+        )
+
+        if provider_id == PROVIDER_NONE:
+            self.root.after(0, lambda: self._set_analysis_result(context))
+            self.root.after(
+                0,
+                lambda: self._set_analysis_status(
+                    f"Text extrahiert ({extraction.extracted_char_count} Zeichen, "
+                    f"Qualitaet: {extraction.parsing_quality})."
+                ),
+            )
+            return
+
+        try:
+            from src.analysis.providers.registry import build_provider
+
+            provider = build_provider(provider_id)
+            ki = provider.analyze(
+                prompt=prompt,
+                context=context,
+                model=model_name or None,
+            )
+            self.root.after(0, lambda: self._set_analysis_result(ki.response_text))
+            self.root.after(
+                0,
+                lambda: self._set_analysis_status(
+                    f"Dokument-Analyse abgeschlossen (Modell: {ki.model_name})."
+                ),
+            )
+        except Exception as exc:  # noqa: BLE001
+            self.root.after(
+                0, lambda: self._set_analysis_status(f"Analyse fehlgeschlagen: {exc}")
+            )
 
     def _start_analysis_job(self) -> None:
         if not self.analysis_current_session:
