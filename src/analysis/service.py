@@ -241,11 +241,14 @@ class AnalysisService:
     def _resolve_output_dir(self, record: AnalysisOutputRecord) -> Path:
         """Compute session-oriented output directory mirroring the raw data structure."""
         if record.session_path:
-            p = Path(record.session_path)
+            # Normalize Windows backslashes before splitting
+            p = Path(record.session_path.replace("\\", "/"))
             # session_path: data/raw/YYYY/MM/YYYY-MM-DD-Committee-ID
             # parts[-3]=YYYY, parts[-2]=MM, parts[-1]=session-folder-name
             if len(p.parts) >= 3:
-                return ANALYSIS_OUTPUTS_DIR / p.parts[-3] / p.parts[-2] / p.parts[-1]
+                year, month, folder = p.parts[-3], p.parts[-2], p.parts[-1]
+                if year.isdigit() and month.isdigit():
+                    return ANALYSIS_OUTPUTS_DIR / year / month / folder
         # Fallback: derive YYYY/MM from created_at timestamp
         year_month = record.created_at[:7]  # "2026-03"
         return ANALYSIS_OUTPUTS_DIR / year_month[:4] / year_month[5:]
