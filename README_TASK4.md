@@ -223,4 +223,4 @@ Ein brauchbarer erster Ausbau von Task 4 waere erreicht, wenn:
 - Welche Antwortstruktur ist fuer GUI und API gleichermassen tragfaehig?
 - Welche Teile der Analyse bleiben lokal regelbasiert, welche gehen verpflichtend an die KI?
 - Wie streng muessen Quellen- und Review-Regeln fuer spaetere Endnutzer-Ausgaben sein?
-- GUI-Anbindung: Welcher Provider und welches Modell soll in der Analyse-Ansicht waehlbar sein?
+- ✅ GUI-Anbindung: Provider und Modell sind in der Analyse-Ansicht waehlbar (KI-Provider-ComboBox + Modell-Eingabefeld in `analysis_view.py`).
