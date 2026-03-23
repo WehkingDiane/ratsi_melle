@@ -1,0 +1,32 @@
+[
+  {
+    "id": "doc_summary",
+    "label": "Dokumentzusammenfassung",
+    "scope": ["document", "tops", "session"],
+    "text": "Erstelle eine neutrale Zusammenfassung dieses Dokuments. Nenne Kernthemen, Beschlüsse und offene Fragen. Beziehe dich auf konkrete Textstellen."
+  },
+  {
+    "id": "top_analysis",
+    "label": "TOP-Analyse (journalistisch)",
+    "scope": ["tops", "session"],
+    "text": "Analysiere diesen Tagesordnungspunkt journalistisch. Nenne Kernaussagen, Beschlusslage, finanzielle Hinweise, politische Relevanz und Quellenbezug. Markiere Unsicherheiten explizit."
+  },
+  {
+    "id": "decision_check",
+    "label": "Beschluss-Check",
+    "scope": ["tops", "session"],
+    "text": "Identifiziere alle Beschlüsse und Abstimmungen. Liste offene Punkte und Verfahrensschritte. Nenne Zuständigkeiten soweit erkennbar."
+  },
+  {
+    "id": "financial_scan",
+    "label": "Finanz-Scan",
+    "scope": ["document", "tops", "session"],
+    "text": "Scanne diesen Inhalt auf finanzielle Angaben: Beträge, Haushaltsposten, Förderungen, Kosten und Einsparungen. Liste alle konkreten Zahlen mit Kontext."
+  },
+  {
+    "id": "session_overview",
+    "label": "Sitzungsüberblick",
+    "scope": ["session"],
+    "text": "Erstelle einen kompakten Überblick über diese Sitzung. Nenne die wichtigsten Themen, Beschlüsse und offenen Punkte. Geeignet für eine kurze Nachberichterstattung."
+  }
+]

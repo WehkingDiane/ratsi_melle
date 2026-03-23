@@ -1,0 +1,54 @@
+"""Prompt template registry – load and save JSON-based prompt templates."""
+
+from __future__ import annotations
+
+import json
+import logging
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+_DEFAULT_TEMPLATES: list[dict] = [
+    {
+        "id": "doc_summary",
+        "label": "Dokumentzusammenfassung",
+        "scope": ["document", "tops", "session"],
+        "text": (
+            "Erstelle eine neutrale Zusammenfassung dieses Dokuments. "
+            "Nenne Kernthemen, Beschlüsse und offene Fragen. "
+            "Beziehe dich auf konkrete Textstellen."
+        ),
+    }
+]
+
+
+def load_templates(path: Path) -> list[dict]:
+    """Load prompt templates from a JSON file.
+
+    Returns the list of template dicts, or built-in defaults on any error.
+    """
+    try:
+        text = path.read_text(encoding="utf-8")
+        data = json.loads(text)
+        if isinstance(data, list):
+            return data
+        logger.warning("prompt_templates.json: expected list, got %s", type(data))
+    except FileNotFoundError:
+        logger.info("Prompt template file not found: %s – using defaults", path)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Could not load prompt templates from %s: %s", path, exc)
+    return list(_DEFAULT_TEMPLATES)
+
+
+def save_templates(templates: list[dict], path: Path) -> None:
+    """Persist prompt templates to a JSON file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(templates, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+
+def filter_by_scope(templates: list[dict], scope: str) -> list[dict]:
+    """Return only templates whose scope list includes the given scope value."""
+    return [t for t in templates if scope in t.get("scope", [])]
