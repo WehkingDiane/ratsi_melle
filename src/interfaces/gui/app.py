@@ -1536,6 +1536,11 @@ class GuiLauncher:
         if self.analysis_committee_box:
             self.analysis_committee_box.configure(values=committees)
 
+    def _on_analysis_provider_changed(self, _value: str | None = None) -> None:
+        """Clear the model-name override when the provider changes to avoid cross-provider confusion."""
+        if hasattr(self, "analysis_model_name"):
+            self.analysis_model_name.set("")
+
     def _on_analysis_date_preset_changed(self, _value: str | None = None) -> None:
         date_from, date_to = self.analysis_store.resolve_date_range(
             self.analysis_date_preset.get().strip(),
@@ -1807,8 +1812,9 @@ class GuiLauncher:
                 model=model_name or None,
             )
         except Exception as exc:  # noqa: BLE001
+            msg = str(exc)
             self.root.after(
-                0, lambda: self._set_analysis_status(f"Analyse fehlgeschlagen: {exc}")
+                0, lambda: self._set_analysis_status(f"Analyse fehlgeschlagen: {msg}")
             )
             return
 

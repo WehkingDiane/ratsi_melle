@@ -146,6 +146,7 @@ def build_analysis_view(app, parent: ctk.CTkFrame) -> None:
         variable=app.analysis_provider,
         values=PROVIDER_LABELS,
         width=220,
+        command=app._on_analysis_provider_changed,
     )
     app.analysis_provider_box.pack(side="left", padx=(6, 16))
     ctk.CTkLabel(provider_row, text="Modell:", font=FIELD_FONT).pack(side="left")

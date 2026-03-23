@@ -19,6 +19,8 @@ import pytest
 
 from src.config.secrets import get_api_key
 
+pytestmark = pytest.mark.live
+
 # ---------------------------------------------------------------------------
 # Fixture
 # ---------------------------------------------------------------------------
