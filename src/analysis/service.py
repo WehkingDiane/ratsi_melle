@@ -109,7 +109,7 @@ class AnalysisService:
             created_at=created_at,
             session_id=session_id,
             scope=request.scope,
-            top_numbers=list(request.selected_tops),
+            top_numbers=list(request.selected_tops) if request.scope != "session" else [],
             model_name=effective_model,
             prompt_version=request.prompt_version,
             prompt_text=request.prompt,
@@ -135,9 +135,14 @@ class AnalysisService:
 
         try:
             provider = build_provider(request.provider_id, **request.provider_kwargs)
+            # Strip the embedded "## Prompt-Hinweis" section so the prompt
+            # is not sent twice (once in context, once as the prompt argument)
+            context_for_provider = re.sub(
+                r"\n## Prompt-Hinweis\n.*$", "", context, flags=re.DOTALL
+            ).rstrip()
             ki = provider.analyze(
                 prompt=request.prompt,
-                context=context,
+                context=context_for_provider,
                 model=request.model_name or None,
             )
             return ki.response_text, ki.model_name, None
@@ -230,7 +235,10 @@ class AnalysisService:
         DEFAULT_ANALYSIS_MARKDOWN.parent.mkdir(parents=True, exist_ok=True)
 
         job_stem = _job_stem(record)
-        (output_dir / f"{job_stem}.md").write_text(record.markdown + "\n", encoding="utf-8")
+        md_content = record.markdown
+        if record.ki_response:
+            md_content += f"\n\n## KI-Analyse\n\n{record.ki_response}\n"
+        (output_dir / f"{job_stem}.md").write_text(md_content, encoding="utf-8")
         (output_dir / f"{job_stem}.json").write_text(
             json.dumps(record.to_dict(), indent=2, ensure_ascii=False),
             encoding="utf-8",
@@ -238,7 +246,7 @@ class AnalysisService:
         (ANALYSIS_PROMPTS_DIR / f"job_{record.job_id}.txt").write_text(
             record.prompt_text + "\n", encoding="utf-8"
         )
-        DEFAULT_ANALYSIS_MARKDOWN.write_text(record.markdown + "\n", encoding="utf-8")
+        DEFAULT_ANALYSIS_MARKDOWN.write_text(md_content, encoding="utf-8")
 
     def _resolve_output_dir(self, record: AnalysisOutputRecord) -> Path:
         """Compute session-oriented output directory mirroring the raw data structure."""
