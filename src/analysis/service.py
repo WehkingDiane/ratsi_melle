@@ -14,7 +14,7 @@ import unicodedata
 from src.analysis.analysis_context import build_analysis_markdown, enrich_documents_for_analysis
 from src.analysis.providers.registry import PROVIDER_NONE
 from src.analysis.schemas import AnalysisOutputRecord
-from src.paths import ANALYSIS_OUTPUTS_DIR, ANALYSIS_PROMPTS_DIR, ANALYSIS_SUMMARIES_DIR, DEFAULT_ANALYSIS_MARKDOWN
+from src.paths import ANALYSIS_OUTPUTS_DIR, ANALYSIS_PROMPTS_DIR, DEFAULT_ANALYSIS_MARKDOWN
 
 
 @dataclass(frozen=True)
