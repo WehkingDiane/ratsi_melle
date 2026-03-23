@@ -26,6 +26,7 @@ class AnalysisOutputRecord:
     document_count: int = 0
     source_db: str = ""
     session_path: str = ""
+    session_date: str = ""
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)

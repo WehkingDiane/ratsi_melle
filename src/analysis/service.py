@@ -118,6 +118,7 @@ class AnalysisService:
             document_count=len(documents),
             source_db=str(db_path),
             session_path=session_path,
+            session_date=str(request.session.get("date", "")),
         )
         self.persist_analysis_artifacts(record)
         return record
@@ -215,6 +216,7 @@ class AnalysisService:
             document_count=1,
             source_db=str(db_path),
             session_path=session_path,
+            session_date=str(session.get("date", "")),
         )
         self.persist_analysis_artifacts(record)
         return record
@@ -249,9 +251,9 @@ class AnalysisService:
                 year, month, folder = p.parts[-3], p.parts[-2], p.parts[-1]
                 if year.isdigit() and month.isdigit():
                     return ANALYSIS_OUTPUTS_DIR / year / month / folder
-        # Fallback: derive YYYY/MM from created_at timestamp
-        year_month = record.created_at[:7]  # "2026-03"
-        return ANALYSIS_OUTPUTS_DIR / year_month[:4] / year_month[5:]
+        # Fallback: use session date (not run time) so online-DB sessions land in the right month
+        date_src = record.session_date or record.created_at[:10]
+        return ANALYSIS_OUTPUTS_DIR / date_src[:4] / date_src[5:7]
 
     def export_markdown(self, markdown: str, target: Path = DEFAULT_ANALYSIS_MARKDOWN) -> Path:
         """Export markdown to the standard analysis output location."""

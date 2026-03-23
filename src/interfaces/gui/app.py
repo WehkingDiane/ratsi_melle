@@ -1737,15 +1737,20 @@ class GuiLauncher:
         else:
             self._set_analysis_status(f"Dokument-Analyse laeuft: {title}…")
 
+        # Capture UI state now so the worker is not affected by later session changes
+        session_snapshot = self.analysis_current_session
+        db_path_snapshot = self._resolve_db_path(self.export_db_path.get())
+
         thread = threading.Thread(
             target=self._run_document_analysis_worker,
-            args=(doc, prompt, provider_id, model_name),
+            args=(doc, prompt, provider_id, model_name, session_snapshot, db_path_snapshot),
             daemon=True,
         )
         thread.start()
 
     def _run_document_analysis_worker(
-        self, doc: dict, prompt: str, provider_id: str, model_name: str
+        self, doc: dict, prompt: str, provider_id: str, model_name: str,
+        session: dict | None, db_path: Path,
     ) -> None:
         resolved_path_str = doc.get("resolved_local_path")
         if not resolved_path_str:
@@ -1807,12 +1812,11 @@ class GuiLauncher:
             )
             return
 
-        db_path = self._resolve_db_path(self.export_db_path.get())
-        if db_path.exists() and self.analysis_current_session:
+        if db_path.exists() and session:
             try:
                 self.analysis_service.save_document_analysis(
                     db_path=db_path,
-                    session=self.analysis_current_session,
+                    session=session,
                     document=doc,
                     prompt=prompt,
                     ki_response=ki.response_text,
