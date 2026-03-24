@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from src.analysis.providers.base import KiProvider, KiResponse
+from src.analysis.providers._pdf_utils import extract_pdf_text
 
 _DEFAULT_MODEL = "llama3.2:3b"
 _DEFAULT_BASE_URL = "http://localhost:11434"
@@ -65,9 +68,11 @@ class OllamaProvider(KiProvider):
         prompt: str,
         context: str,
         model: str | None = None,
+        pdf_paths: list[Path] | None = None,
     ) -> KiResponse:
         model_name = model or self.default_model
-        user_message = _build_user_message(prompt, context)
+        full_context = _append_pdf_text(context, pdf_paths)
+        user_message = _build_user_message(prompt, full_context)
 
         options: dict = {"temperature": 0.3}
 
@@ -98,6 +103,20 @@ class OllamaProvider(KiProvider):
         response = self._requests.get(f"{self._base_url}/api/tags", timeout=10)
         response.raise_for_status()
         return [m["name"] for m in response.json().get("models", [])]
+
+
+def _append_pdf_text(context: str, pdf_paths: list[Path] | None) -> str:
+    """Append extracted PDF text to the context (text-extraction fallback for Ollama)."""
+    if not pdf_paths:
+        return context
+    parts = [context] if context else []
+    for pdf_path in pdf_paths:
+        text = extract_pdf_text(pdf_path)
+        if text:
+            parts.append(f"\n\n### PDF: {pdf_path.name}\n\n{text}")
+        else:
+            parts.append(f"\n\n### PDF: {pdf_path.name}\n\n[Text nicht extrahierbar]")
+    return "".join(parts)
 
 
 def _build_user_message(prompt: str, context: str) -> str:

@@ -30,6 +30,7 @@ class AnalysisRequest:
     model_name: str = ""
     prompt_version: str = "draft"
     provider_kwargs: dict = field(default_factory=dict)
+    pdf_paths: list[Path] = field(default_factory=list)
 
 
 class AnalysisService:
@@ -146,6 +147,7 @@ class AnalysisService:
                 prompt=request.prompt,
                 context=context_for_provider,
                 model=request.model_name or None,
+                pdf_paths=request.pdf_paths or None,
             )
             return ki.response_text, ki.model_name, None
         except Exception as exc:  # noqa: BLE001

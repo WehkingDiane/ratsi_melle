@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from src.analysis.providers.base import KiProvider, KiResponse
+from src.analysis.providers._pdf_utils import extract_pdf_text
 from src.config.secrets import get_api_key as _get_api_key
 
 _DEFAULT_MODEL = "gpt-4o-mini"
@@ -38,9 +41,17 @@ class CodexProvider(KiProvider):
     def default_model(self) -> str:
         return _DEFAULT_MODEL
 
-    def analyze(self, *, prompt: str, context: str, model: str | None = None) -> KiResponse:
+    def analyze(
+        self,
+        *,
+        prompt: str,
+        context: str,
+        model: str | None = None,
+        pdf_paths: list[Path] | None = None,
+    ) -> KiResponse:
         model_name = model or self.default_model
-        user_message = _build_user_message(prompt, context)
+        full_context = _append_pdf_text(context, pdf_paths)
+        user_message = _build_user_message(prompt, full_context)
 
         completion = self._client.chat.completions.create(
             model=model_name,
@@ -66,6 +77,20 @@ class CodexProvider(KiProvider):
             input_tokens=usage.prompt_tokens if usage else 0,
             output_tokens=usage.completion_tokens if usage else 0,
         )
+
+
+def _append_pdf_text(context: str, pdf_paths: list[Path] | None) -> str:
+    """Append extracted PDF text to the context string (text-extraction fallback)."""
+    if not pdf_paths:
+        return context
+    parts = [context] if context else []
+    for pdf_path in pdf_paths:
+        text = extract_pdf_text(pdf_path)
+        if text:
+            parts.append(f"\n\n### PDF: {pdf_path.name}\n\n{text}")
+        else:
+            parts.append(f"\n\n### PDF: {pdf_path.name}\n\n[Text nicht extrahierbar]")
+    return "".join(parts)
 
 
 def _build_user_message(prompt: str, context: str) -> str:

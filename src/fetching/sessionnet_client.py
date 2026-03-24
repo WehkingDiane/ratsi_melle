@@ -509,7 +509,7 @@ class SessionNetClient:
             "category": document.category,
             "agenda_item": document.on_agenda_item,
             "url": document.url,
-            "path": str(path.relative_to(target_dir)),
+            "path": path.relative_to(target_dir).as_posix(),
             "sha1": sha1,
             "content_type": headers.get("Content-Type"),
             "content_disposition": headers.get("Content-Disposition"),
