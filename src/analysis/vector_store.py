@@ -6,11 +6,19 @@ from pathlib import Path
 from typing import Any
 
 _COLLECTION_NAME = "ratsi_documents"
+_DENSE_VECTOR = "harrier"
+_SPARSE_VECTOR = "bm25"
 _EMBEDDING_DIM = 1024
 
 
 class DocumentVectorStore:
     """Manages a local Qdrant vector store persisted on disk.
+
+    The collection uses two named vector fields:
+    - ``harrier``: 1024-dim dense vectors from microsoft/harrier-oss-v1-0.6b
+    - ``bm25``:    sparse BM25 vectors from fastembed for keyword matching
+
+    Hybrid search combines both via Reciprocal Rank Fusion (RRF).
 
     Args:
         qdrant_path: Directory where the Qdrant storage files will be kept.
@@ -37,35 +45,60 @@ class DocumentVectorStore:
     # ------------------------------------------------------------------
 
     def ensure_collection(self) -> None:
-        """Create the Qdrant collection if it does not already exist."""
-        from qdrant_client.models import Distance, VectorParams
+        """Create the Qdrant collection if it does not already exist.
+
+        Collection schema:
+        - Named dense vector ``harrier`` (cosine, dim 1024)
+        - Named sparse vector ``bm25`` (for keyword search)
+        """
+        from qdrant_client.models import (
+            Distance,
+            VectorParams,
+            SparseVectorParams,
+            SparseIndexParams,
+        )
 
         client = self._get_client()
         existing = [col.name for col in client.get_collections().collections]
         if _COLLECTION_NAME not in existing:
             client.create_collection(
                 collection_name=_COLLECTION_NAME,
-                vectors_config=VectorParams(
-                    size=_EMBEDDING_DIM,
-                    distance=Distance.COSINE,
-                ),
+                vectors_config={
+                    _DENSE_VECTOR: VectorParams(
+                        size=_EMBEDDING_DIM,
+                        distance=Distance.COSINE,
+                    ),
+                },
+                sparse_vectors_config={
+                    _SPARSE_VECTOR: SparseVectorParams(
+                        index=SparseIndexParams(on_disk=False),
+                    ),
+                },
             )
 
     def upsert_batch(self, points: list[dict]) -> None:
         """Insert or update a batch of vector points.
 
         Each point is a dict with keys:
-            - ``id`` (int): Unique document ID.
-            - ``vector`` (list[float]): Embedding vector of length 1024.
-            - ``payload`` (dict): Arbitrary metadata stored alongside the vector.
+            - ``id`` (int): Unique stable document ID.
+            - ``dense_vector`` (list[float]): Harrier embedding, length 1024.
+            - ``sparse_vector`` (dict): BM25 sparse vector with ``indices``
+              and ``values`` keys.
+            - ``payload`` (dict): Arbitrary metadata stored alongside.
         """
-        from qdrant_client.models import PointStruct
+        from qdrant_client.models import PointStruct, SparseVector
 
         client = self._get_client()
         qdrant_points = [
             PointStruct(
                 id=p["id"],
-                vector=p["vector"],
+                vector={
+                    _DENSE_VECTOR: p["dense_vector"],
+                    _SPARSE_VECTOR: SparseVector(
+                        indices=p["sparse_vector"]["indices"],
+                        values=p["sparse_vector"]["values"],
+                    ),
+                },
                 payload=p["payload"],
             )
             for p in points
@@ -74,23 +107,37 @@ class DocumentVectorStore:
 
     def search(
         self,
-        query_vector: list[float],
+        query_dense: list[float],
+        query_sparse: dict,
         limit: int = 10,
-        session_id: int | None = None,
+        session_id: str | None = None,
     ) -> list[dict]:
-        """Run a nearest-neighbour search.
+        """Run hybrid search combining dense (Harrier) and sparse (BM25) vectors.
+
+        Uses Reciprocal Rank Fusion (RRF) to merge results from both retrieval
+        methods. Keyword matches (BM25) and semantic matches (Harrier) each
+        contribute to the final ranking.
 
         Args:
-            query_vector: Query embedding of length 1024.
+            query_dense: Dense query vector of length 1024.
+            query_sparse: BM25 sparse query dict with ``indices`` and ``values``.
             limit: Maximum number of results to return.
             session_id: When set, restrict results to this session.
 
         Returns:
-            List of result dicts with keys:
-            ``doc_id``, ``score``, ``title``, ``session_id``,
-            ``agenda_item``, ``url``, ``local_path``.
+            List of result dicts with keys: ``doc_id``, ``score``, ``title``,
+            ``session_id``, ``agenda_item``, ``date``, ``committee``,
+            ``document_type``, ``url``, ``local_path``.
         """
-        from qdrant_client.models import Filter, FieldCondition, MatchValue
+        from qdrant_client.models import (
+            Filter,
+            FieldCondition,
+            MatchValue,
+            Prefetch,
+            FusionQuery,
+            Fusion,
+            SparseVector,
+        )
 
         client = self._get_client()
 
@@ -105,29 +152,33 @@ class DocumentVectorStore:
                 ]
             )
 
-        from qdrant_client.models import QueryRequest  # noqa: F401 – presence check
-
-        # qdrant-client >= 1.7 uses query_points(); older versions use search()
-        if hasattr(client, "query_points"):
-            response = client.query_points(
-                collection_name=_COLLECTION_NAME,
-                query=query_vector,
-                limit=limit,
-                query_filter=search_filter,
-                with_payload=True,
-            )
-            hits = response.points
-        else:
-            hits = client.search(
-                collection_name=_COLLECTION_NAME,
-                query_vector=query_vector,
-                limit=limit,
-                query_filter=search_filter,
-                with_payload=True,
-            )
+        # Prefetch candidates from both retrieval methods, then fuse
+        response = client.query_points(
+            collection_name=_COLLECTION_NAME,
+            prefetch=[
+                Prefetch(
+                    query=query_dense,
+                    using=_DENSE_VECTOR,
+                    limit=limit * 3,
+                    filter=search_filter,
+                ),
+                Prefetch(
+                    query=SparseVector(
+                        indices=query_sparse["indices"],
+                        values=query_sparse["values"],
+                    ),
+                    using=_SPARSE_VECTOR,
+                    limit=limit * 3,
+                    filter=search_filter,
+                ),
+            ],
+            query=FusionQuery(fusion=Fusion.RRF),
+            limit=limit,
+            with_payload=True,
+        )
 
         results: list[dict] = []
-        for hit in hits:
+        for hit in response.points:
             payload = hit.payload or {}
             results.append(
                 {

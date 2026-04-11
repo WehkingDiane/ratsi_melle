@@ -565,13 +565,15 @@ def _tab_semantic_search(db_path: Path) -> None:
 
 @st.cache_resource
 def _get_search_resources():
-    """Load and cache HarrierEmbedder and DocumentVectorStore across reruns."""
+    """Load and cache embedders and DocumentVectorStore across reruns."""
     from src.analysis.embeddings import HarrierEmbedder
+    from src.analysis.bm25_sparse import BM25Encoder
     from src.analysis.vector_store import DocumentVectorStore
 
     embedder = HarrierEmbedder()
+    bm25 = BM25Encoder()
     store = DocumentVectorStore(QDRANT_DIR)
-    return embedder, store
+    return embedder, bm25, store
 
 
 def _run_semantic_search(
@@ -580,16 +582,18 @@ def _run_semantic_search(
     limit: int,
     session_id: int | None,
 ) -> None:
-    """Execute the vector search and store results in session state."""
+    """Execute hybrid search (Harrier dense + BM25 sparse, RRF fusion)."""
     st.session_state["search_results"] = []
     st.session_state["search_error"] = ""
 
     try:
         with st.spinner("Berechne Embedding und durchsuche Index …"):
-            embedder, store = _get_search_resources()
-            query_vector = embedder.embed_query(query)
+            embedder, bm25, store = _get_search_resources()
+            query_dense = embedder.embed_query(query)
+            query_sparse = bm25.encode_query(query)
             results = store.search(
-                query_vector=query_vector,
+                query_dense=query_dense,
+                query_sparse=query_sparse,
                 limit=limit,
                 session_id=session_id,
             )

@@ -191,8 +191,13 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     print(f"  {len(already_indexed)} already indexed, {len(docs_to_index)} new.")
-    print("Loading embedding model (this may take a moment on first run) …")
+    print("Loading embedding models …")
     embedder = HarrierEmbedder()
+
+    from src.analysis.bm25_sparse import BM25Encoder
+    bm25 = BM25Encoder()
+    # Trigger BM25 model download before the main loop
+    bm25._get_model()
 
     # XPU (Intel Arc) has limited free VRAM after loading the model (~1 GB left).
     # Use smaller batches to avoid OOM; CPU can handle larger batches.
@@ -214,10 +219,11 @@ def main(argv: list[str] | None = None) -> None:
             print(f"  [{global_index}/{n}] {title_preview} …")
             texts.append(_get_document_text(doc))
 
-        vectors = embedder.embed_documents(texts)
+        dense_vectors = embedder.embed_documents(texts)
+        sparse_vectors = bm25.encode_documents(texts)
 
         points: list[dict] = []
-        for doc, vector in zip(batch, vectors):
+        for doc, dense_vec, sparse_vec in zip(batch, dense_vectors, sparse_vectors):
             # Resolve absolute path so the UI can open PDFs directly
             local_path_str = doc.get("local_path") or ""
             session_path_str = doc.get("session_path") or ""
@@ -230,7 +236,8 @@ def main(argv: list[str] | None = None) -> None:
             points.append(
                 {
                     "id": doc["_qdrant_id"],
-                    "vector": vector,
+                    "dense_vector": dense_vec,
+                    "sparse_vector": sparse_vec,
                     "payload": {
                         "session_id": doc.get("session_id"),
                         "title": doc.get("title") or "",
