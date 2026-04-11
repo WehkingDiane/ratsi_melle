@@ -105,13 +105,26 @@ class DocumentVectorStore:
                 ]
             )
 
-        hits = client.search(
-            collection_name=_COLLECTION_NAME,
-            query_vector=query_vector,
-            limit=limit,
-            query_filter=search_filter,
-            with_payload=True,
-        )
+        from qdrant_client.models import QueryRequest  # noqa: F401 – presence check
+
+        # qdrant-client >= 1.7 uses query_points(); older versions use search()
+        if hasattr(client, "query_points"):
+            response = client.query_points(
+                collection_name=_COLLECTION_NAME,
+                query=query_vector,
+                limit=limit,
+                query_filter=search_filter,
+                with_payload=True,
+            )
+            hits = response.points
+        else:
+            hits = client.search(
+                collection_name=_COLLECTION_NAME,
+                query_vector=query_vector,
+                limit=limit,
+                query_filter=search_filter,
+                with_payload=True,
+            )
 
         results: list[dict] = []
         for hit in hits:
