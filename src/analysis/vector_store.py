@@ -177,3 +177,15 @@ class DocumentVectorStore:
             return ids
         except Exception:
             return set()
+
+    def delete_ids(self, ids: set[int]) -> None:
+        """Remove vector points by their IDs (used for reconciliation)."""
+        if not ids:
+            return
+        from qdrant_client.models import PointIdsList
+
+        client = self._get_client()
+        client.delete(
+            collection_name=_COLLECTION_NAME,
+            points_selector=PointIdsList(points=list(ids)),
+        )

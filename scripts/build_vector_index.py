@@ -13,6 +13,7 @@ batches of embeddings into the Qdrant collection.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import sqlite3
 import sys
 from pathlib import Path
@@ -25,6 +26,21 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from src.paths import LOCAL_INDEX_DB, QDRANT_DIR
+
+
+# ---------------------------------------------------------------------------
+# Stable Qdrant ID (hash-based, survives SQLite row recreation)
+# ---------------------------------------------------------------------------
+
+def _stable_qdrant_id(session_id: str, url: str) -> int:
+    """Derive a stable integer ID from session_id + url.
+
+    Using a hash instead of the SQLite autoincrement id means the Qdrant
+    point ID stays the same even after build_local_index --refresh-existing
+    deletes and recreates document rows with new autoincrement values.
+    """
+    key = f"{session_id or ''}|{url or ''}"
+    return int(hashlib.md5(key.encode()).hexdigest()[:16], 16)
 
 
 # ---------------------------------------------------------------------------
@@ -159,8 +175,15 @@ def main(argv: list[str] | None = None) -> None:
     vector_store = DocumentVectorStore(qdrant_dir)
     vector_store.ensure_collection()
 
+    # Use stable hash IDs (not SQLite autoincrement) to survive index refreshes
+    for doc in all_docs:
+        doc["_qdrant_id"] = _stable_qdrant_id(
+            str(doc.get("session_id") or ""),
+            str(doc.get("url") or ""),
+        )
+
     already_indexed = vector_store.get_indexed_ids()
-    docs_to_index = [d for d in all_docs if d["id"] not in already_indexed]
+    docs_to_index = [d for d in all_docs if d["_qdrant_id"] not in already_indexed]
 
     if not docs_to_index:
         print("Nothing to index – all documents are already in the vector store.")
@@ -171,7 +194,7 @@ def main(argv: list[str] | None = None) -> None:
     print("Loading embedding model (this may take a moment on first run) …")
     embedder = HarrierEmbedder()
 
-    batch_size = 8
+    batch_size = 32
     indexed_count = 0
     n = len(docs_to_index)
 
@@ -189,9 +212,18 @@ def main(argv: list[str] | None = None) -> None:
 
         points: list[dict] = []
         for doc, vector in zip(batch, vectors):
+            # Resolve absolute path so the UI can open PDFs directly
+            local_path_str = doc.get("local_path") or ""
+            session_path_str = doc.get("session_path") or ""
+            if local_path_str and session_path_str:
+                abs_path = Path(session_path_str) / local_path_str
+                resolved_path = str(abs_path.resolve()) if abs_path.exists() else ""
+            else:
+                resolved_path = ""
+
             points.append(
                 {
-                    "id": doc["id"],
+                    "id": doc["_qdrant_id"],
                     "vector": vector,
                     "payload": {
                         "session_id": doc.get("session_id"),
@@ -199,7 +231,7 @@ def main(argv: list[str] | None = None) -> None:
                         "document_type": doc.get("document_type") or "",
                         "agenda_item": doc.get("agenda_item") or "",
                         "url": doc.get("url") or "",
-                        "local_path": doc.get("local_path") or "",
+                        "local_path": resolved_path,
                         "date": doc.get("date") or "",
                         "committee": doc.get("committee") or "",
                     },
@@ -208,6 +240,13 @@ def main(argv: list[str] | None = None) -> None:
 
         vector_store.upsert_batch(points)
         indexed_count += len(batch)
+
+    # Reconciliation: remove Qdrant points for documents no longer in SQLite
+    current_ids = {d["_qdrant_id"] for d in all_docs}
+    orphaned = already_indexed - current_ids
+    if orphaned:
+        print(f"  Removing {len(orphaned)} orphaned vector(s) …")
+        vector_store.delete_ids(orphaned)
 
     total_now = vector_store.count()
     print(f"\nIndexed {indexed_count} new documents. Total: {total_now}")

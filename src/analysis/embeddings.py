@@ -18,10 +18,22 @@ _QUERY_INSTRUCTION = (
 )
 
 
+def _detect_device() -> str:
+    """Return the best available compute device: xpu > cpu."""
+    try:
+        import torch
+        if torch.xpu.is_available():
+            return "xpu"
+    except (ImportError, AttributeError):
+        pass
+    return "cpu"
+
+
 class HarrierEmbedder:
     """Embedding service backed by the Harrier OSS model.
 
     The model is loaded on first use (lazy loading) to avoid startup overhead.
+    Automatically uses Intel XPU (Arc GPU) when available, falls back to CPU.
     """
 
     def __init__(self) -> None:
@@ -35,8 +47,10 @@ class HarrierEmbedder:
         if self._model is None:
             from sentence_transformers import SentenceTransformer
 
+            device = _detect_device()
             self._model = SentenceTransformer(
                 _MODEL_NAME,
+                device=device,
                 model_kwargs={"torch_dtype": "auto"},
             )
         return self._model

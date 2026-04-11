@@ -563,6 +563,17 @@ def _tab_semantic_search(db_path: Path) -> None:
                 st.markdown("---")
 
 
+@st.cache_resource
+def _get_search_resources():
+    """Load and cache HarrierEmbedder and DocumentVectorStore across reruns."""
+    from src.analysis.embeddings import HarrierEmbedder
+    from src.analysis.vector_store import DocumentVectorStore
+
+    embedder = HarrierEmbedder()
+    store = DocumentVectorStore(QDRANT_DIR)
+    return embedder, store
+
+
 def _run_semantic_search(
     *,
     query: str,
@@ -574,14 +585,9 @@ def _run_semantic_search(
     st.session_state["search_error"] = ""
 
     try:
-        from src.analysis.embeddings import HarrierEmbedder
-        from src.analysis.vector_store import DocumentVectorStore
-
         with st.spinner("Berechne Embedding und durchsuche Index …"):
-            embedder = HarrierEmbedder()
+            embedder, store = _get_search_resources()
             query_vector = embedder.embed_query(query)
-
-            store = DocumentVectorStore(QDRANT_DIR)
             results = store.search(
                 query_vector=query_vector,
                 limit=limit,
