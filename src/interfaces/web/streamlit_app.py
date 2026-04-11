@@ -532,13 +532,12 @@ def _tab_semantic_search(db_path: Path) -> None:
                         meta_parts.append(f"TOP: {agenda_item}")
                     if meta_parts:
                         st.caption(" | ".join(meta_parts))
-                    link_parts: list[str] = []
-                    if url:
-                        link_parts.append(f"[Download]({url})")
+                    btn_cols = st.columns([1, 1, 4])
                     if local_path and Path(local_path).exists():
-                        link_parts.append(f"`{Path(local_path).name}` (lokal verfügbar)")
-                    if link_parts:
-                        st.markdown(" · ".join(link_parts))
+                        file_url = Path(local_path).resolve().as_uri()
+                        btn_cols[0].link_button("PDF öffnen", file_url)
+                    elif url:
+                        btn_cols[0].link_button("Online öffnen", url)
             st.markdown("---")
 
 
