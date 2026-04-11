@@ -49,10 +49,16 @@ def _extract_text_pypdf(pdf_path: Path, max_pages: int = 10) -> str:
 
 
 def _get_document_text(row: dict) -> str:
-    """Return the best available text for a document row."""
+    """Return the best available text for a document row.
+
+    local_path in SQLite is relative to the session folder (session_path),
+    so we resolve the full path before attempting extraction.
+    """
     local_path_str: str = row.get("local_path") or ""
-    if local_path_str:
-        local_path = Path(local_path_str)
+    session_path_str: str = row.get("session_path") or ""
+
+    if local_path_str and session_path_str:
+        local_path = Path(session_path_str) / local_path_str
         if local_path.exists() and local_path.suffix.lower() == ".pdf":
             text = _extract_text_pypdf(local_path)
             if text.strip():
@@ -83,7 +89,8 @@ def _load_documents(db_path: Path, limit: int | None = None) -> list[dict]:
                 d.url,
                 d.local_path,
                 s.date,
-                s.committee
+                s.committee,
+                s.session_path
             FROM documents d
             LEFT JOIN sessions s ON s.session_id = d.session_id
             ORDER BY d.id
