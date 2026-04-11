@@ -194,7 +194,13 @@ def main(argv: list[str] | None = None) -> None:
     print("Loading embedding model (this may take a moment on first run) …")
     embedder = HarrierEmbedder()
 
-    batch_size = 32
+    # XPU (Intel Arc) has limited free VRAM after loading the model (~1 GB left).
+    # Use smaller batches to avoid OOM; CPU can handle larger batches.
+    from src.analysis.embeddings import _detect_device
+    device = _detect_device()
+    batch_size = 4 if device == "xpu" else 32
+    print(f"  Device: {device.upper()}, batch size: {batch_size}")
+
     indexed_count = 0
     n = len(docs_to_index)
 
@@ -240,6 +246,14 @@ def main(argv: list[str] | None = None) -> None:
 
         vector_store.upsert_batch(points)
         indexed_count += len(batch)
+
+        # Free unused XPU/GPU memory after each batch to prevent OOM
+        try:
+            import torch
+            if device == "xpu" and torch.xpu.is_available():
+                torch.xpu.empty_cache()
+        except Exception:
+            pass
 
     # Reconciliation: remove Qdrant points for documents no longer in SQLite
     current_ids = {d["_qdrant_id"] for d in all_docs}
