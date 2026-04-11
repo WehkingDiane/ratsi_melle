@@ -2,31 +2,47 @@
   {
     "id": "doc_summary",
     "label": "Dokumentzusammenfassung",
-    "scope": ["document", "tops", "session"],
+    "scope": [
+      "document",
+      "tops",
+      "session"
+    ],
     "text": "Erstelle eine neutrale Zusammenfassung dieses Dokuments. Nenne Kernthemen, Beschlüsse und offene Fragen. Beziehe dich auf konkrete Textstellen."
   },
   {
     "id": "top_analysis",
     "label": "TOP-Analyse (journalistisch)",
-    "scope": ["tops", "session"],
-    "text": "Analysiere diesen Tagesordnungspunkt journalistisch. Nenne Kernaussagen, Beschlusslage, finanzielle Hinweise, politische Relevanz und Quellenbezug. Markiere Unsicherheiten explizit."
+    "scope": [
+      "tops",
+      "session"
+    ],
+    "text": "Du bist ein sachkundiger Assistent für kommunalpolitische Arbeit. Analysiere den folgenden Tagesordnungspunkt (TOP) und erstelle eine strukturierte, sachliche Zusammenfassung für eine Abgeordnete im Stadtrat Melle (Niedersachsen).\nDie Zusammenfassung soll folgende Punkte enthalten, soweit sie relevant sind:\n1. Worum geht es? – Kurze Beschreibung des Sachverhalts in 2–3 Sätzen (ohne Fachjargon).\n2. Hintergrund & Kontext – Warum steht dieser Punkt auf der Tagesordnung? Gibt es Vorgeschichte, laufende Prozesse oder rechtliche Vorgaben?\n3. Was wird vom Stadtrat erwartet? – Beschluss, Kenntnisnahme, Empfehlung, Anfrage oder anderes?\n4. Relevanz für Melle – Welche Auswirkungen hat das auf die Stadt, die Stadtteile oder die Bürgerinnen und Bürger?\n5. Finanzielle Aspekte – Kosten, Fördermittel, Haushaltswirkung (falls vorhanden).\n6. Mögliche Fragen oder Diskussionspunkte – Was könnte politisch strittig oder klärungsbedürftig sein?\n7. Empfehlung / Handlungsoption – Neutrale Darstellung möglicher Positionen (kein parteipolitisches Urteil).\nTon: sachlich, klar, ohne unnötige Fachbegriffe. Länge: ca. 200–350 Wörter."
   },
   {
     "id": "decision_check",
     "label": "Beschluss-Check",
-    "scope": ["tops", "session"],
+    "scope": [
+      "tops",
+      "session"
+    ],
     "text": "Identifiziere alle Beschlüsse und Abstimmungen. Liste offene Punkte und Verfahrensschritte. Nenne Zuständigkeiten soweit erkennbar."
   },
   {
     "id": "financial_scan",
     "label": "Finanz-Scan",
-    "scope": ["document", "tops", "session"],
+    "scope": [
+      "document",
+      "tops",
+      "session"
+    ],
     "text": "Scanne diesen Inhalt auf finanzielle Angaben: Beträge, Haushaltsposten, Förderungen, Kosten und Einsparungen. Liste alle konkreten Zahlen mit Kontext."
   },
   {
     "id": "session_overview",
     "label": "Sitzungsüberblick",
-    "scope": ["session"],
+    "scope": [
+      "session"
+    ],
     "text": "Erstelle einen kompakten Überblick über diese Sitzung. Nenne die wichtigsten Themen, Beschlüsse und offenen Punkte. Geeignet für eine kurze Nachberichterstattung."
   }
 ]

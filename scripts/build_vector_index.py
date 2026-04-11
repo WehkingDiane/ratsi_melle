@@ -85,7 +85,7 @@ def _load_documents(db_path: Path, limit: int | None = None) -> list[dict]:
                 s.date,
                 s.committee
             FROM documents d
-            LEFT JOIN sessions s ON s.id = d.session_id
+            LEFT JOIN sessions s ON s.session_id = d.session_id
             ORDER BY d.id
         """
         if limit is not None:
