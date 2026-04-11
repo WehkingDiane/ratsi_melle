@@ -22,6 +22,7 @@ from src.paths import (
     ANALYSIS_OUTPUTS_DIR,
     LOCAL_INDEX_DB,
     ONLINE_INDEX_DB,
+    QDRANT_DIR,
     REPO_ROOT,
 )
 
@@ -75,6 +76,8 @@ def _init_state() -> None:
         "analysis_error": "",
         "analysis_record": None,
         "script_output": "",
+        "search_results": [],
+        "search_error": "",
     }
     for key, val in defaults.items():
         if key not in st.session_state:
@@ -436,6 +439,142 @@ def _offer_downloads(record) -> None:  # type: ignore[no-untyped-def]
 
 
 # ---------------------------------------------------------------------------
+# Tab: Semantische Suche
+# ---------------------------------------------------------------------------
+
+def _tab_semantic_search(db_path: Path) -> None:
+    st.header("🔍 Semantische Suche")
+
+    # Check for required libraries
+    try:
+        import qdrant_client  # noqa: F401
+        import sentence_transformers  # noqa: F401
+    except ImportError:
+        st.warning(
+            "Die Bibliotheken `qdrant-client` und `sentence-transformers` sind nicht installiert.\n\n"
+            "Bitte installieren mit:\n"
+            "```\n"
+            "pip install qdrant-client sentence-transformers\n"
+            "pip install torch --index-url https://download.pytorch.org/whl/cpu\n"
+            "```"
+        )
+        return
+
+    # Check that the Qdrant index has been built
+    if not QDRANT_DIR.exists():
+        st.info(
+            "Der Vektor-Index wurde noch nicht erstellt. "
+            "Bitte zuerst folgenden Befehl ausführen:\n\n"
+            "```\n"
+            "python scripts/build_vector_index.py\n"
+            "```"
+        )
+        return
+
+    # Search form
+    query_text = st.text_input(
+        "Suchanfrage",
+        placeholder="z. B. Beschluss Haushalt Schulen",
+    )
+
+    col_limit, col_filter = st.columns([1, 2])
+    with col_limit:
+        result_limit = st.slider("Anzahl Ergebnisse", min_value=5, max_value=20, value=10)
+
+    # Optional session filter
+    session_filter_id: int | None = None
+    with col_filter:
+        selected_session = st.session_state.get("selected_session")
+        if selected_session:
+            use_session_filter = st.checkbox(
+                f"Nur aktuelle Sitzung ({selected_session.get('date', '')} – {selected_session.get('committee', '')})"
+            )
+            if use_session_filter:
+                session_filter_id = selected_session.get("session_id")
+
+    if st.button("Suchen", type="primary", disabled=not query_text.strip()):
+        _run_semantic_search(
+            query=query_text.strip(),
+            limit=result_limit,
+            session_id=session_filter_id,
+        )
+
+    # Display results stored in session state
+    results: list[dict] = st.session_state.get("search_results", [])
+    search_error: str = st.session_state.get("search_error", "")
+
+    if search_error:
+        st.error(search_error)
+
+    if results:
+        st.markdown(f"**{len(results)} Ergebnis(se) gefunden:**")
+        st.markdown("---")
+        for hit in results:
+            score_pct = round(hit["score"] * 100, 1)
+            title = hit.get("title") or "(kein Titel)"
+            session_id = hit.get("session_id")
+            date_str = hit.get("date") or ""
+            committee_str = hit.get("committee") or ""
+            agenda_item = hit.get("agenda_item") or ""
+            url = hit.get("url") or ""
+            local_path = hit.get("local_path") or ""
+
+            with st.container():
+                col_score, col_info = st.columns([1, 5])
+                with col_score:
+                    st.metric("Score", f"{score_pct} %")
+                with col_info:
+                    st.markdown(f"**{title}**")
+                    meta_parts: list[str] = []
+                    if date_str or committee_str:
+                        meta_parts.append(f"Sitzung: {date_str} – {committee_str}")
+                    if agenda_item:
+                        meta_parts.append(f"TOP: {agenda_item}")
+                    if meta_parts:
+                        st.caption(" | ".join(meta_parts))
+                    link_parts: list[str] = []
+                    if url:
+                        link_parts.append(f"[Download]({url})")
+                    if local_path and Path(local_path).exists():
+                        link_parts.append(f"`{Path(local_path).name}` (lokal verfügbar)")
+                    if link_parts:
+                        st.markdown(" · ".join(link_parts))
+            st.markdown("---")
+
+
+def _run_semantic_search(
+    *,
+    query: str,
+    limit: int,
+    session_id: int | None,
+) -> None:
+    """Execute the vector search and store results in session state."""
+    st.session_state["search_results"] = []
+    st.session_state["search_error"] = ""
+
+    try:
+        from src.analysis.embeddings import HarrierEmbedder
+        from src.analysis.vector_store import DocumentVectorStore
+
+        with st.spinner("Berechne Embedding und durchsuche Index …"):
+            embedder = HarrierEmbedder()
+            query_vector = embedder.embed_query(query)
+
+            store = DocumentVectorStore(QDRANT_DIR)
+            results = store.search(
+                query_vector=query_vector,
+                limit=limit,
+                session_id=session_id,
+            )
+
+        st.session_state["search_results"] = results
+    except Exception as exc:  # noqa: BLE001
+        st.session_state["search_error"] = f"Fehler bei der Suche: {exc}"
+
+    st.rerun()
+
+
+# ---------------------------------------------------------------------------
 # Tab: Datenabruf
 # ---------------------------------------------------------------------------
 def _tab_datenabruf() -> None:
@@ -621,12 +760,14 @@ def main() -> None:
     _init_state()
     db_path = _render_sidebar()
 
-    tab_analyse, tab_data, tab_export, tab_settings = st.tabs(
-        ["🔍 Analyse", "📥 Datenabruf", "📤 Export", "⚙️ Einstellungen"]
+    tab_analyse, tab_search, tab_data, tab_export, tab_settings = st.tabs(
+        ["🔍 Analyse", "🔍 Semantische Suche", "📥 Datenabruf", "📤 Export", "⚙️ Einstellungen"]
     )
 
     with tab_analyse:
         _tab_analyse(db_path)
+    with tab_search:
+        _tab_semantic_search(db_path)
     with tab_data:
         _tab_datenabruf()
     with tab_export:

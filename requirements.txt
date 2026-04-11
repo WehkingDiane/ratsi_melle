@@ -1,3 +1,8 @@
+# Semantische Suche (Harrier + Qdrant) - torch wird separat benötigt:
+# pip install torch --index-url https://download.pytorch.org/whl/cpu
+sentence-transformers>=3.0
+qdrant-client>=1.12
+
 beautifulsoup4==4.14.3
 pypdf==6.9.2
 streamlit==1.53.1
