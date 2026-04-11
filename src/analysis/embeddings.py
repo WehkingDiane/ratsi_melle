@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
+
+# Suppress HuggingFace Hub unauthenticated-request warning – no token needed
+# for public models and we don't want to prompt users to create an account.
+os.environ.setdefault("HF_HUB_DISABLE_IMPLICIT_TOKEN", "1")
 
 if TYPE_CHECKING:
     from sentence_transformers import SentenceTransformer
