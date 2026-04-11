@@ -477,9 +477,11 @@ def _tab_semantic_search(db_path: Path) -> None:
         placeholder="z. B. Beschluss Haushalt Schulen",
     )
 
-    col_limit, col_filter = st.columns([1, 2])
+    col_limit, col_thresh, col_filter = st.columns([1, 1, 2])
     with col_limit:
         result_limit = st.slider("Anzahl Ergebnisse", min_value=5, max_value=20, value=10)
+    with col_thresh:
+        min_score = st.slider("Mindest-Score %", min_value=0, max_value=90, value=45, step=5)
 
     # Optional session filter
     session_filter_id: int | None = None
@@ -500,45 +502,65 @@ def _tab_semantic_search(db_path: Path) -> None:
         )
 
     # Display results stored in session state
-    results: list[dict] = st.session_state.get("search_results", [])
+    all_results: list[dict] = st.session_state.get("search_results", [])
     search_error: str = st.session_state.get("search_error", "")
 
     if search_error:
         st.error(search_error)
 
-    if results:
-        st.markdown(f"**{len(results)} Ergebnis(se) gefunden:**")
-        st.markdown("---")
-        for hit in results:
-            score_pct = round(hit["score"] * 100, 1)
-            title = hit.get("title") or "(kein Titel)"
-            session_id = hit.get("session_id")
-            date_str = hit.get("date") or ""
-            committee_str = hit.get("committee") or ""
-            agenda_item = hit.get("agenda_item") or ""
-            url = hit.get("url") or ""
-            local_path = hit.get("local_path") or ""
+    if all_results:
+        results = [h for h in all_results if round(h["score"] * 100, 1) >= min_score]
+        filtered_out = len(all_results) - len(results)
 
-            with st.container():
-                col_score, col_info = st.columns([1, 5])
-                with col_score:
-                    st.metric("Score", f"{score_pct} %")
-                with col_info:
-                    st.markdown(f"**{title}**")
-                    meta_parts: list[str] = []
-                    if date_str or committee_str:
-                        meta_parts.append(f"Sitzung: {date_str} – {committee_str}")
-                    if agenda_item:
-                        meta_parts.append(f"TOP: {agenda_item}")
-                    if meta_parts:
-                        st.caption(" | ".join(meta_parts))
-                    btn_cols = st.columns([1, 1, 4])
-                    if local_path and Path(local_path).exists():
-                        file_url = Path(local_path).resolve().as_uri()
-                        btn_cols[0].link_button("PDF öffnen", file_url)
-                    elif url:
-                        btn_cols[0].link_button("Online öffnen", url)
+        if not results:
+            st.info(
+                f"Keine Ergebnisse über {min_score} % Relevanz. "
+                f"{filtered_out} Treffer unter dem Schwellwert gefunden – "
+                "Mindest-Score reduzieren um diese anzuzeigen."
+            )
+        else:
+            header = f"**{len(results)} Ergebnis(se) gefunden**"
+            if filtered_out:
+                header += f" *(+{filtered_out} unter {min_score} % ausgeblendet)*"
+            st.markdown(header)
             st.markdown("---")
+            for hit in results:
+                score_pct = round(hit["score"] * 100, 1)
+                title = hit.get("title") or "(kein Titel)"
+                date_str = hit.get("date") or ""
+                committee_str = hit.get("committee") or ""
+                agenda_item = hit.get("agenda_item") or ""
+                doc_type = hit.get("document_type") or ""
+                url = hit.get("url") or ""
+                local_path = hit.get("local_path") or ""
+
+                # Score colour: green ≥ 70, orange ≥ 45, red < 45
+                if score_pct >= 70:
+                    score_colour = "🟢"
+                elif score_pct >= 45:
+                    score_colour = "🟡"
+                else:
+                    score_colour = "🔴"
+
+                with st.container():
+                    col_score, col_info = st.columns([1, 5])
+                    with col_score:
+                        st.metric("Score", f"{score_colour} {score_pct} %")
+                    with col_info:
+                        st.markdown(f"**{title}**")
+                        if doc_type:
+                            st.caption(f"Typ: {doc_type}")
+                        if date_str or committee_str:
+                            st.caption(f"📅 {date_str}  |  🏛 {committee_str}")
+                        if agenda_item:
+                            st.caption(f"📋 TOP: {agenda_item}")
+                        btn_cols = st.columns([1, 1, 4])
+                        if local_path and Path(local_path).exists():
+                            file_url = Path(local_path).resolve().as_uri()
+                            btn_cols[0].link_button("PDF öffnen", file_url)
+                        elif url:
+                            btn_cols[0].link_button("Online öffnen", url)
+                st.markdown("---")
 
 
 def _run_semantic_search(

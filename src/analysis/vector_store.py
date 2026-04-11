@@ -136,6 +136,9 @@ class DocumentVectorStore:
                     "title": payload.get("title", ""),
                     "session_id": payload.get("session_id"),
                     "agenda_item": payload.get("agenda_item"),
+                    "date": payload.get("date", ""),
+                    "committee": payload.get("committee", ""),
+                    "document_type": payload.get("document_type", ""),
                     "url": payload.get("url", ""),
                     "local_path": payload.get("local_path", ""),
                 }
