@@ -122,7 +122,7 @@ Wichtig: Bei Läufen mit `--limit` ist die Bereinigung bewusst deaktiviert. Ein 
 
 ```bash
 # Abhängigkeiten installieren (einmalig)
-pip install sentence-transformers qdrant-client
+pip install sentence-transformers qdrant-client fastembed
 
 # CPU (Standard):
 pip install torch --index-url https://download.pytorch.org/whl/cpu
@@ -188,15 +188,13 @@ Der im Qdrant-Payload gespeicherte `local_path` ist der **aufgelöste absolute P
 
 ## Score-Interpretation
 
-Die Suche gibt einen Cosine-Similarity-Score zwischen 0 und 1 zurück (angezeigt als Prozent):
+Die Hybrid-Suche in Qdrant verwendet **Reciprocal Rank Fusion (RRF)**, um Dense- und Sparse-Treffer zu einer gemeinsamen Rangliste zu verschmelzen. Der angezeigte Wert ist daher **kein Prozentwert und keine Cosine-Similarity**, sondern ein Fusionsscore zur relativen Sortierung.
 
-| Score | Bedeutung |
-|---|---|
-| ≥ 70 % | Starke inhaltliche Übereinstimmung |
-| 45–69 % | Thematisch verwandt |
-| < 45 % | Schwache Übereinstimmung, meist nicht relevant |
+Praktische Konsequenzen:
 
-**Wichtig:** Ein Wert von 70 % bedeutet bei semantischer Suche einen guten Treffer – nicht wie bei Keyword-Suche, wo 100 % der Normalfall wäre. Die Skala verhält sich grundlegend anders, weil Vektoren nie identisch sind, solange der Text nicht fast wortgleich ist.
+- Ergebnisse werden primär nach **Rang** interpretiert, nicht über einen festen Prozent-Schwellenwert.
+- Kleine numerische Unterschiede im RRF-Score sind normal und nicht direkt als "Relevanz in Prozent" lesbar.
+- Exakte Score-Schwellen, wie man sie aus Cosine-Similarity kennt, sind hier nicht sinnvoll.
 
 ---
 
@@ -205,6 +203,7 @@ Die Suche gibt einen Cosine-Similarity-Score zwischen 0 und 1 zurück (angezeigt
 ```
 sentence-transformers>=3.0   # Harrier-Integration
 qdrant-client>=1.12          # Lokaler Vektorspeicher
+fastembed>=0.4.0            # BM25 sparse vectors fuer Hybrid-Suche
 torch                        # Laufzeitumgebung für das Modell
                              # CPU:  pip install torch --index-url https://download.pytorch.org/whl/cpu
                              # XPU:  pip install torch torchaudio torchvision --index-url https://download.pytorch.org/whl/xpu
@@ -217,5 +216,5 @@ torch                        # Laufzeitumgebung für das Modell
 ## Aktuelle Einschränkungen
 
 - **OCR nicht integriert** – Scan-PDFs ohne Textebene werden nur über Titel eingebettet. Erfordert manuelle Installation von `tesseract` + `pdftoppm`.
-- **Keine Hybridsuche** – Keyword-Treffer (exakte Namen wie „CDU-Fraktion") werden nicht gesondert behandelt. Eine Kombination mit SQLite FTS5 ist als Erweiterung vorgesehen.
+- **RRF-Score nicht als Prozent interpretierbar** – die UI zeigt den Fusionsscore nur als Rang-/Debug-Hinweis; fachlich relevant ist vor allem die Reihenfolge der Treffer.
 - **UI vorläufig** – die aktuelle Suchoberfläche in der Streamlit-UI ist ein erster Prototyp und wird in einer späteren Version überarbeitet.
