@@ -1,23 +1,26 @@
-# Semantische Suche (Harrier + Qdrant) - torch wird separat benötigt:
-# pip install torch --index-url https://download.pytorch.org/whl/cpu
+# Kernabhaengigkeiten
+beautifulsoup4==4.14.3
+pypdf==6.9.2
+requests==2.32.5
+streamlit==1.53.1
+keyring==25.7.0
+
+# KI-Provider
+anthropic==0.86.0
+openai==2.29.0
+
+# Semantische Suche (Harrier + Qdrant)
 sentence-transformers>=3.0
 qdrant-client>=1.12
 fastembed>=0.4.0
 
-beautifulsoup4==4.14.3
-pypdf==6.9.2
-streamlit==1.53.1
-certifi==2026.1.4
-charset-normalizer==3.4.4
-CTkMenuBar==0.9
+# torch wird separat benoetigt:
+# CPU: pip install torch --index-url https://download.pytorch.org/whl/cpu
+# XPU: pip install torch torchaudio torchvision --index-url https://download.pytorch.org/whl/xpu
+
+# Legacy-Desktop-GUI
 customtkinter==5.2.2
-darkdetect==0.8.0
-idna==3.11
-anthropic==0.86.0
-keyring==25.7.0
-openai==2.29.0
-packaging==26.0
-requests==2.32.5
-soupsieve==2.8.3
-typing_extensions==4.15.0
-urllib3==2.6.3
+CTkMenuBar==0.9
+
+# Test-Runner
+pytest>=9.0

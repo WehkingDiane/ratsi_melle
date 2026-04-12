@@ -1,5 +1,7 @@
 .venv/
 .venv-wsl/
+.vscode/
+.codex/
 __pycache__/
 .pytest_cache/
 logs/
