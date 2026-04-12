@@ -101,7 +101,9 @@
 
 - Wenn `python` fehlt, `python3` und `pip3` verwenden.
 - Empfohlenes Setup:
-  - `python3 -m venv .venv`
-  - `source .venv/bin/activate`
+  - Unter WSL die virtuelle Umgebung `.venv-wsl` verwenden.
+  - Unter Windows die virtuelle Umgebung `.venv` verwenden.
+  - WSL-Setup: `python3 -m venv .venv-wsl`
+  - Aktivieren unter WSL: `source .venv-wsl/bin/activate`
   - `python -m pip install -r requirements.txt`
 - Bei Paketinstallationen oder Testlaeufen unter WSL ggf. mit laengerem Timeout arbeiten.
