@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import importlib
 import sys
 from pathlib import Path
 from types import ModuleType
+
+import pytest
 
 from scripts import build_vector_index
 
@@ -120,6 +123,27 @@ def test_resolved_payload_local_path_uses_storage_helper(tmp_path: Path) -> None
     assert resolved == str(pdf_path.resolve())
 
 
+def test_validate_runtime_dependencies_fails_fast_for_missing_third_party_module(
+    monkeypatch,
+    capsys,
+) -> None:
+    def fake_import_module(name: str):
+        if name == "qdrant_client":
+            raise ImportError("missing qdrant_client")
+        return object()
+
+    monkeypatch.setattr(importlib, "import_module", fake_import_module)
+
+    with pytest.raises(SystemExit) as excinfo:
+        build_vector_index._validate_runtime_dependencies()
+
+    assert excinfo.value.code == 1
+    error_output = capsys.readouterr().err
+    assert "Missing dependency" in error_output
+    assert "qdrant-client" in error_output
+    assert "fastembed" in error_output
+
+
 def test_main_reconciles_orphaned_vectors_even_when_nothing_is_new(
     monkeypatch,
     tmp_path: Path,
@@ -132,6 +156,14 @@ def test_main_reconciles_orphaned_vectors_even_when_nothing_is_new(
     orphan_id = 999999
     vector_store = _FakeVectorStore(indexed_ids={current_id, orphan_id}, count=2)
     _install_fake_modules(monkeypatch, vector_store)
+    monkeypatch.setattr(
+        build_vector_index,
+        "_validate_runtime_dependencies",
+        lambda: (
+            sys.modules["src.analysis.embeddings"].HarrierEmbedder,
+            sys.modules["src.analysis.vector_store"].DocumentVectorStore,
+        ),
+    )
     monkeypatch.setattr(
         build_vector_index,
         "_load_documents",
@@ -162,6 +194,14 @@ def test_main_skips_orphan_cleanup_for_limit_runs(
     extra_indexed_id = 123456
     vector_store = _FakeVectorStore(indexed_ids={current_id, extra_indexed_id}, count=2)
     _install_fake_modules(monkeypatch, vector_store)
+    monkeypatch.setattr(
+        build_vector_index,
+        "_validate_runtime_dependencies",
+        lambda: (
+            sys.modules["src.analysis.embeddings"].HarrierEmbedder,
+            sys.modules["src.analysis.vector_store"].DocumentVectorStore,
+        ),
+    )
     monkeypatch.setattr(
         build_vector_index,
         "_load_documents",

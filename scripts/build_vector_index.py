@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib
 import sqlite3
 import sys
 from pathlib import Path
@@ -153,6 +154,35 @@ def _resolved_payload_local_path(row: dict) -> str:
     return str(resolved.resolve())
 
 
+def _validate_runtime_dependencies() -> tuple[type, type]:
+    """Fail fast with a clear install hint when runtime deps are missing."""
+    requirements: list[tuple[str, str]] = [
+        ("sentence-transformers", "sentence_transformers"),
+        ("qdrant-client", "qdrant_client"),
+        ("fastembed", "fastembed"),
+    ]
+    missing: list[str] = []
+    for package_name, module_name in requirements:
+        try:
+            importlib.import_module(module_name)
+        except ImportError:
+            missing.append(package_name)
+
+    if missing:
+        missing_text = ", ".join(missing)
+        print(
+            f"ERROR: Missing dependency – {missing_text}\n"
+            "Install with: pip install sentence-transformers qdrant-client fastembed",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    from src.analysis.embeddings import HarrierEmbedder
+    from src.analysis.vector_store import DocumentVectorStore
+
+    return HarrierEmbedder, DocumentVectorStore
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -189,17 +219,7 @@ def main(argv: list[str] | None = None) -> None:
         print(f"ERROR: Database not found: {db_path}", file=sys.stderr)
         sys.exit(1)
 
-    # Lazy imports so the script fails gracefully if deps are missing
-    try:
-        from src.analysis.embeddings import HarrierEmbedder
-        from src.analysis.vector_store import DocumentVectorStore
-    except ImportError as exc:
-        print(
-            f"ERROR: Missing dependency – {exc}\n"
-            "Install with: pip install sentence-transformers qdrant-client",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+    HarrierEmbedder, DocumentVectorStore = _validate_runtime_dependencies()
 
     print("Loading documents from database …")
     all_docs = _load_documents(db_path, limit=args.limit)
