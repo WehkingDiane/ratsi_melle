@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import subprocess
 import sys
 from pathlib import Path
@@ -17,11 +18,13 @@ if str(_REPO_ROOT) not in sys.path:
 
 from src.analysis.prompt_registry import filter_by_scope, load_templates, save_templates
 from src.analysis.service import AnalysisRequest, AnalysisService
+from src.fetching.storage_layout import resolve_local_file_path
 from src.interfaces.gui.services.analysis_store import AnalysisStore, SessionFilters
 from src.paths import (
     ANALYSIS_OUTPUTS_DIR,
     LOCAL_INDEX_DB,
     ONLINE_INDEX_DB,
+    QDRANT_DIR,
     REPO_ROOT,
 )
 
@@ -75,6 +78,8 @@ def _init_state() -> None:
         "analysis_error": "",
         "analysis_record": None,
         "script_output": "",
+        "search_results": [],
+        "search_error": "",
     }
     for key, val in defaults.items():
         if key not in st.session_state:
@@ -83,6 +88,58 @@ def _init_state() -> None:
 
 _store = AnalysisStore()
 _service = AnalysisService()
+
+
+def _existing_local_document_path(
+    *,
+    session_path: str | None = None,
+    local_path: str | None = None,
+) -> Path | None:
+    """Return an existing local document path when it can be resolved."""
+    resolved = resolve_local_file_path(session_path=session_path, local_path=local_path)
+    if resolved is None or not resolved.is_file():
+        return None
+    return resolved
+
+
+def _semantic_search_dependency_error() -> str | None:
+    """Return an actionable install hint when search dependencies are missing."""
+    requirements: list[tuple[str, str]] = [
+        ("qdrant-client", "qdrant_client"),
+        ("sentence-transformers", "sentence_transformers"),
+        ("fastembed", "fastembed"),
+    ]
+    missing = []
+    for package_name, module_name in requirements:
+        try:
+            importlib.import_module(module_name)
+        except ImportError:
+            missing.append(package_name)
+
+    if not missing:
+        return None
+
+    missing_text = ", ".join(f"`{name}`" for name in missing)
+    return (
+        f"Die Bibliotheken {missing_text} sind nicht installiert.\n\n"
+        "Bitte installieren mit:\n"
+        "```\n"
+        "pip install qdrant-client sentence-transformers fastembed\n"
+        "pip install torch --index-url https://download.pytorch.org/whl/cpu\n"
+        "```"
+    )
+
+
+def _semantic_search_vector_dir(db_path: Path) -> Path | None:
+    """Return the matching vector-store directory for supported databases."""
+    if db_path.resolve() == LOCAL_INDEX_DB.resolve():
+        return QDRANT_DIR
+    return None
+
+
+def _format_rrf_score(score: float) -> str:
+    """Format rank-fusion scores without implying percentage relevance."""
+    return f"{score:.4f}"
 
 
 # ---------------------------------------------------------------------------
@@ -335,12 +392,14 @@ def _tab_analyse(db_path: Path) -> None:
     provider_id = _PROVIDER_OPTIONS[provider_label]
 
     # PDF sending checkbox
-    local_pdfs: list[Path] = [
-        Path(doc["local_path"])
-        for doc in documents
-        if doc.get("local_path") and Path(doc["local_path"]).exists()
-        and str(doc.get("local_path", "")).lower().endswith(".pdf")
-    ]
+    local_pdfs: list[Path] = []
+    for doc in documents:
+        resolved_path = _existing_local_document_path(
+            session_path=str(doc.get("session_path") or ""),
+            local_path=str(doc.get("local_path") or ""),
+        )
+        if resolved_path and resolved_path.suffix.lower() == ".pdf":
+            local_pdfs.append(resolved_path)
     send_pdfs = False
     if local_pdfs and provider_id != "none":
         send_pdfs = st.checkbox(
@@ -433,6 +492,153 @@ def _offer_downloads(record) -> None:  # type: ignore[no-untyped-def]
             file_name=f"analyse_job_{record.job_id}.json",
             mime="application/json",
         )
+
+
+# ---------------------------------------------------------------------------
+# Tab: Semantische Suche
+# ---------------------------------------------------------------------------
+
+def _tab_semantic_search(db_path: Path) -> None:
+    st.header("🔍 Semantische Suche")
+
+    dependency_error = _semantic_search_dependency_error()
+    if dependency_error:
+        st.warning(dependency_error)
+        return
+
+    vector_dir = _semantic_search_vector_dir(db_path)
+    if vector_dir is None:
+        st.info(
+            "Die semantische Suche ist derzeit nur für den lokalen Index verfügbar. "
+            "Bitte in der Sidebar `Lokaler Index` wählen."
+        )
+        return
+
+    # Check that the Qdrant index has been built
+    if not vector_dir.exists():
+        st.info(
+            "Der Vektor-Index wurde noch nicht erstellt. "
+            "Bitte zuerst folgenden Befehl ausführen:\n\n"
+            "```\n"
+            "python scripts/build_vector_index.py\n"
+            "```"
+        )
+        return
+
+    # Search form
+    query_text = st.text_input(
+        "Suchanfrage",
+        placeholder="z. B. Beschluss Haushalt Schulen",
+    )
+
+    st.caption("Ergebnisse sind nach RRF-Rangfusion sortiert; der angezeigte Score ist kein Prozentwert.")
+
+    col_limit, col_filter = st.columns([1, 2])
+    with col_limit:
+        result_limit = st.slider("Anzahl Ergebnisse", min_value=5, max_value=20, value=10)
+
+    # Optional session filter
+    session_filter_id: int | None = None
+    with col_filter:
+        selected_session = st.session_state.get("selected_session")
+        if selected_session:
+            use_session_filter = st.checkbox(
+                f"Nur aktuelle Sitzung ({selected_session.get('date', '')} – {selected_session.get('committee', '')})"
+            )
+            if use_session_filter:
+                session_filter_id = selected_session.get("session_id")
+
+    if st.button("Suchen", type="primary", disabled=not query_text.strip()):
+        _run_semantic_search(
+            query=query_text.strip(),
+            limit=result_limit,
+            session_id=session_filter_id,
+            qdrant_dir=vector_dir,
+        )
+
+    # Display results stored in session state
+    all_results: list[dict] = st.session_state.get("search_results", [])
+    search_error: str = st.session_state.get("search_error", "")
+
+    if search_error:
+        st.error(search_error)
+
+    if all_results:
+        st.markdown(f"**{len(all_results)} Ergebnis(se) gefunden**")
+        st.markdown("---")
+        for rank, hit in enumerate(all_results, start=1):
+            title = hit.get("title") or "(kein Titel)"
+            date_str = hit.get("date") or ""
+            committee_str = hit.get("committee") or ""
+            agenda_item = hit.get("agenda_item") or ""
+            doc_type = hit.get("document_type") or ""
+            url = hit.get("url") or ""
+            local_path = hit.get("local_path") or ""
+
+            with st.container():
+                col_score, col_info = st.columns([1, 5])
+                with col_score:
+                    st.metric("Rang", f"#{rank}")
+                    st.caption(f"RRF: {_format_rrf_score(hit['score'])}")
+                with col_info:
+                    st.markdown(f"**{title}**")
+                    if doc_type:
+                        st.caption(f"Typ: {doc_type}")
+                    if date_str or committee_str:
+                        st.caption(f"📅 {date_str}  |  🏛 {committee_str}")
+                    if agenda_item:
+                        st.caption(f"📋 TOP: {agenda_item}")
+                    btn_cols = st.columns([1, 1, 4])
+                    resolved_path = _existing_local_document_path(local_path=local_path)
+                    if resolved_path:
+                        file_url = resolved_path.resolve().as_uri()
+                        btn_cols[0].link_button("PDF öffnen", file_url)
+                    elif url:
+                        btn_cols[0].link_button("Online öffnen", url)
+            st.markdown("---")
+
+
+@st.cache_resource
+def _get_search_resources(qdrant_dir: str):
+    """Load and cache embedders and DocumentVectorStore across reruns."""
+    from src.analysis.embeddings import HarrierEmbedder
+    from src.analysis.bm25_sparse import BM25Encoder
+    from src.analysis.vector_store import DocumentVectorStore
+
+    embedder = HarrierEmbedder()
+    bm25 = BM25Encoder()
+    store = DocumentVectorStore(Path(qdrant_dir))
+    return embedder, bm25, store
+
+
+def _run_semantic_search(
+    *,
+    query: str,
+    limit: int,
+    session_id: int | None,
+    qdrant_dir: Path,
+) -> None:
+    """Execute hybrid search (Harrier dense + BM25 sparse, RRF fusion)."""
+    st.session_state["search_results"] = []
+    st.session_state["search_error"] = ""
+
+    try:
+        with st.spinner("Berechne Embedding und durchsuche Index …"):
+            embedder, bm25, store = _get_search_resources(str(qdrant_dir))
+            query_dense = embedder.embed_query(query)
+            query_sparse = bm25.encode_query(query)
+            results = store.search(
+                query_dense=query_dense,
+                query_sparse=query_sparse,
+                limit=limit,
+                session_id=session_id,
+            )
+
+        st.session_state["search_results"] = results
+    except Exception as exc:  # noqa: BLE001
+        st.session_state["search_error"] = f"Fehler bei der Suche: {exc}"
+
+    st.rerun()
 
 
 # ---------------------------------------------------------------------------
@@ -621,12 +827,14 @@ def main() -> None:
     _init_state()
     db_path = _render_sidebar()
 
-    tab_analyse, tab_data, tab_export, tab_settings = st.tabs(
-        ["🔍 Analyse", "📥 Datenabruf", "📤 Export", "⚙️ Einstellungen"]
+    tab_analyse, tab_search, tab_data, tab_export, tab_settings = st.tabs(
+        ["🔍 Analyse", "🔍 Semantische Suche", "📥 Datenabruf", "📤 Export", "⚙️ Einstellungen"]
     )
 
     with tab_analyse:
         _tab_analyse(db_path)
+    with tab_search:
+        _tab_semantic_search(db_path)
     with tab_data:
         _tab_datenabruf()
     with tab_export:

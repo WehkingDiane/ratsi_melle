@@ -1,0 +1,6 @@
+[server]
+# Deaktiviert den Datei-Watcher um torchvision-Warnungen aus transformers zu vermeiden
+fileWatcherType = "none"
+
+[logger]
+level = "error"
