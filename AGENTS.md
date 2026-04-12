@@ -2,19 +2,18 @@
 
 ## Projektstruktur & Modulorganisation
 
-- `src/` enthaelt die Python-Pakete: `fetching/` (SessionNet-Client + Modelle), `parsing/`, `analysis/`, `interfaces/` (inkl. `interfaces/gui/` fuer GUI-Dateien).
-- `scripts/` enthaelt CLI-Einstiegspunkte wie `scripts/fetch_sessions.py`, `scripts/build_local_index.py` und `scripts/build_online_index_db.py`.
-- `tests/` enthaelt pytest-Testmodule sowie HTML-Fixtures in `tests/fixtures/`.
-- `data/` speichert Laufzeitdaten: `data/raw/` fuer unveraenderte Downloads, `data/processed/` fuer interne Normalisierungen/Ableitungen (ohne SQLite-DBs), `data/db/` fuer SQLite-Infrastrukturdatenbanken, `data/analysis_requests/` fuer Analyse-Batches und `data/analysis_outputs/` fuer Analyseergebnisse.
-- `docs/` enthaelt Projektdokumentation und Recherchen; `configs/` fuer Konfigurationsdateien; `logs/` fuer Laufzeitlogs.
+- `src/` enthaelt die Python-Pakete fuer Fetching, Parsing, Analyse und Interfaces.
+- `scripts/` enthaelt CLI-Einstiegspunkte fuer Datenaufbau, Exporte und Hilfsjobs.
+- `tests/` enthaelt pytest-Tests und Fixtures.
+- `data/` enthaelt Laufzeitdaten und lokale Datenbanken.
+- `docs/` enthaelt Projektdokumentation; Detailregeln zur Ablage stehen in `docs/repository_guidelines.md`.
 
 ## Build-, Test- und Entwicklungsbefehle
 
 - `pip install -r requirements.txt` installiert die Abhaengigkeiten.
-- `python scripts/fetch_sessions.py 2024 --months 5 6` laedt Sitzungen fuer Jahr/Monate nach `data/raw/`.
 - `python scripts/build_local_index.py` baut eine SQLite-DB unter `data/db/local_index.sqlite` aus `data/raw/`.
-- `python scripts/build_online_index_db.py 2024 --months 5 6` baut eine SQLite-DB unter `data/db/online_session_index.sqlite` ohne Dokument-Downloads.
 - `python -m pytest` fuehrt die Tests in `tests/` aus.
+- Weitere workflow-spezifische Kommandos stehen in `README.md` und den passenden Dateien unter `docs/`.
 
 ## Coding-Style & Namenskonventionen
 
@@ -33,6 +32,8 @@
 ## Commit- & Pull-Request-Richtlinien
 
 - Commit-Messages sind kurz, im Imperativ und in Satzform; Englisch und Deutsch kommen vor.
+- Agenten sollen regelmaessig kleine, zusammenhaengende Zwischen-Commits erstellen statt grosse Sammel-Commits am Ende.
+- Spaetestens vor riskanteren Refactorings, groesseren Dateiedits oder laengeren Arbeitspaketen ist ein sauberer Zwischen-Commit anzulegen.
 - PRs sollten die Aenderung, die Testschritte und Auswirkungen auf Daten/Schemata beschreiben.
 - Verlinke zugehoerige Issues/Tasks, wenn verfuegbar, und nenne neue Skripte oder Konfigurationsupdates.
 
@@ -98,12 +99,9 @@
 
 ## WSL-spezifische Python-Umgebung (optional)
 
-- Version python 3.14
 - Wenn `python` fehlt, `python3` und `pip3` verwenden.
-- Empfohlenes Setup (vom Repo-Root):
+- Empfohlenes Setup:
   - `python3 -m venv .venv`
   - `source .venv/bin/activate`
   - `python -m pip install -r requirements.txt`
-- Tests mit `python -m pytest` ausfuehren (nach Aktivieren der venv).
-- Tkinter ist Teil der Standardbibliothek, benoetigt unter WSL aber das Paket: `sudo apt-get install python3-tk`.
-- Bei Paketinstallationen ggf. mit laengerem Timeout ausfuehren.
+- Bei Paketinstallationen oder Testlaeufen unter WSL ggf. mit laengerem Timeout arbeiten.

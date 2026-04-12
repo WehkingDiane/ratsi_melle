@@ -119,6 +119,25 @@ def _load_documents(db_path: Path, limit: int | None = None) -> list[dict]:
         conn.close()
 
 
+def _reconcile_orphaned_vectors(
+    vector_store,
+    already_indexed: set[int],
+    current_ids: set[int],
+    *,
+    allow_delete: bool,
+) -> int:
+    """Remove vectors for documents that no longer exist in SQLite."""
+    if not allow_delete:
+        print("Skipping orphan cleanup because --limit is set.")
+        return 0
+
+    orphaned = already_indexed - current_ids
+    if orphaned:
+        print(f"  Removing {len(orphaned)} orphaned vector(s) …")
+        vector_store.delete_ids(orphaned)
+    return len(orphaned)
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -182,92 +201,94 @@ def main(argv: list[str] | None = None) -> None:
             str(doc.get("url") or ""),
         )
 
+    current_ids = {d["_qdrant_id"] for d in all_docs}
     already_indexed = vector_store.get_indexed_ids()
     docs_to_index = [d for d in all_docs if d["_qdrant_id"] not in already_indexed]
+    indexed_count = 0
 
     if not docs_to_index:
         print("Nothing to index – all documents are already in the vector store.")
-        print(f"Total indexed: {vector_store.count()}")
-        return
+    else:
+        print(f"  {len(already_indexed)} already indexed, {len(docs_to_index)} new.")
+        print("Loading embedding models …")
+        embedder = HarrierEmbedder()
 
-    print(f"  {len(already_indexed)} already indexed, {len(docs_to_index)} new.")
-    print("Loading embedding models …")
-    embedder = HarrierEmbedder()
+        from src.analysis.bm25_sparse import BM25Encoder
 
-    from src.analysis.bm25_sparse import BM25Encoder
-    bm25 = BM25Encoder()
-    # Trigger BM25 model download before the main loop
-    bm25._get_model()
+        bm25 = BM25Encoder()
+        # Trigger BM25 model download before the main loop
+        bm25._get_model()
 
-    # XPU (Intel Arc) has limited free VRAM after loading the model (~1 GB left).
-    # Use smaller batches to avoid OOM; CPU can handle larger batches.
-    from src.analysis.embeddings import _detect_device
-    device = _detect_device()
-    batch_size = 4 if device == "xpu" else 32
-    print(f"  Device: {device.upper()}, batch size: {batch_size}")
+        # XPU (Intel Arc) has limited free VRAM after loading the model (~1 GB left).
+        # Use smaller batches to avoid OOM; CPU can handle larger batches.
+        from src.analysis.embeddings import _detect_device
 
-    indexed_count = 0
-    n = len(docs_to_index)
+        device = _detect_device()
+        batch_size = 4 if device == "xpu" else 32
+        print(f"  Device: {device.upper()}, batch size: {batch_size}")
 
-    for batch_start in range(0, n, batch_size):
-        batch = docs_to_index[batch_start : batch_start + batch_size]
+        n = len(docs_to_index)
 
-        texts: list[str] = []
-        for doc in batch:
-            global_index = batch_start + len(texts) + 1
-            title_preview = (doc.get("title") or "(kein Titel)")[:60]
-            print(f"  [{global_index}/{n}] {title_preview} …")
-            texts.append(_get_document_text(doc))
+        for batch_start in range(0, n, batch_size):
+            batch = docs_to_index[batch_start : batch_start + batch_size]
 
-        dense_vectors = embedder.embed_documents(texts)
-        sparse_vectors = bm25.encode_documents(texts)
+            texts: list[str] = []
+            for doc in batch:
+                global_index = batch_start + len(texts) + 1
+                title_preview = (doc.get("title") or "(kein Titel)")[:60]
+                print(f"  [{global_index}/{n}] {title_preview} …")
+                texts.append(_get_document_text(doc))
 
-        points: list[dict] = []
-        for doc, dense_vec, sparse_vec in zip(batch, dense_vectors, sparse_vectors):
-            # Resolve absolute path so the UI can open PDFs directly
-            local_path_str = doc.get("local_path") or ""
-            session_path_str = doc.get("session_path") or ""
-            if local_path_str and session_path_str:
-                abs_path = Path(session_path_str) / local_path_str
-                resolved_path = str(abs_path.resolve()) if abs_path.exists() else ""
-            else:
-                resolved_path = ""
+            dense_vectors = embedder.embed_documents(texts)
+            sparse_vectors = bm25.encode_documents(texts)
 
-            points.append(
-                {
-                    "id": doc["_qdrant_id"],
-                    "dense_vector": dense_vec,
-                    "sparse_vector": sparse_vec,
-                    "payload": {
-                        "session_id": doc.get("session_id"),
-                        "title": doc.get("title") or "",
-                        "document_type": doc.get("document_type") or "",
-                        "agenda_item": doc.get("agenda_item") or "",
-                        "url": doc.get("url") or "",
-                        "local_path": resolved_path,
-                        "date": doc.get("date") or "",
-                        "committee": doc.get("committee") or "",
-                    },
-                }
-            )
+            points: list[dict] = []
+            for doc, dense_vec, sparse_vec in zip(batch, dense_vectors, sparse_vectors):
+                # Resolve absolute path so the UI can open PDFs directly
+                local_path_str = doc.get("local_path") or ""
+                session_path_str = doc.get("session_path") or ""
+                if local_path_str and session_path_str:
+                    abs_path = Path(session_path_str) / local_path_str
+                    resolved_path = str(abs_path.resolve()) if abs_path.exists() else ""
+                else:
+                    resolved_path = ""
 
-        vector_store.upsert_batch(points)
-        indexed_count += len(batch)
+                points.append(
+                    {
+                        "id": doc["_qdrant_id"],
+                        "dense_vector": dense_vec,
+                        "sparse_vector": sparse_vec,
+                        "payload": {
+                            "session_id": doc.get("session_id"),
+                            "title": doc.get("title") or "",
+                            "document_type": doc.get("document_type") or "",
+                            "agenda_item": doc.get("agenda_item") or "",
+                            "url": doc.get("url") or "",
+                            "local_path": resolved_path,
+                            "date": doc.get("date") or "",
+                            "committee": doc.get("committee") or "",
+                        },
+                    }
+                )
 
-        # Free unused XPU/GPU memory after each batch to prevent OOM
-        try:
-            import torch
-            if device == "xpu" and torch.xpu.is_available():
-                torch.xpu.empty_cache()
-        except Exception:
-            pass
+            vector_store.upsert_batch(points)
+            indexed_count += len(batch)
 
-    # Reconciliation: remove Qdrant points for documents no longer in SQLite
-    current_ids = {d["_qdrant_id"] for d in all_docs}
-    orphaned = already_indexed - current_ids
-    if orphaned:
-        print(f"  Removing {len(orphaned)} orphaned vector(s) …")
-        vector_store.delete_ids(orphaned)
+            # Free unused XPU/GPU memory after each batch to prevent OOM
+            try:
+                import torch
+
+                if device == "xpu" and torch.xpu.is_available():
+                    torch.xpu.empty_cache()
+            except Exception:
+                pass
+
+    _reconcile_orphaned_vectors(
+        vector_store,
+        already_indexed,
+        current_ids,
+        allow_delete=args.limit is None,
+    )
 
     total_now = vector_store.count()
     print(f"\nIndexed {indexed_count} new documents. Total: {total_now}")
