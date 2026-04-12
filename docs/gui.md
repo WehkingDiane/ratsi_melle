@@ -1,6 +1,8 @@
-# GUI-Dokumentation
+# Desktop-GUI-Dokumentation
 
 Diese Datei beschreibt die aktuelle Desktop-GUI unter `src/interfaces/gui/`.
+
+> Einordnung: Die Desktop-GUI ist weiterhin nutzbar und gepflegt, aber die Web-UI unter `src/interfaces/web/streamlit_app.py` ist die naheliegendere Oberfläche für semantische Suche und browserbasierte Nutzung. Die Desktop-GUI ist vor allem ein technisches/developer-orientiertes Werkzeug für lokale Workflows.
 
 > Hinweis: Die GUI ist noch nicht fertig. Die Oberflaeche und die zugrunde liegende Architektur werden kontinuierlich erweitert und iterativ verbessert.
 

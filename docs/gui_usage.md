@@ -1,6 +1,8 @@
-# GUI-Anleitung
+# Desktop-GUI-Anleitung
 
 Diese Anleitung beschreibt die Nutzung der Desktop-GUI unter `src/interfaces/gui/`.
+
+> Hinweis: Für browserbasierte Nutzung und die semantische Suche gibt es zusätzlich die Streamlit-Weboberfläche. Start und Details dazu stehen in `docs/web_ui.md`.
 
 ## Voraussetzungen
 

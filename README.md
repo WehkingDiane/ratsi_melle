@@ -32,11 +32,16 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 - `python scripts/build_vector_index.py` baut den lokalen Vektor-Index unter `data/db/qdrant/` fuer die semantische Suche auf; Details stehen in `docs/vector_search.md`.
 - `python scripts/export_analysis_batch.py --db-path data/db/local_index.sqlite --output data/analysis_requests/analysis_batch.json` exportiert einen reproduzierbaren Analyse-Batch (optional filterbar nach Sitzung, Zeitraum, Gremium, `document_type`).
 
-## GUI (modular)
+## Oberflaechen
 
-- Einstiegspunkt: `python -m src.interfaces.gui.gui_launcher`
-- Architektur und Erweiterungshinweise: `docs/gui.md`
-- GUI-Quellcode liegt unter `src/interfaces/gui/` und ist in `app.py`, `views/`, `services/` und `config.py` aufgeteilt.
+- **Web-UI (Streamlit)**:
+  - Start: `python scripts/run_web.py`
+  - Quellcode: `src/interfaces/web/streamlit_app.py`
+  - Details: `docs/web_ui.md`
+- **Desktop-GUI (Tkinter, technisch/developer-orientiert)**:
+  - Start: `python -m src.interfaces.gui.gui_launcher`
+  - Quellcode: `src/interfaces/gui/`
+  - Details: `docs/gui.md` und `docs/gui_usage.md`
 
 ## Semantische Suche
 
