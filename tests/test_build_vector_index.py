@@ -56,18 +56,32 @@ def _install_fake_modules(monkeypatch, vector_store: _FakeVectorStore) -> None:
     monkeypatch.setitem(sys.modules, "src.analysis.bm25_sparse", bm25_module)
 
 
-def _doc(session_id: str, url: str) -> dict:
+def _doc(session_id: str, url: str, agenda_item: str = "") -> dict:
     return {
         "session_id": session_id,
         "url": url,
         "title": f"Doc {session_id}",
         "document_type": "protokoll",
-        "agenda_item": "",
+        "agenda_item": agenda_item,
         "local_path": "",
         "date": "2025-01-01",
         "committee": "Rat",
         "session_path": "",
     }
+
+
+def test_stable_qdrant_id_distinguishes_duplicate_urls_by_agenda_item() -> None:
+    url = "https://example.org/shared.pdf"
+
+    top_1 = build_vector_index._stable_qdrant_id("1", url, "Ö 1")
+    top_2 = build_vector_index._stable_qdrant_id("1", url, "Ö 2")
+    session_doc = build_vector_index._stable_qdrant_id("1", url, "")
+    session_doc_none = build_vector_index._stable_qdrant_id("1", url, "")
+
+    assert top_1 != top_2
+    assert top_1 != session_doc
+    assert top_2 != session_doc
+    assert session_doc == session_doc_none
 
 
 def test_main_reconciles_orphaned_vectors_even_when_nothing_is_new(
@@ -77,7 +91,7 @@ def test_main_reconciles_orphaned_vectors_even_when_nothing_is_new(
 ) -> None:
     current_doc = _doc("1", "https://example.org/doc-1.pdf")
     current_id = build_vector_index._stable_qdrant_id(
-        current_doc["session_id"], current_doc["url"]
+        current_doc["session_id"], current_doc["url"], current_doc["agenda_item"]
     )
     orphan_id = 999999
     vector_store = _FakeVectorStore(indexed_ids={current_id, orphan_id}, count=2)
@@ -107,7 +121,7 @@ def test_main_skips_orphan_cleanup_for_limit_runs(
 ) -> None:
     current_doc = _doc("1", "https://example.org/doc-1.pdf")
     current_id = build_vector_index._stable_qdrant_id(
-        current_doc["session_id"], current_doc["url"]
+        current_doc["session_id"], current_doc["url"], current_doc["agenda_item"]
     )
     extra_indexed_id = 123456
     vector_store = _FakeVectorStore(indexed_ids={current_id, extra_indexed_id}, count=2)

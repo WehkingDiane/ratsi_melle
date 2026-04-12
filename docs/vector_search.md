@@ -92,14 +92,14 @@ Jeder Eintrag enthält:
 
 ### Stabile Punkt-IDs
 
-Als Qdrant-Punkt-ID wird **kein SQLite-Autoincrement** verwendet, sondern ein stabiler Hash aus `session_id` und `url`:
+Als Qdrant-Punkt-ID wird **kein SQLite-Autoincrement** verwendet, sondern ein stabiler Hash aus `session_id`, `url` und `agenda_item`:
 
 ```python
-key = f"{session_id}|{url}"
+key = f"{session_id}|{url}|{agenda_item}"
 qdrant_id = int(hashlib.md5(key.encode()).hexdigest()[:16], 16)
 ```
 
-Damit bleibt die Qdrant-ID identisch, auch wenn `build_local_index --refresh-existing` die SQLite-Zeilen löscht und mit neuen Autoincrement-Werten neu anlegt.
+Damit bleibt die Qdrant-ID identisch, auch wenn `build_local_index --refresh-existing` die SQLite-Zeilen löscht und mit neuen Autoincrement-Werten neu anlegt. Gleichzeitig kollidieren Dokumente nicht mehr, wenn dieselbe Attachment-URL innerhalb einer Sitzung unter mehreren TOPs referenziert wird.
 
 ### Reconciliation
 

@@ -32,14 +32,17 @@ from src.paths import LOCAL_INDEX_DB, QDRANT_DIR
 # Stable Qdrant ID (hash-based, survives SQLite row recreation)
 # ---------------------------------------------------------------------------
 
-def _stable_qdrant_id(session_id: str, url: str) -> int:
-    """Derive a stable integer ID from session_id + url.
+def _stable_qdrant_id(session_id: str, url: str, agenda_item: str = "") -> int:
+    """Derive a stable integer ID from session_id + url + agenda_item.
 
     Using a hash instead of the SQLite autoincrement id means the Qdrant
     point ID stays the same even after build_local_index --refresh-existing
     deletes and recreates document rows with new autoincrement values.
+
+    ``agenda_item`` is included so repeated references to the same attachment
+    URL within one session still produce distinct vector IDs.
     """
-    key = f"{session_id or ''}|{url or ''}"
+    key = f"{session_id or ''}|{url or ''}|{agenda_item or ''}"
     return int(hashlib.md5(key.encode()).hexdigest()[:16], 16)
 
 
@@ -199,6 +202,7 @@ def main(argv: list[str] | None = None) -> None:
         doc["_qdrant_id"] = _stable_qdrant_id(
             str(doc.get("session_id") or ""),
             str(doc.get("url") or ""),
+            str(doc.get("agenda_item") or ""),
         )
 
     current_ids = {d["_qdrant_id"] for d in all_docs}
