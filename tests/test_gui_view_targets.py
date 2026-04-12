@@ -2,6 +2,11 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+
+pytest.importorskip("customtkinter")
+pytest.importorskip("CTkMenuBar")
+
 from src.interfaces.gui.app import GuiLauncher
 
 

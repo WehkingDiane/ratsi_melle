@@ -18,9 +18,5 @@ fastembed>=0.4.0
 # CPU: pip install torch --index-url https://download.pytorch.org/whl/cpu
 # XPU: pip install torch torchaudio torchvision --index-url https://download.pytorch.org/whl/xpu
 
-# Legacy-Desktop-GUI
-customtkinter==5.2.2
-CTkMenuBar==0.9
-
 # Test-Runner
 pytest>=9.0

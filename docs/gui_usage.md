@@ -11,6 +11,8 @@ Diese Anleitung beschreibt die Nutzung der Desktop-GUI unter `src/interfaces/gui
 - Python 3.11+ ist installiert.
 - Die Projektabhaengigkeiten sind installiert:
   - `pip install -r requirements.txt`
+- Fuer die Legacy-Desktop-GUI zusaetzlich:
+  - `pip install customtkinter CTkMenuBar`
 - Unter WSL ist fuer Tkinter ggf. `python3-tk` erforderlich.
 - Fuer datenbezogene Funktionen sollte eine lokale SQLite-DB vorhanden sein, typischerweise `data/db/local_index.sqlite`.
 

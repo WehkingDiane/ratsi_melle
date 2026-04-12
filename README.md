@@ -16,7 +16,7 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 - **Python 3.11+** für die Skripte und Tests.
 - **pip** für die Paketinstallation (`pip install -r requirements.txt`).
 - **Git** für Versionskontrolle und Mitarbeit.
-- **(Optional) Tkinter** für eine spätere UI; unter WSL via `sudo apt-get install python3-tk`.
+- **(Optional) Legacy-Desktop-GUI**: fuer die alte Tkinter-Oberflaeche zusaetzlich `customtkinter` und `CTkMenuBar` installieren; unter WSL zudem `sudo apt-get install python3-tk`.
 - **Projektstruktur** siehe `docs/repository_guidelines.md`.
 
 ## Softwareversion
