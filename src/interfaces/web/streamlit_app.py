@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import subprocess
 import sys
 from pathlib import Path
@@ -99,6 +100,46 @@ def _existing_local_document_path(
     if resolved is None or not resolved.is_file():
         return None
     return resolved
+
+
+def _semantic_search_dependency_error() -> str | None:
+    """Return an actionable install hint when search dependencies are missing."""
+    requirements: list[tuple[str, str]] = [
+        ("qdrant-client", "qdrant_client"),
+        ("sentence-transformers", "sentence_transformers"),
+        ("fastembed", "fastembed"),
+    ]
+    missing = []
+    for package_name, module_name in requirements:
+        try:
+            importlib.import_module(module_name)
+        except ImportError:
+            missing.append(package_name)
+
+    if not missing:
+        return None
+
+    missing_text = ", ".join(f"`{name}`" for name in missing)
+    return (
+        f"Die Bibliotheken {missing_text} sind nicht installiert.\n\n"
+        "Bitte installieren mit:\n"
+        "```\n"
+        "pip install qdrant-client sentence-transformers fastembed\n"
+        "pip install torch --index-url https://download.pytorch.org/whl/cpu\n"
+        "```"
+    )
+
+
+def _semantic_search_vector_dir(db_path: Path) -> Path | None:
+    """Return the matching vector-store directory for supported databases."""
+    if db_path.resolve() == LOCAL_INDEX_DB.resolve():
+        return QDRANT_DIR
+    return None
+
+
+def _format_rrf_score(score: float) -> str:
+    """Format rank-fusion scores without implying percentage relevance."""
+    return f"{score:.4f}"
 
 
 # ---------------------------------------------------------------------------
@@ -460,23 +501,21 @@ def _offer_downloads(record) -> None:  # type: ignore[no-untyped-def]
 def _tab_semantic_search(db_path: Path) -> None:
     st.header("🔍 Semantische Suche")
 
-    # Check for required libraries
-    try:
-        import qdrant_client  # noqa: F401
-        import sentence_transformers  # noqa: F401
-    except ImportError:
-        st.warning(
-            "Die Bibliotheken `qdrant-client` und `sentence-transformers` sind nicht installiert.\n\n"
-            "Bitte installieren mit:\n"
-            "```\n"
-            "pip install qdrant-client sentence-transformers\n"
-            "pip install torch --index-url https://download.pytorch.org/whl/cpu\n"
-            "```"
+    dependency_error = _semantic_search_dependency_error()
+    if dependency_error:
+        st.warning(dependency_error)
+        return
+
+    vector_dir = _semantic_search_vector_dir(db_path)
+    if vector_dir is None:
+        st.info(
+            "Die semantische Suche ist derzeit nur für den lokalen Index verfügbar. "
+            "Bitte in der Sidebar `Lokaler Index` wählen."
         )
         return
 
     # Check that the Qdrant index has been built
-    if not QDRANT_DIR.exists():
+    if not vector_dir.exists():
         st.info(
             "Der Vektor-Index wurde noch nicht erstellt. "
             "Bitte zuerst folgenden Befehl ausführen:\n\n"
@@ -492,11 +531,11 @@ def _tab_semantic_search(db_path: Path) -> None:
         placeholder="z. B. Beschluss Haushalt Schulen",
     )
 
-    col_limit, col_thresh, col_filter = st.columns([1, 1, 2])
+    st.caption("Ergebnisse sind nach RRF-Rangfusion sortiert; der angezeigte Score ist kein Prozentwert.")
+
+    col_limit, col_filter = st.columns([1, 2])
     with col_limit:
         result_limit = st.slider("Anzahl Ergebnisse", min_value=5, max_value=20, value=10)
-    with col_thresh:
-        min_score = st.slider("Mindest-Score %", min_value=0, max_value=90, value=45, step=5)
 
     # Optional session filter
     session_filter_id: int | None = None
@@ -514,6 +553,7 @@ def _tab_semantic_search(db_path: Path) -> None:
             query=query_text.strip(),
             limit=result_limit,
             session_id=session_filter_id,
+            qdrant_dir=vector_dir,
         )
 
     # Display results stored in session state
@@ -524,63 +564,42 @@ def _tab_semantic_search(db_path: Path) -> None:
         st.error(search_error)
 
     if all_results:
-        results = [h for h in all_results if round(h["score"] * 100, 1) >= min_score]
-        filtered_out = len(all_results) - len(results)
+        st.markdown(f"**{len(all_results)} Ergebnis(se) gefunden**")
+        st.markdown("---")
+        for rank, hit in enumerate(all_results, start=1):
+            title = hit.get("title") or "(kein Titel)"
+            date_str = hit.get("date") or ""
+            committee_str = hit.get("committee") or ""
+            agenda_item = hit.get("agenda_item") or ""
+            doc_type = hit.get("document_type") or ""
+            url = hit.get("url") or ""
+            local_path = hit.get("local_path") or ""
 
-        if not results:
-            st.info(
-                f"Keine Ergebnisse über {min_score} % Relevanz. "
-                f"{filtered_out} Treffer unter dem Schwellwert gefunden – "
-                "Mindest-Score reduzieren um diese anzuzeigen."
-            )
-        else:
-            header = f"**{len(results)} Ergebnis(se) gefunden**"
-            if filtered_out:
-                header += f" *(+{filtered_out} unter {min_score} % ausgeblendet)*"
-            st.markdown(header)
+            with st.container():
+                col_score, col_info = st.columns([1, 5])
+                with col_score:
+                    st.metric("Rang", f"#{rank}")
+                    st.caption(f"RRF: {_format_rrf_score(hit['score'])}")
+                with col_info:
+                    st.markdown(f"**{title}**")
+                    if doc_type:
+                        st.caption(f"Typ: {doc_type}")
+                    if date_str or committee_str:
+                        st.caption(f"📅 {date_str}  |  🏛 {committee_str}")
+                    if agenda_item:
+                        st.caption(f"📋 TOP: {agenda_item}")
+                    btn_cols = st.columns([1, 1, 4])
+                    resolved_path = _existing_local_document_path(local_path=local_path)
+                    if resolved_path:
+                        file_url = resolved_path.resolve().as_uri()
+                        btn_cols[0].link_button("PDF öffnen", file_url)
+                    elif url:
+                        btn_cols[0].link_button("Online öffnen", url)
             st.markdown("---")
-            for hit in results:
-                score_pct = round(hit["score"] * 100, 1)
-                title = hit.get("title") or "(kein Titel)"
-                date_str = hit.get("date") or ""
-                committee_str = hit.get("committee") or ""
-                agenda_item = hit.get("agenda_item") or ""
-                doc_type = hit.get("document_type") or ""
-                url = hit.get("url") or ""
-                local_path = hit.get("local_path") or ""
-
-                # Score colour: green ≥ 70, orange ≥ 45, red < 45
-                if score_pct >= 70:
-                    score_colour = "🟢"
-                elif score_pct >= 45:
-                    score_colour = "🟡"
-                else:
-                    score_colour = "🔴"
-
-                with st.container():
-                    col_score, col_info = st.columns([1, 5])
-                    with col_score:
-                        st.metric("Score", f"{score_colour} {score_pct} %")
-                    with col_info:
-                        st.markdown(f"**{title}**")
-                        if doc_type:
-                            st.caption(f"Typ: {doc_type}")
-                        if date_str or committee_str:
-                            st.caption(f"📅 {date_str}  |  🏛 {committee_str}")
-                        if agenda_item:
-                            st.caption(f"📋 TOP: {agenda_item}")
-                        btn_cols = st.columns([1, 1, 4])
-                        resolved_path = _existing_local_document_path(local_path=local_path)
-                        if resolved_path:
-                            file_url = resolved_path.resolve().as_uri()
-                            btn_cols[0].link_button("PDF öffnen", file_url)
-                        elif url:
-                            btn_cols[0].link_button("Online öffnen", url)
-                st.markdown("---")
 
 
 @st.cache_resource
-def _get_search_resources():
+def _get_search_resources(qdrant_dir: str):
     """Load and cache embedders and DocumentVectorStore across reruns."""
     from src.analysis.embeddings import HarrierEmbedder
     from src.analysis.bm25_sparse import BM25Encoder
@@ -588,7 +607,7 @@ def _get_search_resources():
 
     embedder = HarrierEmbedder()
     bm25 = BM25Encoder()
-    store = DocumentVectorStore(QDRANT_DIR)
+    store = DocumentVectorStore(Path(qdrant_dir))
     return embedder, bm25, store
 
 
@@ -597,6 +616,7 @@ def _run_semantic_search(
     query: str,
     limit: int,
     session_id: int | None,
+    qdrant_dir: Path,
 ) -> None:
     """Execute hybrid search (Harrier dense + BM25 sparse, RRF fusion)."""
     st.session_state["search_results"] = []
@@ -604,7 +624,7 @@ def _run_semantic_search(
 
     try:
         with st.spinner("Berechne Embedding und durchsuche Index …"):
-            embedder, bm25, store = _get_search_resources()
+            embedder, bm25, store = _get_search_resources(str(qdrant_dir))
             query_dense = embedder.embed_query(query)
             query_sparse = bm25.encode_query(query)
             results = store.search(
