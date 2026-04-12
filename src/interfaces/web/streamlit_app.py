@@ -17,6 +17,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 from src.analysis.prompt_registry import filter_by_scope, load_templates, save_templates
 from src.analysis.service import AnalysisRequest, AnalysisService
+from src.fetching.storage_layout import resolve_local_file_path
 from src.interfaces.gui.services.analysis_store import AnalysisStore, SessionFilters
 from src.paths import (
     ANALYSIS_OUTPUTS_DIR,
@@ -86,6 +87,18 @@ def _init_state() -> None:
 
 _store = AnalysisStore()
 _service = AnalysisService()
+
+
+def _existing_local_document_path(
+    *,
+    session_path: str | None = None,
+    local_path: str | None = None,
+) -> Path | None:
+    """Return an existing local document path when it can be resolved."""
+    resolved = resolve_local_file_path(session_path=session_path, local_path=local_path)
+    if resolved is None or not resolved.is_file():
+        return None
+    return resolved
 
 
 # ---------------------------------------------------------------------------
@@ -338,12 +351,14 @@ def _tab_analyse(db_path: Path) -> None:
     provider_id = _PROVIDER_OPTIONS[provider_label]
 
     # PDF sending checkbox
-    local_pdfs: list[Path] = [
-        Path(doc["local_path"])
-        for doc in documents
-        if doc.get("local_path") and Path(doc["local_path"]).exists()
-        and str(doc.get("local_path", "")).lower().endswith(".pdf")
-    ]
+    local_pdfs: list[Path] = []
+    for doc in documents:
+        resolved_path = _existing_local_document_path(
+            session_path=str(doc.get("session_path") or ""),
+            local_path=str(doc.get("local_path") or ""),
+        )
+        if resolved_path and resolved_path.suffix.lower() == ".pdf":
+            local_pdfs.append(resolved_path)
     send_pdfs = False
     if local_pdfs and provider_id != "none":
         send_pdfs = st.checkbox(
@@ -555,8 +570,9 @@ def _tab_semantic_search(db_path: Path) -> None:
                         if agenda_item:
                             st.caption(f"📋 TOP: {agenda_item}")
                         btn_cols = st.columns([1, 1, 4])
-                        if local_path and Path(local_path).exists():
-                            file_url = Path(local_path).resolve().as_uri()
+                        resolved_path = _existing_local_document_path(local_path=local_path)
+                        if resolved_path:
+                            file_url = resolved_path.resolve().as_uri()
                             btn_cols[0].link_button("PDF öffnen", file_url)
                         elif url:
                             btn_cols[0].link_button("Online öffnen", url)
