@@ -19,7 +19,7 @@ if str(_REPO_ROOT) not in sys.path:
 from src.analysis.prompt_registry import filter_by_scope, load_templates, save_templates
 from src.analysis.service import AnalysisRequest, AnalysisService
 from src.fetching.storage_layout import resolve_local_file_path
-from src.interfaces.gui.services.analysis_store import AnalysisStore, SessionFilters
+from src.interfaces.shared.analysis_store import AnalysisStore, SessionFilters
 from src.paths import (
     ANALYSIS_OUTPUTS_DIR,
     LOCAL_INDEX_DB,

@@ -2,6 +2,8 @@
 
 Diese Datei beschreibt die browserbasierte Oberfläche unter `src/interfaces/web/streamlit_app.py`.
 
+> Einordnung: Die Web-UI ist die bevorzugte Benutzeroberflaeche des Projekts. Die fruehere Desktop-GUI wird nur noch als Legacy-/Developer-Pfad mitgefuehrt und soll mittelfristig entfallen.
+
 ## Ziel
 
 - Lokale Datenbanken im Browser durchsuchen und filtern
@@ -80,5 +82,6 @@ python scripts/build_vector_index.py
 ## Zugehörige Dateien
 
 - Architektur und Suchdetails: `docs/vector_search.md`
-- Desktop-GUI: `docs/gui.md`
-- Desktop-GUI-Nutzung: `docs/gui_usage.md`
+- Gemeinsame Analyse-/Filterlogik: `src/interfaces/shared/analysis_store.py`
+- Desktop-GUI (Legacy): `docs/gui.md`
+- Desktop-GUI-Nutzung (Legacy): `docs/gui_usage.md`

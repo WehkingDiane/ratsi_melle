@@ -2,7 +2,9 @@
 
 Diese Anleitung beschreibt die Nutzung der Desktop-GUI unter `src/interfaces/gui/`.
 
-> Hinweis: Für browserbasierte Nutzung und die semantische Suche gibt es zusätzlich die Streamlit-Weboberfläche. Start und Details dazu stehen in `docs/web_ui.md`.
+> Hinweis: Fuer browserbasierte Nutzung, semantische Suche und die weitere Produktentwicklung ist die Streamlit-Weboberflaeche der bevorzugte Weg. Start und Details dazu stehen in `docs/web_ui.md`.
+>
+> Status: Die Desktop-GUI bleibt vorerst fuer bestehende lokale Developer-Workflows erhalten, ist aber ein Legacy-Pfad und soll mittelfristig ersetzt werden.
 
 ## Voraussetzungen
 

@@ -23,6 +23,7 @@ from src.analysis.extraction_pipeline import extract_text_for_analysis
 from src.analysis.providers import PROVIDER_NONE
 from src.analysis.service import AnalysisRequest, AnalysisService
 from src.interfaces.gui.dialogs.api_keys_dialog import ApiKeysDialog
+from src.interfaces.shared.analysis_store import AnalysisStore, SessionFilters
 from src.interfaces.gui.views.analysis_view import PROVIDER_LABELS as _PROVIDER_LABELS
 from src.data_layout import migrate_legacy_database_layout
 from src.paths import DEFAULT_ANALYSIS_BATCH, DEFAULT_ANALYSIS_MARKDOWN, LOCAL_INDEX_DB, ONLINE_INDEX_DB
@@ -38,7 +39,6 @@ from .config import (
     SPINNER_FRAMES,
     configure_theme,
 )
-from .services.analysis_store import AnalysisStore, SessionFilters
 from .services.script_runner import ScriptRunner
 from .views import analysis_view, data_tools_view, export_view, service_view, settings_view
 

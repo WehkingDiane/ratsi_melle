@@ -1,8 +1,8 @@
 # Desktop-GUI-Dokumentation
 
-Diese Datei beschreibt die aktuelle Desktop-GUI unter `src/interfaces/gui/`.
+Diese Datei beschreibt die verbleibende Desktop-GUI unter `src/interfaces/gui/`.
 
-> Einordnung: Die Desktop-GUI ist weiterhin nutzbar und gepflegt, aber die Web-UI unter `src/interfaces/web/streamlit_app.py` ist die naheliegendere Oberfläche für semantische Suche und browserbasierte Nutzung. Die Desktop-GUI ist vor allem ein technisches/developer-orientiertes Werkzeug für lokale Workflows.
+> Status: Die Desktop-GUI ist ein Legacy-Pfad. Neue Funktionsarbeit sollte in die Web-UI unter `src/interfaces/web/streamlit_app.py` fliessen. Die Desktop-GUI bleibt vorerst fuer bestehende lokale Workflows erhalten, ist aber nicht mehr die primaere Oberflaeche.
 
 > Hinweis: Die GUI ist noch nicht fertig. Die Oberflaeche und die zugrunde liegende Architektur werden kontinuierlich erweitert und iterativ verbessert.
 
@@ -40,7 +40,9 @@ Die GUI ist modular aufgeteilt:
 - `src/interfaces/gui/services/`
   - Fach-/Infrastruktur-Logik:
     - `script_runner.py` (Subprocess + Cancel)
-    - `analysis_store.py` (SQLite-Zugriffe fuer Analyse-Ansicht)
+    - `analysis_store.py` (Kompatibilitaets-Wrapper fuer die frueher GUI-lokale Analyse-Store-API)
+- `src/interfaces/shared/analysis_store.py`
+  - Gemeinsame SQLite-Zugriffe fuer Analyse- und Filter-Workflows in Desktop- und Web-Oberflaeche.
  - `src/analysis/`
    - Analyse-API fuer GUI-unabhaengige Workflows (`AnalysisService`, Batch-Export, Schemas).
 

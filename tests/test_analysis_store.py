@@ -4,7 +4,7 @@ import sqlite3
 from datetime import date
 from pathlib import Path
 
-from src.interfaces.gui.services.analysis_store import AnalysisStore, SessionFilters
+from src.interfaces.shared.analysis_store import AnalysisStore, SessionFilters
 
 
 def _build_db(db_path: Path) -> None:
@@ -56,7 +56,7 @@ def test_list_sessions_supports_status_and_search_filters(tmp_path: Path, monkey
         def today(cls) -> date:
             return cls(2026, 3, 1)
 
-    monkeypatch.setattr("src.interfaces.gui.services.analysis_store.date", FixedDate)
+    monkeypatch.setattr("src.interfaces.shared.analysis_store.date", FixedDate)
 
     upcoming = store.list_sessions(
         db_path,
@@ -97,7 +97,7 @@ def test_resolve_date_range_supports_presets(monkeypatch) -> None:
         def today(cls) -> date:
             return cls(2026, 3, 1)
 
-    monkeypatch.setattr("src.interfaces.gui.services.analysis_store.date", FixedDate)
+    monkeypatch.setattr("src.interfaces.shared.analysis_store.date", FixedDate)
 
     assert store.resolve_date_range("Heute", "", "") == ("2026-03-01", "2026-03-01")
     assert store.resolve_date_range("Naechste 30 Tage", "", "") == ("2026-03-01", "2026-03-31")
