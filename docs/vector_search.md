@@ -103,14 +103,16 @@ Damit bleibt die Qdrant-ID identisch, auch wenn `build_local_index --refresh-exi
 
 ### Reconciliation
 
-Am Ende jedes Indexierungslaufs werden verwaiste Qdrant-Punkte entfernt:
+Am Ende jedes vollständigen Indexierungslaufs werden verwaiste Qdrant-Punkte entfernt:
 
 ```
 aktuelle SQLite-IDs (als Hash) ↔ vorhandene Qdrant-IDs
 → Differenz wird aus Qdrant gelöscht
 ```
 
-Das verhindert, dass gelöschte oder ersetzte Dokumente weiterhin in Suchergebnissen erscheinen.
+Das verhindert, dass gelöschte oder ersetzte Dokumente weiterhin in Suchergebnissen erscheinen. Die Bereinigung läuft auch dann, wenn in einem Lauf keine neuen Dokumente hinzugekommen sind.
+
+Wichtig: Bei Läufen mit `--limit` ist die Bereinigung bewusst deaktiviert. Ein limitierter Testlauf arbeitet nur auf einer Teilmenge der SQLite-Dokumente und darf deshalb keine anderen, bereits korrekt indexierten Qdrant-Punkte als "verwaist" behandeln und löschen.
 
 ---
 
@@ -162,6 +164,8 @@ python scripts/build_vector_index.py --help
 --qdrant-dir  Pfad zum Qdrant-Verzeichnis (Standard: data/db/qdrant/)
 --limit N     Nur die ersten N Dokumente indexieren (für Tests)
 ```
+
+`--limit` ist ausschließlich für kleine Test- oder Probeläufe gedacht. Bereits vorhandene Punkte außerhalb dieser Teilmenge bleiben unverändert; insbesondere findet in diesem Modus keine Orphan-Reconciliation statt.
 
 ### Performance
 
