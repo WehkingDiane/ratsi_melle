@@ -25,6 +25,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from src.fetching.storage_layout import resolve_local_file_path
 from src.paths import LOCAL_INDEX_DB, QDRANT_DIR
 
 
@@ -73,15 +74,15 @@ def _get_document_text(row: dict) -> str:
     local_path in SQLite is relative to the session folder (session_path),
     so we resolve the full path before attempting extraction.
     """
-    local_path_str: str = row.get("local_path") or ""
-    session_path_str: str = row.get("session_path") or ""
+    local_path = resolve_local_file_path(
+        session_path=str(row.get("session_path") or ""),
+        local_path=str(row.get("local_path") or ""),
+    )
 
-    if local_path_str and session_path_str:
-        local_path = Path(session_path_str) / local_path_str
-        if local_path.exists() and local_path.suffix.lower() == ".pdf":
-            text = _extract_text_pypdf(local_path)
-            if text.strip():
-                return text
+    if local_path is not None and local_path.is_file() and local_path.suffix.lower() == ".pdf":
+        text = _extract_text_pypdf(local_path)
+        if text.strip():
+            return text
 
     # Fallback: title + document_type
     title: str = row.get("title") or ""
@@ -139,6 +140,17 @@ def _reconcile_orphaned_vectors(
         print(f"  Removing {len(orphaned)} orphaned vector(s) …")
         vector_store.delete_ids(orphaned)
     return len(orphaned)
+
+
+def _resolved_payload_local_path(row: dict) -> str:
+    """Return an absolute local document path for the payload when available."""
+    resolved = resolve_local_file_path(
+        session_path=str(row.get("session_path") or ""),
+        local_path=str(row.get("local_path") or ""),
+    )
+    if resolved is None or not resolved.is_file():
+        return ""
+    return str(resolved.resolve())
 
 
 # ---------------------------------------------------------------------------
@@ -248,14 +260,7 @@ def main(argv: list[str] | None = None) -> None:
 
             points: list[dict] = []
             for doc, dense_vec, sparse_vec in zip(batch, dense_vectors, sparse_vectors):
-                # Resolve absolute path so the UI can open PDFs directly
-                local_path_str = doc.get("local_path") or ""
-                session_path_str = doc.get("session_path") or ""
-                if local_path_str and session_path_str:
-                    abs_path = Path(session_path_str) / local_path_str
-                    resolved_path = str(abs_path.resolve()) if abs_path.exists() else ""
-                else:
-                    resolved_path = ""
+                resolved_path = _resolved_payload_local_path(doc)
 
                 points.append(
                     {

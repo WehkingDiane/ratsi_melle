@@ -84,6 +84,42 @@ def test_stable_qdrant_id_distinguishes_duplicate_urls_by_agenda_item() -> None:
     assert session_doc == session_doc_none
 
 
+def test_get_document_text_resolves_legacy_session_paths(tmp_path: Path, monkeypatch) -> None:
+    session_dir = tmp_path / "data" / "raw" / "2025" / "09" / "2025-09-18_Rat_901"
+    pdf_path = session_dir / "session-documents" / "protokoll.pdf"
+    pdf_path.parent.mkdir(parents=True, exist_ok=True)
+    pdf_path.write_bytes(b"pdf")
+
+    monkeypatch.setattr(build_vector_index, "_extract_text_pypdf", lambda path: f"TEXT:{path.name}")
+
+    text = build_vector_index._get_document_text(
+        {
+            "session_path": str(tmp_path / "data" / "raw" / "2025" / "2025-09-18_Rat_901"),
+            "local_path": r"session-documents\protokoll.pdf",
+            "title": "Fallback title",
+            "document_type": "protokoll",
+        }
+    )
+
+    assert text == "TEXT:protokoll.pdf"
+
+
+def test_resolved_payload_local_path_uses_storage_helper(tmp_path: Path) -> None:
+    session_dir = tmp_path / "data" / "raw" / "2025" / "09" / "2025-09-18_Rat_901"
+    pdf_path = session_dir / "session-documents" / "protokoll.pdf"
+    pdf_path.parent.mkdir(parents=True, exist_ok=True)
+    pdf_path.write_bytes(b"pdf")
+
+    resolved = build_vector_index._resolved_payload_local_path(
+        {
+            "session_path": str(tmp_path / "data" / "raw" / "2025" / "2025-09-18_Rat_901"),
+            "local_path": r"session-documents\protokoll.pdf",
+        }
+    )
+
+    assert resolved == str(pdf_path.resolve())
+
+
 def test_main_reconciles_orphaned_vectors_even_when_nothing_is_new(
     monkeypatch,
     tmp_path: Path,
