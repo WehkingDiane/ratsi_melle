@@ -57,6 +57,13 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 - Unterordner unter `data/raw/.../agenda/` bestehen ausschließlich aus der TOP-Nummer und dem offiziellen Titel; Zusätze wie „Berichterstatter …“ werden beim Sluggen entfernt, damit identische Punkte unabhängig vom Reporter gleich heißen.
 - Jede Sitzung erzeugt zusätzlich zur Dokumenten-`manifest.json` eine `agenda_summary.json`, die Nummer, Titel, Reporter:in, Status, abgeleiteten Beschluss (`accepted`/`rejected`/`null`) sowie ein Flag für vorhandene Dokumente enthält. So lassen sich auch zukünftige Sitzungen mit noch unvollständigen Angaben nachträglich aktualisieren.
 
+## Zielsystem-Hinweise
+
+- Das Projekt arbeitet gegen eine öffentliche SessionNet-Installation der Stadt Melle.
+- Abrufe müssen robots.txt, öffentliche Nutzungsbedingungen und Datenschutzanforderungen respektieren.
+- Abruflogik soll immer mit Rate-Limits, Retries und Caching umgesetzt werden, um die Zielinfrastruktur nicht unnötig zu belasten.
+- Fachliche und technische Details zum Zielsystem und zur Datenverarbeitung stehen in `docs/data_processing_concept.md`; ältere Vorprüfungen liegen im Archiv unter `docs/archive/`.
+
 ## Workflow-Erwartungen
 
 1. Issues oder Tasks im README/todo.md verlinken.
@@ -71,7 +78,7 @@ Diese Regeln bilden das Fundament für den weiteren Projektverlauf und können b
 - `scripts/build_local_index.py` erzeugt einen lokalen Index aus bereits heruntergeladenen Rohdaten (`data/raw/`) und schreibt standardmäßig nach `data/db/local_index.sqlite`.
 - `scripts/build_online_index_db.py` erzeugt einen Online-Index ohne Dokumentdownloads und schreibt standardmäßig nach `data/db/online_session_index.sqlite`. Mit `--refresh-existing` werden vorhandene Sitzungen neu eingelesen; `--only-refresh` aktualisiert ausschließlich bestehende Sitzungen.
 - Beide Indexe enthalten in `documents` ein normalisiertes Feld `document_type` (`vorlage`, `beschlussvorlage`, `protokoll`, `bekanntmachung`, `sonstiges`) sowie Metadatenfelder `sha1` und `retrieved_at`.
-- `scripts/export_analysis_batch.py` exportiert aus einem Index einen reproduzierbaren JSON-Batch für nachgelagerte Analysen (inklusive Filteroptionen für Sitzung, Gremium, Zeitraum und Dokumenttyp).
+- Der fruehere Export-CLI-Pfad wurde archiviert und liegt unter `old/scripts/export_analysis_batch.py`.
 
 ## WSL-Setup (kurz)
 
@@ -80,6 +87,14 @@ Diese Regeln bilden das Fundament für den weiteren Projektverlauf und können b
 - Unter Windows die virtuelle Umgebung `.venv` verwenden.
 - Empfehlung unter WSL: `python3 -m venv .venv-wsl` und `source .venv-wsl/bin/activate`.
 - Abhängigkeiten mit `python -m pip install -r requirements.txt` installieren.
+
+## Versionspflege
+
+- Das Projekt verwendet `Major.Minor.Patch`; die kanonische Versionsnummer liegt in `VERSION`.
+- Solange das Projekt noch vor `1.0.0` liegt, gelten pragmatisch:
+  - `0.x.0` fuer groessere Entwicklungsschritte oder inkompatiblere Meilensteine
+  - `0.x.y` fuer Bugfixes, kleinere Erweiterungen und inkrementelle Verbesserungen
+- Sichtbare funktionale Aenderungen, Meilensteine und Releases sollen bewusst eine Pruefung von `VERSION` ausloesen.
 
 ## .gitignore & lokale Daten
 

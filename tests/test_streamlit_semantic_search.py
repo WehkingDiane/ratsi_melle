@@ -7,6 +7,44 @@ from src.interfaces.web import streamlit_app
 from src.paths import LOCAL_INDEX_DB, QDRANT_DIR
 
 
+def test_developer_script_options_include_all_build_paths() -> None:
+    options = streamlit_app._developer_script_options()
+
+    assert options["Sitzungen abrufen (fetch_sessions)"] == "fetch_sessions"
+    assert options["Lokalen Index aufbauen (build_local_index)"] == "build_local_index"
+    assert options["Online-Index aufbauen (build_online_index_db)"] == "build_online_index_db"
+    assert options["Vektorindex aufbauen (build_vector_index)"] == "build_vector_index"
+
+
+def test_collect_data_status_reports_existing_selected_db(tmp_path: Path) -> None:
+    db_path = tmp_path / "local_index.sqlite"
+    db_path.write_text("", encoding="utf-8")
+
+    snapshot = streamlit_app._collect_data_status(db_path)
+
+    assert snapshot["selected_db_name"] == "local_index.sqlite"
+    assert snapshot["selected_db_exists"] is True
+
+
+def test_collect_data_status_uses_cached_snapshot(monkeypatch, tmp_path: Path) -> None:
+    db_path = tmp_path / "local_index.sqlite"
+    db_path.write_text("", encoding="utf-8")
+    calls = {"count": 0}
+
+    def fake_cached(db_path_str: str):
+        calls["count"] += 1
+        return {"selected_db_name": Path(db_path_str).name}
+
+    monkeypatch.setattr(streamlit_app, "_collect_data_status_cached", fake_cached)
+
+    first = streamlit_app._collect_data_status(db_path)
+    second = streamlit_app._collect_data_status(db_path)
+
+    assert first == {"selected_db_name": "local_index.sqlite"}
+    assert second == {"selected_db_name": "local_index.sqlite"}
+    assert calls["count"] == 2
+
+
 def test_semantic_search_dependency_error_mentions_fastembed(monkeypatch) -> None:
     def fake_import_module(name: str):
         if name == "fastembed":

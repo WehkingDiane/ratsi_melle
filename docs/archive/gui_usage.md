@@ -1,12 +1,18 @@
-# GUI-Anleitung
+# Desktop-GUI-Anleitung
 
 Diese Anleitung beschreibt die Nutzung der Desktop-GUI unter `src/interfaces/gui/`.
+
+> Hinweis: Fuer browserbasierte Nutzung, semantische Suche und die weitere Produktentwicklung ist die Streamlit-Weboberflaeche der bevorzugte Weg. Die archivierte Beschreibung dazu liegt in `docs/archive/web_ui.md`.
+>
+> Status: Die Desktop-GUI bleibt vorerst fuer bestehende lokale Developer-Workflows erhalten, ist aber ein Legacy-Pfad und soll mittelfristig ersetzt werden.
 
 ## Voraussetzungen
 
 - Python 3.11+ ist installiert.
 - Die Projektabhaengigkeiten sind installiert:
   - `pip install -r requirements.txt`
+- Fuer die Legacy-Desktop-GUI zusaetzlich:
+  - `pip install customtkinter CTkMenuBar`
 - Unter WSL ist fuer Tkinter ggf. `python3-tk` erforderlich.
 - Fuer datenbezogene Funktionen sollte eine lokale SQLite-DB vorhanden sein, typischerweise `data/db/local_index.sqlite`.
 
@@ -158,6 +164,6 @@ Pruefen:
 
 ## Zugehoerige Dateien
 
-- GUI-Architektur: `docs/gui.md`
+- GUI-Architektur: `docs/archive/gui.md`
 - Analyse-Kontext: `src/analysis/analysis_context.py`
-- Batch-Export: `scripts/export_analysis_batch.py`
+- Archivierter Batch-Export: `old/scripts/export_analysis_batch.py`
