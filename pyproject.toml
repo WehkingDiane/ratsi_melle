@@ -1,5 +1,7 @@
 [tool.pytest.ini_options]
 addopts = "-m 'not live'"
+testpaths = ["tests"]
+norecursedirs = ["old", "data", ".venv", ".venv-wsl"]
 markers = [
     "live: marks tests as requiring real external API calls (deselect with -m 'not live')",
 ]
