@@ -1,6 +1,7 @@
 .venv/
 .venv-wsl/
 .vscode/
+.codex
 .codex/
 __pycache__/
 .pytest_cache/
