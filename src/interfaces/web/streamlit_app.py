@@ -21,7 +21,6 @@ from src.analysis.service import AnalysisRequest, AnalysisService
 from src.fetching.storage_layout import resolve_local_file_path
 from src.interfaces.shared.analysis_store import AnalysisStore, SessionFilters
 from src.paths import (
-    ANALYSIS_OUTPUTS_DIR,
     LOCAL_INDEX_DB,
     ONLINE_INDEX_DB,
     QDRANT_DIR,
@@ -703,64 +702,6 @@ def _tab_datenabruf() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Tab: Export
-# ---------------------------------------------------------------------------
-def _tab_export(db_path: Path) -> None:
-    st.header("📤 Export")
-
-    committees = [""] + _store.list_committees(db_path)
-    selected_committees = st.multiselect("Gremien", committees[1:])
-
-    col_from, col_to = st.columns(2)
-    with col_from:
-        export_from = st.text_input("Von (YYYY-MM-DD)", placeholder="2026-01-01")
-    with col_to:
-        export_to = st.text_input("Bis (YYYY-MM-DD)", placeholder="2026-12-31")
-
-    if st.button("▶ Export starten"):
-        script_path = REPO_ROOT / "scripts" / "export_analysis_batch.py"
-        cmd = [sys.executable, str(script_path), "--db", str(db_path)]
-        if selected_committees:
-            cmd += ["--committees"] + selected_committees
-        if export_from:
-            cmd += ["--date-from", export_from]
-        if export_to:
-            cmd += ["--date-to", export_to]
-
-        with st.spinner("Export läuft …"):
-            try:
-                result = subprocess.run(
-                    cmd,
-                    cwd=str(REPO_ROOT),
-                    capture_output=True,
-                    text=True,
-                    timeout=120,
-                )
-                if result.returncode == 0:
-                    st.success("Export abgeschlossen.")
-                    st.text_area("Ausgabe", value=result.stdout, height=200)
-                else:
-                    st.error("Export fehlgeschlagen.")
-                    st.text_area("Fehler", value=result.stderr or result.stdout, height=200)
-            except Exception as exc:  # noqa: BLE001
-                st.error(f"Fehler: {exc}")
-
-    # Quick overview of existing output files
-    st.markdown("---")
-    st.subheader("Vorhandene Analyse-Ausgaben")
-    if ANALYSIS_OUTPUTS_DIR.exists():
-        md_files = sorted(ANALYSIS_OUTPUTS_DIR.rglob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)[:10]
-        if md_files:
-            for f in md_files:
-                rel = f.relative_to(ANALYSIS_OUTPUTS_DIR)
-                st.markdown(f"- `{rel}`")
-        else:
-            st.info("Noch keine Ausgaben vorhanden.")
-    else:
-        st.info("Ausgabe-Verzeichnis existiert noch nicht.")
-
-
-# ---------------------------------------------------------------------------
 # Tab: Einstellungen
 # ---------------------------------------------------------------------------
 def _tab_einstellungen() -> None:
@@ -827,8 +768,8 @@ def main() -> None:
     _init_state()
     db_path = _render_sidebar()
 
-    tab_analyse, tab_search, tab_data, tab_export, tab_settings = st.tabs(
-        ["🔍 Analyse", "🔍 Semantische Suche", "📥 Datenabruf", "📤 Export", "⚙️ Einstellungen"]
+    tab_analyse, tab_search, tab_data, tab_settings = st.tabs(
+        ["🔍 Analyse", "🔍 Semantische Suche", "📥 Datenabruf", "⚙️ Einstellungen"]
     )
 
     with tab_analyse:
@@ -837,8 +778,6 @@ def main() -> None:
         _tab_semantic_search(db_path)
     with tab_data:
         _tab_datenabruf()
-    with tab_export:
-        _tab_export(db_path)
     with tab_settings:
         _tab_einstellungen()
 

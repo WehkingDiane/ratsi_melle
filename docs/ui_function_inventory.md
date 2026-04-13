@@ -206,9 +206,13 @@ Ziel dieser Datei:
 
 ## 5. Export und Weitergabe
 
+Status:
+- Dieser Bereich ist kein bevorzugter Produktworkflow mehr.
+- Der fruehere CLI-Einstiegspunkt liegt archiviert unter `old/scripts/export_analysis_batch.py`.
+
 ### Skripte
 
-#### `scripts/export_analysis_batch.py`
+#### `old/scripts/export_analysis_batch.py`
 - Zweck: reproduzierbaren Analyse-Batch aus SQLite-Daten exportieren
 - Hauptparameter:
   - `--db-path`
@@ -318,7 +322,6 @@ Ziel dieser Datei:
 - Analysevorbereitung
 - semantische Suche
 - Datenabruf-Skripte
-- einfacher Export
 - Einstellungen fuer API-Keys und Prompt-Vorlagen
 
 ## 9. Was aktuell nur in der Desktop-GUI vorhanden ist
@@ -346,8 +349,8 @@ Ziel dieser Datei:
 - einfache Statuspruefung
 
 ### C. Export & Weitergabe
-- Analyse-Batches erzeugen
-- vorhandene Ausgaben herunterladen
+- aktuell eher Archiv-/Expertenfunktion
+- nicht als Kernbereich fuer die neue Hauptnavigation einplanen
 
 ### D. Konfiguration
 - API-Keys
@@ -392,8 +395,8 @@ Ziel dieser Datei:
 - spaeter: Inventar / Struktur / letzte Laeufe
 
 #### `Export`
-- `export_analysis_batch.py`
-- vorhandene Analyse-Artefakte
+- archivierter Analyse-Batch-Export
+- vorhandene Analyse-Artefakte nur falls spaeter wieder benoetigt
 
 #### `Einstellungen`
 - API-Keys
@@ -403,7 +406,7 @@ Ziel dieser Datei:
 
 - Soll die neue Web-UI eher ein Recherche-Werkzeug oder ein Developer-Tool sein?
 - Sollen Datenpflege-Funktionen prominent in der Hauptnavigation stehen oder in einen Admin-Bereich wandern?
-- Soll der Analyse-Batch-Export in der finalen Oberfläche weiter sichtbar sein oder nur als Expertenfunktion?
+- Soll der archivierte Analyse-Batch-Export spaeter ganz entfallen oder als versteckte Expertenfunktion erhalten bleiben?
 - Welche Desktop-GUI-Extrafunktionen muessen wirklich in die Web-UI uebernommen werden:
   - Dateninventar
   - Datenstruktur

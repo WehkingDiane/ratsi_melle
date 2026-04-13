@@ -2,7 +2,7 @@
 
 Diese Anleitung beschreibt die Nutzung der Desktop-GUI unter `src/interfaces/gui/`.
 
-> Hinweis: Fuer browserbasierte Nutzung, semantische Suche und die weitere Produktentwicklung ist die Streamlit-Weboberflaeche der bevorzugte Weg. Start und Details dazu stehen in `docs/web_ui.md`.
+> Hinweis: Fuer browserbasierte Nutzung, semantische Suche und die weitere Produktentwicklung ist die Streamlit-Weboberflaeche der bevorzugte Weg. Die archivierte Beschreibung dazu liegt in `docs/archive/web_ui.md`.
 >
 > Status: Die Desktop-GUI bleibt vorerst fuer bestehende lokale Developer-Workflows erhalten, ist aber ein Legacy-Pfad und soll mittelfristig ersetzt werden.
 
@@ -164,6 +164,6 @@ Pruefen:
 
 ## Zugehoerige Dateien
 
-- GUI-Architektur: `docs/gui.md`
+- GUI-Architektur: `docs/archive/gui.md`
 - Analyse-Kontext: `src/analysis/analysis_context.py`
-- Batch-Export: `scripts/export_analysis_batch.py`
+- Archivierter Batch-Export: `old/scripts/export_analysis_batch.py`

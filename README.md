@@ -30,19 +30,18 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 - `python scripts/build_local_index.py` baut den lokalen SQLite-Index unter `data/db/local_index.sqlite`.
 - `python scripts/build_online_index_db.py 2024 --months 5 6` baut den Online-Index unter `data/db/online_session_index.sqlite` ohne Downloads.
 - `python scripts/build_vector_index.py` baut den lokalen Vektor-Index unter `data/db/qdrant/` fuer die semantische Suche auf; Details stehen in `docs/vector_search.md`.
-- `python scripts/export_analysis_batch.py --db-path data/db/local_index.sqlite --output data/analysis_requests/analysis_batch.json` exportiert einen reproduzierbaren Analyse-Batch (optional filterbar nach Sitzung, Zeitraum, Gremium, `document_type`).
 
 ## Oberflaechen
 
 - **Web-UI (Streamlit, bevorzugt)**:
   - Start: `python scripts/run_web.py`
   - Quellcode: `src/interfaces/web/streamlit_app.py`
-  - Details: `docs/web_ui.md`
+  - Archivierte Detaildoku: `docs/archive/web_ui.md`
 - **Desktop-GUI (Tkinter, Legacy-Pfad)**:
   - Start: `python -m src.interfaces.gui.gui_launcher`
   - Quellcode: `src/interfaces/gui/`
   - Status: wird mittelfristig durch die Web-UI ersetzt
-  - Details: `docs/gui.md` und `docs/gui_usage.md`
+  - Archivierte Detaildoku: `docs/archive/gui.md` und `docs/archive/gui_usage.md`
 
 ## Semantische Suche
 
@@ -132,8 +131,8 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
    - ✅ Normalisierte Datenstruktur mit Metadaten entwerfen und implementieren.
      - ✅ Einheitliches Schema für zentrale Filterfelder ist umgesetzt (`session_id`, `date`, `committee`, `document_type`, `top_number`; `status` aktuell über `agenda_items`).
      - ✅ Felder für Analyse-Übergabe sind standardisiert (Quell-URL, lokaler Pfad, Hash, Extraktionszeitpunkt, Extraktions- und Parser-Qualität).
-   - ✅ Analyse-Export liefert reproduzierbare Dokumentpakete mit Metadaten und Quellenreferenzen.
-     - ✅ `scripts/export_analysis_batch.py` erzeugt KI-taugliche Analyse-Batches ohne lokale PDF-/Text-Inhaltsanalyse.
+   - ✅ Analyse-Export lieferte reproduzierbare Dokumentpakete mit Metadaten und Quellenreferenzen.
+     - Archivierter CLI-Pfad liegt jetzt unter `old/scripts/export_analysis_batch.py`.
      - ✅ Der Analyse-Workflow in der GUI erzeugt eine lokale Analysegrundlage mit Quellenliste statt lokaler Inhaltsauswertung.
    - ✅ Fruehere lokale PDF-Extraktionsarbeit bleibt vom KI-Analysepfad entkoppelt.
      - ✅ Aktive Analyse-Batches enthalten nur noch Quellenreferenzen und Metadaten.
@@ -154,7 +153,7 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
    - 🚧 **Developer-GUI weiterentwickeln**
      - ✅ Anforderungen an die interne Developer-GUI wurden in konkrete Arbeitsablaeufe und Exportpfade ueberfuehrt (eigene Exportseite, Presets, DB-gestuetzte Auswahl).
      - ✅ Prototypen und Verbesserungen fuer die Developer-GUI sind umgesetzt und mit Testdaten abgesichert.
-     - ✅ In der GUI-Action-Ansicht `Export Analysis` ist ein `Committee`-Dropdown verfuegbar.
+     - Der fruehere Export-UI-Pfad ist kein aktiver Kernworkflow mehr.
      - ✅ In der GUI werden Eingabeelemente ausgeblendet, die fuer die aktuell ausgewaehlte Action nicht benoetigt werden.
    - 🚧 **Finale User-Oberfläche konzipieren und ausbauen**
      - 🚧 Anforderungen an UI oder API für Endnutzer definieren (Zielgruppen, Filter, Exportformate).

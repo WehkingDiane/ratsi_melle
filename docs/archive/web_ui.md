@@ -83,5 +83,5 @@ python scripts/build_vector_index.py
 
 - Architektur und Suchdetails: `docs/vector_search.md`
 - Gemeinsame Analyse-/Filterlogik: `src/interfaces/shared/analysis_store.py`
-- Desktop-GUI (Legacy): `docs/gui.md`
-- Desktop-GUI-Nutzung (Legacy): `docs/gui_usage.md`
+- Desktop-GUI (Legacy): `docs/archive/gui.md`
+- Desktop-GUI-Nutzung (Legacy): `docs/archive/gui_usage.md`
