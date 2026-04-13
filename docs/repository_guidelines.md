@@ -62,7 +62,7 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 - Das Projekt arbeitet gegen eine öffentliche SessionNet-Installation der Stadt Melle.
 - Abrufe müssen robots.txt, öffentliche Nutzungsbedingungen und Datenschutzanforderungen respektieren.
 - Abruflogik soll immer mit Rate-Limits, Retries und Caching umgesetzt werden, um die Zielinfrastruktur nicht unnötig zu belasten.
-- Fachliche und technische Details zum Zielsystem stehen in `docs/data_fetching_concept.md`; ältere Vorprüfungen liegen im Archiv unter `docs/archive/`.
+- Fachliche und technische Details zum Zielsystem und zur Datenverarbeitung stehen in `docs/data_processing_concept.md`; ältere Vorprüfungen liegen im Archiv unter `docs/archive/`.
 
 ## Workflow-Erwartungen
 

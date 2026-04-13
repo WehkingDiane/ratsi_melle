@@ -29,7 +29,7 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 - `python scripts/fetch_sessions.py 2024 --months 5 6` laedt Sitzungen und Dokumente nach `data/raw/`.
 - `python scripts/build_local_index.py` baut den lokalen SQLite-Index unter `data/db/local_index.sqlite`.
 - `python scripts/build_online_index_db.py 2024 --months 5 6` baut den Online-Index unter `data/db/online_session_index.sqlite` ohne Downloads.
-- `python scripts/build_vector_index.py` baut den lokalen Vektor-Index unter `data/db/qdrant/` fuer die semantische Suche auf; Details stehen in `docs/vector_search.md`.
+- `python scripts/build_vector_index.py` baut den lokalen Vektor-Index unter `data/db/qdrant/` fuer die semantische Suche auf; Details stehen in `docs/data_processing_concept.md`.
 
 ## Oberflaechen
 
@@ -49,7 +49,7 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 ## Semantische Suche
 
 - Die semantische Suche nutzt einen lokalen Qdrant-Index mit Harrier-Dense-Embeddings und BM25-Sparse-Vektoren (`fastembed`) fuer Hybrid-Retrieval.
-- Aufbau und Betrieb sind in `docs/vector_search.md` dokumentiert.
+- Aufbau und Betrieb sind in `docs/data_processing_concept.md` dokumentiert.
 - Nach Aenderungen am Stable-ID-Schema oder an der Indexierungslogik ist ein vollstaendiger Neuaufbau von `data/db/qdrant/` erforderlich.
 
 ## Zeilenenden (Windows/Linux)

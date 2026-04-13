@@ -81,7 +81,7 @@ python scripts/build_vector_index.py
 
 ## Zugehörige Dateien
 
-- Architektur und Suchdetails: `docs/vector_search.md`
+- Architektur und Suchdetails: `docs/data_processing_concept.md`
 - Gemeinsame Analyse-/Filterlogik: `src/interfaces/shared/analysis_store.py`
 - Desktop-GUI (Legacy): `docs/archive/gui.md`
 - Desktop-GUI-Nutzung (Legacy): `docs/archive/gui_usage.md`
