@@ -197,7 +197,9 @@ def _db_session_count(db_path: Path) -> int | None:
     return int(row[0]) if row else 0
 
 
-def _collect_data_status(db_path: Path) -> dict[str, int | bool | str | None]:
+@st.cache_data(ttl=60, show_spinner=False)
+def _collect_data_status_cached(db_path_str: str) -> dict[str, int | bool | str | None]:
+    db_path = Path(db_path_str)
     return {
         "selected_db_name": db_path.name,
         "selected_db_exists": db_path.exists(),
@@ -211,6 +213,10 @@ def _collect_data_status(db_path: Path) -> dict[str, int | bool | str | None]:
         "vector_index_exists": QDRANT_DIR.exists(),
         "vector_index_file_count": _count_files(QDRANT_DIR),
     }
+
+
+def _collect_data_status(db_path: Path) -> dict[str, int | bool | str | None]:
+    return _collect_data_status_cached(str(db_path.resolve()))
 
 
 # ---------------------------------------------------------------------------
@@ -836,6 +842,8 @@ def _run_script_preset(label: str, commands: list[list[str]]) -> None:
 
 def _tab_developer_status(db_path: Path) -> None:
     st.subheader("Projektstatus")
+    if st.button("Status aktualisieren", key="refresh_project_status"):
+        _collect_data_status_cached.clear()
 
     snapshot = _collect_data_status(db_path)
     metric_cols = st.columns(5)
