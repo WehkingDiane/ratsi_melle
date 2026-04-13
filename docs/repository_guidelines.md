@@ -88,6 +88,14 @@ Diese Regeln bilden das Fundament für den weiteren Projektverlauf und können b
 - Empfehlung unter WSL: `python3 -m venv .venv-wsl` und `source .venv-wsl/bin/activate`.
 - Abhängigkeiten mit `python -m pip install -r requirements.txt` installieren.
 
+## Versionspflege
+
+- Das Projekt verwendet `Major.Minor.Patch`; die kanonische Versionsnummer liegt in `VERSION`.
+- Solange das Projekt noch vor `1.0.0` liegt, gelten pragmatisch:
+  - `0.x.0` fuer groessere Entwicklungsschritte oder inkompatiblere Meilensteine
+  - `0.x.y` fuer Bugfixes, kleinere Erweiterungen und inkrementelle Verbesserungen
+- Sichtbare funktionale Aenderungen, Meilensteine und Releases sollen bewusst eine Pruefung von `VERSION` ausloesen.
+
 ## .gitignore & lokale Daten
 
 - Lokale venvs, Caches und Logs werden ueber `.gitignore` ausgeschlossen.

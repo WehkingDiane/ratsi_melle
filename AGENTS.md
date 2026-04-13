@@ -54,6 +54,14 @@
 - Git ist fuer Versionskontrolle und Zusammenarbeit erforderlich.
 - Fuer optionale UI-Arbeiten wird Tkinter benoetigt; unter WSL `python3-tk` installieren.
 
+## Versionspflege
+
+- Das Projekt verwendet `Major.Minor.Patch`; die kanonische Versionsnummer liegt in `VERSION`.
+- Solange das Projekt noch vor `1.0.0` liegt, gelten pragmatisch:
+  - `0.x.0` fuer groessere Entwicklungsschritte oder inkompatiblere Meilensteine
+  - `0.x.y` fuer Bugfixes, kleinere Erweiterungen und inkrementelle Verbesserungen
+- Bei sichtbaren funktionalen Aenderungen, Meilensteinen oder Releases muss `VERSION` bewusst angepasst werden.
+
 ## Agent-spezifische Anweisungen (verpflichtend)
 
 ### Branch-Sicherheit
