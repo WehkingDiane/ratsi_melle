@@ -7,6 +7,10 @@ Ziel dieser Datei:
 - Redundanzen und Ueberlappungen zwischen Web-UI und Desktop-GUI offenlegen
 - eine sinnvolle Gruppierung fuer eine spaetere Web-UI-Neuplanung vorbereiten
 
+Aktueller Strategierahmen:
+- Streamlit bleibt die schnelle interne Developer-Oberflaeche.
+- Die grosse produktartige Nutzeroberflaeche wird separat als Django-Anwendung konzipiert.
+
 ## 1. Datenabruf und Rohdatenaufbau
 
 ### Skripte

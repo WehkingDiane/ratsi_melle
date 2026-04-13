@@ -33,10 +33,13 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 
 ## Oberflaechen
 
-- **Web-UI (Streamlit, bevorzugt)**:
+- **Developer-UI (Streamlit)**:
   - Start: `python scripts/run_web.py`
   - Quellcode: `src/interfaces/web/streamlit_app.py`
   - Archivierte Detaildoku: `docs/archive/web_ui.md`
+- **Django-Hauptoberflaeche (geplant)**:
+  - Grundkonzept: `docs/django_ui_concept.md`
+  - Rolle: produktartige Recherche- und Analyseoberflaeche
 - **Desktop-GUI (Tkinter, Legacy-Pfad)**:
   - Start: `python -m src.interfaces.gui.gui_launcher`
   - Quellcode: `src/interfaces/gui/`
