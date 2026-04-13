@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import sqlite3
 import subprocess
 import sys
 from pathlib import Path
@@ -21,9 +22,11 @@ from src.analysis.service import AnalysisRequest, AnalysisService
 from src.fetching.storage_layout import resolve_local_file_path
 from src.interfaces.shared.analysis_store import AnalysisStore, SessionFilters
 from src.paths import (
+    DB_DIR,
     LOCAL_INDEX_DB,
     ONLINE_INDEX_DB,
     QDRANT_DIR,
+    RAW_DATA_DIR,
     REPO_ROOT,
 )
 
@@ -139,6 +142,75 @@ def _semantic_search_vector_dir(db_path: Path) -> Path | None:
 def _format_rrf_score(score: float) -> str:
     """Format rank-fusion scores without implying percentage relevance."""
     return f"{score:.4f}"
+
+
+def _developer_script_options() -> dict[str, str]:
+    return {
+        "Sitzungen abrufen (fetch_sessions)": "fetch_sessions",
+        "Lokalen Index aufbauen (build_local_index)": "build_local_index",
+        "Online-Index aufbauen (build_online_index_db)": "build_online_index_db",
+        "Vektorindex aufbauen (build_vector_index)": "build_vector_index",
+    }
+
+
+def _run_script_command(cmd: list[str]) -> tuple[int, str]:
+    output_lines: list[str] = []
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            cwd=str(REPO_ROOT),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        assert proc.stdout is not None
+        for line in proc.stdout:
+            output_lines.append(line.rstrip())
+        proc.wait()
+        exit_code = proc.returncode
+    except Exception as exc:  # noqa: BLE001
+        output_lines = [f"Fehler beim Starten: {exc}"]
+        exit_code = -1
+    return exit_code, "\n".join(output_lines)
+
+
+def _count_files(root: Path) -> int:
+    if not root.exists():
+        return 0
+    return sum(1 for path in root.rglob("*") if path.is_file())
+
+
+def _count_session_dirs(root: Path) -> int:
+    if not root.exists():
+        return 0
+    return sum(1 for path in root.rglob("session_detail.html") if path.is_file())
+
+
+def _db_session_count(db_path: Path) -> int | None:
+    if not db_path.exists():
+        return None
+    try:
+        with sqlite3.connect(db_path) as conn:
+            row = conn.execute("SELECT COUNT(*) FROM sessions").fetchone()
+    except sqlite3.Error:
+        return None
+    return int(row[0]) if row else 0
+
+
+def _collect_data_status(db_path: Path) -> dict[str, int | bool | str | None]:
+    return {
+        "selected_db_name": db_path.name,
+        "selected_db_exists": db_path.exists(),
+        "selected_db_sessions": _db_session_count(db_path),
+        "raw_session_count": _count_session_dirs(RAW_DATA_DIR),
+        "raw_file_count": _count_files(RAW_DATA_DIR),
+        "local_index_exists": LOCAL_INDEX_DB.exists(),
+        "local_index_sessions": _db_session_count(LOCAL_INDEX_DB),
+        "online_index_exists": ONLINE_INDEX_DB.exists(),
+        "online_index_sessions": _db_session_count(ONLINE_INDEX_DB),
+        "vector_index_exists": QDRANT_DIR.exists(),
+        "vector_index_file_count": _count_files(QDRANT_DIR),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -641,16 +713,68 @@ def _run_semantic_search(
 
 
 # ---------------------------------------------------------------------------
-# Tab: Datenabruf
+# Tab: Developer
 # ---------------------------------------------------------------------------
-def _tab_datenabruf() -> None:
-    st.header("📥 Datenabruf")
+def _tab_developer(db_path: Path) -> None:
+    st.header("🛠️ Developer-Tools")
+    st.caption(
+        "Interne Arbeitsoberfläche für Fetch-, Build- und Diagnosepfade. "
+        "Die große Nutzeroberfläche wird separat über Django konzipiert."
+    )
 
-    script_options = {
-        "Sitzungen abrufen (fetch_sessions)": "fetch_sessions",
-        "Lokalen Index aufbauen (build_local_index)": "build_local_index",
-        "Online-Index aufbauen (build_online_index_db)": "build_online_index_db",
-    }
+    tool_scripts, tool_status, tool_committees = st.tabs(
+        ["📥 Skripte", "📊 Status", "🏛️ Gremien"]
+    )
+
+    with tool_scripts:
+        _tab_developer_scripts(db_path)
+    with tool_status:
+        _tab_developer_status(db_path)
+    with tool_committees:
+        _tab_developer_committees(db_path)
+
+
+def _tab_developer_scripts(db_path: Path) -> None:
+    st.subheader("Skripte und Build-Pfade")
+
+    preset_col1, preset_col2, preset_col3 = st.columns(3)
+    preset_actions: list[tuple[str, list[list[str]]]] = [
+        (
+            "Fetch + Build Local",
+            [
+                [sys.executable, str(REPO_ROOT / "scripts" / "fetch_sessions.py"), "2024"],
+                [sys.executable, str(REPO_ROOT / "scripts" / "build_local_index.py")],
+            ],
+        ),
+        (
+            "Build Local + Vector",
+            [
+                [sys.executable, str(REPO_ROOT / "scripts" / "build_local_index.py")],
+                [
+                    sys.executable,
+                    str(REPO_ROOT / "scripts" / "build_vector_index.py"),
+                    "--db",
+                    str(LOCAL_INDEX_DB),
+                    "--qdrant-dir",
+                    str(QDRANT_DIR),
+                ],
+            ],
+        ),
+        (
+            "Build Online Index",
+            [[sys.executable, str(REPO_ROOT / "scripts" / "build_online_index_db.py"), "2024"]],
+        ),
+    ]
+    for col, (label, commands) in zip(
+        (preset_col1, preset_col2, preset_col3), preset_actions, strict=False
+    ):
+        with col:
+            if st.button(label, use_container_width=True):
+                _run_script_preset(label, commands)
+
+    st.markdown("---")
+
+    script_options = _developer_script_options()
     chosen_script_label = st.selectbox("Script auswählen", list(script_options.keys()))
     script_name = script_options[chosen_script_label]
 
@@ -661,35 +785,26 @@ def _tab_datenabruf() -> None:
             year = st.number_input("Jahr", min_value=2000, max_value=2050, value=2024, step=1)
         with col_months:
             month_options = [str(m) for m in range(1, 13)]
-            months = st.multiselect("Monate (leer = alle)", month_options)
+            months = st.multiselect("Monate (leer = alle)", month_options, key=f"months_{script_name}")
         extra_args = [str(year)]
         if months:
             extra_args += ["--months"] + months
+    elif script_name == "build_vector_index":
+        st.caption(f"SQLite-Quelle: `{LOCAL_INDEX_DB}` | Qdrant: `{QDRANT_DIR}`")
+        vector_limit = st.number_input(
+            "Limit (0 = kein Limit)", min_value=0, max_value=100000, value=0, step=100
+        )
+        extra_args = ["--db", str(LOCAL_INDEX_DB), "--qdrant-dir", str(QDRANT_DIR)]
+        if vector_limit:
+            extra_args += ["--limit", str(vector_limit)]
+    else:
+        st.caption(f"SQLite-Quelle: `{db_path}`")
 
-    if st.button("▶ Ausführen"):
+    if st.button("▶ Ausführen", type="primary"):
         script_path = REPO_ROOT / "scripts" / f"{script_name}.py"
         cmd = [sys.executable, str(script_path)] + extra_args
-
-        output_lines: list[str] = []
         with st.spinner(f"Führe `{script_name}` aus …"):
-            try:
-                proc = subprocess.Popen(
-                    cmd,
-                    cwd=str(REPO_ROOT),
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                )
-                assert proc.stdout is not None
-                for line in proc.stdout:
-                    output_lines.append(line.rstrip())
-                proc.wait()
-                exit_code = proc.returncode
-            except Exception as exc:  # noqa: BLE001
-                output_lines = [f"Fehler beim Starten: {exc}"]
-                exit_code = -1
-
-        output_text = "\n".join(output_lines)
+            exit_code, output_text = _run_script_command(cmd)
         st.session_state["script_output"] = output_text
 
         if exit_code == 0:
@@ -698,7 +813,88 @@ def _tab_datenabruf() -> None:
             st.error(f"Fehler (Exit-Code {exit_code})")
 
     if st.session_state["script_output"]:
-        st.text_area("Ausgabe", value=st.session_state["script_output"], height=300)
+        st.text_area("Ausgabe", value=st.session_state["script_output"], height=320)
+
+
+def _run_script_preset(label: str, commands: list[list[str]]) -> None:
+    output_blocks: list[str] = []
+    failed = False
+    with st.spinner(f"Führe Preset `{label}` aus …"):
+        for cmd in commands:
+            exit_code, output_text = _run_script_command(cmd)
+            output_blocks.append(f"$ {' '.join(cmd)}\n{output_text}".strip())
+            if exit_code != 0:
+                failed = True
+                break
+
+    st.session_state["script_output"] = "\n\n".join(output_blocks)
+    if failed:
+        st.error(f"Preset `{label}` ist fehlgeschlagen.")
+    else:
+        st.success(f"Preset `{label}` abgeschlossen.")
+
+
+def _tab_developer_status(db_path: Path) -> None:
+    st.subheader("Projektstatus")
+
+    snapshot = _collect_data_status(db_path)
+    metric_cols = st.columns(5)
+    metric_cols[0].metric("Rohsitzungen", str(snapshot["raw_session_count"]))
+    metric_cols[1].metric("Rohdateien", str(snapshot["raw_file_count"]))
+    metric_cols[2].metric(
+        "Lokaler Index",
+        "vorhanden" if snapshot["local_index_exists"] else "fehlt",
+        None if snapshot["local_index_sessions"] is None else f"{snapshot['local_index_sessions']} Sitzungen",
+    )
+    metric_cols[3].metric(
+        "Online-Index",
+        "vorhanden" if snapshot["online_index_exists"] else "fehlt",
+        None if snapshot["online_index_sessions"] is None else f"{snapshot['online_index_sessions']} Sitzungen",
+    )
+    metric_cols[4].metric(
+        "Vektorindex",
+        "vorhanden" if snapshot["vector_index_exists"] else "fehlt",
+        f"{snapshot['vector_index_file_count']} Dateien",
+    )
+
+    st.markdown("---")
+    st.subheader("Datenpfade")
+    st.markdown(f"- `data/raw`: `{RAW_DATA_DIR}`")
+    st.markdown(f"- `data/db`: `{DB_DIR}`")
+    st.markdown(f"- `Lokaler Index`: `{LOCAL_INDEX_DB}`")
+    st.markdown(f"- `Online-Index`: `{ONLINE_INDEX_DB}`")
+    st.markdown(f"- `Qdrant`: `{QDRANT_DIR}`")
+
+    st.markdown("---")
+    st.subheader("Aktive Datenbank")
+    if snapshot["selected_db_exists"]:
+        session_count_text = (
+            "unbekannt"
+            if snapshot["selected_db_sessions"] is None
+            else str(snapshot["selected_db_sessions"])
+        )
+        st.success(
+            f"`{snapshot['selected_db_name']}` ist vorhanden und enthaelt {session_count_text} Sitzung(en)."
+        )
+    else:
+        st.warning(f"`{snapshot['selected_db_name']}` wurde nicht gefunden.")
+
+
+def _tab_developer_committees(db_path: Path) -> None:
+    st.subheader("Gremienübersicht")
+    committees = _store.list_committees(db_path)
+
+    if not db_path.exists():
+        st.warning(f"SQLite-Datenbank nicht gefunden: `{db_path}`")
+        return
+
+    if not committees:
+        st.info("Keine Gremien in der aktuell gewählten Datenbank gefunden.")
+        return
+
+    st.markdown(f"**{len(committees)} Gremium/Gremien gefunden**")
+    for committee in committees:
+        st.markdown(f"- {committee}")
 
 
 # ---------------------------------------------------------------------------
@@ -768,16 +964,16 @@ def main() -> None:
     _init_state()
     db_path = _render_sidebar()
 
-    tab_analyse, tab_search, tab_data, tab_settings = st.tabs(
-        ["🔍 Analyse", "🔍 Semantische Suche", "📥 Datenabruf", "⚙️ Einstellungen"]
+    tab_analyse, tab_search, tab_dev, tab_settings = st.tabs(
+        ["🔍 Analyse", "🔍 Semantische Suche", "🛠️ Developer", "⚙️ Einstellungen"]
     )
 
     with tab_analyse:
         _tab_analyse(db_path)
     with tab_search:
         _tab_semantic_search(db_path)
-    with tab_data:
-        _tab_datenabruf()
+    with tab_dev:
+        _tab_developer(db_path)
     with tab_settings:
         _tab_einstellungen()
 
