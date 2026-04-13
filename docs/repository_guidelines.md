@@ -57,6 +57,13 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 - Unterordner unter `data/raw/.../agenda/` bestehen ausschließlich aus der TOP-Nummer und dem offiziellen Titel; Zusätze wie „Berichterstatter …“ werden beim Sluggen entfernt, damit identische Punkte unabhängig vom Reporter gleich heißen.
 - Jede Sitzung erzeugt zusätzlich zur Dokumenten-`manifest.json` eine `agenda_summary.json`, die Nummer, Titel, Reporter:in, Status, abgeleiteten Beschluss (`accepted`/`rejected`/`null`) sowie ein Flag für vorhandene Dokumente enthält. So lassen sich auch zukünftige Sitzungen mit noch unvollständigen Angaben nachträglich aktualisieren.
 
+## Zielsystem-Hinweise
+
+- Das Projekt arbeitet gegen eine öffentliche SessionNet-Installation der Stadt Melle.
+- Abrufe müssen robots.txt, öffentliche Nutzungsbedingungen und Datenschutzanforderungen respektieren.
+- Abruflogik soll immer mit Rate-Limits, Retries und Caching umgesetzt werden, um die Zielinfrastruktur nicht unnötig zu belasten.
+- Fachliche und technische Details zum Zielsystem stehen in `docs/data_fetching_concept.md`; ältere Vorprüfungen liegen im Archiv unter `docs/archive/`.
+
 ## Workflow-Erwartungen
 
 1. Issues oder Tasks im README/todo.md verlinken.

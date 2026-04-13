@@ -12,6 +12,14 @@ Die Stadt Melle betreibt eine eigene **SessionNet**-Installation unter `https://
 | `si0057.asp` | Detailansicht einer einzelnen Sitzung inkl. Tagesordnung und Dokumentverweisen. | `__ksinr` (Sitzungs-ID) |
 | `do*.asp` | Dokumentdownloads (z. B. `do0050.asp`) aus den Tagesordnungseinträgen. Der Client übernimmt die Parameter unverändert aus den Links. | variabel |
 
+### Dauerhafte Arbeitsannahmen zum Zielsystem
+
+- Das Zielsystem ist eine oeffentliche SessionNet-Installation der Stadt Melle.
+- Abrufe muessen robots.txt, oeffentliche Nutzungsbedingungen und allgemeine Datenschutzanforderungen respektieren.
+- Personenbezogene Daten aus dem Zielsystem duerfen nicht unnötig massenhaft gesammelt oder unverarbeitet weiterveroeffentlicht werden.
+- Abrufe sollen immer mit respektvoller Lastverteilung erfolgen, insbesondere ueber Rate-Limits, Caching und Retries.
+- Wenn sich HTML-Strukturen, Endpunkte oder Regeln des Zielsystems aendern, muessen Fetch- und Parsinglogik zeitnah ueberprueft werden.
+
 ### HTML-Merkmale
 
 - **Übersicht (`si0040.asp`)**: `table#smc_page_si0040_contenttable1` enthält Zeilen mit `td.siday` (Tageszahl in `span.weekday`) und `td.silink`. Innerhalb von `td.silink` finden sich ein optionaler Gremiums-Header (`div.smc-el-h`), der Sitzungslink (`a.smc-link-normal`) sowie eine Liste `ul.smc-detail-list`, deren Einträge Zeit und Ort enthalten.
@@ -47,6 +55,6 @@ Die Stadt Melle betreibt eine eigene **SessionNet**-Installation unter `https://
 
 ## 4. Offene Punkte
 
-- Authentifizierung ist aktuell nicht erforderlich, jedoch sollte mittelfristig ein Request-Rate-Limit implementiert werden (z. B. 1 Anfrage/Sekunde), um die Server zu schonen.
+- Authentifizierung ist aktuell nicht erforderlich.
 - Für Dokumentdownloads muss der finale Dateiname zukünftig über die HTTP-Header (`Content-Disposition`) bestimmt werden.
 - Bei dauerhaft nicht erreichbaren Seiten (z. B. Wartung) sollte die CLI einen non-zero Exit-Code liefern, um Scheduler-Läufe sichtbar scheitern zu lassen.

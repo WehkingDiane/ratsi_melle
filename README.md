@@ -108,7 +108,7 @@ Das Ziel dieses Projekts bleibt unverändert: **Kommunalpolitische Informationen
 
 1. **Grundlagen schaffen**
    - ✅ Projektstruktur und Repository-Regeln sind in `docs/repository_guidelines.md` dokumentiert.
-   - ✅ Erste Prüfung von Anforderungen, Datenschutz- und Nutzungsbedingungen inklusive weiterer To-dos in `docs/data_access_review.md` festgehalten.
+   - ✅ Erste Prüfung von Anforderungen, Datenschutz- und Nutzungsbedingungen wurde dokumentiert; der frühere Prüfbericht liegt archiviert unter `docs/archive/data_access_review.md`.
    - ✅ Softwareversionierung eingeführt.
      - ✅ Ein konsistentes Schema nach `Major.Minor.Patch` ist festgelegt und dokumentiert (`VERSION`, `docs/software_versioning.md`).
      - ✅ Für die Entwicklungsphase ist eine Vor-1.0-Strategie definiert; aktuelle Basisversion ist `0.1.0`.
