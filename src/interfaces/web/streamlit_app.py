@@ -764,33 +764,23 @@ def _tab_developer(db_path: Path) -> None:
 def _tab_developer_scripts(db_path: Path) -> None:
     st.subheader("Skripte und Build-Pfade")
 
+    col_year, col_months = st.columns(2)
+    with col_year:
+        year = st.number_input("Jahr", min_value=2000, max_value=2050, value=2024, step=1, key="developer_year")
+    with col_months:
+        month_options = [str(m) for m in range(1, 13)]
+        months = st.multiselect("Monate (leer = alle)", month_options, key="developer_months")
+
+    preset_year = int(year)
+    preset_months = [str(month) for month in months]
+
+    st.caption("Die Preset-Buttons verwenden das aktuell gewählte Jahr und die aktuell gewählten Monate.")
+    st.markdown("---")
+
     preset_col1, preset_col2, preset_col3 = st.columns(3)
-    preset_actions: list[tuple[str, list[list[str]]]] = [
-        (
-            "Fetch + Build Local",
-            [
-                [sys.executable, str(REPO_ROOT / "scripts" / "fetch_sessions.py"), "2024"],
-                [sys.executable, str(REPO_ROOT / "scripts" / "build_local_index.py")],
-            ],
-        ),
-        (
-            "Build Local + Vector",
-            [
-                [sys.executable, str(REPO_ROOT / "scripts" / "build_local_index.py")],
-                [
-                    sys.executable,
-                    str(REPO_ROOT / "scripts" / "build_vector_index.py"),
-                    "--db",
-                    str(LOCAL_INDEX_DB),
-                    "--qdrant-dir",
-                    str(QDRANT_DIR),
-                ],
-            ],
-        ),
-        (
-            "Build Online Index",
-            [[sys.executable, str(REPO_ROOT / "scripts" / "build_online_index_db.py"), "2024"]],
-        ),
+    preset_actions = [
+        (label, _developer_preset_commands(label, year=preset_year, months=preset_months))
+        for label in ("Fetch + Build Local", "Build Local + Vector", "Build Online Index")
     ]
     for col, (label, commands) in zip(
         (preset_col1, preset_col2, preset_col3), preset_actions, strict=False
@@ -807,12 +797,6 @@ def _tab_developer_scripts(db_path: Path) -> None:
 
     extra_args: list[str] = []
     if script_name in {"fetch_sessions", "build_online_index_db"}:
-        col_year, col_months = st.columns(2)
-        with col_year:
-            year = st.number_input("Jahr", min_value=2000, max_value=2050, value=2024, step=1)
-        with col_months:
-            month_options = [str(m) for m in range(1, 13)]
-            months = st.multiselect("Monate (leer = alle)", month_options, key=f"months_{script_name}")
         extra_args = [str(year)]
         if months:
             extra_args += ["--months"] + months
@@ -841,6 +825,36 @@ def _tab_developer_scripts(db_path: Path) -> None:
 
     if st.session_state["script_output"]:
         st.text_area("Ausgabe", value=st.session_state["script_output"], height=320)
+
+
+def _developer_preset_commands(label: str, *, year: int, months: list[str]) -> list[list[str]]:
+    """Return the preset command sequence using the currently selected date filters."""
+    date_args = [str(year)]
+    if months:
+        date_args += ["--months", *months]
+
+    if label == "Fetch + Build Local":
+        return [
+            [sys.executable, str(REPO_ROOT / "scripts" / "fetch_sessions.py"), *date_args],
+            [sys.executable, str(REPO_ROOT / "scripts" / "build_local_index.py")],
+        ]
+    if label == "Build Local + Vector":
+        return [
+            [sys.executable, str(REPO_ROOT / "scripts" / "build_local_index.py")],
+            [
+                sys.executable,
+                str(REPO_ROOT / "scripts" / "build_vector_index.py"),
+                "--db",
+                str(LOCAL_INDEX_DB),
+                "--qdrant-dir",
+                str(QDRANT_DIR),
+            ],
+        ]
+    if label == "Build Online Index":
+        return [
+            [sys.executable, str(REPO_ROOT / "scripts" / "build_online_index_db.py"), *date_args],
+        ]
+    raise ValueError(f"Unknown preset label: {label}")
 
 
 def _run_script_preset(label: str, commands: list[list[str]]) -> None:
