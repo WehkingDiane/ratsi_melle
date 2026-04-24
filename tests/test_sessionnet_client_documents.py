@@ -2,6 +2,8 @@ from pathlib import Path
 import sys
 from unittest.mock import Mock
 
+import requests
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:  # pragma: no branch - test safety
@@ -66,5 +68,28 @@ def test_fetch_document_payload_rejects_oversized_download(tmp_path: Path, monke
         assert "size limit" in str(exc)
     else:  # pragma: no cover - explicit failure path
         raise AssertionError("Expected oversized download to be rejected")
+
+    response.close.assert_called_once()
+
+
+def test_fetch_document_payload_wraps_stream_errors(tmp_path: Path, monkeypatch) -> None:
+    client = SessionNetClient(storage_root=tmp_path, max_document_bytes=1024)
+    response = Mock()
+    response.headers.copy.return_value = {}
+    response.close = Mock()
+    response.iter_content.side_effect = requests.RequestException("stream boom")
+    monkeypatch.setattr(
+        SessionNetClient,
+        "_request",
+        lambda self, method, path, params=None, *, stream=False: response,
+    )
+    document = DocumentReference(title="Fehler", url="https://session.melle.info/bi/getfile.asp?id=10")
+
+    try:
+        client._fetch_document_payload(document)
+    except FetchingError as exc:
+        assert "stream boom" in str(exc)
+    else:  # pragma: no cover - explicit failure path
+        raise AssertionError("Expected stream error to be wrapped as FetchingError")
 
     response.close.assert_called_once()

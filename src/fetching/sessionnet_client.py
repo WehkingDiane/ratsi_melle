@@ -383,6 +383,8 @@ class SessionNetClient:
                     raise FetchingError(
                         f"Document exceeds size limit ({len(content)} > {self.max_document_bytes} bytes)"
                     )
+        except requests.RequestException as exc:
+            raise FetchingError(str(exc)) from exc
         finally:
             response.close()
 

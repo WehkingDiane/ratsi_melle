@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from src.interfaces.web.streamlit_app import _existing_local_document_path
+from src.interfaces.web.streamlit_app import _existing_local_document_path, _local_document_policy_text
 
 
 def test_existing_local_document_path_resolves_session_relative_pdf(tmp_path: Path) -> None:
@@ -35,3 +35,10 @@ def test_existing_local_document_path_rejects_absolute_path_outside_raw_root(tmp
     resolved = _existing_local_document_path(local_path=str(outside_file))
 
     assert resolved is None
+
+
+def test_local_document_policy_text_mentions_security_constraints() -> None:
+    text = _local_document_policy_text()
+
+    assert "data/raw/" in text
+    assert "25 MiB" in text

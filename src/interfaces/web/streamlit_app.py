@@ -45,6 +45,11 @@ _DB_OPTIONS = {
     "Online-Index": str(ONLINE_INDEX_DB),
     "Anderen Pfad eingeben …": "__custom__",
 }
+_LOCAL_DOCUMENT_POLICY_TEXT = (
+    "Lokale Dateien werden nur genutzt, wenn ihr Pfad innerhalb einer zulaessigen "
+    "`data/raw/`-Struktur aufgeloest werden kann. Die lokale Text-/PDF-Extraktion "
+    "ist auf 25 MiB pro Datei begrenzt."
+)
 
 # ---------------------------------------------------------------------------
 # Page config
@@ -102,6 +107,11 @@ def _existing_local_document_path(
     if resolved is None or not resolved.is_file():
         return None
     return resolved
+
+
+def _local_document_policy_text() -> str:
+    """Return the user-facing policy for local document access."""
+    return _LOCAL_DOCUMENT_POLICY_TEXT
 
 
 def _semantic_search_dependency_error() -> str | None:
@@ -395,6 +405,10 @@ def _tab_analyse(db_path: Path) -> None:
 
     with st.expander(f"Dokumente ({len(documents)})"):
         if documents:
+            st.caption(
+                "✅ lokal nutzbar, ⚠️ lokal blockiert oder nicht vorhanden. "
+                f"{_local_document_policy_text()}"
+            )
             for doc in documents:
                 top_nr = doc.get("agenda_item") or "–"
                 title = doc.get("title") or "(kein Titel)"
@@ -485,8 +499,12 @@ def _tab_analyse(db_path: Path) -> None:
         send_pdfs = st.checkbox(
             f"PDFs direkt senden ({len(local_pdfs)} PDF(s) verfügbar)",
             value=False,
-            help="Claude/OpenAI: native Base64-Übertragung. Ollama: Text-Extraktion.",
+            help=(
+                "Nur lokal aufloesbare Dateien unter data/raw werden angeboten. "
+                "Claude/OpenAI: native Base64-Uebertragung. Ollama: Text-Extraktion."
+            ),
         )
+        st.caption(_local_document_policy_text())
 
     # --- Run ---
     st.markdown("---")
