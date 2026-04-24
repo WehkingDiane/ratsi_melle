@@ -73,7 +73,7 @@ def test_fetch_document_payload_rejects_oversized_download(tmp_path: Path, monke
 
 
 def test_fetch_document_payload_wraps_stream_errors(tmp_path: Path, monkeypatch) -> None:
-    client = SessionNetClient(storage_root=tmp_path, max_document_bytes=1024)
+    client = SessionNetClient(storage_root=tmp_path, max_document_bytes=1024, max_retries=1)
     response = Mock()
     response.headers.copy.return_value = {}
     response.close = Mock()
@@ -93,3 +93,35 @@ def test_fetch_document_payload_wraps_stream_errors(tmp_path: Path, monkeypatch)
         raise AssertionError("Expected stream error to be wrapped as FetchingError")
 
     response.close.assert_called_once()
+
+
+def test_fetch_document_payload_retries_stream_errors(tmp_path: Path, monkeypatch) -> None:
+    client = SessionNetClient(storage_root=tmp_path, max_retries=2, retry_backoff=2.0, max_document_bytes=1024)
+
+    failing_response = Mock()
+    failing_response.headers.copy.return_value = {}
+    failing_response.iter_content.side_effect = requests.RequestException("stream boom")
+    failing_response.close = Mock()
+
+    success_response = Mock()
+    success_response.headers.copy.return_value = {}
+    success_response.iter_content.return_value = [b"ok"]
+    success_response.close = Mock()
+
+    responses = iter([failing_response, success_response])
+    sleep_calls: list[float] = []
+    monkeypatch.setattr(
+        SessionNetClient,
+        "_request",
+        lambda self, method, path, params=None, *, stream=False: next(responses),
+    )
+    monkeypatch.setattr("src.fetching.sessionnet_client.time.sleep", lambda seconds: sleep_calls.append(seconds))
+
+    document = DocumentReference(title="Retry", url="https://session.melle.info/bi/getfile.asp?id=11")
+    payload, headers = client._fetch_document_payload(document)
+
+    assert payload == b"ok"
+    assert headers == {}
+    assert sleep_calls == [1.0]
+    failing_response.close.assert_called_once()
+    success_response.close.assert_called_once()

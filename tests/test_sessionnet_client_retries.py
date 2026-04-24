@@ -30,7 +30,7 @@ def test_get_retries_with_backoff(monkeypatch, tmp_path):
         def raise_for_status():
             return None
 
-    def fake_session_get(url, params=None, timeout=None):
+    def fake_session_get(url, params=None, timeout=None, stream=False):
         attempts["count"] += 1
         if attempts["count"] == 1:
             raise requests.RequestException("boom")

@@ -364,33 +364,50 @@ class SessionNetClient:
             return cached
 
         LOGGER.info("Downloading document %s", document.url)
-        response = self._request("GET", document.url, stream=True)
-        headers = response.headers.copy()  # keep case-insensitive access to header names
-        declared_size = self._parse_content_length(headers.get("Content-Length"))
-        if declared_size is not None and declared_size > self.max_document_bytes:
-            response.close()
-            raise FetchingError(
-                f"Document exceeds size limit ({declared_size} > {self.max_document_bytes} bytes)"
-            )
+        backoff = 1.0
+        last_error: requests.RequestException | None = None
+        for attempt in range(1, self.max_retries + 1):
+            response = self._request("GET", document.url, stream=True)
+            headers = response.headers.copy()  # keep case-insensitive access to header names
+            declared_size = self._parse_content_length(headers.get("Content-Length"))
+            if declared_size is not None and declared_size > self.max_document_bytes:
+                response.close()
+                raise FetchingError(
+                    f"Document exceeds size limit ({declared_size} > {self.max_document_bytes} bytes)"
+                )
 
-        content = bytearray()
-        try:
-            for chunk in response.iter_content(chunk_size=64 * 1024):
-                if not chunk:
-                    continue
-                content.extend(chunk)
-                if len(content) > self.max_document_bytes:
-                    raise FetchingError(
-                        f"Document exceeds size limit ({len(content)} > {self.max_document_bytes} bytes)"
-                    )
-        except requests.RequestException as exc:
-            raise FetchingError(str(exc)) from exc
-        finally:
-            response.close()
+            content = bytearray()
+            try:
+                for chunk in response.iter_content(chunk_size=64 * 1024):
+                    if not chunk:
+                        continue
+                    content.extend(chunk)
+                    if len(content) > self.max_document_bytes:
+                        raise FetchingError(
+                            f"Document exceeds size limit ({len(content)} > {self.max_document_bytes} bytes)"
+                        )
+            except requests.RequestException as exc:
+                last_error = exc
+                if attempt >= self.max_retries:
+                    raise FetchingError(str(exc)) from exc
+                LOGGER.warning(
+                    "Stream read failed (%d/%d) for %s: %s",
+                    attempt,
+                    self.max_retries,
+                    document.url,
+                    exc,
+                )
+                time.sleep(backoff)
+                backoff *= self.retry_backoff
+                continue
+            finally:
+                response.close()
 
-        payload = (bytes(content), headers)
-        self._document_cache[document.url] = payload
-        return payload
+            payload = (bytes(content), headers)
+            self._document_cache[document.url] = payload
+            return payload
+
+        raise FetchingError(str(last_error)) from last_error
 
     def _head_document(self, document: DocumentReference) -> Dict[str, str]:
         cached = self._document_head_cache.get(document.url)
