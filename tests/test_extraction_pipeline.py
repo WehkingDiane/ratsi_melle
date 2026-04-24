@@ -92,6 +92,30 @@ def test_extract_text_for_analysis_rejects_oversized_file(tmp_path: Path, monkey
     assert result.extracted_text == ""
 
 
+def test_extract_text_for_analysis_returns_error_when_stat_fails(tmp_path: Path, monkeypatch) -> None:
+    pdf_path = tmp_path / "race.pdf"
+    pdf_path.write_bytes(b"%PDF-1.4\n%%EOF\n")
+
+    original_stat = Path.stat
+
+    def fail_stat(self: Path, *args, **kwargs):  # type: ignore[no-untyped-def]
+        if self == pdf_path:
+            raise OSError("stat boom")
+        return original_stat(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", fail_stat)
+
+    result = extract_text_for_analysis(
+        pdf_path,
+        content_type="application/pdf",
+        max_text_chars=10_000,
+    )
+
+    assert result.extraction_status == "error"
+    assert result.parsing_quality == "failed"
+    assert result.extraction_error == "stat boom"
+
+
 def test_extract_text_for_analysis_pdf_ignores_unterminated_literal(tmp_path: Path) -> None:
     pdf_path = tmp_path / "broken.pdf"
     pdf_path.write_bytes(
