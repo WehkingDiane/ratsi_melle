@@ -50,6 +50,29 @@ def test_resolve_existing_document_path_rejects_manifest_traversal(tmp_path: Pat
     assert resolved is None
 
 
+def test_build_manifest_entry_accepts_absolute_path_with_relative_target_dir(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    client = SessionNetClient(storage_root=tmp_path)
+    target_dir = tmp_path / "data" / "raw" / "2026" / "04" / "2026-04-21-Ortsrat-Oldendorf-7092"
+    document_path = target_dir / "session-documents" / "Amtliche-Bekanntmachung.pdf"
+    document_path.parent.mkdir(parents=True, exist_ok=True)
+    document_path.write_bytes(b"payload")
+
+    entry = client._build_manifest_entry(
+        document=DocumentReference(
+            title="Amtliche Bekanntmachung",
+            url="https://session.melle.info/bi/getfile.asp?id=138838&type=do",
+        ),
+        path=document_path.resolve(),
+        headers={},
+        sha1="abc",
+        target_dir=Path("data/raw/2026/04/2026-04-21-Ortsrat-Oldendorf-7092"),
+    )
+
+    assert entry["path"] == "session-documents/Amtliche-Bekanntmachung.pdf"
+    assert entry["content_length"] == len(b"payload")
+
+
 def test_fetch_document_payload_rejects_oversized_download(tmp_path: Path, monkeypatch) -> None:
     client = SessionNetClient(storage_root=tmp_path, max_document_bytes=4)
     response = Mock()

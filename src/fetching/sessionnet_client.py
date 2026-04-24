@@ -558,16 +558,18 @@ class SessionNetClient:
         sha1: str,
         target_dir: Path,
     ) -> dict:
+        resolved_target_dir = target_dir.resolve(strict=False)
+        resolved_path = path.resolve(strict=False)
         return {
             "title": document.title,
             "category": document.category,
             "agenda_item": document.on_agenda_item,
             "url": document.url,
-            "path": path.relative_to(target_dir).as_posix(),
+            "path": resolved_path.relative_to(resolved_target_dir).as_posix(),
             "sha1": sha1,
             "content_type": headers.get("Content-Type"),
             "content_disposition": headers.get("Content-Disposition"),
-            "content_length": self._parse_content_length(headers.get("Content-Length")) or path.stat().st_size,
+            "content_length": self._parse_content_length(headers.get("Content-Length")) or resolved_path.stat().st_size,
             "etag": headers.get("ETag"),
             "last_modified": headers.get("Last-Modified"),
         }
