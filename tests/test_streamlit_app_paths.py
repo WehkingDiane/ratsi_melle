@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 from src.interfaces.web.streamlit_app import _existing_local_document_path, _local_document_policy_text
 
@@ -42,3 +43,23 @@ def test_local_document_policy_text_mentions_security_constraints() -> None:
 
     assert "data/raw/" in text
     assert "25 MiB" in text
+
+
+def test_existing_local_document_path_returns_none_when_resolve_fails(tmp_path: Path) -> None:
+    session_dir = tmp_path / "data" / "raw" / "2025" / "09" / "2025-09-18_Rat_901"
+    session_dir.mkdir(parents=True, exist_ok=True)
+    target = session_dir / "session-documents" / "loop.pdf"
+    original_resolve = Path.resolve
+
+    def fake_resolve(self: Path, *args, **kwargs):  # type: ignore[no-untyped-def]
+        if self == target:
+            raise RuntimeError("symlink loop")
+        return original_resolve(self, *args, **kwargs)
+
+    with patch.object(Path, "resolve", fake_resolve):
+        resolved = _existing_local_document_path(
+            session_path=str(session_dir),
+            local_path="session-documents/loop.pdf",
+        )
+
+    assert resolved is None

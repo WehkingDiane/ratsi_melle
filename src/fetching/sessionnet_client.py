@@ -520,7 +520,7 @@ class SessionNetClient:
         try:
             candidate = (target_dir / relative_path).resolve(strict=False)
             candidate.relative_to(target_dir.resolve(strict=False))
-        except ValueError:
+        except (OSError, RuntimeError, ValueError):
             LOGGER.warning("Ignoring manifest path outside target dir: %s", relative_path)
             return None
         if candidate.exists() and candidate.is_file():

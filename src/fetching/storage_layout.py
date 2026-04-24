@@ -25,19 +25,25 @@ def resolve_local_file_path(*, session_path: str | None, local_path: str | None)
     allowed_roots = _allowed_raw_roots(base)
 
     if candidate.is_absolute():
-        resolved_absolute = candidate.resolve(strict=False)
+        resolved_absolute = _safe_resolve(candidate)
+        if resolved_absolute is None:
+            return None
         return resolved_absolute if _is_within_allowed_roots(resolved_absolute, allowed_roots) else None
 
     if base is None:
         return None
 
-    resolved = (base / candidate).resolve(strict=False)
+    resolved = _safe_resolve(base / candidate)
+    if resolved is None:
+        return None
     if _is_within_allowed_roots(resolved, allowed_roots) and resolved.exists():
         return resolved
 
     migrated_base = upgrade_legacy_session_path(base)
     if migrated_base is not None:
-        migrated_resolved = (migrated_base / candidate).resolve(strict=False)
+        migrated_resolved = _safe_resolve(migrated_base / candidate)
+        if migrated_resolved is None:
+            return None
         if _is_within_allowed_roots(migrated_resolved, allowed_roots) and migrated_resolved.exists():
             return migrated_resolved
 
@@ -82,11 +88,12 @@ def _normalized_session_path(session_path: str) -> Path | None:
     path = Path(normalized)
     if not path.is_absolute():
         path = REPO_ROOT / path
-    return path.resolve(strict=False)
+    return _safe_resolve(path)
 
 
 def _allowed_raw_roots(base: Path | None) -> tuple[Path, ...]:
-    roots: list[Path] = [RAW_DATA_DIR.resolve(strict=False)]
+    raw_root = _safe_resolve(RAW_DATA_DIR)
+    roots: list[Path] = [raw_root] if raw_root is not None else []
     if base is not None:
         derived = _derive_raw_root(base)
         if derived is not None and derived not in roots:
@@ -98,7 +105,7 @@ def _derive_raw_root(path: Path) -> Path | None:
     parts = path.parts
     for index in range(len(parts) - 1):
         if parts[index] == "data" and parts[index + 1] == "raw":
-            return Path(*parts[: index + 2]).resolve(strict=False)
+            return _safe_resolve(Path(*parts[: index + 2]))
     return None
 
 
@@ -112,3 +119,10 @@ def _is_relative_to(path: Path, root: Path) -> bool:
         return True
     except ValueError:
         return False
+
+
+def _safe_resolve(path: Path) -> Path | None:
+    try:
+        return path.resolve(strict=False)
+    except (OSError, RuntimeError):
+        return None

@@ -1,6 +1,7 @@
 from pathlib import Path
 import sys
 from unittest.mock import Mock
+from unittest.mock import patch
 
 import requests
 
@@ -71,6 +72,26 @@ def test_build_manifest_entry_accepts_absolute_path_with_relative_target_dir(tmp
 
     assert entry["path"] == "session-documents/Amtliche-Bekanntmachung.pdf"
     assert entry["content_length"] == len(b"payload")
+
+
+def test_resolve_existing_document_path_returns_none_when_resolve_fails(tmp_path: Path) -> None:
+    client = SessionNetClient(storage_root=tmp_path)
+    target_dir = tmp_path / "2026" / "03" / "2026-03-10_Rat_7001"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    original_resolve = Path.resolve
+
+    def fake_resolve(self: Path, *args, **kwargs):  # type: ignore[no-untyped-def]
+        if self == target_dir / "session-documents" / "loop.pdf":
+            raise RuntimeError("symlink loop")
+        return original_resolve(self, *args, **kwargs)
+
+    with patch.object(Path, "resolve", fake_resolve):
+        resolved = client._resolve_existing_document_path(
+            target_dir,
+            {"path": "session-documents/loop.pdf"},
+        )
+
+    assert resolved is None
 
 
 def test_fetch_document_payload_rejects_oversized_download(tmp_path: Path, monkeypatch) -> None:
