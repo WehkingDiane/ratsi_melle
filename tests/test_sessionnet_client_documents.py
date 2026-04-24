@@ -1,5 +1,9 @@
 from pathlib import Path
 import sys
+from unittest.mock import Mock
+from unittest.mock import patch
+
+import requests
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -7,7 +11,7 @@ if str(REPO_ROOT) not in sys.path:  # pragma: no branch - test safety
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.fetching.models import DocumentReference
-from src.fetching.sessionnet_client import SessionNetClient
+from src.fetching.sessionnet_client import FetchingError, SessionNetClient
 
 
 def test_detect_extension_uses_content_disposition_filename(tmp_path):
@@ -30,3 +34,138 @@ def test_detect_extension_supports_filename_star(tmp_path):
     document = DocumentReference(title="Haushalt", url="https://session.melle.info/bi/vo0050.asp?__kvonr=456")
 
     assert client._detect_extension(document, headers) == ".pdf"
+
+
+def test_resolve_existing_document_path_rejects_manifest_traversal(tmp_path: Path) -> None:
+    client = SessionNetClient(storage_root=tmp_path)
+    target_dir = tmp_path / "2026" / "03" / "2026-03-10_Rat_7001"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    outside_file = tmp_path / "outside.pdf"
+    outside_file.write_bytes(b"payload")
+
+    resolved = client._resolve_existing_document_path(
+        target_dir,
+        {"path": "../../../outside.pdf"},
+    )
+
+    assert resolved is None
+
+
+def test_build_manifest_entry_accepts_absolute_path_with_relative_target_dir(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    client = SessionNetClient(storage_root=tmp_path)
+    target_dir = tmp_path / "data" / "raw" / "2026" / "04" / "2026-04-21-Ortsrat-Oldendorf-7092"
+    document_path = target_dir / "session-documents" / "Amtliche-Bekanntmachung.pdf"
+    document_path.parent.mkdir(parents=True, exist_ok=True)
+    document_path.write_bytes(b"payload")
+
+    entry = client._build_manifest_entry(
+        document=DocumentReference(
+            title="Amtliche Bekanntmachung",
+            url="https://session.melle.info/bi/getfile.asp?id=138838&type=do",
+        ),
+        path=document_path.resolve(),
+        headers={},
+        sha1="abc",
+        target_dir=Path("data/raw/2026/04/2026-04-21-Ortsrat-Oldendorf-7092"),
+    )
+
+    assert entry["path"] == "session-documents/Amtliche-Bekanntmachung.pdf"
+    assert entry["content_length"] == len(b"payload")
+
+
+def test_resolve_existing_document_path_returns_none_when_resolve_fails(tmp_path: Path) -> None:
+    client = SessionNetClient(storage_root=tmp_path)
+    target_dir = tmp_path / "2026" / "03" / "2026-03-10_Rat_7001"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    original_resolve = Path.resolve
+
+    def fake_resolve(self: Path, *args, **kwargs):  # type: ignore[no-untyped-def]
+        if self == target_dir / "session-documents" / "loop.pdf":
+            raise RuntimeError("symlink loop")
+        return original_resolve(self, *args, **kwargs)
+
+    with patch.object(Path, "resolve", fake_resolve):
+        resolved = client._resolve_existing_document_path(
+            target_dir,
+            {"path": "session-documents/loop.pdf"},
+        )
+
+    assert resolved is None
+
+
+def test_fetch_document_payload_rejects_oversized_download(tmp_path: Path, monkeypatch) -> None:
+    client = SessionNetClient(storage_root=tmp_path, max_document_bytes=4)
+    response = Mock()
+    response.headers.copy.return_value = {"Content-Length": "10"}
+    response.close = Mock()
+    monkeypatch.setattr(
+        SessionNetClient,
+        "_request",
+        lambda self, method, path, params=None, *, stream=False: response,
+    )
+    document = DocumentReference(title="Gross", url="https://session.melle.info/bi/getfile.asp?id=9")
+
+    try:
+        client._fetch_document_payload(document)
+    except FetchingError as exc:
+        assert "size limit" in str(exc)
+    else:  # pragma: no cover - explicit failure path
+        raise AssertionError("Expected oversized download to be rejected")
+
+    response.close.assert_called_once()
+
+
+def test_fetch_document_payload_wraps_stream_errors(tmp_path: Path, monkeypatch) -> None:
+    client = SessionNetClient(storage_root=tmp_path, max_document_bytes=1024, max_retries=1)
+    response = Mock()
+    response.headers.copy.return_value = {}
+    response.close = Mock()
+    response.iter_content.side_effect = requests.RequestException("stream boom")
+    monkeypatch.setattr(
+        SessionNetClient,
+        "_request",
+        lambda self, method, path, params=None, *, stream=False: response,
+    )
+    document = DocumentReference(title="Fehler", url="https://session.melle.info/bi/getfile.asp?id=10")
+
+    try:
+        client._fetch_document_payload(document)
+    except FetchingError as exc:
+        assert "stream boom" in str(exc)
+    else:  # pragma: no cover - explicit failure path
+        raise AssertionError("Expected stream error to be wrapped as FetchingError")
+
+    response.close.assert_called_once()
+
+
+def test_fetch_document_payload_retries_stream_errors(tmp_path: Path, monkeypatch) -> None:
+    client = SessionNetClient(storage_root=tmp_path, max_retries=2, retry_backoff=2.0, max_document_bytes=1024)
+
+    failing_response = Mock()
+    failing_response.headers.copy.return_value = {}
+    failing_response.iter_content.side_effect = requests.RequestException("stream boom")
+    failing_response.close = Mock()
+
+    success_response = Mock()
+    success_response.headers.copy.return_value = {}
+    success_response.iter_content.return_value = [b"ok"]
+    success_response.close = Mock()
+
+    responses = iter([failing_response, success_response])
+    sleep_calls: list[float] = []
+    monkeypatch.setattr(
+        SessionNetClient,
+        "_request",
+        lambda self, method, path, params=None, *, stream=False: next(responses),
+    )
+    monkeypatch.setattr("src.fetching.sessionnet_client.time.sleep", lambda seconds: sleep_calls.append(seconds))
+
+    document = DocumentReference(title="Retry", url="https://session.melle.info/bi/getfile.asp?id=11")
+    payload, headers = client._fetch_document_payload(document)
+
+    assert payload == b"ok"
+    assert headers == {}
+    assert sleep_calls == [1.0]
+    failing_response.close.assert_called_once()
+    success_response.close.assert_called_once()

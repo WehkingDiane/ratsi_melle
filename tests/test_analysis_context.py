@@ -6,7 +6,7 @@ from src.analysis.analysis_context import build_analysis_markdown, enrich_docume
 
 
 def test_enrich_documents_for_analysis_adds_source_path_metadata(tmp_path: Path) -> None:
-    session_dir = tmp_path / "2026-01-15_Rat_902"
+    session_dir = tmp_path / "data" / "raw" / "2026" / "01" / "2026-01-15_Rat_902"
     document_dir = session_dir / "agenda" / "o1"
     document_dir.mkdir(parents=True, exist_ok=True)
     document_path = document_dir / "beschlussvorlage.txt"

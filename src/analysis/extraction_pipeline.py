@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 PIPELINE_VERSION = "1.2"
+MAX_EXTRACT_FILE_BYTES = 25 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -43,25 +44,40 @@ def extract_text_for_analysis(
     """Extract text from a local document path with quality classification."""
 
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    if not file_path.exists() or not file_path.is_file():
-        return ExtractionResult(
-            extraction_status="missing_file",
-            parsing_quality="failed",
-            extracted_text="",
-            extracted_char_count=0,
-            page_count=None,
-            page_texts=[],
-            detected_sections=[],
-            extraction_error="Local file does not exist",
-            ocr_needed=False,
-            extraction_pipeline_version=PIPELINE_VERSION,
-            extracted_at=now,
-        )
-
     normalized_content_type = (content_type or "").lower()
     suffix = file_path.suffix.lower()
 
     try:
+        if not file_path.exists() or not file_path.is_file():
+            return ExtractionResult(
+                extraction_status="missing_file",
+                parsing_quality="failed",
+                extracted_text="",
+                extracted_char_count=0,
+                page_count=None,
+                page_texts=[],
+                detected_sections=[],
+                extraction_error="Local file does not exist",
+                ocr_needed=False,
+                extraction_pipeline_version=PIPELINE_VERSION,
+                extracted_at=now,
+            )
+
+        if file_path.stat().st_size > MAX_EXTRACT_FILE_BYTES:
+            return ExtractionResult(
+                extraction_status="file_too_large",
+                parsing_quality="failed",
+                extracted_text="",
+                extracted_char_count=0,
+                page_count=None,
+                page_texts=[],
+                detected_sections=[],
+                extraction_error=f"Local file exceeds size limit ({MAX_EXTRACT_FILE_BYTES} bytes)",
+                ocr_needed=False,
+                extraction_pipeline_version=PIPELINE_VERSION,
+                extracted_at=now,
+            )
+
         if "pdf" in normalized_content_type or suffix == ".pdf":
             text, page_count, page_texts, detected_sections = _extract_text_from_pdf(file_path)
             if not text.strip():

@@ -34,6 +34,7 @@ REJECTED_DECISION_KEYWORDS = ("abgelehnt", "zurückgestellt", "vertagt", "ohne b
 DEFAULT_HEADERS = {
     "User-Agent": "ratsi-melle-fetcher/0.1 (+https://github.com/openai)"
 }
+_MAX_DOCUMENT_BYTES = 25 * 1024 * 1024
 
 
 class FetchingError(RuntimeError):
@@ -49,6 +50,7 @@ class SessionNetClient:
     min_request_interval: float = 1.0  # seconds
     max_retries: int = 3
     retry_backoff: float = 1.5
+    max_document_bytes: int = _MAX_DOCUMENT_BYTES
     storage_root: Path = Path("data/raw")
     _last_request_ts: float = field(default=0.0, init=False, repr=False)
     _document_cache: Dict[str, Tuple[bytes, Dict[str, str]]] = field(default_factory=dict, init=False, repr=False)
@@ -362,11 +364,50 @@ class SessionNetClient:
             return cached
 
         LOGGER.info("Downloading document %s", document.url)
-        response = self._get(document.url)
-        headers = response.headers.copy()  # keep case-insensitive access to header names
-        payload = (response.content, headers)
-        self._document_cache[document.url] = payload
-        return payload
+        backoff = 1.0
+        last_error: requests.RequestException | None = None
+        for attempt in range(1, self.max_retries + 1):
+            response = self._request("GET", document.url, stream=True)
+            headers = response.headers.copy()  # keep case-insensitive access to header names
+            declared_size = self._parse_content_length(headers.get("Content-Length"))
+            if declared_size is not None and declared_size > self.max_document_bytes:
+                response.close()
+                raise FetchingError(
+                    f"Document exceeds size limit ({declared_size} > {self.max_document_bytes} bytes)"
+                )
+
+            content = bytearray()
+            try:
+                for chunk in response.iter_content(chunk_size=64 * 1024):
+                    if not chunk:
+                        continue
+                    content.extend(chunk)
+                    if len(content) > self.max_document_bytes:
+                        raise FetchingError(
+                            f"Document exceeds size limit ({len(content)} > {self.max_document_bytes} bytes)"
+                        )
+            except requests.RequestException as exc:
+                last_error = exc
+                if attempt >= self.max_retries:
+                    raise FetchingError(str(exc)) from exc
+                LOGGER.warning(
+                    "Stream read failed (%d/%d) for %s: %s",
+                    attempt,
+                    self.max_retries,
+                    document.url,
+                    exc,
+                )
+                time.sleep(backoff)
+                backoff *= self.retry_backoff
+                continue
+            finally:
+                response.close()
+
+            payload = (bytes(content), headers)
+            self._document_cache[document.url] = payload
+            return payload
+
+        raise FetchingError(str(last_error)) from last_error
 
     def _head_document(self, document: DocumentReference) -> Dict[str, str]:
         cached = self._document_head_cache.get(document.url)
@@ -397,7 +438,14 @@ class SessionNetClient:
     def _get(self, path: str, params: Optional[dict] = None) -> requests.Response:
         return self._request("GET", path, params=params)
 
-    def _request(self, method: str, path: str, params: Optional[dict] = None) -> requests.Response:
+    def _request(
+        self,
+        method: str,
+        path: str,
+        params: Optional[dict] = None,
+        *,
+        stream: bool = False,
+    ) -> requests.Response:
         url = path if path.startswith("http") else urljoin(self.base_url, path)
         last_error: Optional[requests.RequestException] = None
         backoff = 1.0
@@ -406,7 +454,7 @@ class SessionNetClient:
             self._respect_rate_limit()
             try:
                 if method_upper == "GET":
-                    response = self.session.get(url, params=params, timeout=self.timeout)
+                    response = self.session.get(url, params=params, timeout=self.timeout, stream=stream)
                 elif method_upper == "HEAD":
                     response = self.session.head(url, params=params, timeout=self.timeout, allow_redirects=True)
                 else:
@@ -416,6 +464,7 @@ class SessionNetClient:
                         params=params,
                         timeout=self.timeout,
                         allow_redirects=True,
+                        stream=stream,
                     )
                 self._last_request_ts = time.monotonic()
                 response.raise_for_status()
@@ -468,7 +517,12 @@ class SessionNetClient:
         relative_path = entry.get("path")
         if not isinstance(relative_path, str) or not relative_path.strip():
             return None
-        candidate = target_dir / relative_path
+        try:
+            candidate = (target_dir / relative_path).resolve(strict=False)
+            candidate.relative_to(target_dir.resolve(strict=False))
+        except (OSError, RuntimeError, ValueError):
+            LOGGER.warning("Ignoring manifest path outside target dir: %s", relative_path)
+            return None
         if candidate.exists() and candidate.is_file():
             return candidate
         return None
@@ -504,16 +558,18 @@ class SessionNetClient:
         sha1: str,
         target_dir: Path,
     ) -> dict:
+        resolved_target_dir = target_dir.resolve(strict=False)
+        resolved_path = path.resolve(strict=False)
         return {
             "title": document.title,
             "category": document.category,
             "agenda_item": document.on_agenda_item,
             "url": document.url,
-            "path": path.relative_to(target_dir).as_posix(),
+            "path": resolved_path.relative_to(resolved_target_dir).as_posix(),
             "sha1": sha1,
             "content_type": headers.get("Content-Type"),
             "content_disposition": headers.get("Content-Disposition"),
-            "content_length": self._parse_content_length(headers.get("Content-Length")) or path.stat().st_size,
+            "content_length": self._parse_content_length(headers.get("Content-Length")) or resolved_path.stat().st_size,
             "etag": headers.get("ETag"),
             "last_modified": headers.get("Last-Modified"),
         }

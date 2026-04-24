@@ -1724,10 +1724,18 @@ class GuiLauncher:
                 hover_color="#1E40AF",
                 font=BUTTON_FONT,
                 command=lambda d=doc: self._start_document_analysis(d),
+                state="normal" if available else "disabled",
             ).pack(side="right")
 
     def _start_document_analysis(self, doc: dict) -> None:
         """Trigger a document-level analysis for a single document row."""
+        if not doc.get("source_file_available"):
+            self._set_analysis_status(
+                "Dokument lokal nicht verfuegbar. Zugelassen sind nur Dateien unter "
+                "data/raw; die lokale Extraktion ist auf 25 MiB pro Datei begrenzt."
+            )
+            return
+
         prompt = ""
         if self.analysis_prompt_box:
             prompt = self.analysis_prompt_box.get("1.0", "end").strip()
@@ -1777,7 +1785,13 @@ class GuiLauncher:
         )
 
         if not extraction.extracted_text:
-            msg = f"Textextraktion fehlgeschlagen ({extraction.extraction_status})."
+            if extraction.extraction_status == "file_too_large":
+                msg = (
+                    "Dokument zu gross fuer die lokale Extraktion "
+                    "(Limit: 25 MiB pro Datei)."
+                )
+            else:
+                msg = f"Textextraktion fehlgeschlagen ({extraction.extraction_status})."
             self.root.after(0, lambda: self._set_analysis_status(msg))
             return
 

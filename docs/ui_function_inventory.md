@@ -192,10 +192,11 @@ Aktueller Strategierahmen:
   - Sitzungsauswahl
   - TOP-Scope
   - Dokumentliste
+  - Hinweis fuer lokal blockierte Dokumente (`data/raw`-Pfadpolicy und 25-MiB-Limit)
   - Prompt-Vorlagen
   - Providerwahl
   - Modellname
-  - optional PDFs direkt senden
+  - optional PDFs direkt senden, aber nur fuer lokal aufloesbare Dateien
   - Analyse starten
   - Ergebnis anzeigen
   - Markdown/JSON herunterladen
