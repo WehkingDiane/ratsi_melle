@@ -26,3 +26,12 @@ def test_existing_local_document_path_rejects_missing_file() -> None:
     )
 
     assert resolved is None
+
+
+def test_existing_local_document_path_rejects_absolute_path_outside_raw_root(tmp_path: Path) -> None:
+    outside_file = tmp_path / "outside.pdf"
+    outside_file.write_bytes(b"pdf")
+
+    resolved = _existing_local_document_path(local_path=str(outside_file))
+
+    assert resolved is None

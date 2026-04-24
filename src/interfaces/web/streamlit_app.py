@@ -398,8 +398,11 @@ def _tab_analyse(db_path: Path) -> None:
             for doc in documents:
                 top_nr = doc.get("agenda_item") or "–"
                 title = doc.get("title") or "(kein Titel)"
-                local = doc.get("local_path") or ""
-                available = "✅" if local and Path(local).exists() else "⚠️"
+                resolved_local = _existing_local_document_path(
+                    session_path=str(doc.get("session_path") or ""),
+                    local_path=str(doc.get("local_path") or ""),
+                )
+                available = "✅" if resolved_local is not None else "⚠️"
                 st.markdown(f"- {available} TOP {top_nr}: **{title}**")
         else:
             st.info("Keine Dokumente für diese Auswahl gefunden.")

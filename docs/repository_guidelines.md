@@ -54,14 +54,17 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 - SQLite-Datenbanken liegen unter `data/db/`.
 - Analyse-Eingaben liegen unter `data/analysis_requests/`, Analyse-Ausgaben unter `data/analysis_outputs/`.
 - Sensible Inhalte (personenbezogene Daten, API-Schlüssel) werden nicht eingecheckt. Für Beispiele wird auf `*.template`-Dateien zurückgegriffen.
+- Lokale Dokumentreferenzen aus SQLite, Exporten oder Suchindizes dürfen nur auf Dateien unter einer zulaessigen `data/raw/`-Wurzel zeigen; absolute Fremdpfade gelten als ungueltig.
 - Unterordner unter `data/raw/.../agenda/` bestehen ausschließlich aus der TOP-Nummer und dem offiziellen Titel; Zusätze wie „Berichterstatter …“ werden beim Sluggen entfernt, damit identische Punkte unabhängig vom Reporter gleich heißen.
 - Jede Sitzung erzeugt zusätzlich zur Dokumenten-`manifest.json` eine `agenda_summary.json`, die Nummer, Titel, Reporter:in, Status, abgeleiteten Beschluss (`accepted`/`rejected`/`null`) sowie ein Flag für vorhandene Dokumente enthält. So lassen sich auch zukünftige Sitzungen mit noch unvollständigen Angaben nachträglich aktualisieren.
+- Eintraege in `manifest.json` bleiben relativ zum Sitzungsverzeichnis; Pfadangaben ausserhalb des Sitzungspakets werden aus Sicherheitsgruenden ignoriert.
 
 ## Zielsystem-Hinweise
 
 - Das Projekt arbeitet gegen eine öffentliche SessionNet-Installation der Stadt Melle.
 - Abrufe müssen robots.txt, öffentliche Nutzungsbedingungen und Datenschutzanforderungen respektieren.
 - Abruflogik soll immer mit Rate-Limits, Retries und Caching umgesetzt werden, um die Zielinfrastruktur nicht unnötig zu belasten.
+- Dokumentdownloads und lokale Extraktionspfade sollen mit defensiven Dateigroessenlimits arbeiten; derzeit gilt ein Standardlimit von 25 MiB pro Datei.
 - Fachliche und technische Details zum Zielsystem und zur Datenverarbeitung stehen in `docs/data_processing_concept.md`; ältere Vorprüfungen liegen im Archiv unter `docs/archive/`.
 
 ## Workflow-Erwartungen

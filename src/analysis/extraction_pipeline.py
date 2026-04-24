@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 PIPELINE_VERSION = "1.2"
+MAX_EXTRACT_FILE_BYTES = 25 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -53,6 +54,20 @@ def extract_text_for_analysis(
             page_texts=[],
             detected_sections=[],
             extraction_error="Local file does not exist",
+            ocr_needed=False,
+            extraction_pipeline_version=PIPELINE_VERSION,
+            extracted_at=now,
+        )
+    if file_path.stat().st_size > MAX_EXTRACT_FILE_BYTES:
+        return ExtractionResult(
+            extraction_status="file_too_large",
+            parsing_quality="failed",
+            extracted_text="",
+            extracted_char_count=0,
+            page_count=None,
+            page_texts=[],
+            detected_sections=[],
+            extraction_error=f"Local file exceeds size limit ({MAX_EXTRACT_FILE_BYTES} bytes)",
             ocr_needed=False,
             extraction_pipeline_version=PIPELINE_VERSION,
             extracted_at=now,

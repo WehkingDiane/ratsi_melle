@@ -76,6 +76,22 @@ def test_extract_text_for_analysis_missing_file() -> None:
     assert result.detected_sections == []
 
 
+def test_extract_text_for_analysis_rejects_oversized_file(tmp_path: Path, monkeypatch) -> None:
+    pdf_path = tmp_path / "large.pdf"
+    pdf_path.write_bytes(b"%PDF-1.4\n%%EOF\n")
+    monkeypatch.setattr(extraction_pipeline, "MAX_EXTRACT_FILE_BYTES", 4)
+
+    result = extract_text_for_analysis(
+        pdf_path,
+        content_type="application/pdf",
+        max_text_chars=10_000,
+    )
+
+    assert result.extraction_status == "file_too_large"
+    assert result.parsing_quality == "failed"
+    assert result.extracted_text == ""
+
+
 def test_extract_text_for_analysis_pdf_ignores_unterminated_literal(tmp_path: Path) -> None:
     pdf_path = tmp_path / "broken.pdf"
     pdf_path.write_bytes(

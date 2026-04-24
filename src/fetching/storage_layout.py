@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from src.paths import RAW_DATA_DIR, REPO_ROOT
+
 
 SESSION_DIR_RE = re.compile(r"^\d{4}-(\d{2})-\d{2}[-_].+$")
 
@@ -18,26 +20,28 @@ def resolve_local_file_path(*, session_path: str | None, local_path: str | None)
     normalized_local = normalized_local.replace("\\", "/")
 
     candidate = Path(normalized_local)
-    if candidate.is_absolute():
-        return candidate
-
     normalized_session = (session_path or "").strip()
-    if not normalized_session:
-        return candidate
-    normalized_session = normalized_session.replace("\\", "/")
+    base = _normalized_session_path(normalized_session)
+    allowed_roots = _allowed_raw_roots(base)
 
-    base = Path(normalized_session)
-    resolved = base / candidate
-    if resolved.exists():
+    if candidate.is_absolute():
+        resolved_absolute = candidate.resolve(strict=False)
+        return resolved_absolute if _is_within_allowed_roots(resolved_absolute, allowed_roots) else None
+
+    if base is None:
+        return None
+
+    resolved = (base / candidate).resolve(strict=False)
+    if _is_within_allowed_roots(resolved, allowed_roots) and resolved.exists():
         return resolved
 
     migrated_base = upgrade_legacy_session_path(base)
     if migrated_base is not None:
-        migrated_resolved = migrated_base / candidate
-        if migrated_resolved.exists():
+        migrated_resolved = (migrated_base / candidate).resolve(strict=False)
+        if _is_within_allowed_roots(migrated_resolved, allowed_roots) and migrated_resolved.exists():
             return migrated_resolved
 
-    return resolved
+    return resolved if _is_within_allowed_roots(resolved, allowed_roots) else None
 
 
 def upgrade_legacy_session_path(path: Path) -> Path | None:
@@ -69,3 +73,42 @@ def _extract_month_from_name(name: str) -> str | None:
         return overview_match.group(1)
 
     return None
+
+
+def _normalized_session_path(session_path: str) -> Path | None:
+    if not session_path:
+        return None
+    normalized = session_path.replace("\\", "/")
+    path = Path(normalized)
+    if not path.is_absolute():
+        path = REPO_ROOT / path
+    return path.resolve(strict=False)
+
+
+def _allowed_raw_roots(base: Path | None) -> tuple[Path, ...]:
+    roots: list[Path] = [RAW_DATA_DIR.resolve(strict=False)]
+    if base is not None:
+        derived = _derive_raw_root(base)
+        if derived is not None and derived not in roots:
+            roots.append(derived)
+    return tuple(roots)
+
+
+def _derive_raw_root(path: Path) -> Path | None:
+    parts = path.parts
+    for index in range(len(parts) - 1):
+        if parts[index] == "data" and parts[index + 1] == "raw":
+            return Path(*parts[: index + 2]).resolve(strict=False)
+    return None
+
+
+def _is_within_allowed_roots(path: Path, roots: tuple[Path, ...]) -> bool:
+    return any(_is_relative_to(path, root) for root in roots)
+
+
+def _is_relative_to(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+        return True
+    except ValueError:
+        return False

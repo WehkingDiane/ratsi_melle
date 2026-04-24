@@ -47,6 +47,12 @@ python -m pytest
 - Online-Index: `data/db/online_session_index.sqlite`
 - Lokaler Vektorindex: `data/db/qdrant/`
 
+## Sicherheitsgrenzen
+
+- Lokale Dokumentpfade werden nur akzeptiert, wenn sie unter einer zulaessigen `data/raw/`-Wurzel liegen.
+- `manifest.json`-Pfade bleiben auf das jeweilige Sitzungspaket begrenzt; Traversal per `../` wird verworfen.
+- Dokumentdownloads und lokale Text-/PDF-Extraktion sind aktuell auf 25 MiB pro Datei begrenzt, um Speicher- und Plattenplatz-DoS zu begrenzen.
+
 Die gemeinsame Grundlagen-Doku fuer Zielsystem, Fetching, Datenhaltung, Vektorindex und semantische Suche steht in [docs/data_processing_concept.md](/mnt/c/users/diane/git/ratsi_melle/docs/data_processing_concept.md:1).
 
 ## Weitere Dokumentation
