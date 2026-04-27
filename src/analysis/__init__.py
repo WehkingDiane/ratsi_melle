@@ -11,14 +11,29 @@ from .providers import (
     KiResponse,
     build_provider,
 )
-from .schemas import ANALYSIS_OUTPUT_SCHEMA_VERSION, AnalysisOutputRecord
+from .schemas import (
+    ANALYSIS_OUTPUT_SCHEMA_VERSION,
+    ANALYSIS_OUTPUT_SCHEMA_VERSION_V2,
+    DEFAULT_ANALYSIS_PURPOSE,
+    AnalysisOutputRecord,
+    PublicationDraftOutput,
+    RawAnalysisOutput,
+    StructuredAnalysisOutput,
+    normalize_analysis_output,
+)
 from .service import AnalysisRequest, AnalysisService
 
 __all__ = [
     "ANALYSIS_OUTPUT_SCHEMA_VERSION",
+    "ANALYSIS_OUTPUT_SCHEMA_VERSION_V2",
+    "DEFAULT_ANALYSIS_PURPOSE",
     "AnalysisOutputRecord",
     "AnalysisRequest",
     "AnalysisService",
+    "PublicationDraftOutput",
+    "RawAnalysisOutput",
+    "StructuredAnalysisOutput",
+    "normalize_analysis_output",
     "export_analysis_batch",
     "KiProvider",
     "KiResponse",

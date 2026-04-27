@@ -163,6 +163,7 @@ class AnalysisStore:
                 session_id TEXT NOT NULL,
                 scope TEXT NOT NULL,
                 top_numbers_json TEXT,
+                purpose TEXT NOT NULL DEFAULT 'content_analysis',
                 model_name TEXT,
                 prompt_version TEXT,
                 status TEXT NOT NULL,
@@ -179,3 +180,8 @@ class AnalysisStore:
             );
             """
         )
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(analysis_jobs)").fetchall()}
+        if "purpose" not in columns:
+            conn.execute(
+                "ALTER TABLE analysis_jobs ADD COLUMN purpose TEXT NOT NULL DEFAULT 'content_analysis'"
+            )

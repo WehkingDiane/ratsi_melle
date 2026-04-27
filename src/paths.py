@@ -18,6 +18,7 @@ ANALYSIS_PROMPTS_DIR = ANALYSIS_OUTPUTS_DIR / "prompts"
 MODELS_DIR = DATA_ROOT / "models"
 
 LOCAL_INDEX_DB = DB_DIR / "local_index.sqlite"
+ANALYSIS_WORKFLOW_DB = DB_DIR / "analysis_workflow.sqlite"
 QDRANT_DIR = DB_DIR / "qdrant"
 ONLINE_INDEX_DB = DB_DIR / "online_session_index.sqlite"
 DEFAULT_ANALYSIS_BATCH = ANALYSIS_REQUESTS_DIR / "analysis_batch.json"
