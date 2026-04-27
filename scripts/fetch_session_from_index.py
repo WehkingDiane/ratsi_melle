@@ -139,17 +139,20 @@ def validate_index_db(db_path: Path) -> None:
     if not db_path.is_file():
         raise SystemExit(f"Index database path is not a file: {db_path}")
 
-    with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as conn:
-        tables = {
-            row[0]
-            for row in conn.execute(
-                """
-                SELECT name
-                FROM sqlite_master
-                WHERE type = 'table'
-                """
-            )
-        }
+    try:
+        with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as conn:
+            tables = {
+                row[0]
+                for row in conn.execute(
+                    """
+                    SELECT name
+                    FROM sqlite_master
+                    WHERE type = 'table'
+                    """
+                )
+            }
+    except sqlite3.Error as exc:
+        raise SystemExit(f"Index database is not a readable SQLite database: {db_path}") from exc
 
     missing_tables = REQUIRED_INDEX_TABLES - tables
     if missing_tables:

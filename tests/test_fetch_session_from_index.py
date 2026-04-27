@@ -103,6 +103,14 @@ def test_load_session_from_index_fails_for_uninitialized_database(tmp_path: Path
         load_session_from_index(db_path, "7128")
 
 
+def test_validate_index_db_fails_for_invalid_sqlite_file(tmp_path: Path) -> None:
+    db_path = tmp_path / "not_sqlite.sqlite"
+    db_path.write_text("not a sqlite database", encoding="utf-8")
+
+    with pytest.raises(SystemExit, match="not a readable SQLite database"):
+        validate_index_db(db_path)
+
+
 def test_list_sessions_fails_for_uninitialized_database(tmp_path: Path) -> None:
     db_path = tmp_path / "empty.sqlite"
     sqlite3.connect(db_path).close()
