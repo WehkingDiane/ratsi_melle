@@ -22,11 +22,12 @@ class AnalysisJobRecord:
     scope: str
     top_numbers: list[str] = field(default_factory=list)
     purpose: str = DEFAULT_ANALYSIS_PURPOSE
+    source_db: str = ""
+    source_job_id: int | None = None
     model_name: str = ""
     prompt_version: str = ""
     status: str = "draft"
     error_message: str = ""
-    job_id: int | None = None
 
 
 @dataclass(frozen=True)
@@ -66,6 +67,8 @@ def initialize_analysis_workflow_db(db_path: Path | None = None) -> Path:
                 scope TEXT NOT NULL,
                 top_numbers_json TEXT,
                 purpose TEXT NOT NULL DEFAULT 'content_analysis',
+                source_db TEXT,
+                source_job_id INTEGER,
                 model_name TEXT,
                 prompt_version TEXT,
                 status TEXT NOT NULL,
@@ -104,6 +107,8 @@ def initialize_analysis_workflow_db(db_path: Path | None = None) -> Path:
         )
         _ensure_column(conn, "analysis_jobs", "purpose", "TEXT NOT NULL DEFAULT 'content_analysis'")
         _ensure_column(conn, "analysis_jobs", "updated_at", "TEXT")
+        _ensure_column(conn, "analysis_jobs", "source_db", "TEXT")
+        _ensure_column(conn, "analysis_jobs", "source_job_id", "INTEGER")
         conn.commit()
     return db_path
 
@@ -116,49 +121,28 @@ def create_analysis_job(
     db_path = initialize_analysis_workflow_db(db_path)
     now = utc_now()
     with sqlite3.connect(db_path) as conn:
-        if job.job_id is None:
-            cur = conn.execute(
-                """
-                INSERT INTO analysis_jobs
-                    (session_id, scope, top_numbers_json, purpose, model_name, prompt_version,
-                     status, created_at, updated_at, error_message)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    job.session_id,
-                    job.scope,
-                    json.dumps(job.top_numbers, ensure_ascii=False),
-                    job.purpose or DEFAULT_ANALYSIS_PURPOSE,
-                    job.model_name,
-                    job.prompt_version,
-                    job.status,
-                    now,
-                    now,
-                    job.error_message or None,
-                ),
-            )
-        else:
-            cur = conn.execute(
-                """
-                INSERT OR REPLACE INTO analysis_jobs
-                    (job_id, session_id, scope, top_numbers_json, purpose, model_name,
-                     prompt_version, status, created_at, updated_at, error_message)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    job.job_id,
-                    job.session_id,
-                    job.scope,
-                    json.dumps(job.top_numbers, ensure_ascii=False),
-                    job.purpose or DEFAULT_ANALYSIS_PURPOSE,
-                    job.model_name,
-                    job.prompt_version,
-                    job.status,
-                    now,
-                    now,
-                    job.error_message or None,
-                ),
-            )
+        cur = conn.execute(
+            """
+            INSERT INTO analysis_jobs
+                (session_id, scope, top_numbers_json, purpose, source_db, source_job_id,
+                 model_name, prompt_version, status, created_at, updated_at, error_message)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                job.session_id,
+                job.scope,
+                json.dumps(job.top_numbers, ensure_ascii=False),
+                job.purpose or DEFAULT_ANALYSIS_PURPOSE,
+                job.source_db,
+                job.source_job_id,
+                job.model_name,
+                job.prompt_version,
+                job.status,
+                now,
+                now,
+                job.error_message or None,
+            ),
+        )
         conn.commit()
         return int(cur.lastrowid)
 

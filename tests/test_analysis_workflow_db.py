@@ -37,6 +37,8 @@ def test_analysis_workflow_db_stores_job_output_and_publication(tmp_path: Path) 
             scope="tops",
             top_numbers=["Oe 7"],
             purpose="journalistic_publication",
+            source_db="data/db/local_index.sqlite",
+            source_job_id=1,
             model_name="mock",
             prompt_version="v2",
             status="done",
@@ -67,7 +69,7 @@ def test_analysis_workflow_db_stores_job_output_and_publication(tmp_path: Path) 
 
     with sqlite3.connect(db_path) as conn:
         job = conn.execute(
-            "SELECT purpose, top_numbers_json FROM analysis_jobs WHERE job_id = ?",
+            "SELECT purpose, top_numbers_json, source_db, source_job_id FROM analysis_jobs WHERE job_id = ?",
             (job_id,),
         ).fetchone()
         output = conn.execute(
@@ -79,10 +81,51 @@ def test_analysis_workflow_db_stores_job_output_and_publication(tmp_path: Path) 
             (publication_id,),
         ).fetchone()
 
-    assert job == ("journalistic_publication", '["Oe 7"]')
+    assert job == (
+        "journalistic_publication",
+        '["Oe 7"]',
+        "data/db/local_index.sqlite",
+        1,
+    )
     assert output == (
         job_id,
         "publication_draft",
         "data/analysis_outputs/2026/03/session/job_1.publication.json",
     )
     assert publication == ("draft", "pending")
+
+
+def test_analysis_workflow_db_allocates_ids_for_duplicate_source_jobs(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / "analysis_workflow.sqlite"
+
+    local_job_id = create_analysis_job(
+        AnalysisJobRecord(
+            session_id="7123",
+            scope="session",
+            source_db="data/db/local_index.sqlite",
+            source_job_id=1,
+        ),
+        db_path,
+    )
+    online_job_id = create_analysis_job(
+        AnalysisJobRecord(
+            session_id="7123",
+            scope="session",
+            source_db="data/db/online_session_index.sqlite",
+            source_job_id=1,
+        ),
+        db_path,
+    )
+
+    with sqlite3.connect(db_path) as conn:
+        rows = conn.execute(
+            "SELECT job_id, source_db, source_job_id FROM analysis_jobs ORDER BY job_id"
+        ).fetchall()
+
+    assert local_job_id != online_job_id
+    assert rows == [
+        (local_job_id, "data/db/local_index.sqlite", 1),
+        (online_job_id, "data/db/online_session_index.sqlite", 1),
+    ]

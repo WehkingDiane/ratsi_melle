@@ -31,6 +31,7 @@ from src.analysis.workflow_db import (
     create_analysis_job,
     create_publication_job,
 )
+from src.fetching.storage_layout import resolve_local_file_path
 from src.paths import ANALYSIS_OUTPUTS_DIR, ANALYSIS_PROMPTS_DIR, DEFAULT_ANALYSIS_MARKDOWN
 
 
@@ -291,7 +292,7 @@ class AnalysisService:
             record.prompt_text + "\n",
         )
         DEFAULT_ANALYSIS_MARKDOWN.write_text(md_content, encoding="utf-8")
-        self._index_workflow_outputs(
+        workflow_job_id = self._index_workflow_outputs(
             record=record,
             raw_path=raw_path,
             structured_path=structured_path,
@@ -303,7 +304,10 @@ class AnalysisService:
                 output_dir / f"{job_stem}.publication.json",
                 json.dumps(publication.to_dict(), indent=2, ensure_ascii=False),
             )
-            self._index_publication_output(record, publication, publication_path)
+            if workflow_job_id is not None:
+                self._index_publication_output(
+                    record, publication, publication_path, workflow_job_id
+                )
 
         # Keep prompt_path referenced so static checkers do not treat it as unused
         # when workflow indexing is disabled in tests via monkeypatching.
@@ -411,7 +415,7 @@ class AnalysisService:
                 agenda_item=str(doc.get("agenda_item") or ""),
                 url=str(doc.get("url") or ""),
                 local_path=str(doc.get("local_path") or ""),
-                source_available=bool(doc.get("source_available") or doc.get("local_path")),
+                source_available=_source_available(doc),
             )
             for doc in documents
         ]
@@ -462,15 +466,16 @@ class AnalysisService:
         raw_path: Path,
         structured_path: Path,
         article_path: Path,
-    ) -> None:
+    ) -> int | None:
         try:
             workflow_job_id = create_analysis_job(
                 AnalysisJobRecord(
-                    job_id=record.job_id,
                     session_id=record.session_id,
                     scope=record.scope,
                     top_numbers=record.top_numbers,
                     purpose=record.purpose or DEFAULT_ANALYSIS_PURPOSE,
+                    source_db=record.source_db,
+                    source_job_id=record.job_id,
                     model_name=record.model_name,
                     prompt_version=record.prompt_version,
                     status=record.status,
@@ -504,19 +509,21 @@ class AnalysisService:
                     status=record.status,
                 )
             )
+            return workflow_job_id
         except sqlite3.Error:
-            return
+            return None
 
     def _index_publication_output(
         self,
         record: AnalysisOutputRecord,
         publication: PublicationDraftOutput,
         publication_path: Path,
+        workflow_job_id: int,
     ) -> None:
         try:
             output_id = add_analysis_output(
                 AnalysisArtifactRecord(
-                    job_id=record.job_id,
+                    job_id=workflow_job_id,
                     output_type="publication_draft",
                     schema_version=ANALYSIS_OUTPUT_SCHEMA_VERSION_V2,
                     json_path=str(publication_path),
@@ -581,3 +588,20 @@ def _write_text_no_overwrite(path: Path, content: str) -> Path:
         counter += 1
     target.write_text(content.rstrip() + "\n", encoding="utf-8")
     return target
+
+
+def _source_available(document: dict) -> bool:
+    """Return true only when the local source file was resolved and exists."""
+
+    if "source_file_available" in document:
+        return bool(document["source_file_available"])
+
+    resolved_local_path = document.get("resolved_local_path")
+    if resolved_local_path:
+        return Path(str(resolved_local_path)).is_file()
+
+    resolved = resolve_local_file_path(
+        session_path=str(document.get("session_path") or ""),
+        local_path=str(document.get("local_path") or ""),
+    )
+    return bool(resolved and resolved.is_file())
