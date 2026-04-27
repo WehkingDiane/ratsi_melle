@@ -50,6 +50,43 @@ def test_parse_session_detail_collects_documents(tmp_path):
     assert [doc.title for doc in second_item.documents] == ["Entwurf", "Anlage"]
 
 
+def test_parse_session_detail_does_not_duplicate_agenda_document_blocks_as_session_documents(tmp_path):
+    html = """
+    <html>
+      <body>
+        <table id="smc_page_si0057_contenttable2" class="table smc-table Tagesordnung">
+          <tbody>
+            <tr>
+              <td class="tofnum"><span class="badge">&Ouml; 6</span></td>
+              <td class="tolink">Radverkehrskonzept</td>
+              <td class="tostatus">beschlossen</td>
+              <td class="todocs">
+                <div class="smc-documents">
+                  <div class="smc-dg-ds-1">
+                    <div class="smc-doc-icon"><i>VO</i></div>
+                    <div class="smc-doc-content">
+                      <a href="getfile.asp?id=3001&amp;type=do" class="btn btn-blue"></a>
+                      <a href="getfile.asp?id=3001&amp;type=do" class="smc-link-normal">Beschlussvorlage</a>
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </body>
+    </html>
+    """
+    client = SessionNetClient(storage_root=tmp_path)
+
+    detail = client._parse_session_detail(_sample_reference(), html)
+
+    assert detail.session_documents == []
+    assert len(detail.agenda_items) == 1
+    assert [doc.title for doc in detail.agenda_items[0].documents] == ["Beschlussvorlage"]
+    assert detail.agenda_items[0].documents[0].on_agenda_item == "Ö 6"
+
+
 def test_download_documents_writes_manifest(tmp_path, monkeypatch):
     reference = _sample_reference()
     detail = SessionDetail(
@@ -80,12 +117,18 @@ def test_download_documents_writes_manifest(tmp_path, monkeypatch):
 
     class _Response:
         def __init__(self, body: bytes, *, disposition: str):
-            self.content = body
+            self._body = body
             self.headers = {
                 "Content-Type": "application/pdf",
                 "Content-Disposition": disposition,
                 "Content-Length": str(len(body)),
             }
+
+        def iter_content(self, chunk_size: int):
+            yield self._body
+
+        def close(self):
+            pass
 
     responses = {
         "https://example.org/documents/vorlage": _Response(b"agenda", disposition="attachment; filename=vorlage.pdf"),
@@ -94,10 +137,10 @@ def test_download_documents_writes_manifest(tmp_path, monkeypatch):
         ),
     }
 
-    def fake_get(self, url, params=None):
-        return responses[url]
+    def fake_request(self, method, path, params=None, *, stream=False):
+        return responses[path]
 
-    monkeypatch.setattr(SessionNetClient, "_get", fake_get, raising=False)
+    monkeypatch.setattr(SessionNetClient, "_request", fake_request, raising=False)
 
     client.download_documents(detail)
 
@@ -158,19 +201,25 @@ def test_download_documents_reuses_cache(tmp_path, monkeypatch):
 
     class _Response:
         def __init__(self):
-            self.content = b"shared"
+            self._body = b"shared"
             self.headers = {
                 "Content-Type": "application/pdf",
                 "Content-Disposition": "attachment; filename=shared.pdf",
                 "Content-Length": "6",
             }
 
-    def fake_get(self, url, params=None):
+        def iter_content(self, chunk_size: int):
+            yield self._body
+
+        def close(self):
+            pass
+
+    def fake_request(self, method, path, params=None, *, stream=False):
         nonlocal call_count
         call_count += 1
         return _Response()
 
-    monkeypatch.setattr(SessionNetClient, "_get", fake_get, raising=False)
+    monkeypatch.setattr(SessionNetClient, "_request", fake_request, raising=False)
 
     client.download_documents(detail)
 

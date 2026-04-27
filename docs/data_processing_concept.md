@@ -75,6 +75,15 @@ Recherche, Analyse und semantische Suche in den Oberflächen
 4. Dokumente herunterladen
 5. Fehler robust behandeln, ohne ganze Laeufe unnötig abzubrechen
 
+Alternativ kann eine einzelne Sitzung aus dem Online-Index ausgewaehlt werden:
+
+```bash
+python scripts/fetch_session_from_index.py --list --from-date 2026-04-01 --to-date 2026-04-30
+python scripts/fetch_session_from_index.py --session-id 7128
+```
+
+Dieser Einzelsitzungs-Abruf liest `session_id`, Datum, Gremium und `detail_url` aus `data/db/online_session_index.sqlite`, ruft direkt die Detailseite ab und laedt nur die Dokumente dieser Sitzung nach `data/raw/`. Die Monatsuebersicht wird dabei nicht erneut heruntergeladen.
+
 ### Abrufschutz
 
 - Standardmaessig begrenzte Anfragefrequenz
@@ -92,7 +101,7 @@ data/raw/<Jahr>/<Monat>/<Datum>_<Gremium>_<Sitzungs-ID>/
 Typischer Inhalt eines Sitzungsordners:
 
 - `session_detail.html`
-- `session-documents/`
+- `session-documents/` fuer Dokumente ausserhalb der Tagesordnungstabelle
 - `agenda/<TOP-Nummer>_<Kurzname>/`
 - `manifest.json`
 - `agenda_summary.json`
@@ -237,6 +246,10 @@ Der angezeigte Score ist:
 
 ### `scripts/fetch_sessions.py`
 - lädt Sitzungen und Dokumente nach `data/raw/`
+
+### `scripts/fetch_session_from_index.py`
+- laedt eine einzelne Sitzung ausgehend von `data/db/online_session_index.sqlite`
+- unterstuetzt `--list` zur Auswahl und `--session-id` zum gezielten Download
 
 ### `scripts/build_local_index.py`
 - baut den lokalen SQLite-Index aus vorhandenen Rohdaten

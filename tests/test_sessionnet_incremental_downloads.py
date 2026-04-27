@@ -40,11 +40,11 @@ def test_download_documents_skips_unchanged_remote_file(tmp_path, monkeypatch) -
     detail = _detail(url)
 
     client = SessionNetClient(storage_root=tmp_path)
-    original_get = SessionNetClient._get
+    original_request = SessionNetClient._request
 
     class _GetResponse:
         def __init__(self, content: bytes):
-            self.content = content
+            self._content = content
             self.headers = {
                 "Content-Type": "application/pdf",
                 "Content-Disposition": "attachment; filename=vorlage.pdf",
@@ -53,17 +53,23 @@ def test_download_documents_skips_unchanged_remote_file(tmp_path, monkeypatch) -
                 "Last-Modified": "Mon, 10 Mar 2026 12:00:00 GMT",
             }
 
+        def iter_content(self, chunk_size: int):
+            yield self._content
+
+        def close(self):
+            pass
+
     monkeypatch.setattr(
         SessionNetClient,
-        "_get",
-        lambda self, requested_url, params=None: _GetResponse(b"version-1"),
+        "_request",
+        lambda self, method, path, params=None, *, stream=False: _GetResponse(b"version-1"),
         raising=False,
     )
     client.download_documents(detail)
 
     reused_client = SessionNetClient(storage_root=tmp_path)
     request_calls: list[str] = []
-    monkeypatch.setattr(SessionNetClient, "_get", original_get, raising=False)
+    monkeypatch.setattr(SessionNetClient, "_request", original_request, raising=False)
 
     class _HeadResponse:
         headers = {
@@ -72,7 +78,7 @@ def test_download_documents_skips_unchanged_remote_file(tmp_path, monkeypatch) -
             "Content-Length": str(len(b"version-1")),
         }
 
-    def fake_request(self, method, path, params=None):
+    def fake_request(self, method, path, params=None, *, stream=False):
         request_calls.append(method)
         if method == "HEAD":
             return _HeadResponse()
@@ -92,11 +98,11 @@ def test_download_documents_redownloads_changed_remote_file(tmp_path, monkeypatc
     detail = _detail(url)
 
     client = SessionNetClient(storage_root=tmp_path)
-    original_get = SessionNetClient._get
+    original_request = SessionNetClient._request
 
     class _GetResponse:
         def __init__(self, content: bytes, *, etag: str):
-            self.content = content
+            self._content = content
             self.headers = {
                 "Content-Type": "application/pdf",
                 "Content-Disposition": "attachment; filename=vorlage.pdf",
@@ -105,17 +111,23 @@ def test_download_documents_redownloads_changed_remote_file(tmp_path, monkeypatc
                 "Last-Modified": "Mon, 10 Mar 2026 12:00:00 GMT",
             }
 
+        def iter_content(self, chunk_size: int):
+            yield self._content
+
+        def close(self):
+            pass
+
     monkeypatch.setattr(
         SessionNetClient,
-        "_get",
-        lambda self, requested_url, params=None: _GetResponse(b"version-1", etag='"etag-old"'),
+        "_request",
+        lambda self, method, path, params=None, *, stream=False: _GetResponse(b"version-1", etag='"etag-old"'),
         raising=False,
     )
     client.download_documents(detail)
 
     updated_client = SessionNetClient(storage_root=tmp_path)
     get_calls = 0
-    monkeypatch.setattr(SessionNetClient, "_get", original_get, raising=False)
+    monkeypatch.setattr(SessionNetClient, "_request", original_request, raising=False)
 
     class _HeadResponse:
         headers = {
@@ -124,7 +136,7 @@ def test_download_documents_redownloads_changed_remote_file(tmp_path, monkeypatc
             "Content-Length": str(len(b"version-2")),
         }
 
-    def fake_request(self, method, path, params=None):
+    def fake_request(self, method, path, params=None, *, stream=False):
         nonlocal get_calls
         if method == "HEAD":
             return _HeadResponse()

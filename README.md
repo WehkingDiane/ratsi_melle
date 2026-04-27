@@ -34,12 +34,16 @@ pip install -r requirements.txt
 
 ```bash
 python scripts/fetch_sessions.py 2024 --months 5 6
+python scripts/fetch_session_from_index.py --list --from-date 2026-04-01 --to-date 2026-04-30
+python scripts/fetch_session_from_index.py --session-id 7128
 python scripts/build_local_index.py
 python scripts/build_online_index_db.py 2024 --months 5 6
 python scripts/build_vector_index.py
 python scripts/run_web.py
 python -m pytest
 ```
+
+`fetch_session_from_index.py` nutzt `data/db/online_session_index.sqlite` als Auswahlquelle. Damit kann eine einzelne Sitzung anhand ihrer `session_id` nach `data/raw/` geladen werden, ohne die Monatsuebersicht erneut komplett abzuarbeiten.
 
 ## Daten und Suche
 

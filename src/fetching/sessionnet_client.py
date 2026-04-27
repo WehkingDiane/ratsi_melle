@@ -317,6 +317,8 @@ class SessionNetClient:
 
     def _parse_session_documents(self, soup: BeautifulSoup) -> Iterable[DocumentReference]:
         for block in soup.select("div.smc-documents div.smc-dg-ds-1"):
+            if self._is_inside_agenda_table(block):
+                continue
             icon = block.select_one("div.smc-doc-icon i")
             category_text = icon.get_text(strip=True) if icon else None
             category = category_text or None
@@ -324,6 +326,21 @@ class SessionNetClient:
             if not content:
                 continue
             yield from self._parse_documents(content, category=category)
+
+    def _is_inside_agenda_table(self, element) -> bool:
+        parent_table = element.find_parent("table")
+        if parent_table is None:
+            return False
+        table_class = " ".join(parent_table.get("class", ()))
+        table_id = parent_table.get("id") or ""
+        table_summary = parent_table.get("summary") or ""
+        return (
+            "Tagesordnung" in table_class
+            or "Tagesordnung" in table_id
+            or table_summary == "Tagesordnung"
+            or table_id == "smc_page_si0057_contenttable2"
+            or "smctablesitzung" in table_class
+        )
 
     def _parse_documents(
         self,
