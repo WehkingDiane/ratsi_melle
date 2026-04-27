@@ -116,9 +116,9 @@ def load_session_from_index(db_path: Path, session_id: str) -> IndexedSession:
         ).fetchone()
 
     if row is None:
-        raise LookupError(f"Session {session_id!r} not found in {db_path}")
+        raise SystemExit(f"Session {session_id!r} not found in {db_path}")
     if not row["detail_url"]:
-        raise ValueError(f"Session {session_id!r} has no detail_url in {db_path}")
+        raise SystemExit(f"Session {session_id!r} has no detail_url in {db_path}")
 
     return IndexedSession(
         session_id=row["session_id"],

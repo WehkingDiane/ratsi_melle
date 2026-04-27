@@ -77,6 +77,24 @@ def test_load_session_from_index_builds_fetch_reference(tmp_path: Path) -> None:
     assert reference.location == "Forum Melle"
 
 
+def test_load_session_from_index_fails_for_unknown_session_id(tmp_path: Path) -> None:
+    db_path = tmp_path / "online_session_index.sqlite"
+    _write_index(db_path)
+
+    with pytest.raises(SystemExit, match="Session '9999' not found"):
+        load_session_from_index(db_path, "9999")
+
+
+def test_load_session_from_index_fails_when_detail_url_is_missing(tmp_path: Path) -> None:
+    db_path = tmp_path / "online_session_index.sqlite"
+    _write_index(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("UPDATE sessions SET detail_url = NULL WHERE session_id = ?", ("7128",))
+
+    with pytest.raises(SystemExit, match="Session '7128' has no detail_url"):
+        load_session_from_index(db_path, "7128")
+
+
 def test_list_sessions_filters_by_committee_and_date(tmp_path: Path) -> None:
     db_path = tmp_path / "online_session_index.sqlite"
     _write_index(db_path)
