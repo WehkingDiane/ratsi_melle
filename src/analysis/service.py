@@ -298,7 +298,7 @@ class AnalysisService:
             structured_path=structured_path,
             article_path=article_path,
         )
-        if record.purpose == "journalistic_publication":
+        if record.purpose == "journalistic_publication" and record.status == "done":
             publication = self._build_publication_draft(record, md_content, session or {})
             publication_path = _write_text_no_overwrite(
                 output_dir / f"{job_stem}.publication.json",

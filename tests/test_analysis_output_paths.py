@@ -76,3 +76,45 @@ def test_v2_output_paths_use_session_folder_and_do_not_overwrite(
         doc["agenda_item"]: doc["source_available"] for doc in raw_payload["documents"]
     }
     assert availability == {"Oe 7": False, "Oe 8": True}
+
+
+def test_publication_artifacts_are_skipped_for_failed_jobs(
+    tmp_path: Path, monkeypatch
+) -> None:
+    outputs_dir = tmp_path / "data" / "analysis_outputs"
+    prompts_dir = outputs_dir / "prompts"
+    latest_md = outputs_dir / "summaries" / "analysis_latest.md"
+    workflow_db = tmp_path / "data" / "db" / "analysis_workflow.sqlite"
+
+    monkeypatch.setattr("src.analysis.service.ANALYSIS_OUTPUTS_DIR", outputs_dir)
+    monkeypatch.setattr("src.analysis.service.ANALYSIS_PROMPTS_DIR", prompts_dir)
+    monkeypatch.setattr("src.analysis.service.DEFAULT_ANALYSIS_MARKDOWN", latest_md)
+    monkeypatch.setattr("src.analysis.workflow_db.ANALYSIS_WORKFLOW_DB", workflow_db)
+
+    session_path = tmp_path / "data" / "raw" / "2026" / "03" / "2026-03-11_Rat_7123"
+    record = AnalysisOutputRecord(
+        job_id=2,
+        created_at="2026-03-11T10:00:00Z",
+        session_id="7123",
+        scope="tops",
+        top_numbers=["Oe 7"],
+        purpose="journalistic_publication",
+        markdown="# Analyse",
+        source_db=str(tmp_path / "local_index.sqlite"),
+        session_path=str(session_path),
+        session_date="2026-03-11",
+        status="error",
+        error_message="Provider fehlgeschlagen",
+    )
+
+    AnalysisService().persist_analysis_artifacts(
+        record,
+        documents=[],
+        session={"meeting_name": "Rat"},
+    )
+
+    session_out_dir = outputs_dir / "2026" / "03" / "2026-03-11_Rat_7123"
+    assert (session_out_dir / "job_2.raw.json").exists()
+    assert (session_out_dir / "job_2.structured.json").exists()
+    assert (session_out_dir / "job_2.article.md").exists()
+    assert not (session_out_dir / "job_2.publication.json").exists()
