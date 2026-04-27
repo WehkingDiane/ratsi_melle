@@ -50,6 +50,7 @@ python -m pytest
 - Lokaler SQLite-Index: `data/db/local_index.sqlite`
 - Online-Index: `data/db/online_session_index.sqlite`
 - Lokaler Vektorindex: `data/db/qdrant/`
+- Analyse-Workflow und v2-Ausgaben: [docs/analysis_outputs.md](/mnt/c/users/diane/git/ratsi_melle/docs/analysis_outputs.md:1)
 
 ## Sicherheitsgrenzen
 

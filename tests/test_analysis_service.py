@@ -4,7 +4,7 @@ import json
 import sqlite3
 from pathlib import Path
 
-from src.analysis.schemas import ANALYSIS_OUTPUT_SCHEMA_VERSION
+from src.analysis.schemas import ANALYSIS_OUTPUT_SCHEMA_VERSION, ANALYSIS_OUTPUT_SCHEMA_VERSION_V2
 from src.analysis.service import AnalysisRequest, AnalysisService
 
 
@@ -29,7 +29,7 @@ def test_ensure_analysis_tables_creates_correct_schema(tmp_path: Path) -> None:
         jobs_cols = {row[1] for row in conn.execute("PRAGMA table_info(analysis_jobs)").fetchall()}
         assert jobs_cols >= {
             "id", "created_at", "session_id", "scope",
-            "top_numbers_json", "model_name", "prompt_version",
+            "top_numbers_json", "purpose", "model_name", "prompt_version",
             "status", "error_message",
         }
 
@@ -100,9 +100,11 @@ def test_analysis_service_persists_versioned_outputs(tmp_path: Path, monkeypatch
     outputs_dir = tmp_path / "data" / "analysis_outputs"
     prompts_dir = outputs_dir / "prompts"
     latest_md = outputs_dir / "summaries" / "analysis_latest.md"
+    workflow_db = tmp_path / "data" / "db" / "analysis_workflow.sqlite"
     monkeypatch.setattr("src.analysis.service.ANALYSIS_OUTPUTS_DIR", outputs_dir)
     monkeypatch.setattr("src.analysis.service.ANALYSIS_PROMPTS_DIR", prompts_dir)
     monkeypatch.setattr("src.analysis.service.DEFAULT_ANALYSIS_MARKDOWN", latest_md)
+    monkeypatch.setattr("src.analysis.workflow_db.ANALYSIS_WORKFLOW_DB", workflow_db)
 
     request = AnalysisRequest(
         db_path=db_path,
@@ -121,16 +123,19 @@ def test_analysis_service_persists_versioned_outputs(tmp_path: Path, monkeypatch
 
     # Session-oriented output: OUTPUTS_DIR / 2026 / 03 / 2026-03-10_Rat_7001
     session_out_dir = outputs_dir / "2026" / "03" / "2026-03-10_Rat_7001"
-    job_stem = f"job_{record.job_id}-session-all-none"
-    json_output = session_out_dir / f"{job_stem}.json"
-    md_output = session_out_dir / f"{job_stem}.md"
+    raw_output = session_out_dir / f"job_{record.job_id}.raw.json"
+    structured_output = session_out_dir / f"job_{record.job_id}.structured.json"
+    md_output = session_out_dir / f"job_{record.job_id}.article.md"
     prompt_output = prompts_dir / f"job_{record.job_id}.txt"
 
-    assert json_output.exists()
+    assert raw_output.exists()
+    assert structured_output.exists()
     assert md_output.exists()
     assert prompt_output.exists()
     assert latest_md.exists()
+    assert workflow_db.exists()
 
-    payload = json.loads(json_output.read_text(encoding="utf-8"))
-    assert payload["schema_version"] == ANALYSIS_OUTPUT_SCHEMA_VERSION
+    payload = json.loads(raw_output.read_text(encoding="utf-8"))
+    assert payload["schema_version"] == ANALYSIS_OUTPUT_SCHEMA_VERSION_V2
+    assert payload["output_type"] == "raw_analysis"
     assert payload["job_id"] == record.job_id

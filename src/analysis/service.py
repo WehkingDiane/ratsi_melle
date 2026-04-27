@@ -13,7 +13,24 @@ import unicodedata
 
 from src.analysis.analysis_context import build_analysis_markdown, enrich_documents_for_analysis
 from src.analysis.providers.registry import PROVIDER_NONE
-from src.analysis.schemas import AnalysisOutputRecord
+from src.analysis.schemas import (
+    ANALYSIS_OUTPUT_SCHEMA_VERSION_V2,
+    DEFAULT_ANALYSIS_PURPOSE,
+    AnalysisOutputRecord,
+    PublicationDraftOutput,
+    RawAnalysisDocument,
+    RawAnalysisOutput,
+    StructuredAnalysisOutput,
+    Topic,
+)
+from src.analysis.workflow_db import (
+    AnalysisArtifactRecord,
+    AnalysisJobRecord,
+    PublicationJobRecord,
+    add_analysis_output,
+    create_analysis_job,
+    create_publication_job,
+)
 from src.paths import ANALYSIS_OUTPUTS_DIR, ANALYSIS_PROMPTS_DIR, DEFAULT_ANALYSIS_MARKDOWN
 
 
@@ -29,6 +46,7 @@ class AnalysisRequest:
     provider_id: str = PROVIDER_NONE
     model_name: str = ""
     prompt_version: str = "draft"
+    purpose: str = DEFAULT_ANALYSIS_PURPOSE
     provider_kwargs: dict = field(default_factory=dict)
     pdf_paths: list[Path] = field(default_factory=list)
 
@@ -64,13 +82,14 @@ class AnalysisService:
         with sqlite3.connect(db_path) as conn:
             self.ensure_analysis_tables(conn)
             cur = conn.execute(
-                "INSERT INTO analysis_jobs (created_at, session_id, scope, top_numbers_json, model_name, prompt_version, status, error_message) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO analysis_jobs (created_at, session_id, scope, top_numbers_json, purpose, model_name, prompt_version, status, error_message) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     created_at,
                     request.session["session_id"],
                     request.scope,
                     json.dumps(request.selected_tops, ensure_ascii=False),
+                    request.purpose or DEFAULT_ANALYSIS_PURPOSE,
                     effective_model,
                     request.prompt_version,
                     "running",
@@ -111,6 +130,7 @@ class AnalysisService:
             session_id=session_id,
             scope=request.scope,
             top_numbers=list(request.selected_tops) if request.scope != "session" else [],
+            purpose=request.purpose or DEFAULT_ANALYSIS_PURPOSE,
             model_name=effective_model,
             prompt_version=request.prompt_version,
             prompt_text=request.prompt,
@@ -123,7 +143,7 @@ class AnalysisService:
             status=final_status,
             error_message=error_message or "",
         )
-        self.persist_analysis_artifacts(record)
+        self.persist_analysis_artifacts(record, documents=documents, session=request.session)
         return record
 
     def _call_provider(
@@ -186,13 +206,14 @@ class AnalysisService:
             self.ensure_analysis_tables(conn)
             cur = conn.execute(
                 "INSERT INTO analysis_jobs "
-                "(created_at, session_id, scope, top_numbers_json, model_name, prompt_version, status, error_message) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "(created_at, session_id, scope, top_numbers_json, purpose, model_name, prompt_version, status, error_message) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     created_at,
                     str(session["session_id"]),
                     "document",
                     json.dumps([top_number], ensure_ascii=False),
+                    DEFAULT_ANALYSIS_PURPOSE,
                     model_name,
                     "draft",
                     "done",
@@ -217,6 +238,7 @@ class AnalysisService:
             session_id=str(session["session_id"]),
             scope="document",
             top_numbers=[top_number],
+            purpose=DEFAULT_ANALYSIS_PURPOSE,
             model_name=model_name,
             prompt_version="draft",
             prompt_text=prompt,
@@ -227,10 +249,16 @@ class AnalysisService:
             session_path=session_path,
             session_date=str(session.get("date", "")),
         )
-        self.persist_analysis_artifacts(record)
+        self.persist_analysis_artifacts(record, documents=[document], session=session)
         return record
 
-    def persist_analysis_artifacts(self, record: AnalysisOutputRecord) -> None:
+    def persist_analysis_artifacts(
+        self,
+        record: AnalysisOutputRecord,
+        *,
+        documents: list[dict] | None = None,
+        session: dict | None = None,
+    ) -> None:
         """Persist markdown, prompt and versioned JSON output to analysis output dirs."""
 
         output_dir = self._resolve_output_dir(record)
@@ -238,21 +266,48 @@ class AnalysisService:
         ANALYSIS_PROMPTS_DIR.mkdir(parents=True, exist_ok=True)
         DEFAULT_ANALYSIS_MARKDOWN.parent.mkdir(parents=True, exist_ok=True)
 
-        job_stem = _job_stem(record)
+        job_stem = f"job_{record.job_id}"
         md_content = record.markdown
         # Only append KI response for session/tops scope; document scope already
         # embeds the answer under "## KI-Antwort" inside record.markdown
         if record.ki_response and record.scope != "document":
             md_content += f"\n\n## KI-Analyse\n\n{record.ki_response}\n"
-        (output_dir / f"{job_stem}.md").write_text(md_content, encoding="utf-8")
-        (output_dir / f"{job_stem}.json").write_text(
-            json.dumps(record.to_dict(), indent=2, ensure_ascii=False),
-            encoding="utf-8",
+        article_path = _write_text_no_overwrite(
+            output_dir / f"{job_stem}.article.md", md_content
         )
-        (ANALYSIS_PROMPTS_DIR / f"job_{record.job_id}.txt").write_text(
-            record.prompt_text + "\n", encoding="utf-8"
+
+        raw_output = self._build_raw_analysis(record, documents or [])
+        structured_output = self._build_structured_analysis(record, session or {})
+        raw_path = _write_text_no_overwrite(
+            output_dir / f"{job_stem}.raw.json",
+            json.dumps(raw_output.to_dict(), indent=2, ensure_ascii=False),
+        )
+        structured_path = _write_text_no_overwrite(
+            output_dir / f"{job_stem}.structured.json",
+            json.dumps(structured_output.to_dict(), indent=2, ensure_ascii=False),
+        )
+        prompt_path = _write_text_no_overwrite(
+            ANALYSIS_PROMPTS_DIR / f"job_{record.job_id}.txt",
+            record.prompt_text + "\n",
         )
         DEFAULT_ANALYSIS_MARKDOWN.write_text(md_content, encoding="utf-8")
+        self._index_workflow_outputs(
+            record=record,
+            raw_path=raw_path,
+            structured_path=structured_path,
+            article_path=article_path,
+        )
+        if record.purpose == "journalistic_publication":
+            publication = self._build_publication_draft(record, md_content, session or {})
+            publication_path = _write_text_no_overwrite(
+                output_dir / f"{job_stem}.publication.json",
+                json.dumps(publication.to_dict(), indent=2, ensure_ascii=False),
+            )
+            self._index_publication_output(record, publication, publication_path)
+
+        # Keep prompt_path referenced so static checkers do not treat it as unused
+        # when workflow indexing is disabled in tests via monkeypatching.
+        _ = prompt_path
 
     def _resolve_output_dir(self, record: AnalysisOutputRecord) -> Path:
         """Compute session-oriented output directory mirroring the raw data structure."""
@@ -289,6 +344,7 @@ class AnalysisService:
                 session_id TEXT NOT NULL,
                 scope TEXT NOT NULL,
                 top_numbers_json TEXT,
+                purpose TEXT NOT NULL DEFAULT 'content_analysis',
                 model_name TEXT,
                 prompt_version TEXT,
                 status TEXT NOT NULL,
@@ -305,6 +361,7 @@ class AnalysisService:
             );
             """
         )
+        self._ensure_column(conn, "analysis_jobs", "purpose", "TEXT NOT NULL DEFAULT 'content_analysis'")
 
     def _load_documents(
         self,
@@ -344,6 +401,151 @@ class AnalysisService:
             ).fetchone()
         return str(row[0]) if row and row[0] else ""
 
+    def _build_raw_analysis(
+        self, record: AnalysisOutputRecord, documents: list[dict]
+    ) -> RawAnalysisOutput:
+        raw_documents = [
+            RawAnalysisDocument(
+                title=str(doc.get("title") or ""),
+                document_type=str(doc.get("document_type") or ""),
+                agenda_item=str(doc.get("agenda_item") or ""),
+                url=str(doc.get("url") or ""),
+                local_path=str(doc.get("local_path") or ""),
+                source_available=bool(doc.get("source_available") or doc.get("local_path")),
+            )
+            for doc in documents
+        ]
+        return RawAnalysisOutput(
+            job_id=record.job_id,
+            session_id=record.session_id,
+            scope=record.scope,
+            top_numbers=record.top_numbers,
+            documents=raw_documents,
+            source_db=record.source_db,
+            session_path=record.session_path,
+            created_at=record.created_at,
+        )
+
+    def _build_structured_analysis(
+        self, record: AnalysisOutputRecord, session: dict
+    ) -> StructuredAnalysisOutput:
+        title = str(session.get("meeting_name") or session.get("committee") or "")
+        return StructuredAnalysisOutput(
+            job_id=record.job_id,
+            session_id=record.session_id,
+            purpose=record.purpose or DEFAULT_ANALYSIS_PURPOSE,
+            topic=Topic(title=title),
+            open_questions=[],
+            risks_or_uncertainties=[record.error_message] if record.error_message else [],
+        )
+
+    def _build_publication_draft(
+        self, record: AnalysisOutputRecord, markdown: str, session: dict
+    ) -> PublicationDraftOutput:
+        title = str(session.get("meeting_name") or session.get("committee") or "Analyseentwurf")
+        date_prefix = (record.session_date or record.created_at[:10]).strip()
+        slug_source = f"{date_prefix}-{title or record.session_id}"
+        return PublicationDraftOutput(
+            job_id=record.job_id,
+            session_id=record.session_id,
+            title=title,
+            summary_short="",
+            summary_long="",
+            body_markdown=markdown,
+            slug=_slugify(slug_source).lower(),
+        )
+
+    def _index_workflow_outputs(
+        self,
+        *,
+        record: AnalysisOutputRecord,
+        raw_path: Path,
+        structured_path: Path,
+        article_path: Path,
+    ) -> None:
+        try:
+            workflow_job_id = create_analysis_job(
+                AnalysisJobRecord(
+                    job_id=record.job_id,
+                    session_id=record.session_id,
+                    scope=record.scope,
+                    top_numbers=record.top_numbers,
+                    purpose=record.purpose or DEFAULT_ANALYSIS_PURPOSE,
+                    model_name=record.model_name,
+                    prompt_version=record.prompt_version,
+                    status=record.status,
+                    error_message=record.error_message,
+                )
+            )
+            add_analysis_output(
+                AnalysisArtifactRecord(
+                    job_id=workflow_job_id,
+                    output_type="raw_analysis",
+                    schema_version=ANALYSIS_OUTPUT_SCHEMA_VERSION_V2,
+                    json_path=str(raw_path),
+                    status=record.status,
+                )
+            )
+            add_analysis_output(
+                AnalysisArtifactRecord(
+                    job_id=workflow_job_id,
+                    output_type="structured_analysis",
+                    schema_version=ANALYSIS_OUTPUT_SCHEMA_VERSION_V2,
+                    json_path=str(structured_path),
+                    status=record.status,
+                )
+            )
+            add_analysis_output(
+                AnalysisArtifactRecord(
+                    job_id=workflow_job_id,
+                    output_type="journalistic_article",
+                    schema_version=ANALYSIS_OUTPUT_SCHEMA_VERSION_V2,
+                    markdown_path=str(article_path),
+                    status=record.status,
+                )
+            )
+        except sqlite3.Error:
+            return
+
+    def _index_publication_output(
+        self,
+        record: AnalysisOutputRecord,
+        publication: PublicationDraftOutput,
+        publication_path: Path,
+    ) -> None:
+        try:
+            output_id = add_analysis_output(
+                AnalysisArtifactRecord(
+                    job_id=record.job_id,
+                    output_type="publication_draft",
+                    schema_version=ANALYSIS_OUTPUT_SCHEMA_VERSION_V2,
+                    json_path=str(publication_path),
+                    status=publication.status,
+                )
+            )
+            create_publication_job(
+                PublicationJobRecord(
+                    output_id=output_id,
+                    target=publication.publication.target,
+                    slug=publication.slug,
+                    title=publication.title,
+                    status=publication.status,
+                    review_status=publication.review.status,
+                    published_url=publication.publication.published_url,
+                    published_at=publication.publication.published_at,
+                )
+            )
+        except sqlite3.Error:
+            return
+
+    @staticmethod
+    def _ensure_column(
+        conn: sqlite3.Connection, table: str, column: str, definition: str
+    ) -> None:
+        columns = {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+        if column not in columns:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
 
 # ---------------------------------------------------------------------------
 # Module-level helpers
@@ -367,3 +569,15 @@ def _job_stem(record: AnalysisOutputRecord) -> str:
     tops_slug = "-".join(_slugify(t) for t in record.top_numbers[:3] if t) or "all"
     model_slug = _slugify(record.model_name) or "none"
     return f"job_{record.job_id}-{record.scope}-{tops_slug}-{model_slug}"
+
+
+def _write_text_no_overwrite(path: Path, content: str) -> Path:
+    """Write text to a unique path without replacing existing artifacts."""
+
+    target = path
+    counter = 1
+    while target.exists():
+        target = path.with_name(f"{path.stem}.{counter}{path.suffix}")
+        counter += 1
+    target.write_text(content.rstrip() + "\n", encoding="utf-8")
+    return target

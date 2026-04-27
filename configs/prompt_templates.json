@@ -44,5 +44,36 @@
       "session"
     ],
     "text": "Erstelle einen kompakten Überblick über diese Sitzung. Nenne die wichtigsten Themen, Beschlüsse und offenen Punkte. Geeignet für eine kurze Nachberichterstattung."
+  },
+  {
+    "id": "structured_fact_extraction",
+    "label": "Strukturierte Faktenerfassung",
+    "scope": [
+      "document",
+      "tops",
+      "session"
+    ],
+    "purpose": "fact_extraction",
+    "text": "Extrahiere ausschliesslich belegbare Informationen aus dem bereitgestellten Kontext. Liefere JSON mit topic, facts, decisions, financial_effects, affected_groups, citizen_relevance, open_questions und risks_or_uncertainties. Erfinde keine Fakten. Jede Tatsache muss eine Quelle oder einen klaren Kontextbezug enthalten."
+  },
+  {
+    "id": "journalistic_publication_draft",
+    "label": "Journalistischer Publikationsentwurf",
+    "scope": [
+      "tops",
+      "session"
+    ],
+    "purpose": "journalistic_publication",
+    "text": "Erstelle aus der strukturierten Analyse einen journalistischen Entwurf. Nutze keine neuen Fakten ausserhalb der Analyse. Erhalte den Quellenbezug, markiere Unsicherheiten und formuliere als Entwurf zur menschlichen Pruefung. Liefere title, summary_short, summary_long, body_markdown, hashtags, seo_keywords und slug."
+  },
+  {
+    "id": "meeting_preparation_briefing",
+    "label": "Sitzungsvorbereitung",
+    "scope": [
+      "tops",
+      "session"
+    ],
+    "purpose": "session_preparation",
+    "text": "Erstelle ein kompaktes Briefing fuer die Sitzungsvorbereitung. Gliedere nach Themen, Entscheidungen, finanziellen Auswirkungen, betroffenen Gruppen, offenen Fragen und moeglichen Rueckfragen. Bleibe sachlich und trenne belegte Informationen von Unsicherheiten."
   }
 ]
