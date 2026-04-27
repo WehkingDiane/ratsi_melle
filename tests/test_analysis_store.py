@@ -24,6 +24,17 @@ def _build_db(db_path: Path) -> None:
                 number TEXT,
                 title TEXT
             );
+
+            CREATE TABLE documents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL,
+                agenda_item TEXT,
+                title TEXT,
+                document_type TEXT,
+                local_path TEXT,
+                url TEXT,
+                content_type TEXT
+            );
             """
         )
         conn.executemany(
@@ -41,6 +52,14 @@ def _build_db(db_path: Path) -> None:
                 ("2", "1", "Heute"),
                 ("3", "1", "Neu"),
                 ("3", "2", "Finanzen"),
+            ],
+        )
+        conn.executemany(
+            "INSERT INTO documents (session_id, agenda_item, title, document_type, local_path, url, content_type) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [
+                ("1", "1", "Alt Vorlage", "vorlage", "doc1.pdf", "https://example.org/1", "application/pdf"),
+                ("3", "1", "Neu Vorlage", "vorlage", "doc3.pdf", "", "application/pdf"),
+                ("3", "2", "Finanzen Anlage", "anlage", "", "https://example.org/3", "application/pdf"),
             ],
         )
         conn.commit()
@@ -103,3 +122,17 @@ def test_resolve_date_range_supports_presets(monkeypatch) -> None:
     assert store.resolve_date_range("Naechste 30 Tage", "", "") == ("2026-03-01", "2026-03-31")
     assert store.resolve_date_range("Letzte 30 Tage", "", "") == ("2026-01-30", "2026-03-01")
     assert store.resolve_date_range("Dieses Jahr", "", "") == ("2026-01-01", "2026-12-31")
+
+
+def test_load_session_and_agenda_enriches_top_document_metadata(tmp_path: Path) -> None:
+    db_path = tmp_path / "local_index.sqlite"
+    _build_db(db_path)
+
+    session, agenda = AnalysisStore().load_session_and_agenda(db_path, "3")
+
+    assert session is not None
+    assert session["session_id"] == "3"
+    assert agenda[0]["document_count"] == 1
+    assert agenda[0]["document_types"] == ["vorlage"]
+    assert agenda[0]["has_local_source"] is True
+    assert agenda[1]["document_types"] == ["anlage"]

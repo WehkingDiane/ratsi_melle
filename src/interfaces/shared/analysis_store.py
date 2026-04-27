@@ -54,8 +54,12 @@ class AnalysisStore:
             "WHEN s.date = ? THEN 'heute' "
             "ELSE 'kommend' "
             "END AS session_status, "
-            "COUNT(ai.id) AS top_count "
-            "FROM sessions s LEFT JOIN agenda_items ai ON ai.session_id = s.session_id WHERE 1=1"
+            "COUNT(DISTINCT ai.id) AS top_count, "
+            "COUNT(DISTINCT d.id) AS document_count "
+            "FROM sessions s "
+            "LEFT JOIN agenda_items ai ON ai.session_id = s.session_id "
+            "LEFT JOIN documents d ON d.session_id = s.session_id "
+            "WHERE 1=1"
         )
         params: list[object] = [today, today]
 
@@ -114,17 +118,56 @@ class AnalysisStore:
 
         with sqlite3.connect(db_path) as conn:
             conn.row_factory = sqlite3.Row
+            agenda_columns = {
+                row[1] for row in conn.execute("PRAGMA table_info(agenda_items)").fetchall()
+            }
+            has_status = "status" in agenda_columns
+            has_decision = "decision" in agenda_columns
+            has_documents_present = "documents_present" in agenda_columns
             session_row = conn.execute(
                 "SELECT session_id, date, committee, meeting_name FROM sessions WHERE session_id = ?",
                 (session_id,),
             ).fetchone()
             agenda_rows = conn.execute(
-                "SELECT number, title, status, decision, documents_present FROM agenda_items "
-                "WHERE session_id = ? ORDER BY id",
+                """
+                SELECT
+                    ai.number,
+                    ai.title,
+                    {status_sql} AS status,
+                    {decision_sql} AS decision,
+                    {documents_present_sql} AS documents_present,
+                    COUNT(d.id) AS document_count,
+                    GROUP_CONCAT(DISTINCT NULLIF(d.document_type, '')) AS document_types,
+                    MAX(
+                        CASE
+                            WHEN d.local_path IS NOT NULL AND d.local_path != '' THEN 1
+                            ELSE 0
+                        END
+                    ) AS has_local_source
+                FROM agenda_items ai
+                LEFT JOIN documents d
+                    ON d.session_id = ai.session_id AND COALESCE(d.agenda_item, '') = COALESCE(ai.number, '')
+                WHERE ai.session_id = ?
+                GROUP BY ai.id, ai.number, ai.title
+                ORDER BY ai.id
+                """.format(
+                    status_sql="ai.status" if has_status else "''",
+                    decision_sql="ai.decision" if has_decision else "''",
+                    documents_present_sql="ai.documents_present" if has_documents_present else "''",
+                ),
                 (session_id,),
             ).fetchall()
 
-        return (dict(session_row) if session_row else None, [dict(row) for row in agenda_rows])
+        agenda = []
+        for row in agenda_rows:
+            item = dict(row)
+            item["document_count"] = int(item.get("document_count") or 0)
+            doc_types = str(item.get("document_types") or "")
+            item["document_types"] = [part for part in doc_types.split(",") if part]
+            item["has_local_source"] = bool(item.get("has_local_source"))
+            agenda.append(item)
+
+        return (dict(session_row) if session_row else None, agenda)
 
     def load_documents(
         self,

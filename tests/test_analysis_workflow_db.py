@@ -11,6 +11,8 @@ from src.analysis.workflow_db import (
     create_analysis_job,
     create_publication_job,
     initialize_analysis_workflow_db,
+    list_analysis_jobs_with_outputs,
+    update_publication_job,
 )
 
 
@@ -129,3 +131,43 @@ def test_analysis_workflow_db_allocates_ids_for_duplicate_source_jobs(
         (local_job_id, "data/db/local_index.sqlite", 1),
         (online_job_id, "data/db/online_session_index.sqlite", 1),
     ]
+
+
+def test_update_publication_job_persists_review_and_publication_status(tmp_path: Path) -> None:
+    db_path = tmp_path / "analysis_workflow.sqlite"
+    job_id = create_analysis_job(
+        AnalysisJobRecord(session_id="9001", scope="session"),
+        db_path,
+    )
+    output_id = add_analysis_output(
+        AnalysisArtifactRecord(
+            job_id=job_id,
+            output_type="publication_draft",
+            schema_version="2.0",
+            json_path="draft.json",
+            status="draft",
+        ),
+        db_path,
+    )
+
+    publication_id = update_publication_job(
+        output_id=output_id,
+        review_required=False,
+        review_status="approved",
+        review_notes="bereit",
+        reviewed_by="Diane",
+        reviewed_at="2026-04-27T10:00:00Z",
+        publication_status="draft_created",
+        published_url="",
+        published_at="",
+        db_path=db_path,
+    )
+
+    rows = list_analysis_jobs_with_outputs(db_path)
+
+    assert publication_id >= 1
+    assert rows[0]["review_status"] == "approved"
+    assert rows[0]["publication_status"] == "draft_created"
+    publication = rows[0]["outputs"][0]["publication"]
+    assert publication["review_required"] is False
+    assert publication["review_notes"] == "bereit"
