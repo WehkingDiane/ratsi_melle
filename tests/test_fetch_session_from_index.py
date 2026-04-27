@@ -4,7 +4,9 @@ import sqlite3
 from datetime import date
 from pathlib import Path
 
-from scripts.fetch_session_from_index import list_sessions, load_session_from_index
+import pytest
+
+from scripts.fetch_session_from_index import list_sessions, load_session_from_index, validate_index_db
 
 
 def _write_index(path: Path) -> None:
@@ -82,3 +84,28 @@ def test_list_sessions_filters_by_committee_and_date(tmp_path: Path) -> None:
     sessions = list_sessions(db_path, committee="ortsrat", from_date="2026-04-01", to_date="2026-04-30")
 
     assert [session.session_id for session in sessions] == ["8186"]
+
+
+def test_validate_index_db_fails_without_creating_missing_database(tmp_path: Path) -> None:
+    db_path = tmp_path / "missing.sqlite"
+
+    with pytest.raises(SystemExit, match="Index database not found"):
+        validate_index_db(db_path)
+
+    assert not db_path.exists()
+
+
+def test_load_session_from_index_fails_for_uninitialized_database(tmp_path: Path) -> None:
+    db_path = tmp_path / "empty.sqlite"
+    sqlite3.connect(db_path).close()
+
+    with pytest.raises(SystemExit, match="missing table\\(s\\): sessions"):
+        load_session_from_index(db_path, "7128")
+
+
+def test_list_sessions_fails_for_uninitialized_database(tmp_path: Path) -> None:
+    db_path = tmp_path / "empty.sqlite"
+    sqlite3.connect(db_path).close()
+
+    with pytest.raises(SystemExit, match="missing table\\(s\\): sessions"):
+        list_sessions(db_path)

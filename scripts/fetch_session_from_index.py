@@ -19,6 +19,9 @@ from src.fetching import SessionNetClient, SessionReference  # noqa: E402
 from src.paths import ONLINE_INDEX_DB  # noqa: E402
 
 
+REQUIRED_INDEX_TABLES = frozenset({"sessions"})
+
+
 @dataclass(frozen=True)
 class IndexedSession:
     """Session metadata loaded from the online SQLite index."""
@@ -100,6 +103,7 @@ def parse_args() -> argparse.Namespace:
 def load_session_from_index(db_path: Path, session_id: str) -> IndexedSession:
     """Load one session row from the online index."""
 
+    validate_index_db(db_path)
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
         row = conn.execute(
@@ -127,6 +131,32 @@ def load_session_from_index(db_path: Path, session_id: str) -> IndexedSession:
     )
 
 
+def validate_index_db(db_path: Path) -> None:
+    """Fail fast if the SQLite index is missing or not initialized."""
+
+    if not db_path.exists():
+        raise SystemExit(f"Index database not found: {db_path}")
+    if not db_path.is_file():
+        raise SystemExit(f"Index database path is not a file: {db_path}")
+
+    with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as conn:
+        tables = {
+            row[0]
+            for row in conn.execute(
+                """
+                SELECT name
+                FROM sqlite_master
+                WHERE type = 'table'
+                """
+            )
+        }
+
+    missing_tables = REQUIRED_INDEX_TABLES - tables
+    if missing_tables:
+        missing = ", ".join(sorted(missing_tables))
+        raise SystemExit(f"Index database is not initialized: missing table(s): {missing} in {db_path}")
+
+
 def list_sessions(
     db_path: Path,
     *,
@@ -137,6 +167,7 @@ def list_sessions(
 ) -> list[IndexedSession]:
     """Return sessions from the index for CLI selection."""
 
+    validate_index_db(db_path)
     conditions: list[str] = []
     params: list[object] = []
     if committee:
