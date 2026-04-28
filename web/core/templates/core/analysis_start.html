@@ -25,9 +25,9 @@
       <table>
         <thead><tr><th>Datum</th><th>Sitzung</th><th></th></tr></thead>
         <tbody>
-        {% for session in sessions|slice:":25" %}
+        {% for session in sessions %}
           <tr>
-            <td class="date-value">{{ session.date|default:"-" }}</td>
+            <td class="date-value">{{ session.display_date|default:session.date|default:"-" }}</td>
             <td>{{ session.meeting_name|default:session.session_id }}</td>
             <td><a href="{% url 'analysis:analysis_start' %}?session_id={{ session.session_id }}">Waehlen</a></td>
           </tr>
@@ -49,7 +49,7 @@
 
       <div class="selected-context">
         <strong>{{ selected_session.meeting_name|default:"Sitzung" }}</strong>
-        <span><span class="date-value">{{ selected_session.date|default:"Ohne Datum" }}</span> · {{ selected_session.committee|default:"Gremium unbekannt" }}</span>
+        <span><span class="date-value">{{ selected_session.display_date|default:selected_session.date|default:"Ohne Datum" }}</span> · {{ selected_session.committee|default:"Gremium unbekannt" }}</span>
       </div>
 
       <fieldset>

@@ -6,6 +6,7 @@ import json
 import re
 import sqlite3
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -63,7 +64,7 @@ def _first_row(db_path: Path, query: str, params: tuple[Any, ...]) -> dict[str, 
 def list_sessions() -> list[dict[str, Any]]:
     """Return indexed sessions, enriched with simple counts when available."""
 
-    return _rows(
+    sessions = _rows(
         LOCAL_INDEX_DB,
         """
         SELECT
@@ -80,9 +81,9 @@ def list_sessions() -> list[dict[str, Any]]:
         LEFT JOIN documents d ON d.session_id = s.session_id
         GROUP BY s.session_id, s.date, s.committee, s.meeting_name, s.start_time, s.location
         ORDER BY s.date DESC, s.committee ASC
-        LIMIT 200
         """,
     )
+    return [_with_session_display_fields(session) for session in sessions]
 
 
 def get_session(session_id: str) -> dict[str, Any] | None:
@@ -99,6 +100,7 @@ def get_session(session_id: str) -> dict[str, Any] | None:
     )
     if not session:
         return None
+    session = _with_session_display_fields(session)
 
     agenda_items = _rows(
         LOCAL_INDEX_DB,
@@ -305,6 +307,25 @@ def source_overview() -> dict[str, Any]:
         "local_index_path": str(LOCAL_INDEX_DB.relative_to(REPO_ROOT)),
         "analysis_outputs_path": str(ANALYSIS_OUTPUTS_DIR.relative_to(REPO_ROOT)),
     }
+
+
+def _with_session_display_fields(session: dict[str, Any]) -> dict[str, Any]:
+    """Add UI-oriented display fields without changing source values."""
+
+    enriched = dict(session)
+    enriched["display_date"] = _format_german_date(str(enriched.get("date") or ""))
+    return enriched
+
+
+def _format_german_date(value: str) -> str:
+    """Format ISO dates as DD.MM.YYYY for UI display."""
+
+    if not value:
+        return ""
+    try:
+        return datetime.strptime(value[:10], "%Y-%m-%d").strftime("%d.%m.%Y")
+    except ValueError:
+        return value
 
 
 def _analysis_jobs_from_db(db_path: Path) -> list[dict[str, Any]]:

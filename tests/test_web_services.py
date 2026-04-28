@@ -131,6 +131,7 @@ def test_session_detail_reads_agenda_and_documents(workspace_tmp: Path, monkeypa
 
     assert session is not None
     assert session["meeting_name"] == "Ratssitzung"
+    assert session["display_date"] == "11.03.2026"
     assert session["agenda_items"][0]["documents"][0]["title"] == "Vorlage"
 
 
