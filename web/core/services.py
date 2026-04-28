@@ -5,8 +5,11 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+import subprocess
+import sys
 from collections import defaultdict
 from datetime import datetime
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -20,8 +23,24 @@ LOCAL_INDEX_DB = REPO_ROOT / "data" / "db" / "local_index.sqlite"
 ANALYSIS_WORKFLOW_DB = REPO_ROOT / "data" / "db" / "analysis_workflow.sqlite"
 ANALYSIS_OUTPUTS_DIR = REPO_ROOT / "data" / "analysis_outputs"
 PROMPT_TEMPLATES_PATH = REPO_ROOT / "configs" / "prompt_templates.json"
+DEFAULT_SCRIPT_TIMEOUT_SECONDS = 900
 
 JOB_ID_RE = re.compile(r"job[_-](?P<job_id>[\w.-]+)", re.IGNORECASE)
+
+
+@dataclass(frozen=True)
+class ServiceActionResult:
+    """Result of a service script execution."""
+
+    action: str
+    command: list[str]
+    exit_code: int
+    output: str
+    status: str
+
+    @property
+    def command_text(self) -> str:
+        return " ".join(self.command)
 
 
 def _connect(db_path: Path) -> sqlite3.Connection | None:
@@ -245,6 +264,65 @@ def provider_options() -> list[dict[str, str]]:
     ]
 
 
+def service_status() -> dict[str, Any]:
+    """Return lightweight status for service pages."""
+
+    return {
+        "local_index_exists": LOCAL_INDEX_DB.exists() and LOCAL_INDEX_DB.stat().st_size > 0,
+        "online_index_exists": (REPO_ROOT / "data" / "db" / "online_session_index.sqlite").exists(),
+        "qdrant_exists": (REPO_ROOT / "data" / "db" / "qdrant").exists(),
+        "raw_data_exists": (REPO_ROOT / "data" / "raw").exists(),
+        "local_index_path": "data/db/local_index.sqlite",
+        "online_index_path": "data/db/online_session_index.sqlite",
+        "qdrant_path": "data/db/qdrant/",
+        "raw_data_path": "data/raw/",
+    }
+
+
+def run_service_action(action: str, data: dict[str, Any]) -> tuple[ServiceActionResult | None, list[str]]:
+    """Build and run a whitelisted fetch/build command."""
+
+    try:
+        command = _service_command(action, data)
+    except ValueError as exc:
+        return None, [str(exc)]
+
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=REPO_ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            timeout=DEFAULT_SCRIPT_TIMEOUT_SECONDS,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        output = exc.stdout or ""
+        return (
+            ServiceActionResult(
+                action=action,
+                command=command,
+                exit_code=124,
+                output=str(output),
+                status="timeout",
+            ),
+            [],
+        )
+
+    status = "ok" if completed.returncode == 0 else "error"
+    return (
+        ServiceActionResult(
+            action=action,
+            command=command,
+            exit_code=int(completed.returncode),
+            output=completed.stdout or "",
+            status=status,
+        ),
+        [],
+    )
+
+
 def run_analysis_from_form(data: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
     """Validate web form data and run the existing analysis service."""
 
@@ -294,6 +372,80 @@ def run_analysis_from_form(data: dict[str, Any]) -> tuple[dict[str, Any] | None,
     )
     record = AnalysisService().run_journalistic_analysis(request)
     return record.to_dict(), []
+
+
+def _service_command(action: str, data: dict[str, Any]) -> list[str]:
+    """Return a command for one known service action."""
+
+    if action == "fetch_sessions":
+        year = _validated_year(data.get("year"))
+        months = _validated_months(data.get("months"))
+        return [sys.executable, "scripts/fetch_sessions.py", str(year), "--months", *months]
+
+    if action == "fetch_session_from_index":
+        session_id = str(data.get("session_id") or "").strip()
+        if not session_id:
+            raise ValueError("Bitte eine Session-ID angeben.")
+        return [sys.executable, "scripts/fetch_session_from_index.py", "--session-id", session_id]
+
+    if action == "build_local_index":
+        command = [sys.executable, "scripts/build_local_index.py"]
+        if data.get("refresh_existing"):
+            command.append("--refresh-existing")
+        if data.get("only_refresh"):
+            command.append("--only-refresh")
+        return command
+
+    if action == "build_online_index":
+        year = _validated_year(data.get("year"))
+        months = _validated_months(data.get("months"))
+        command = [sys.executable, "scripts/build_online_index_db.py", str(year), "--months", *months]
+        if data.get("refresh_existing"):
+            command.append("--refresh-existing")
+        if data.get("only_refresh"):
+            command.append("--only-refresh")
+        return command
+
+    if action == "build_vector_index":
+        command = [sys.executable, "scripts/build_vector_index.py"]
+        limit = str(data.get("limit") or "").strip()
+        if limit:
+            try:
+                parsed_limit = int(limit)
+            except ValueError as exc:
+                raise ValueError("Limit muss eine Zahl sein.") from exc
+            if parsed_limit < 1:
+                raise ValueError("Limit muss groesser als 0 sein.")
+            command.extend(["--limit", str(parsed_limit)])
+        return command
+
+    raise ValueError("Unbekannte Service-Aktion.")
+
+
+def _validated_year(value: Any) -> int:
+    try:
+        year = int(str(value or "").strip())
+    except ValueError as exc:
+        raise ValueError("Bitte ein gueltiges Jahr angeben.") from exc
+    if year < 2000 or year > 2100:
+        raise ValueError("Das Jahr muss zwischen 2000 und 2100 liegen.")
+    return year
+
+
+def _validated_months(value: Any) -> list[str]:
+    raw = str(value or "").replace(",", " ").strip()
+    if not raw:
+        return [str(month) for month in range(1, 13)]
+    months: list[str] = []
+    for token in raw.split():
+        try:
+            month = int(token)
+        except ValueError as exc:
+            raise ValueError("Monate muessen Zahlen zwischen 1 und 12 sein.") from exc
+        if month < 1 or month > 12:
+            raise ValueError("Monate muessen zwischen 1 und 12 liegen.")
+        months.append(str(month))
+    return months
 
 
 def source_overview() -> dict[str, Any]:

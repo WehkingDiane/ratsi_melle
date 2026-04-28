@@ -1,0 +1,9 @@
+<section class="panel service-status">
+  <h2>Status</h2>
+  <dl class="facts inline">
+    <div><dt>Rohdaten</dt><dd class="{% if status.raw_data_exists %}status-ok{% else %}status-muted{% endif %}">{{ status.raw_data_path }}</dd></div>
+    <div><dt>Lokaler Index</dt><dd class="{% if status.local_index_exists %}status-ok{% else %}status-muted{% endif %}">{{ status.local_index_path }}</dd></div>
+    <div><dt>Online-Index</dt><dd class="{% if status.online_index_exists %}status-ok{% else %}status-muted{% endif %}">{{ status.online_index_path }}</dd></div>
+    <div><dt>Vektorindex</dt><dd class="{% if status.qdrant_exists %}status-ok{% else %}status-muted{% endif %}">{{ status.qdrant_path }}</dd></div>
+  </dl>
+</section>

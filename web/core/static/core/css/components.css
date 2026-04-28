@@ -37,6 +37,10 @@
   text-decoration: none;
 }
 
+.muted {
+  color: var(--muted);
+}
+
 .facts {
   display: grid;
   gap: 12px;
@@ -189,6 +193,12 @@ tr:last-child td {
   gap: 6px;
 }
 
+.form-stack .checkbox-inline {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
 .form-stack fieldset {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -250,6 +260,10 @@ tr:last-child td {
   display: grid;
   gap: 8px;
   margin-bottom: 18px;
+}
+
+.service-status {
+  margin-top: 24px;
 }
 
 .tight {

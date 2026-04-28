@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Fetch-Service - Ratsi Melle{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow">Service</p>
+  <h1>Fetch</h1>
+  <p>Sitzungen und Dokumente laden. Diese Aktionen koennen je nach Zeitraum laenger laufen.</p>
+</section>
+
+{% include "core/partials/service_result.html" %}
+
+<section class="grid two-columns">
+  <article class="panel">
+    <h2>Monate laden</h2>
+    <form method="post" class="form-stack">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="fetch_sessions">
+      <label>Jahr <input type="text" name="year" value="{{ current_year }}"></label>
+      <label>Monate <input type="text" name="months" placeholder="z. B. 1 2 3 oder leer fuer alle"></label>
+      <button class="button primary" type="submit">Sitzungen laden</button>
+    </form>
+  </article>
+
+  <article class="panel">
+    <h2>Einzelsitzung aus Online-Index laden</h2>
+    <form method="post" class="form-stack">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="fetch_session_from_index">
+      <label>Session-ID <input type="text" name="session_id" placeholder="z. B. 7128"></label>
+      <button class="button primary" type="submit">Einzelsitzung laden</button>
+    </form>
+  </article>
+</section>
+
+{% include "core/partials/service_status.html" %}
+{% endblock %}

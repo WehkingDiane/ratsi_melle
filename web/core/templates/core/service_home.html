@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Service - Ratsi Melle{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow">Service</p>
+  <h1>Datenpflege</h1>
+  <p>Fetch- und Build-Funktionen fuer lokale Daten, Indexe und Suche.</p>
+</section>
+
+<section class="grid two-columns">
+  <article class="panel">
+    <h2>Fetch</h2>
+    <p class="muted">Sitzungen und Dokumente aus SessionNet laden.</p>
+    <div class="actions">
+      <a class="button primary" href="{% url 'analysis:service_fetch' %}">Fetch-Seite oeffnen</a>
+    </div>
+  </article>
+  <article class="panel">
+    <h2>Build</h2>
+    <p class="muted">Lokale SQLite-Indexe und Vektorindex aufbauen.</p>
+    <div class="actions">
+      <a class="button primary" href="{% url 'analysis:service_build' %}">Build-Seite oeffnen</a>
+    </div>
+  </article>
+</section>
+
+{% include "core/partials/service_status.html" %}
+{% endblock %}

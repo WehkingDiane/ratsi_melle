@@ -24,6 +24,7 @@
         <a class="{% if active_nav == 'analysis_start' %}active{% endif %}" href="{% url 'analysis:analysis_start' %}">KI-Analyse</a>
         <a class="{% if active_nav == 'sessions' %}active{% endif %}" href="{% url 'analysis:session_list' %}">Sitzungen</a>
         <a class="{% if active_nav == 'jobs' %}active{% endif %}" href="{% url 'analysis:job_list' %}">Jobs</a>
+        <a class="{% if active_nav == 'service' %}active{% endif %}" href="{% url 'analysis:service_home' %}">Service</a>
       </nav>
     </div>
   </header>

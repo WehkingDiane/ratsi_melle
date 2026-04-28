@@ -33,6 +33,9 @@ def client():
         "/analyse/sitzungen/does-not-exist/",
         "/analyse/jobs/",
         "/analyse/jobs/does-not-exist/",
+        "/analyse/service/",
+        "/analyse/service/fetch/",
+        "/analyse/service/build/",
     ],
 )
 def test_analysis_pages_load(path: str, client) -> None:

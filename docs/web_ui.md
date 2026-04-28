@@ -32,6 +32,9 @@ python scripts/run_web.py 127.0.0.1:8001
 - `/analyse/sitzungen/<session_id>/` zeigt Sitzungsmetadaten, TOPs, Dokumente und Quellenstatus.
 - `/analyse/jobs/` listet vorhandene Analysejobs und Ausgabedateien.
 - `/analyse/jobs/<job_id>/` zeigt Markdown, `ki_response`, `prompt_text` und strukturierte JSON-Ausgaben, soweit vorhanden.
+- `/analyse/service/` zeigt Service-Funktionen fuer Fetch und Build.
+- `/analyse/service/fetch/` startet vorhandene Fetch-Skripte.
+- `/analyse/service/build/` startet vorhandene Build-Skripte.
 
 ## Analyse starten
 

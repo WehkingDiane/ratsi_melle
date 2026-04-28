@@ -151,3 +151,37 @@ def test_run_analysis_from_form_validates_missing_session(monkeypatch, workspace
 
     assert result is None
     assert errors
+
+
+def test_service_action_builds_local_index_command(monkeypatch) -> None:
+    calls = {}
+
+    class Completed:
+        returncode = 0
+        stdout = "ok"
+
+    def fake_run(command, **kwargs):
+        calls["command"] = command
+        return Completed()
+
+    monkeypatch.setattr(services.subprocess, "run", fake_run)
+
+    result, errors = services.run_service_action(
+        "build_local_index",
+        {"refresh_existing": "1"},
+    )
+
+    assert errors == []
+    assert result is not None
+    assert result.status == "ok"
+    assert calls["command"][1:] == ["scripts/build_local_index.py", "--refresh-existing"]
+
+
+def test_service_action_validates_months() -> None:
+    result, errors = services.run_service_action(
+        "fetch_sessions",
+        {"year": "2026", "months": "13"},
+    )
+
+    assert result is None
+    assert errors

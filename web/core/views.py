@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from django.shortcuts import render
 from django.shortcuts import redirect
+from django.utils import timezone
 
 from . import services
 
@@ -122,5 +123,60 @@ def job_detail(request, job_id: str):
             "active_nav": "jobs",
             "job": job,
             "job_id": job_id,
+        },
+    )
+
+
+def service_home(request):
+    return render(
+        request,
+        "core/service_home.html",
+        {
+            "active_nav": "service",
+            "status": services.service_status(),
+        },
+    )
+
+
+def service_fetch(request):
+    result = None
+    errors: list[str] = []
+    current_year = timezone.now().year
+    if request.method == "POST":
+        result, errors = services.run_service_action(
+            request.POST.get("action", ""),
+            request.POST,
+        )
+    return render(
+        request,
+        "core/service_fetch.html",
+        {
+            "active_nav": "service",
+            "status": services.service_status(),
+            "result": result,
+            "errors": errors,
+            "current_year": current_year,
+        },
+    )
+
+
+def service_build(request):
+    result = None
+    errors: list[str] = []
+    current_year = timezone.now().year
+    if request.method == "POST":
+        result, errors = services.run_service_action(
+            request.POST.get("action", ""),
+            request.POST,
+        )
+    return render(
+        request,
+        "core/service_build.html",
+        {
+            "active_nav": "service",
+            "status": services.service_status(),
+            "result": result,
+            "errors": errors,
+            "current_year": current_year,
         },
     )
