@@ -27,4 +27,25 @@
 </section>
 
 {% include "core/partials/service_status.html" %}
+
+{% if jobs %}
+<section class="panel service-status">
+  <h2>Letzte Service-Jobs</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Job</th><th>Aktion</th><th>Status</th><th>Start</th></tr></thead>
+      <tbody>
+      {% for job in jobs %}
+      <tr>
+        <td><a href="{% url 'analysis:service_job_detail' job.job_id %}">{{ job.job_id }}</a></td>
+        <td>{{ job.action }}</td>
+        <td>{{ job.status }}</td>
+        <td class="datetime-value">{{ job.started_at|default:"-" }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
 {% endblock %}

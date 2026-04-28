@@ -36,6 +36,7 @@ def client():
         "/analyse/service/",
         "/analyse/service/fetch/",
         "/analyse/service/build/",
+        "/analyse/service/jobs/status/",
     ],
 )
 def test_analysis_pages_load(path: str, client) -> None:
@@ -73,3 +74,29 @@ def test_analysis_start_post_redirects_to_created_job(client, monkeypatch) -> No
 
     assert response.status_code == 302
     assert response.headers["Location"] == "/analyse/jobs/99/"
+
+
+def test_service_post_starts_background_job(client, monkeypatch) -> None:
+    from core import views
+
+    class Job:
+        job_id = "abc123"
+
+    monkeypatch.setattr(
+        views.services,
+        "build_service_command",
+        lambda _action, _data: (["python", "scripts/build_local_index.py"], []),
+    )
+    monkeypatch.setattr(
+        views.service_jobs,
+        "start_service_job",
+        lambda _action, _command, _cwd: Job(),
+    )
+
+    response = client.post(
+        "/analyse/service/build/",
+        {"action": "build_local_index"},
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/analyse/service/jobs/abc123/"

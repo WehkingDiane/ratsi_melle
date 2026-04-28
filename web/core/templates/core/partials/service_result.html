@@ -6,14 +6,4 @@
 </section>
 {% endif %}
 
-{% if result %}
-<section class="panel">
-  <h2>Ausgabe</h2>
-  <dl class="facts inline">
-    <div><dt>Status</dt><dd class="{% if result.status == 'ok' %}status-ok{% else %}status-error{% endif %}">{{ result.status }}</dd></div>
-    <div><dt>Exit-Code</dt><dd>{{ result.exit_code }}</dd></div>
-  </dl>
-  <pre class="text-block compact">{{ result.command_text }}</pre>
-  <pre class="text-block">{{ result.output|default:"Keine Ausgabe." }}</pre>
-</section>
-{% endif %}
+<p class="empty-state service-note">Nach dem Start wird ein Hintergrundjob angelegt. Seitenwechsel brechen den laufenden Prozess nicht ab.</p>

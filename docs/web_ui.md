@@ -35,6 +35,7 @@ python scripts/run_web.py 127.0.0.1:8001
 - `/analyse/service/` zeigt Service-Funktionen fuer Fetch und Build.
 - `/analyse/service/fetch/` startet vorhandene Fetch-Skripte.
 - `/analyse/service/build/` startet vorhandene Build-Skripte.
+- `/analyse/service/jobs/<job_id>/` zeigt Status, Kommando und Ausgabe eines gestarteten Service-Jobs.
 
 ## Analyse starten
 
@@ -49,6 +50,12 @@ Unterstuetzt werden:
 - Provider `none`, `claude`, `codex` und `ollama`.
 
 Mit Provider `none` wird nur die Analysegrundlage erzeugt. Ein echter KI-Aufruf erfolgt erst bei Auswahl eines KI-Providers.
+
+## Service-Jobs
+
+Fetch- und Build-Aktionen werden als Hintergrundjobs im laufenden Django-Prozess gestartet. Ein Seitenwechsel bricht den Prozess nicht ab. Der Header fragt regelmaessig `/analyse/service/jobs/status/` ab und zeigt laufende Service-Jobs mit einer Statusanimation an.
+
+Die Job-Ausgabe wird im Prozessspeicher gehalten und auf der jeweiligen Job-Seite angezeigt. Fuer produktiven Betrieb waere spaeter eine persistente Queue oder Job-Tabelle noetig.
 
 ## Datenquellen
 

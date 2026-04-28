@@ -26,10 +26,15 @@
         <a class="{% if active_nav == 'jobs' %}active{% endif %}" href="{% url 'analysis:job_list' %}">Jobs</a>
         <a class="{% if active_nav == 'service' %}active{% endif %}" href="{% url 'analysis:service_home' %}">Service</a>
       </nav>
+      <a class="job-indicator" id="job-indicator" href="{% url 'analysis:service_home' %}" hidden>
+        <span class="job-spinner" aria-hidden="true"></span>
+        <span id="job-indicator-text">Service laeuft</span>
+      </a>
     </div>
   </header>
   <main class="shell">
     {% block content %}{% endblock %}
   </main>
+  <script src="{% static 'core/js/service_status.js' %}"></script>
 </body>
 </html>

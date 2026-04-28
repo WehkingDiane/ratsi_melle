@@ -5,11 +5,9 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
-import subprocess
 import sys
 from collections import defaultdict
 from datetime import datetime
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -26,21 +24,6 @@ PROMPT_TEMPLATES_PATH = REPO_ROOT / "configs" / "prompt_templates.json"
 DEFAULT_SCRIPT_TIMEOUT_SECONDS = 900
 
 JOB_ID_RE = re.compile(r"job[_-](?P<job_id>[\w.-]+)", re.IGNORECASE)
-
-
-@dataclass(frozen=True)
-class ServiceActionResult:
-    """Result of a service script execution."""
-
-    action: str
-    command: list[str]
-    exit_code: int
-    output: str
-    status: str
-
-    @property
-    def command_text(self) -> str:
-        return " ".join(self.command)
 
 
 def _connect(db_path: Path) -> sqlite3.Connection | None:
@@ -279,48 +262,14 @@ def service_status() -> dict[str, Any]:
     }
 
 
-def run_service_action(action: str, data: dict[str, Any]) -> tuple[ServiceActionResult | None, list[str]]:
-    """Build and run a whitelisted fetch/build command."""
+def build_service_command(action: str, data: dict[str, Any]) -> tuple[list[str] | None, list[str]]:
+    """Build a whitelisted fetch/build command."""
 
     try:
         command = _service_command(action, data)
     except ValueError as exc:
         return None, [str(exc)]
-
-    try:
-        completed = subprocess.run(
-            command,
-            cwd=REPO_ROOT,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            timeout=DEFAULT_SCRIPT_TIMEOUT_SECONDS,
-            check=False,
-        )
-    except subprocess.TimeoutExpired as exc:
-        output = exc.stdout or ""
-        return (
-            ServiceActionResult(
-                action=action,
-                command=command,
-                exit_code=124,
-                output=str(output),
-                status="timeout",
-            ),
-            [],
-        )
-
-    status = "ok" if completed.returncode == 0 else "error"
-    return (
-        ServiceActionResult(
-            action=action,
-            command=command,
-            exit_code=int(completed.returncode),
-            output=completed.stdout or "",
-            status=status,
-        ),
-        [],
-    )
+    return command, []
 
 
 def run_analysis_from_form(data: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:

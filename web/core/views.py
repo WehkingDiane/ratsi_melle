@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from django.http import JsonResponse
 from django.shortcuts import render
 from django.shortcuts import redirect
 from django.utils import timezone
 
 from . import services
+from . import service_jobs
 
 
 def analysis_home(request):
@@ -134,6 +136,7 @@ def service_home(request):
         {
             "active_nav": "service",
             "status": services.service_status(),
+            "jobs": service_jobs.list_service_jobs(),
         },
     )
 
@@ -143,17 +146,19 @@ def service_fetch(request):
     errors: list[str] = []
     current_year = timezone.now().year
     if request.method == "POST":
-        result, errors = services.run_service_action(
+        command, errors = services.build_service_command(
             request.POST.get("action", ""),
             request.POST,
         )
+        if command:
+            job = service_jobs.start_service_job(request.POST.get("action", ""), command, services.REPO_ROOT)
+            return redirect("analysis:service_job_detail", job_id=job.job_id)
     return render(
         request,
         "core/service_fetch.html",
         {
             "active_nav": "service",
             "status": services.service_status(),
-            "result": result,
             "errors": errors,
             "current_year": current_year,
         },
@@ -165,18 +170,40 @@ def service_build(request):
     errors: list[str] = []
     current_year = timezone.now().year
     if request.method == "POST":
-        result, errors = services.run_service_action(
+        command, errors = services.build_service_command(
             request.POST.get("action", ""),
             request.POST,
         )
+        if command:
+            job = service_jobs.start_service_job(request.POST.get("action", ""), command, services.REPO_ROOT)
+            return redirect("analysis:service_job_detail", job_id=job.job_id)
     return render(
         request,
         "core/service_build.html",
         {
             "active_nav": "service",
             "status": services.service_status(),
-            "result": result,
             "errors": errors,
             "current_year": current_year,
         },
     )
+
+
+def service_job_detail(request, job_id: str):
+    job = service_jobs.get_service_job(job_id)
+    return render(
+        request,
+        "core/service_job_detail.html",
+        {
+            "active_nav": "service",
+            "job": job,
+            "job_id": job_id,
+            "status": services.service_status(),
+        },
+    )
+
+
+def service_job_status(request):
+    active = [job.to_dict() for job in service_jobs.active_service_jobs()]
+    recent = [job.to_dict() for job in service_jobs.list_service_jobs(limit=5)]
+    return JsonResponse({"active": active, "recent": recent})
