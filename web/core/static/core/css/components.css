@@ -12,6 +12,10 @@
   margin-top: 14px;
 }
 
+.page-actions {
+  margin-bottom: 18px;
+}
+
 .button {
   align-items: center;
   border: 1px solid var(--border);
@@ -69,6 +73,11 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow-x: auto;
+}
+
+.compact-table td,
+.compact-table th {
+  padding: 8px 10px;
 }
 
 table {
@@ -166,6 +175,85 @@ tr:last-child td {
 
 .text-block.compact {
   max-height: 320px;
+}
+
+.form-stack {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.form-stack label,
+.form-stack fieldset {
+  display: grid;
+  gap: 6px;
+}
+
+.form-stack fieldset {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 0;
+  padding: 12px;
+}
+
+.form-stack legend {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0 4px;
+}
+
+.form-stack input[type="text"],
+.form-stack select,
+.form-stack textarea {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font: inherit;
+  padding: 9px 10px;
+  width: 100%;
+}
+
+.form-stack textarea {
+  min-height: 150px;
+  resize: vertical;
+}
+
+.checkbox-list {
+  display: grid;
+  gap: 8px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.checkbox-list label {
+  align-items: flex-start;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.selected-context {
+  background: #f6f8fb;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+}
+
+.selected-context span {
+  color: var(--muted);
+}
+
+.message-list {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.tight {
+  gap: 12px;
 }
 
 @media (max-width: 820px) {

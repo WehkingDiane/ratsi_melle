@@ -10,6 +10,10 @@
   <p>{{ session.location|default:"Kein Sitzungsort hinterlegt" }}</p>
 </section>
 
+<section class="actions page-actions">
+  <a class="button primary" href="{% url 'analysis:analysis_start' %}?session_id={{ session.session_id }}">KI-Analyse starten</a>
+</section>
+
 <section class="panel">
   <h2>Quellenstatus</h2>
   <dl class="facts inline">

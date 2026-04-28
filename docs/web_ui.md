@@ -27,10 +27,25 @@ python scripts/run_web.py 127.0.0.1:8001
 ## Seiten
 
 - `/analyse/` zeigt den Einstieg, Datenstatus und kurze Listen.
+- `/analyse/starten/` bietet den ersten Formularfluss zum Starten einer Analyse.
 - `/analyse/sitzungen/` listet Sitzungen aus dem lokalen Index.
 - `/analyse/sitzungen/<session_id>/` zeigt Sitzungsmetadaten, TOPs, Dokumente und Quellenstatus.
 - `/analyse/jobs/` listet vorhandene Analysejobs und Ausgabedateien.
 - `/analyse/jobs/<job_id>/` zeigt Markdown, `ki_response`, `prompt_text` und strukturierte JSON-Ausgaben, soweit vorhanden.
+
+## Analyse starten
+
+Der Startfluss unter `/analyse/starten/` nutzt den bestehenden `AnalysisService` aus `src.analysis.service`.
+
+Unterstuetzt werden:
+
+- Scope `session` fuer die ganze Sitzung.
+- Scope `tops` fuer ausgewaehlte Tagesordnungspunkte.
+- Analysezwecke wie Inhaltsanalyse, Faktenerfassung, Sitzungsvorbereitung und journalistischer Publikationsentwurf.
+- Prompt-Vorlagen aus `configs/prompt_templates.json`.
+- Provider `none`, `claude`, `codex` und `ollama`.
+
+Mit Provider `none` wird nur die Analysegrundlage erzeugt. Ein echter KI-Aufruf erfolgt erst bei Auswahl eines KI-Providers.
 
 ## Datenquellen
 

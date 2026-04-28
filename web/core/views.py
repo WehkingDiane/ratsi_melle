@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from django.shortcuts import render
+from django.shortcuts import redirect
 
 from . import services
 
@@ -44,6 +45,58 @@ def session_detail(request, session_id: str):
             "active_nav": "sessions",
             "session": session,
             "session_id": session_id,
+        },
+    )
+
+
+def analysis_start(request):
+    selected_session_id = request.GET.get("session_id", "")
+    selected_session = services.get_session(selected_session_id) if selected_session_id else None
+    scope = request.POST.get("scope", request.GET.get("scope", "session"))
+    template_id = request.POST.get("template_id", request.GET.get("template_id", ""))
+    selected_template = services.get_prompt_template(template_id) if template_id else None
+    prompt_text = request.POST.get(
+        "prompt_text",
+        str(selected_template.get("text") or "") if selected_template else "",
+    )
+    errors: list[str] = []
+
+    if request.method == "POST":
+        post_data = {
+            "session_id": request.POST.get("session_id", ""),
+            "scope": request.POST.get("scope", "session"),
+            "top_numbers": request.POST.getlist("top_numbers"),
+            "purpose": request.POST.get("purpose", "content_analysis"),
+            "template_id": request.POST.get("template_id", ""),
+            "prompt_text": request.POST.get("prompt_text", ""),
+            "provider_id": request.POST.get("provider_id", "none"),
+            "model_name": request.POST.get("model_name", ""),
+        }
+        result, errors = services.run_analysis_from_form(post_data)
+        if result:
+            return redirect("analysis:job_detail", job_id=result["job_id"])
+        selected_session_id = post_data["session_id"]
+        selected_session = services.get_session(selected_session_id) if selected_session_id else None
+        scope = post_data["scope"]
+        template_id = post_data["template_id"]
+        prompt_text = post_data["prompt_text"]
+
+    templates = services.list_prompt_templates(scope)
+    return render(
+        request,
+        "core/analysis_start.html",
+        {
+            "active_nav": "analysis",
+            "sessions": services.list_sessions(),
+            "selected_session": selected_session,
+            "selected_session_id": selected_session_id,
+            "scope": scope,
+            "templates": templates,
+            "selected_template_id": template_id,
+            "prompt_text": prompt_text,
+            "purpose_options": services.analysis_purpose_options(),
+            "provider_options": services.provider_options(),
+            "errors": errors,
         },
     )
 

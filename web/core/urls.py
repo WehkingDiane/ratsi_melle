@@ -11,6 +11,7 @@ app_name = "analysis"
 
 urlpatterns = [
     path("", views.analysis_home, name="index"),
+    path("starten/", views.analysis_start, name="analysis_start"),
     path("sitzungen/", views.session_list, name="session_list"),
     path("sitzungen/<str:session_id>/", views.session_detail, name="session_detail"),
     path("jobs/", views.job_list, name="job_list"),

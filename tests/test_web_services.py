@@ -132,3 +132,21 @@ def test_session_detail_reads_agenda_and_documents(workspace_tmp: Path, monkeypa
     assert session is not None
     assert session["meeting_name"] == "Ratssitzung"
     assert session["agenda_items"][0]["documents"][0]["title"] == "Vorlage"
+
+
+def test_run_analysis_from_form_validates_missing_session(monkeypatch, workspace_tmp: Path) -> None:
+    monkeypatch.setattr(services, "LOCAL_INDEX_DB", workspace_tmp / "missing.sqlite")
+
+    result, errors = services.run_analysis_from_form(
+        {
+            "session_id": "",
+            "scope": "session",
+            "top_numbers": [],
+            "prompt_text": "Analysiere die Sitzung.",
+            "provider_id": "none",
+            "purpose": "content_analysis",
+        }
+    )
+
+    assert result is None
+    assert errors

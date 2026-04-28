@@ -9,13 +9,16 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+from src.analysis.prompt_registry import load_templates
 from src.analysis.schemas import normalize_analysis_output
+from src.analysis.service import AnalysisRequest, AnalysisService
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 LOCAL_INDEX_DB = REPO_ROOT / "data" / "db" / "local_index.sqlite"
 ANALYSIS_WORKFLOW_DB = REPO_ROOT / "data" / "db" / "analysis_workflow.sqlite"
 ANALYSIS_OUTPUTS_DIR = REPO_ROOT / "data" / "analysis_outputs"
+PROMPT_TEMPLATES_PATH = REPO_ROOT / "configs" / "prompt_templates.json"
 
 JOB_ID_RE = re.compile(r"job[_-](?P<job_id>[\w.-]+)", re.IGNORECASE)
 
@@ -198,6 +201,97 @@ def get_analysis_output(job_id: str) -> dict[str, Any] | None:
         if str(job.get("job_id")) == normalized_id:
             return job
     return None
+
+
+def list_prompt_templates(scope: str = "") -> list[dict[str, Any]]:
+    """Return configured prompt templates, optionally filtered by scope."""
+
+    templates = load_templates(PROMPT_TEMPLATES_PATH)
+    if not scope:
+        return templates
+    return [template for template in templates if scope in template.get("scope", [])]
+
+
+def get_prompt_template(template_id: str) -> dict[str, Any] | None:
+    """Return one prompt template by id."""
+
+    for template in list_prompt_templates():
+        if str(template.get("id") or "") == template_id:
+            return template
+    return None
+
+
+def analysis_purpose_options() -> list[dict[str, str]]:
+    """Return supported analysis purposes for the web form."""
+
+    return [
+        {"value": "content_analysis", "label": "Inhaltsanalyse"},
+        {"value": "fact_extraction", "label": "Strukturierte Faktenerfassung"},
+        {"value": "session_preparation", "label": "Sitzungsvorbereitung"},
+        {"value": "journalistic_publication", "label": "Journalistischer Publikationsentwurf"},
+    ]
+
+
+def provider_options() -> list[dict[str, str]]:
+    """Return provider options known to the existing analysis service."""
+
+    return [
+        {"value": "none", "label": "Kein Provider (nur Grundlage)"},
+        {"value": "claude", "label": "Claude (Anthropic)"},
+        {"value": "codex", "label": "Codex (OpenAI)"},
+        {"value": "ollama", "label": "Ollama (lokal)"},
+    ]
+
+
+def run_analysis_from_form(data: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
+    """Validate web form data and run the existing analysis service."""
+
+    errors: list[str] = []
+    session_id = str(data.get("session_id") or "").strip()
+    scope = str(data.get("scope") or "session").strip()
+    selected_tops = [str(top).strip() for top in data.get("top_numbers", []) if str(top).strip()]
+    provider_id = str(data.get("provider_id") or "none").strip()
+    model_name = str(data.get("model_name") or "").strip()
+    template_id = str(data.get("template_id") or "").strip()
+    prompt = str(data.get("prompt_text") or "").strip()
+    purpose = str(data.get("purpose") or "content_analysis").strip()
+
+    session = get_session(session_id) if session_id else None
+    if not session:
+        errors.append("Bitte eine vorhandene Sitzung waehlen.")
+    if scope not in {"session", "tops"}:
+        errors.append("Der Scope ist ungueltig.")
+    if scope == "tops" and not selected_tops:
+        errors.append("Bitte mindestens einen TOP waehlen oder Scope 'Ganze Sitzung' nutzen.")
+    if provider_id not in {option["value"] for option in provider_options()}:
+        errors.append("Der KI-Provider ist ungueltig.")
+    if purpose not in {option["value"] for option in analysis_purpose_options()}:
+        errors.append("Der Analysezweck ist ungueltig.")
+
+    template = get_prompt_template(template_id) if template_id else None
+    if template:
+        purpose = str(template.get("purpose") or purpose)
+        if not prompt:
+            prompt = str(template.get("text") or "")
+    if not prompt:
+        errors.append("Bitte einen Prompt eingeben oder eine Vorlage waehlen.")
+
+    if errors or not session:
+        return None, errors
+
+    request = AnalysisRequest(
+        db_path=LOCAL_INDEX_DB,
+        session=session,
+        scope=scope,
+        selected_tops=selected_tops if scope == "tops" else [],
+        prompt=prompt,
+        provider_id=provider_id,
+        model_name=model_name,
+        prompt_version=template_id or "web",
+        purpose=purpose,
+    )
+    record = AnalysisService().run_journalistic_analysis(request)
+    return record.to_dict(), []
 
 
 def source_overview() -> dict[str, Any]:
