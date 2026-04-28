@@ -86,7 +86,7 @@ def analysis_start(request):
         request,
         "core/analysis_start.html",
         {
-            "active_nav": "analysis",
+            "active_nav": "analysis_start",
             "sessions": services.list_sessions(),
             "selected_session": selected_session,
             "selected_session_id": selected_session_id,

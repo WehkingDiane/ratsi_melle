@@ -11,12 +11,22 @@
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="{% url 'analysis:index' %}">Ratsi Melle</a>
-    <nav class="topnav" aria-label="Hauptnavigation">
-      <a class="{% if active_nav == 'analysis' %}active{% endif %}" href="{% url 'analysis:index' %}">Analyse</a>
-      <a class="{% if active_nav == 'sessions' %}active{% endif %}" href="{% url 'analysis:session_list' %}">Sitzungen</a>
-      <a class="{% if active_nav == 'jobs' %}active{% endif %}" href="{% url 'analysis:job_list' %}">Jobs</a>
-    </nav>
+    <div class="topbar-inner">
+      <a class="brand" href="{% url 'analysis:index' %}">Ratsi Melle</a>
+      <details class="nav-menu">
+        <summary class="nav-toggle" aria-label="Navigation umschalten">
+          <span></span>
+          <span></span>
+          <span></span>
+        </summary>
+        <nav class="topnav" aria-label="Hauptnavigation">
+          <a class="{% if active_nav == 'analysis' %}active{% endif %}" href="{% url 'analysis:index' %}">Uebersicht</a>
+          <a class="{% if active_nav == 'analysis_start' %}active{% endif %}" href="{% url 'analysis:analysis_start' %}">KI-Analyse</a>
+          <a class="{% if active_nav == 'sessions' %}active{% endif %}" href="{% url 'analysis:session_list' %}">Sitzungen</a>
+          <a class="{% if active_nav == 'jobs' %}active{% endif %}" href="{% url 'analysis:job_list' %}">Jobs</a>
+        </nav>
+      </details>
+    </div>
   </header>
   <main class="shell">
     {% block content %}{% endblock %}
