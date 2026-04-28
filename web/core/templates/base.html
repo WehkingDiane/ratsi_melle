@@ -1,0 +1,25 @@
+{% load static %}
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Ratsi Melle{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'core/css/layout.css' %}">
+  <link rel="stylesheet" href="{% static 'core/css/components.css' %}">
+  <link rel="stylesheet" href="{% static 'core/css/status.css' %}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{% url 'analysis:index' %}">Ratsi Melle</a>
+    <nav class="topnav" aria-label="Hauptnavigation">
+      <a class="{% if active_nav == 'analysis' %}active{% endif %}" href="{% url 'analysis:index' %}">Analyse</a>
+      <a class="{% if active_nav == 'sessions' %}active{% endif %}" href="{% url 'analysis:session_list' %}">Sitzungen</a>
+      <a class="{% if active_nav == 'jobs' %}active{% endif %}" href="{% url 'analysis:job_list' %}">Jobs</a>
+    </nav>
+  </header>
+  <main class="shell">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

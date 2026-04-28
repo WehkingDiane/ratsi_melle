@@ -14,6 +14,7 @@ data/processed/
 # Databases
 data/db/*
 !data/db/.gitkeep
+web/*.sqlite3
 
 # Analysis artifacts
 data/analysis_requests/*

@@ -1,0 +1,25 @@
+.empty-state {
+  background: #fff8e6;
+  border: 1px solid #f0d58c;
+  border-radius: 8px;
+  color: #624b00;
+  margin: 0;
+  padding: 14px;
+}
+
+.status-ok {
+  color: #116329;
+}
+
+.status-warning {
+  color: #9a6700;
+}
+
+.status-error {
+  color: #b42318;
+  font-weight: 700;
+}
+
+.status-muted {
+  color: var(--muted);
+}

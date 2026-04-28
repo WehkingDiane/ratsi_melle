@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Sitzung {{ session_id }} - Ratsi Melle{% endblock %}
+
+{% block content %}
+{% if session %}
+<section class="page-heading">
+  <p class="eyebrow">{{ session.date|default:"Ohne Datum" }} · {{ session.committee|default:"Unbekanntes Gremium" }}</p>
+  <h1>{{ session.meeting_name|default:"Sitzung" }}</h1>
+  <p>{{ session.location|default:"Kein Sitzungsort hinterlegt" }}</p>
+</section>
+
+<section class="panel">
+  <h2>Quellenstatus</h2>
+  <dl class="facts inline">
+    <div><dt>Dokumente</dt><dd>{{ session.source_status.document_count }}</dd></div>
+    <div><dt>Vorhanden</dt><dd class="status-ok">{{ session.source_status.available_count }}</dd></div>
+    <div><dt>Fehlend</dt><dd class="{% if session.source_status.missing_count %}status-warning{% else %}status-ok{% endif %}">{{ session.source_status.missing_count }}</dd></div>
+  </dl>
+</section>
+
+<section>
+  <div class="section-title">
+    <h2>Tagesordnungspunkte</h2>
+  </div>
+  {% if session.agenda_items %}
+  <div class="item-list">
+    {% for item in session.agenda_items %}
+    <article class="list-item">
+      <div class="item-main">
+        <span class="badge">{{ item.number|default:"TOP" }}</span>
+        <h3>{{ item.title|default:"Ohne Titel" }}</h3>
+        {% if item.decision %}<p>{{ item.decision }}</p>{% endif %}
+      </div>
+      <div class="item-meta">
+        <span>{{ item.status|default:"Kein Status" }}</span>
+        <span>{{ item.documents|length }} Dokumente</span>
+      </div>
+      {% if item.documents %}
+      <ul class="document-list">
+        {% for document in item.documents %}
+        <li>
+          <span>{{ document.title|default:"Dokument" }}</span>
+          <small>{{ document.document_type|default:document.content_type|default:"Typ unbekannt" }}</small>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="empty-state">Fuer diese Sitzung sind keine Tagesordnungspunkte im lokalen Index vorhanden.</p>
+  {% endif %}
+</section>
+
+<section>
+  <div class="section-title">
+    <h2>Alle Dokumente</h2>
+  </div>
+  {% if session.documents %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>TOP</th><th>Titel</th><th>Typ</th><th>Quelle</th></tr></thead>
+      <tbody>
+      {% for document in session.documents %}
+        <tr>
+          <td>{{ document.agenda_item|default:"-" }}</td>
+          <td>{{ document.title|default:"Dokument" }}</td>
+          <td>{{ document.document_type|default:document.content_type|default:"-" }}</td>
+          <td>{% if document.url %}<a href="{{ document.url }}">Link</a>{% else %}-{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-state">Fuer diese Sitzung sind keine Dokumente im lokalen Index vorhanden.</p>
+  {% endif %}
+</section>
+{% else %}
+<section class="page-heading">
+  <p class="eyebrow">Nicht gefunden</p>
+  <h1>Sitzung {{ session_id }}</h1>
+  <p class="empty-state">Diese Sitzung ist im lokalen Index nicht vorhanden oder die Datenbank fehlt.</p>
+</section>
+{% endif %}
+{% endblock %}

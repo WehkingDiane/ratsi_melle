@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Analyse - Ratsi Melle{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow">Arbeitsbereich</p>
+  <h1>Analyse</h1>
+  <p>Sitzungen ansehen, Inhalte einordnen und vorhandene Analyseergebnisse pruefen.</p>
+</section>
+
+<section class="grid two-columns">
+  <article class="panel">
+    <h2>Datenstatus</h2>
+    <dl class="facts">
+      <div><dt>Lokaler Index</dt><dd class="{% if overview.local_index_exists %}status-ok{% else %}status-muted{% endif %}">{{ overview.local_index_path }}</dd></div>
+      <div><dt>Analyseausgaben</dt><dd class="{% if overview.analysis_outputs_exists %}status-ok{% else %}status-muted{% endif %}">{{ overview.analysis_outputs_path }}</dd></div>
+      <div><dt>Sitzungen</dt><dd>{{ overview.session_count }}</dd></div>
+      <div><dt>Analysen</dt><dd>{{ overview.analysis_count }}</dd></div>
+    </dl>
+  </article>
+  <article class="panel">
+    <h2>Einstieg</h2>
+    <div class="actions">
+      <a class="button primary" href="{% url 'analysis:session_list' %}">Sitzungen ansehen</a>
+      <a class="button" href="{% url 'analysis:job_list' %}">Analysejobs pruefen</a>
+    </div>
+  </article>
+</section>
+
+<section class="split-content">
+  <div>
+    <div class="section-title">
+      <h2>Letzte Sitzungen</h2>
+      <a href="{% url 'analysis:session_list' %}">Alle Sitzungen</a>
+    </div>
+    {% include "core/partials/session_table.html" with sessions=recent_sessions compact=True %}
+  </div>
+  <div>
+    <div class="section-title">
+      <h2>Letzte Analysen</h2>
+      <a href="{% url 'analysis:job_list' %}">Alle Jobs</a>
+    </div>
+    {% include "core/partials/job_table.html" with jobs=recent_jobs compact=True %}
+  </div>
+</section>
+{% endblock %}
