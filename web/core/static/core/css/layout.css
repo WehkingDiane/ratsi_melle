@@ -56,28 +56,14 @@ a:hover {
   font-weight: 700;
 }
 
-.nav-menu {
-  flex: 1;
-}
-
-.nav-menu[open] .topnav {
-  display: flex;
-}
-
+.nav-checkbox,
 .nav-toggle {
-  display: none;
-}
-
-.nav-menu summary {
-  list-style: none;
-}
-
-.nav-menu summary::-webkit-details-marker {
   display: none;
 }
 
 .topnav {
   display: flex;
+  flex: 1;
   gap: 8px;
   justify-content: flex-end;
 }
@@ -165,10 +151,6 @@ a:hover {
     padding: 10px 16px;
   }
 
-  .nav-menu {
-    flex: 0 0 auto;
-  }
-
   .nav-toggle {
     align-items: center;
     border: 1px solid var(--border);
@@ -202,6 +184,10 @@ a:hover {
     position: absolute;
     right: 16px;
     top: 58px;
+  }
+
+  .nav-checkbox:checked ~ .topnav {
+    display: flex;
   }
 
   .topnav a {
