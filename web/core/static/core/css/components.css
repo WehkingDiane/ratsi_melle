@@ -58,6 +58,12 @@
   overflow-wrap: anywhere;
 }
 
+.date-value,
+.time-value,
+.datetime-value {
+  white-space: nowrap;
+}
+
 .table-wrap {
   background: var(--surface);
   border: 1px solid var(--border);
