@@ -65,12 +65,7 @@ def _analysis_jobs_from_db(db_path: Path) -> list[dict[str, Any]]:
         job_rows = [dict(row) for row in conn.execute("SELECT * FROM analysis_jobs").fetchall()]
         if not table_exists(conn, "analysis_outputs"):
             return job_rows
-        output_rows = [
-            dict(row)
-            for row in conn.execute(
-                "SELECT job_id, output_format, content, created_at FROM analysis_outputs"
-            ).fetchall()
-        ]
+        output_rows = _analysis_output_rows(conn)
     except sqlite3.Error:
         return []
     finally:
@@ -82,17 +77,94 @@ def _analysis_jobs_from_db(db_path: Path) -> list[dict[str, Any]]:
 
     jobs = []
     for row in job_rows:
-        row["job_id"] = row.get("id")
-        row["db_outputs"] = outputs_by_job.get(str(row.get("id")), [])
+        row["job_id"] = row.get("job_id") or row.get("id")
+        row["db_outputs"] = outputs_by_job.get(str(row.get("job_id")), [])
         for output in row["db_outputs"]:
-            fmt = str(output.get("output_format") or "").lower()
-            content = str(output.get("content") or "")
-            if fmt in {"markdown", "md"}:
-                row.setdefault("markdown", content)
-            elif fmt in {"ki_response", "text"}:
-                row.setdefault("ki_response", content)
+            _merge_db_output(row, output)
         jobs.append(row)
     return jobs
+
+
+def _analysis_output_rows(conn: sqlite3.Connection) -> list[dict[str, Any]]:
+    columns = _table_columns(conn, "analysis_outputs")
+    if {"job_id", "output_format", "content", "created_at"} <= columns:
+        return [
+            dict(row)
+            for row in conn.execute(
+                "SELECT job_id, output_format, content, created_at FROM analysis_outputs"
+            ).fetchall()
+        ]
+    if {"job_id", "output_type", "json_path", "markdown_path"} <= columns:
+        selected = [
+            column
+            for column in (
+                "output_id",
+                "job_id",
+                "output_type",
+                "schema_version",
+                "json_path",
+                "markdown_path",
+                "status",
+                "created_at",
+            )
+            if column in columns
+        ]
+        return [dict(row) for row in conn.execute(f"SELECT {', '.join(selected)} FROM analysis_outputs").fetchall()]
+    return []
+
+
+def _table_columns(conn: sqlite3.Connection, table: str) -> set[str]:
+    return {str(row[1]) for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+
+
+def _merge_db_output(job: dict[str, Any], output: dict[str, Any]) -> None:
+    fmt = str(output.get("output_format") or "").lower()
+    content = str(output.get("content") or "")
+    if fmt in {"markdown", "md"}:
+        job.setdefault("markdown", content)
+    elif fmt in {"ki_response", "text"}:
+        job.setdefault("ki_response", content)
+
+    output_type = str(output.get("output_type") or "").strip()
+    if output_type:
+        job.setdefault("output_type", output_type)
+    schema_version = str(output.get("schema_version") or "").strip()
+    if schema_version:
+        job.setdefault("schema_version", schema_version)
+    output_status = str(output.get("status") or "").strip()
+    if output_status:
+        job.setdefault("status", output_status)
+
+    for key in ("json_path", "markdown_path"):
+        output_path = _resolve_output_path(output.get(key))
+        if output_path is None:
+            continue
+        _add_file_source(job, output_path)
+        if key == "json_path":
+            job.setdefault("warnings", [])
+            job.setdefault("structured_outputs", [])
+            _read_json_output(output_path, job)
+        elif key == "markdown_path" and not job.get("markdown"):
+            job["markdown"] = _read_text(output_path)
+
+
+def _resolve_output_path(value: Any) -> Path | None:
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    path = Path(raw)
+    if not path.is_absolute():
+        path = paths.REPO_ROOT / path
+    return path
+
+
+def _add_file_source(job: dict[str, Any], path: Path) -> None:
+    try:
+        rel_path = path.relative_to(paths.REPO_ROOT).as_posix()
+    except ValueError:
+        rel_path = str(path)
+    job.setdefault("files", []).append(rel_path)
+    job.setdefault("sources", set()).add(rel_path)
 
 
 def _analysis_jobs_from_files() -> list[dict[str, Any]]:

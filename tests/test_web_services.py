@@ -19,6 +19,10 @@ if str(WEB_ROOT) not in sys.path:
 from analysis import services as analysis_services
 from core import services as core_services
 from data_tools import services as data_services
+from src.analysis.workflow_db import AnalysisArtifactRecord
+from src.analysis.workflow_db import AnalysisJobRecord
+from src.analysis.workflow_db import add_analysis_output
+from src.analysis.workflow_db import create_analysis_job
 
 
 @pytest.fixture()
@@ -89,6 +93,64 @@ def test_legacy_analysis_output_file_is_displayed(workspace_tmp: Path, monkeypat
     assert job["output_type"] == "legacy_analysis_output"
     assert job["ki_response"] == "Antwort"
     assert job["markdown"] == "# Analyse"
+
+
+def test_workflow_analysis_output_schema_is_displayed(workspace_tmp: Path, monkeypatch) -> None:
+    output_dir = workspace_tmp / "data" / "analysis_outputs" / "2026" / "03" / "session"
+    output_dir.mkdir(parents=True)
+    json_path = output_dir / "job_1.raw.json"
+    markdown_path = output_dir / "job_1.md"
+    json_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "2.0",
+                "output_type": "raw_analysis",
+                "job_id": 1,
+                "session_id": "7123",
+                "scope": "session",
+                "purpose": "content_analysis",
+                "status": "done",
+            }
+        ),
+        encoding="utf-8",
+    )
+    markdown_path.write_text("# Workflow-Analyse", encoding="utf-8")
+    workflow_db = workspace_tmp / "data" / "db" / "analysis_workflow.sqlite"
+    job_id = create_analysis_job(
+        AnalysisJobRecord(
+            session_id="7123",
+            scope="session",
+            purpose="content_analysis",
+            model_name="none",
+            prompt_version="web",
+            status="done",
+        ),
+        workflow_db,
+    )
+    add_analysis_output(
+        AnalysisArtifactRecord(
+            job_id=job_id,
+            output_type="raw_analysis",
+            schema_version="2.0",
+            json_path="data/analysis_outputs/2026/03/session/job_1.raw.json",
+            markdown_path="data/analysis_outputs/2026/03/session/job_1.md",
+            status="done",
+        ),
+        workflow_db,
+    )
+    monkeypatch.setattr(analysis_services, "REPO_ROOT", workspace_tmp)
+    monkeypatch.setattr(analysis_services, "LOCAL_INDEX_DB", workspace_tmp / "missing.sqlite")
+    monkeypatch.setattr(analysis_services, "ANALYSIS_WORKFLOW_DB", workflow_db)
+    monkeypatch.setattr(analysis_services, "ANALYSIS_OUTPUTS_DIR", workspace_tmp / "missing_outputs")
+
+    job = analysis_services.get_analysis_output(str(job_id))
+
+    assert job is not None
+    assert job["session_id"] == "7123"
+    assert job["output_type"] == "raw_analysis"
+    assert job["schema_version"] == "2.0"
+    assert job["markdown"] == "# Workflow-Analyse"
+    assert "data/analysis_outputs/2026/03/session/job_1.raw.json" in job["files"]
 
 
 def test_session_detail_reads_agenda_and_documents(workspace_tmp: Path, monkeypatch) -> None:
