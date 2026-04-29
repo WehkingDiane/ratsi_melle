@@ -52,14 +52,14 @@
       <h2>Letzte Sitzungen</h2>
       <a href="{% url 'analysis:session_list' %}">Alle Sitzungen</a>
     </div>
-    {% include "core/partials/session_table.html" with sessions=recent_sessions compact=True %}
+    {% include "analysis/partials/session_table.html" with sessions=recent_sessions compact=True %}
   </div>
   <div>
     <div class="section-title">
       <h2>Letzte Analysen</h2>
       <a href="{% url 'analysis:job_list' %}">Alle Jobs</a>
     </div>
-    {% include "core/partials/job_table.html" with jobs=recent_jobs compact=True %}
+    {% include "analysis/partials/job_table.html" with jobs=recent_jobs compact=True %}
   </div>
 </section>
 {% endblock %}

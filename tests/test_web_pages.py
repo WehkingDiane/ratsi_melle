@@ -16,6 +16,7 @@ django = pytest.importorskip("django")
 
 
 CORE_TEMPLATE_ROOT = WEB_ROOT / "core" / "templates" / "core"
+CORE_PARTIAL_ROOT = CORE_TEMPLATE_ROOT / "partials"
 
 
 @pytest.fixture()
@@ -54,8 +55,11 @@ def test_analysis_pages_load(path: str, client) -> None:
 
 def test_core_templates_do_not_contain_feature_page_duplicates() -> None:
     template_files = {path.name for path in CORE_TEMPLATE_ROOT.glob("*.html")}
+    partial_files = {path.name for path in CORE_PARTIAL_ROOT.glob("*.html")}
 
     assert template_files == {"dashboard.html"}
+    assert "session_table.html" not in partial_files
+    assert "job_table.html" not in partial_files
 
 
 def test_main_navigation_is_in_shared_layout(client) -> None:
