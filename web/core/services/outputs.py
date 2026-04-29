@@ -143,7 +143,7 @@ def _merge_db_output(job: dict[str, Any], output: dict[str, Any]) -> None:
         if key == "json_path":
             job.setdefault("warnings", [])
             job.setdefault("structured_outputs", [])
-            _read_json_output(output_path, job)
+            _read_json_output(output_path, job, preserve_job_id=True)
         elif key == "markdown_path" and not job.get("markdown"):
             job["markdown"] = _read_text(output_path)
 
@@ -196,7 +196,7 @@ def _analysis_jobs_from_files() -> list[dict[str, Any]]:
     return list(jobs.values())
 
 
-def _read_json_output(path: Path, job: dict[str, Any]) -> None:
+def _read_json_output(path: Path, job: dict[str, Any], *, preserve_job_id: bool = False) -> None:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError, UnicodeDecodeError):
@@ -222,6 +222,8 @@ def _read_json_output(path: Path, job: dict[str, Any]) -> None:
         "output_type",
         "schema_version",
     ):
+        if preserve_job_id and key == "job_id":
+            continue
         value = normalized.get(key)
         if value not in (None, "", []):
             job[key] = value

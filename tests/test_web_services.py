@@ -118,6 +118,17 @@ def test_workflow_analysis_output_schema_is_displayed(workspace_tmp: Path, monke
     )
     markdown_path.write_text("# Workflow-Analyse", encoding="utf-8")
     workflow_db = workspace_tmp / "data" / "db" / "analysis_workflow.sqlite"
+    create_analysis_job(
+        AnalysisJobRecord(
+            session_id="old",
+            scope="session",
+            purpose="content_analysis",
+            model_name="none",
+            prompt_version="web",
+            status="done",
+        ),
+        workflow_db,
+    )
     job_id = create_analysis_job(
         AnalysisJobRecord(
             session_id="7123",
@@ -148,6 +159,8 @@ def test_workflow_analysis_output_schema_is_displayed(workspace_tmp: Path, monke
     job = analysis_services.get_analysis_output(str(job_id))
 
     assert job is not None
+    assert job_id != 1
+    assert job["job_id"] == job_id
     assert job["session_id"] == "7123"
     assert job["output_type"] == "raw_analysis"
     assert job["schema_version"] == "2.0"
