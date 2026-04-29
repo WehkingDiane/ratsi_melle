@@ -43,7 +43,19 @@ def test_enrich_documents_for_analysis_adds_source_path_metadata(tmp_path: Path)
 
 def test_build_analysis_markdown_includes_source_list() -> None:
     markdown = build_analysis_markdown(
-        session={"date": "2026-01-15", "committee": "Rat"},
+        session={
+            "date": "2026-01-15",
+            "committee": "Rat",
+            "meeting_name": "Ratssitzung",
+            "agenda_items": [
+                {
+                    "number": "Oe 1",
+                    "title": "Beschlussvorlage Projekt",
+                    "status": "beschlossen",
+                    "decision": "einstimmig angenommen",
+                }
+            ],
+        },
         scope="tops",
         selected_tops=["Oe 1"],
         documents=[
@@ -53,6 +65,8 @@ def test_build_analysis_markdown_includes_source_list() -> None:
                 "document_type": "beschlussvorlage",
                 "resolved_local_path": "/tmp/beschlussvorlage.txt",
                 "source_file_available": True,
+                "analysis_transfer_mode": "text_excerpt",
+                "analysis_text_excerpt": "Beschlussvorschlag: Projekt umsetzen.",
                 "url": "https://example.org/beschlussvorlage",
             }
         ],
@@ -62,6 +76,11 @@ def test_build_analysis_markdown_includes_source_list() -> None:
     assert "## Quellen im Scope" in markdown
     assert "beschlussvorlage" in markdown
     assert "/tmp/beschlussvorlage.txt" in markdown
+    assert "Sitzungskontext" in markdown
+    assert "TOP- und Abstimmungsinformationen" in markdown
+    assert "einstimmig angenommen" in markdown
+    assert "KI-Übergabe: text_excerpt" in markdown
+    assert "Beschlussvorschlag: Projekt umsetzen." in markdown
     assert "Bitte Kernthemen und Kosten benennen." in markdown
 
 

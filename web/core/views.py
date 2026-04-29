@@ -79,6 +79,7 @@ def analysis_start(request):
         str(selected_template.get("text") or "") if selected_template else "",
     )
     errors: list[str] = []
+    messages: list[str] = []
 
     if request.method == "POST":
         post_data = {
@@ -87,17 +88,24 @@ def analysis_start(request):
             "top_numbers": request.POST.getlist("top_numbers"),
             "purpose": request.POST.get("purpose", "content_analysis"),
             "template_id": request.POST.get("template_id", ""),
+            "template_label": request.POST.get("template_label", ""),
             "prompt_text": request.POST.get("prompt_text", ""),
             "provider_id": request.POST.get("provider_id", "none"),
             "model_name": request.POST.get("model_name", ""),
         }
-        result, errors = services.run_analysis_from_form(post_data)
-        if result:
-            return redirect("analysis:job_detail", job_id=result["job_id"])
+        if request.POST.get("form_action") == "save_template":
+            template, errors = services.save_prompt_template_from_form(post_data)
+            if template:
+                template_id = str(template.get("id") or "")
+                messages.append("Prompt-Vorlage wurde gespeichert.")
+        else:
+            result, errors = services.run_analysis_from_form(post_data)
+            if result:
+                return redirect("analysis:job_detail", job_id=result["job_id"])
         selected_session_id = post_data["session_id"]
         selected_session = services.get_session(selected_session_id) if selected_session_id else None
         scope = post_data["scope"]
-        template_id = post_data["template_id"]
+        template_id = template_id or post_data["template_id"]
         prompt_text = post_data["prompt_text"]
 
     templates = services.list_prompt_templates(scope)
@@ -116,6 +124,7 @@ def analysis_start(request):
             "purpose_options": services.analysis_purpose_options(),
             "provider_options": services.provider_options(),
             "errors": errors,
+            "messages": messages,
         },
     )
 

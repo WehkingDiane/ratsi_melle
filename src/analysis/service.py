@@ -68,6 +68,7 @@ class AnalysisService:
             selected_tops=request.selected_tops,
         )
         documents = enrich_documents_for_analysis(documents)
+        pdf_paths = request.pdf_paths or _pdf_paths_from_documents(documents)
         session_path = self._get_session_path(db_path, session_id)
         markdown = build_analysis_markdown(
             session=request.session,
@@ -109,7 +110,7 @@ class AnalysisService:
 
         if request.provider_id != PROVIDER_NONE:
             ki_response_text, effective_model, error_message = self._call_provider(
-                request=request, context=markdown
+                request=request, context=markdown, pdf_paths=pdf_paths
             )
 
         final_status = "error" if error_message else "done"
@@ -148,7 +149,7 @@ class AnalysisService:
         return record
 
     def _call_provider(
-        self, *, request: AnalysisRequest, context: str
+        self, *, request: AnalysisRequest, context: str, pdf_paths: list[Path] | None = None
     ) -> tuple[str, str, str | None]:
         """Dispatch to the configured KI provider.
 
@@ -168,7 +169,7 @@ class AnalysisService:
                 prompt=request.prompt,
                 context=context_for_provider,
                 model=request.model_name or None,
-                pdf_paths=request.pdf_paths or None,
+                pdf_paths=pdf_paths or None,
             )
             return ki.response_text, ki.model_name, None
         except Exception as exc:  # noqa: BLE001
@@ -605,3 +606,17 @@ def _source_available(document: dict) -> bool:
         local_path=str(document.get("local_path") or ""),
     )
     return bool(resolved and resolved.is_file())
+
+
+def _pdf_paths_from_documents(documents: list[dict]) -> list[Path]:
+    pdf_paths: list[Path] = []
+    for document in documents:
+        if not document.get("source_file_available"):
+            continue
+        resolved = document.get("resolved_local_path")
+        if not resolved:
+            continue
+        path = Path(str(resolved))
+        if path.suffix.lower() == ".pdf" and path.is_file():
+            pdf_paths.append(path)
+    return pdf_paths

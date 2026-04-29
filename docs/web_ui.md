@@ -103,6 +103,24 @@ Der Header zeigt den Projektnamen "Ratsi Melle" und die Unterzeile "Lokale Arbei
 
 Alte Service-URLs unter `/analyse/service/` werden auf den Datenbereich umgeleitet, damit technische Datenpflege nicht mehr im Analysebereich hängt.
 
+## Analyse Starten
+
+Der Startfluss unter `/analyse/starten/` nutzt den bestehenden `AnalysisService` aus `src.analysis.service`.
+
+Bei einer TOP-Analyse sind nur Tagesordnungspunkte auswählbar, für die lokal vorhandene Dokumente aufgelöst werden können. Die Analyse-Startseite zeigt pro TOP, ob analysierbare Dokumente vorhanden sind. TOPs ohne lokale Dokumentquelle bleiben deaktiviert, weil die KI sonst nur Metadaten ohne belastbare Analysegrundlage hätte.
+
+Die Analysegrundlage enthält zusätzlich:
+
+- ob die Sitzung vergangen, heute oder zukünftig ist
+- Datum, Gremium und Sitzungsname
+- Status und Beschluss-/Abstimmungsinformationen der ausgewählten TOPs, soweit im lokalen Index vorhanden
+- die Dokumentliste im Scope
+- die Art der KI-Übergabe je Dokument: Textauszug, PDF-Anhang oder nur Metadaten
+
+Textdateien wie `.txt`, `.md` und `.html` werden als Auszug in die Analysegrundlage aufgenommen. PDF-Dateien werden als PDF-Pfade an Provider weitergegeben, die PDF-Anhänge oder PDF-Textextraktion unterstützen.
+
+Mit Provider `none` wird nur die Analysegrundlage erzeugt. Ein echter KI-Aufruf erfolgt erst bei Auswahl eines KI-Providers. Eigene Prompt-Vorlagen können direkt im Analyseformular gespeichert werden. Sie werden in `configs/prompt_templates.json` abgelegt und danach in der Vorlagenauswahl angeboten.
+
 ## Bereits funktionsfähig
 
 - Dashboard mit Datenstatus und Schnelleinstiegen

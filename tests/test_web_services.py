@@ -75,6 +75,10 @@ def test_legacy_analysis_output_file_is_displayed(workspace_tmp: Path, monkeypat
 def test_session_detail_reads_agenda_and_documents(workspace_tmp: Path, monkeypatch) -> None:
     tmp_path = workspace_tmp
     db_path = tmp_path / "local_index.sqlite"
+    session_dir = tmp_path / "data" / "raw" / "2026" / "03" / "2026-03-11_Rat_7123"
+    document_dir = session_dir / "agenda" / "oe7"
+    document_dir.mkdir(parents=True)
+    (document_dir / "vorlage.txt").write_text("Beschlussvorschlag", encoding="utf-8")
     with sqlite3.connect(db_path) as conn:
         conn.executescript(
             """
@@ -114,7 +118,7 @@ def test_session_detail_reads_agenda_and_documents(workspace_tmp: Path, monkeypa
         )
         conn.execute(
             "INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            ("7123", "2026-03-11", "Rat", "Ratssitzung", "18:00", "Rathaus", "", ""),
+            ("7123", "2026-03-11", "Rat", "Ratssitzung", "18:00", "Rathaus", "", str(session_dir)),
         )
         conn.execute(
             "INSERT INTO agenda_items VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -122,7 +126,7 @@ def test_session_detail_reads_agenda_and_documents(workspace_tmp: Path, monkeypa
         )
         conn.execute(
             "INSERT INTO documents VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (1, "7123", "Vorlage", "", "Beschlussvorlage", "Oe 7", "", "", "pdf", 12),
+            (1, "7123", "Vorlage", "", "Beschlussvorlage", "Oe 7", "", "agenda/oe7/vorlage.txt", "text/plain", 12),
         )
 
     monkeypatch.setattr(services, "LOCAL_INDEX_DB", db_path)
@@ -133,6 +137,8 @@ def test_session_detail_reads_agenda_and_documents(workspace_tmp: Path, monkeypa
     assert session["meeting_name"] == "Ratssitzung"
     assert session["display_date"] == "11.03.2026"
     assert session["agenda_items"][0]["documents"][0]["title"] == "Vorlage"
+    assert session["agenda_items"][0]["has_analysis_documents"] is True
+    assert session["agenda_items"][0]["analysis_document_count"] == 1
 
 
 def test_run_analysis_from_form_validates_missing_session(monkeypatch, workspace_tmp: Path) -> None:
@@ -151,6 +157,90 @@ def test_run_analysis_from_form_validates_missing_session(monkeypatch, workspace
 
     assert result is None
     assert errors
+
+
+def test_run_analysis_from_form_rejects_top_without_analysis_documents(monkeypatch, workspace_tmp: Path) -> None:
+    db_path = workspace_tmp / "local_index.sqlite"
+    with sqlite3.connect(db_path) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE sessions (
+                session_id TEXT PRIMARY KEY,
+                date TEXT,
+                committee TEXT,
+                meeting_name TEXT,
+                start_time TEXT,
+                location TEXT,
+                detail_url TEXT,
+                session_path TEXT
+            );
+            CREATE TABLE agenda_items (
+                id INTEGER PRIMARY KEY,
+                session_id TEXT,
+                number TEXT,
+                title TEXT,
+                reporter TEXT,
+                status TEXT,
+                decision TEXT,
+                documents_present INTEGER
+            );
+            CREATE TABLE documents (
+                id INTEGER PRIMARY KEY,
+                session_id TEXT,
+                title TEXT,
+                category TEXT,
+                document_type TEXT,
+                agenda_item TEXT,
+                url TEXT,
+                local_path TEXT,
+                content_type TEXT,
+                content_length INTEGER
+            );
+            """
+        )
+        conn.execute(
+            "INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            ("7123", "2026-03-11", "Rat", "Ratssitzung", "18:00", "Rathaus", "", str(workspace_tmp / "missing")),
+        )
+        conn.execute(
+            "INSERT INTO agenda_items VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (1, "7123", "Oe 7", "Windkraft", "", "öffentlich", "", 0),
+        )
+
+    monkeypatch.setattr(services, "LOCAL_INDEX_DB", db_path)
+
+    result, errors = services.run_analysis_from_form(
+        {
+            "session_id": "7123",
+            "scope": "tops",
+            "top_numbers": ["Oe 7"],
+            "prompt_text": "Analysiere den TOP.",
+            "provider_id": "none",
+            "purpose": "content_analysis",
+        }
+    )
+
+    assert result is None
+    assert any("lokal vorhandenen Dokumenten" in error for error in errors)
+
+
+def test_save_prompt_template_from_form_persists_template(monkeypatch, workspace_tmp: Path) -> None:
+    template_path = workspace_tmp / "prompt_templates.json"
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_PATH", template_path)
+
+    template, errors = services.save_prompt_template_from_form(
+        {
+            "template_label": "Meine TOP Vorlage",
+            "prompt_text": "Bitte mit Beschlusskontext analysieren.",
+            "scope": "tops",
+            "purpose": "content_analysis",
+        }
+    )
+
+    assert errors == []
+    assert template is not None
+    loaded = services.list_prompt_templates("tops")
+    assert any(item["label"] == "Meine TOP Vorlage" for item in loaded)
 
 
 def test_service_action_builds_local_index_command() -> None:

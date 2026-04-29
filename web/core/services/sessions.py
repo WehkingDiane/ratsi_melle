@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import datetime
+from pathlib import Path
 from typing import Any
+
+from src.fetching.storage_layout import resolve_local_file_path
 
 from . import paths
 from .db import first_row
@@ -75,14 +78,31 @@ def get_session(session_id: str) -> dict[str, Any] | None:
     )
     documents_by_agenda: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for document in documents:
+        document["session_path"] = session.get("session_path") or ""
+        _add_document_analysis_fields(document)
         documents_by_agenda[str(document.get("agenda_item") or "")].append(document)
     for item in agenda_items:
-        item["documents"] = documents_by_agenda.get(str(item.get("number") or ""), [])
+        item_documents = documents_by_agenda.get(str(item.get("number") or ""), [])
+        item["documents"] = item_documents
+        item["document_count"] = len(item_documents)
+        item["analysis_document_count"] = sum(
+            1 for document in item_documents if document.get("source_file_available")
+        )
+        item["has_analysis_documents"] = item["analysis_document_count"] > 0
 
     session["agenda_items"] = agenda_items
     session["documents"] = documents
     session["source_status"] = check_sources(session_id)
     return session
+
+
+def _add_document_analysis_fields(document: dict[str, Any]) -> None:
+    resolved = resolve_local_file_path(
+        session_path=str(document.get("session_path") or ""),
+        local_path=str(document.get("local_path") or ""),
+    )
+    document["resolved_local_path"] = str(resolved) if resolved else ""
+    document["source_file_available"] = bool(resolved and Path(resolved).is_file())
 
 
 def _with_session_display_fields(session: dict[str, Any]) -> dict[str, Any]:

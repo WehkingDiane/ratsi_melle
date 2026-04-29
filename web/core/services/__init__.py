@@ -73,6 +73,11 @@ def get_prompt_template(template_id: str) -> dict[str, Any] | None:
     return prompts.get_prompt_template(template_id)
 
 
+def save_prompt_template_from_form(data: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
+    _sync_paths()
+    return prompts.save_prompt_template_from_form(data)
+
+
 def service_status() -> dict[str, Any]:
     _sync_paths()
     return status.service_status()

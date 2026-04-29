@@ -16,6 +16,13 @@
   {% endfor %}
 </section>
 {% endif %}
+{% if messages %}
+<section class="message-list">
+  {% for message in messages %}
+  <p class="status-ok">{{ message }}</p>
+  {% endfor %}
+</section>
+{% endif %}
 
 <section class="grid two-columns">
   <article class="panel">
@@ -50,6 +57,7 @@
       <div class="selected-context">
         <strong>{{ selected_session.meeting_name|default:"Sitzung" }}</strong>
         <span><span class="date-value">{{ selected_session.display_date|default:selected_session.date|default:"Ohne Datum" }}</span> · {{ selected_session.committee|default:"Gremium unbekannt" }}</span>
+        <span>{{ selected_session.source_status.available_count }} von {{ selected_session.source_status.document_count }} lokalen Dokumenten verfügbar.</span>
       </div>
 
       <fieldset>
@@ -63,9 +71,16 @@
         {% if selected_session.agenda_items %}
         <div class="checkbox-list">
           {% for item in selected_session.agenda_items %}
-          <label>
-            <input type="checkbox" name="top_numbers" value="{{ item.number }}">
-            <span><strong>{{ item.number|default:"TOP" }}</strong> {{ item.title|default:"Ohne Titel" }}</span>
+          <label class="{% if not item.has_analysis_documents %}muted{% endif %}">
+            <input type="checkbox" name="top_numbers" value="{{ item.number }}" {% if not item.has_analysis_documents %}disabled{% endif %}>
+            <span>
+              <strong>{{ item.number|default:"TOP" }}</strong> {{ item.title|default:"Ohne Titel" }}
+              <small>
+                {{ item.analysis_document_count }} analysierbare Dokumente
+                {% if item.decision %} · Beschluss/Abstimmung: {{ item.decision }}{% endif %}
+                {% if not item.has_analysis_documents %} · nicht auswählbar{% endif %}
+              </small>
+            </span>
           </label>
           {% endfor %}
         </div>
@@ -98,6 +113,15 @@
         <textarea name="prompt_text" rows="8">{{ prompt_text }}</textarea>
       </label>
 
+      <fieldset>
+        <legend>Prompt-Vorlage speichern</legend>
+        <label>
+          Name der Vorlage
+          <input type="text" name="template_label" placeholder="z. B. TOP-Analyse mit Beschlusskontext">
+        </label>
+        <button class="button" type="submit" name="form_action" value="save_template">Prompt-Vorlage speichern</button>
+      </fieldset>
+
       <div class="grid two-columns tight">
         <label>
           KI-Provider
@@ -114,7 +138,7 @@
       </div>
 
       <div class="actions">
-        <button class="button primary" type="submit">Analyse starten</button>
+        <button class="button primary" type="submit" name="form_action" value="run_analysis">Analyse starten</button>
         <a class="button" href="{% url 'analysis:session_detail' selected_session.session_id %}">Sitzung ansehen</a>
       </div>
     </form>
