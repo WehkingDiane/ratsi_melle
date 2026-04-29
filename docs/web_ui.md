@@ -62,7 +62,7 @@ web/
     templates/settings_ui/
 ```
 
-`core` enthält das gemeinsame Layout, das Dashboard, zentrale CSS-Dateien und gemeinsam genutzte Services. `analysis` enthält die Analyse-Navigation und vorhandene Ansichten für Sitzungen und Analysejobs. `data_tools` enthält technische Fetch-, Build- und Index-Funktionen. `publishing`, `search` und `settings_ui` sind als eigene Bereiche angelegt und enthalten derzeit Platzhalterseiten.
+`core` enthält das gemeinsame Layout, das Dashboard, zentrale CSS-Dateien und gemeinsam genutzte Services. Die Services sind unter `web/core/services/` fachlich aufgeteilt: `sessions.py` lädt Sitzungseinträge, `outputs.py` liest Analyseausgaben, `source_check.py` prüft lokale Quellen, `prompts.py` lädt Prompt-Vorlagen, `status.py` liefert Status- und Übersichtsangaben. `analysis` enthält die Analyse-Navigation und vorhandene Ansichten für Sitzungen und Analysejobs. `data_tools` enthält technische Fetch-, Build- und Index-Funktionen. `publishing`, `search` und `settings_ui` sind als eigene Bereiche angelegt und enthalten derzeit Platzhalterseiten.
 
 ## Navigation
 
