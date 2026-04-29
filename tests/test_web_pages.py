@@ -17,6 +17,8 @@ django = pytest.importorskip("django")
 
 CORE_TEMPLATE_ROOT = WEB_ROOT / "core" / "templates" / "core"
 CORE_PARTIAL_ROOT = CORE_TEMPLATE_ROOT / "partials"
+ANALYSIS_TEMPLATE_ROOT = WEB_ROOT / "analysis" / "templates" / "analysis"
+DATA_TOOLS_TEMPLATE_ROOT = WEB_ROOT / "data_tools" / "templates" / "data_tools"
 
 
 @pytest.fixture()
@@ -53,13 +55,36 @@ def test_analysis_pages_load(path: str, client) -> None:
     assert response.status_code == 200
 
 
-def test_core_templates_do_not_contain_feature_page_duplicates() -> None:
-    template_files = {path.name for path in CORE_TEMPLATE_ROOT.glob("*.html")}
-    partial_files = {path.name for path in CORE_PARTIAL_ROOT.glob("*.html")}
+def test_templates_are_kept_in_their_feature_apps() -> None:
+    core_templates = {
+        path.relative_to(WEB_ROOT / "core" / "templates").as_posix()
+        for path in (WEB_ROOT / "core" / "templates").rglob("*.html")
+    }
+    analysis_templates = {path.name for path in ANALYSIS_TEMPLATE_ROOT.glob("*.html")}
+    analysis_partials = {path.name for path in (ANALYSIS_TEMPLATE_ROOT / "partials").glob("*.html")}
+    data_templates = {path.name for path in DATA_TOOLS_TEMPLATE_ROOT.glob("*.html")}
 
-    assert template_files == {"dashboard.html"}
-    assert "session_table.html" not in partial_files
-    assert "job_table.html" not in partial_files
+    assert core_templates == {
+        "base.html",
+        "core/dashboard.html",
+        "core/partials/service_result.html",
+        "core/partials/service_status.html",
+    }
+    assert {
+        "analysis_start.html",
+        "index.html",
+        "job_detail.html",
+        "job_list.html",
+        "session_detail.html",
+        "session_list.html",
+    }.issubset(analysis_templates)
+    assert {"job_table.html", "session_table.html"}.issubset(analysis_partials)
+    assert {
+        "index.html",
+        "service_build.html",
+        "service_fetch.html",
+        "service_job_detail.html",
+    }.issubset(data_templates)
 
 
 def test_main_navigation_is_in_shared_layout(client) -> None:
