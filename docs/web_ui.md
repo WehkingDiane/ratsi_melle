@@ -66,10 +66,10 @@ web/
 
 ## Navigation
 
-Das gemeinsame Layout in `web/core/templates/base.html` stellt Header, Hauptnavigation, Inhaltsbereich und Footer bereit. Die Navigation zeigt:
+Das gemeinsame Layout in `web/core/templates/base.html` stellt Header, Hauptnavigation, Inhaltsbereich und Footer bereit. Die Hauptpunkte sind als Dropdown-Menues aufgebaut. Die Navigation zeigt:
 
 - Dashboard
-- Analyse
+- Analyse mit Unterpunkten fuer Uebersicht, Analyse starten, Sitzungen und Analysejobs
 - Daten mit Unterpunkten fuer Fetch und Build
 - Veroeffentlichung
 - Suche
