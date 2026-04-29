@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Datenjob {{ job_id }} - Ratsi Melle{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow">Daten</p>
+  <h1>Datenjob</h1>
+  <p>Der Job laeuft im Hintergrund weiter, auch wenn du die Seite wechselst.</p>
+</section>
+
+{% if job %}
+<section class="panel">
+  <h2>{{ job.action }}</h2>
+  <dl class="facts inline">
+    <div><dt>Status</dt><dd class="{% if job.status == 'ok' %}status-ok{% elif job.status == 'running' or job.status == 'queued' %}status-warning{% else %}status-error{% endif %}">{{ job.status }}</dd></div>
+    <div><dt>Exit-Code</dt><dd>{{ job.exit_code|default:"-" }}</dd></div>
+    <div><dt>Start</dt><dd class="datetime-value">{{ job.started_at|default:"-" }}</dd></div>
+    <div><dt>Ende</dt><dd class="datetime-value">{{ job.finished_at|default:"-" }}</dd></div>
+  </dl>
+  {% if job.status == "running" or job.status == "queued" %}
+  <div class="running-banner">
+    <span class="job-spinner" aria-hidden="true"></span>
+    <span>Script wird ausgefuehrt. Diese Seite aktualisiert sich nicht automatisch, der Header zeigt den laufenden Status.</span>
+  </div>
+  {% endif %}
+  <pre class="text-block compact">{{ job.command_text }}</pre>
+  <pre class="text-block">{{ job.output|default:"Noch keine Ausgabe." }}</pre>
+</section>
+{% else %}
+<p class="empty-state">Dieser Datenjob ist nicht mehr im lokalen Prozessspeicher vorhanden.</p>
+{% endif %}
+
+{% include "core/partials/service_status.html" %}
+{% endblock %}

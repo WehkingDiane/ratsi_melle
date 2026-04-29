@@ -1,4 +1,4 @@
-"""Views for the initial analysis web UI."""
+"""Shared and legacy views for the standalone web UI."""
 
 from __future__ import annotations
 
@@ -11,13 +11,29 @@ from . import services
 from . import service_jobs
 
 
+def dashboard(request):
+    overview = services.source_overview()
+    recent_sessions = services.list_sessions()[:5]
+    recent_jobs = services.list_analysis_outputs()[:5]
+    return render(
+        request,
+        "core/dashboard.html",
+        {
+            "active_nav": "dashboard",
+            "overview": overview,
+            "recent_sessions": recent_sessions,
+            "recent_jobs": recent_jobs,
+        },
+    )
+
+
 def analysis_home(request):
     overview = services.source_overview()
     recent_sessions = services.list_sessions()[:5]
     recent_jobs = services.list_analysis_outputs()[:5]
     return render(
         request,
-        "core/analysis_home.html",
+        "analysis/index.html",
         {
             "active_nav": "analysis",
             "overview": overview,
@@ -31,9 +47,9 @@ def session_list(request):
     sessions = services.list_sessions()
     return render(
         request,
-        "core/session_list.html",
+        "analysis/session_list.html",
         {
-            "active_nav": "sessions",
+            "active_nav": "analysis",
             "sessions": sessions,
         },
     )
@@ -43,9 +59,9 @@ def session_detail(request, session_id: str):
     session = services.get_session(session_id)
     return render(
         request,
-        "core/session_detail.html",
+        "analysis/session_detail.html",
         {
-            "active_nav": "sessions",
+            "active_nav": "analysis",
             "session": session,
             "session_id": session_id,
         },
@@ -87,9 +103,9 @@ def analysis_start(request):
     templates = services.list_prompt_templates(scope)
     return render(
         request,
-        "core/analysis_start.html",
+        "analysis/analysis_start.html",
         {
-            "active_nav": "analysis_start",
+            "active_nav": "analysis",
             "sessions": services.list_sessions(),
             "selected_session": selected_session,
             "selected_session_id": selected_session_id,
@@ -108,9 +124,9 @@ def job_list(request):
     jobs = services.list_analysis_outputs()
     return render(
         request,
-        "core/job_list.html",
+        "analysis/job_list.html",
         {
-            "active_nav": "jobs",
+            "active_nav": "analysis",
             "jobs": jobs,
         },
     )
@@ -120,9 +136,9 @@ def job_detail(request, job_id: str):
     job = services.get_analysis_output(job_id)
     return render(
         request,
-        "core/job_detail.html",
+        "analysis/job_detail.html",
         {
-            "active_nav": "jobs",
+            "active_nav": "analysis",
             "job": job,
             "job_id": job_id,
         },
@@ -132,9 +148,9 @@ def job_detail(request, job_id: str):
 def service_home(request):
     return render(
         request,
-        "core/service_home.html",
+        "data_tools/index.html",
         {
-            "active_nav": "service",
+            "active_nav": "data",
             "status": services.service_status(),
             "jobs": service_jobs.list_service_jobs(),
         },
@@ -152,12 +168,12 @@ def service_fetch(request):
         )
         if command:
             job = service_jobs.start_service_job(request.POST.get("action", ""), command, services.REPO_ROOT)
-            return redirect("analysis:service_job_detail", job_id=job.job_id)
+            return redirect("data_tools:service_job_detail", job_id=job.job_id)
     return render(
         request,
-        "core/service_fetch.html",
+        "data_tools/service_fetch.html",
         {
-            "active_nav": "service",
+            "active_nav": "data",
             "status": services.service_status(),
             "errors": errors,
             "current_year": current_year,
@@ -176,12 +192,12 @@ def service_build(request):
         )
         if command:
             job = service_jobs.start_service_job(request.POST.get("action", ""), command, services.REPO_ROOT)
-            return redirect("analysis:service_job_detail", job_id=job.job_id)
+            return redirect("data_tools:service_job_detail", job_id=job.job_id)
     return render(
         request,
-        "core/service_build.html",
+        "data_tools/service_build.html",
         {
-            "active_nav": "service",
+            "active_nav": "data",
             "status": services.service_status(),
             "errors": errors,
             "current_year": current_year,
@@ -193,9 +209,9 @@ def service_job_detail(request, job_id: str):
     job = service_jobs.get_service_job(job_id)
     return render(
         request,
-        "core/service_job_detail.html",
+        "data_tools/service_job_detail.html",
         {
-            "active_nav": "service",
+            "active_nav": "data",
             "job": job,
             "job_id": job_id,
             "status": services.service_status(),

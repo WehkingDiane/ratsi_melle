@@ -1,0 +1,72 @@
+.main-nav {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.main-nav a {
+  border-radius: 6px;
+  color: var(--muted);
+  font-weight: 700;
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+.main-nav a.active,
+.main-nav a:hover {
+  background: #eef4ff;
+  color: var(--accent-strong);
+  text-decoration: none;
+}
+
+.nav-checkbox,
+.nav-toggle {
+  display: none;
+}
+
+@media (max-width: 920px) {
+  .nav-toggle {
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-grid;
+    gap: 4px;
+    height: 40px;
+    justify-content: center;
+    padding: 0;
+    width: 40px;
+  }
+
+  .nav-toggle span {
+    background: var(--text);
+    display: block;
+    height: 2px;
+    width: 18px;
+  }
+
+  .main-nav {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 10px 28px rgb(24 32 43 / 12%);
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 240px;
+    padding: 8px;
+    position: absolute;
+    right: 16px;
+    top: 70px;
+  }
+
+  .nav-checkbox:checked ~ .main-nav {
+    display: flex;
+  }
+
+  .main-nav a {
+    min-height: 40px;
+    padding: 9px 12px;
+  }
+}

@@ -18,6 +18,11 @@ ALLOWED_HOSTS = ["127.0.0.1", "localhost", "testserver"]
 INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "core",
+    "analysis",
+    "data_tools",
+    "publishing",
+    "search",
+    "settings_ui",
 ]
 
 MIDDLEWARE = [

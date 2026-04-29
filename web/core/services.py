@@ -481,7 +481,10 @@ def _analysis_jobs_from_files() -> list[dict[str, Any]]:
         if not job_id:
             continue
         job = jobs.setdefault(job_id, _empty_job(job_id))
-        rel_path = str(path.relative_to(REPO_ROOT))
+        try:
+            rel_path = str(path.relative_to(REPO_ROOT))
+        except ValueError:
+            rel_path = str(path)
         job["files"].append(rel_path)
         job["sources"].add(rel_path)
         suffix = path.suffix.lower()

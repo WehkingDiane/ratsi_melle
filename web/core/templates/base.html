@@ -5,28 +5,34 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Ratsi Melle{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'core/css/base.css' %}">
   <link rel="stylesheet" href="{% static 'core/css/layout.css' %}">
+  <link rel="stylesheet" href="{% static 'core/css/navigation.css' %}">
   <link rel="stylesheet" href="{% static 'core/css/components.css' %}">
   <link rel="stylesheet" href="{% static 'core/css/status.css' %}">
 </head>
 <body>
-  <header class="topbar">
-    <div class="topbar-inner">
-      <a class="brand" href="{% url 'analysis:index' %}">Ratsi Melle</a>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <div class="brand-block">
+        <a class="brand" href="{% url 'dashboard' %}">Ratsi Melle</a>
+        <p>Lokale Arbeitsoberflaeche</p>
+      </div>
       <input class="nav-checkbox" type="checkbox" id="nav-toggle">
       <label class="nav-toggle" for="nav-toggle" aria-label="Navigation umschalten">
         <span></span>
         <span></span>
         <span></span>
       </label>
-      <nav class="topnav" aria-label="Hauptnavigation">
-        <a class="{% if active_nav == 'analysis' %}active{% endif %}" href="{% url 'analysis:index' %}">Uebersicht</a>
-        <a class="{% if active_nav == 'analysis_start' %}active{% endif %}" href="{% url 'analysis:analysis_start' %}">KI-Analyse</a>
-        <a class="{% if active_nav == 'sessions' %}active{% endif %}" href="{% url 'analysis:session_list' %}">Sitzungen</a>
-        <a class="{% if active_nav == 'jobs' %}active{% endif %}" href="{% url 'analysis:job_list' %}">Jobs</a>
-        <a class="{% if active_nav == 'service' %}active{% endif %}" href="{% url 'analysis:service_home' %}">Service</a>
+      <nav class="main-nav" aria-label="Hauptnavigation">
+        <a class="{% if active_nav == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">Dashboard</a>
+        <a class="{% if active_nav == 'analysis' %}active{% endif %}" href="{% url 'analysis:index' %}">Analyse</a>
+        <a class="{% if active_nav == 'data' %}active{% endif %}" href="{% url 'data_tools:index' %}">Daten</a>
+        <a class="{% if active_nav == 'publishing' %}active{% endif %}" href="{% url 'publishing:index' %}">Veroeffentlichung</a>
+        <a class="{% if active_nav == 'search' %}active{% endif %}" href="{% url 'search:index' %}">Suche</a>
+        <a class="{% if active_nav == 'settings' %}active{% endif %}" href="{% url 'settings_ui:index' %}">Einstellungen</a>
       </nav>
-      <a class="job-indicator" id="job-indicator" href="{% url 'analysis:service_home' %}" hidden>
+      <a class="job-indicator" id="job-indicator" href="{% url 'data_tools:index' %}" hidden>
         <span class="job-spinner" aria-hidden="true"></span>
         <span id="job-indicator-text">Service laeuft</span>
       </a>
@@ -35,6 +41,9 @@
   <main class="shell">
     {% block content %}{% endblock %}
   </main>
+  <footer class="site-footer">
+    <div class="site-footer-inner">Lokale Entwicklungsoberflaeche</div>
+  </footer>
   <script src="{% static 'core/js/service_status.js' %}"></script>
 </body>
 </html>

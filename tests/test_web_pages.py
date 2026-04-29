@@ -27,22 +27,42 @@ def client():
 @pytest.mark.parametrize(
     "path",
     [
+        "/",
         "/analyse/",
         "/analyse/starten/",
         "/analyse/sitzungen/",
         "/analyse/sitzungen/does-not-exist/",
         "/analyse/jobs/",
         "/analyse/jobs/does-not-exist/",
-        "/analyse/service/",
-        "/analyse/service/fetch/",
-        "/analyse/service/build/",
-        "/analyse/service/jobs/status/",
+        "/daten/",
+        "/daten/fetch/",
+        "/daten/build/",
+        "/daten/jobs/status/",
+        "/veroeffentlichung/",
+        "/suche/",
+        "/einstellungen/",
     ],
 )
 def test_analysis_pages_load(path: str, client) -> None:
     response = client.get(path)
 
     assert response.status_code == 200
+
+
+def test_main_navigation_is_in_shared_layout(client) -> None:
+    response = client.get("/")
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "Ratsi Melle" in content
+    assert "Lokale Arbeitsoberflaeche" in content
+    assert "Dashboard" in content
+    assert "Analyse" in content
+    assert "Daten" in content
+    assert "Veroeffentlichung" in content
+    assert "Suche" in content
+    assert "Einstellungen" in content
+    assert "Lokale Entwicklungsoberflaeche" in content
 
 
 def test_analysis_start_page_loads_for_session(client) -> None:
@@ -77,7 +97,7 @@ def test_analysis_start_post_redirects_to_created_job(client, monkeypatch) -> No
 
 
 def test_service_post_starts_background_job(client, monkeypatch) -> None:
-    from core import views
+    from data_tools import views
 
     class Job:
         job_id = "abc123"
@@ -94,9 +114,45 @@ def test_service_post_starts_background_job(client, monkeypatch) -> None:
     )
 
     response = client.post(
-        "/analyse/service/build/",
+        "/daten/build/",
         {"action": "build_local_index"},
     )
 
     assert response.status_code == 302
-    assert response.headers["Location"] == "/analyse/service/jobs/abc123/"
+    assert response.headers["Location"] == "/daten/jobs/abc123/"
+
+
+def test_old_analysis_service_urls_redirect_to_data_area(client) -> None:
+    response = client.get("/analyse/service/")
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/daten/"
+
+
+def test_legacy_v1_analysis_output_page_loads(client, monkeypatch, tmp_path) -> None:
+    import json
+
+    from core import services
+
+    outputs = tmp_path / "analysis_outputs"
+    outputs.mkdir()
+    (outputs / "job_4.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "job_id": 4,
+                "ki_response": "Antwort",
+                "markdown": "# Analyse",
+                "prompt_text": "Bitte analysieren",
+                "status": "done",
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(services, "ANALYSIS_OUTPUTS_DIR", outputs)
+
+    response = client.get("/analyse/jobs/4/")
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "Antwort" in content

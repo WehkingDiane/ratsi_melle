@@ -5,6 +5,16 @@
   padding: 18px;
 }
 
+.area-card {
+  display: grid;
+  gap: 12px;
+}
+
+.area-card p,
+.placeholder-panel p {
+  margin: 0;
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;

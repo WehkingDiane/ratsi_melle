@@ -7,7 +7,7 @@
 
   async function refreshServiceStatus() {
     try {
-      const response = await fetch("/analyse/service/jobs/status/", {
+      const response = await fetch("/daten/jobs/status/", {
         headers: { "Accept": "application/json" },
       });
       if (!response.ok) {
@@ -21,7 +21,7 @@
       }
       const job = active[active.length - 1];
       indicator.hidden = false;
-      indicator.href = "/analyse/service/jobs/" + job.job_id + "/";
+      indicator.href = "/daten/jobs/" + job.job_id + "/";
       text.textContent = active.length === 1
         ? "Service laeuft: " + job.action
         : active.length + " Service-Jobs laufen";

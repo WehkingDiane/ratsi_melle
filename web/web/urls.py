@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 from django.urls import include, path
-from django.views.generic import RedirectView
 
 
 urlpatterns = [
-    path("", RedirectView.as_view(pattern_name="analysis:index", permanent=False)),
-    path("analyse/", include("core.urls")),
+    path("", include("core.urls")),
+    path("analyse/", include("analysis.urls")),
+    path("daten/", include("data_tools.urls")),
+    path("veroeffentlichung/", include("publishing.urls")),
+    path("suche/", include("search.urls")),
+    path("einstellungen/", include("settings_ui.urls")),
 ]
