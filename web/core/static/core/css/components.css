@@ -266,6 +266,25 @@ tr:last-child td {
   color: var(--muted);
 }
 
+.info-panel {
+  background: #eef7f2;
+  border: 1px solid #bddcca;
+  border-radius: 8px;
+  color: #214832;
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+}
+
+.info-panel h3 {
+  font-size: 15px;
+  margin: 0;
+}
+
+.info-panel p {
+  margin: 0;
+}
+
 .message-list {
   display: grid;
   gap: 8px;

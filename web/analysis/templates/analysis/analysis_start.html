@@ -60,6 +60,12 @@
         <span>{{ selected_session.source_status.available_count }} von {{ selected_session.source_status.document_count }} lokalen Dokumenten verfügbar.</span>
       </div>
 
+      <section class="info-panel">
+        <h3>KI-Dokumentübergabe</h3>
+        <p>Bei „Ganze Sitzung“ werden alle lokal verfügbaren Dokumente dieser Sitzung in die Analysegrundlage aufgenommen und an den KI-Provider übergeben. Textdateien werden als Textauszug genutzt, PDFs als PDF-Anhang oder per PDF-Textextraktion.</p>
+        <p>Bei „Ausgewählte TOPs“ werden nur Dokumente der gewählten TOPs übergeben. TOPs ohne lokal vorhandene Dokumente sind unten deaktiviert.</p>
+      </section>
+
       <fieldset>
         <legend>Scope</legend>
         <label><input type="radio" name="scope" value="session" {% if scope != "tops" %}checked{% endif %}> Ganze Sitzung</label>

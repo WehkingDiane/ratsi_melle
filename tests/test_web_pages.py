@@ -100,6 +100,48 @@ def test_analysis_start_page_loads_for_session(client) -> None:
     assert "KI-Analyse starten" in response.content.decode("utf-8")
 
 
+def test_analysis_start_explains_session_document_transfer(client, monkeypatch) -> None:
+    from core import views
+
+    session = {
+        "session_id": "7123",
+        "date": "2026-03-11",
+        "display_date": "11.03.2026",
+        "committee": "Rat",
+        "meeting_name": "Ratssitzung",
+        "source_status": {"available_count": 2, "document_count": 3},
+        "agenda_items": [
+            {
+                "number": "Oe 1",
+                "title": "Mit Dokument",
+                "analysis_document_count": 2,
+                "has_analysis_documents": True,
+                "decision": "angenommen",
+            },
+            {
+                "number": "Oe 2",
+                "title": "Ohne Dokument",
+                "analysis_document_count": 0,
+                "has_analysis_documents": False,
+                "decision": "",
+            },
+        ],
+    }
+    monkeypatch.setattr(views.services, "get_session", lambda _session_id: session)
+    monkeypatch.setattr(views.services, "list_sessions", lambda: [session])
+
+    response = client.get("/analyse/starten/?session_id=7123")
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "KI-Dokumentübergabe" in content
+    assert "Bei „Ganze Sitzung“ werden alle lokal verfügbaren Dokumente" in content
+    assert "2 von 3 lokalen Dokumenten verfügbar" in content
+    assert "0 analysierbare Dokumente" in content
+    assert "nicht auswählbar" in content
+    assert 'value="Oe 2" disabled' in content
+
+
 def test_analysis_start_post_redirects_to_created_job(client, monkeypatch) -> None:
     from core import views
 

@@ -107,6 +107,8 @@ Alte Service-URLs unter `/analyse/service/` werden auf den Datenbereich umgeleit
 
 Der Startfluss unter `/analyse/starten/` nutzt den bestehenden `AnalysisService` aus `src.analysis.service`.
 
+Bei einer Analyse der ganzen Sitzung werden alle lokal verfügbaren Dokumente dieser Sitzung in die Analysegrundlage aufgenommen und an den KI-Provider übergeben. Die Analyse-Startseite weist darauf ausdrücklich hin und zeigt, wie viele lokale Dokumente verfügbar sind.
+
 Bei einer TOP-Analyse sind nur Tagesordnungspunkte auswählbar, für die lokal vorhandene Dokumente aufgelöst werden können. Die Analyse-Startseite zeigt pro TOP, ob analysierbare Dokumente vorhanden sind. TOPs ohne lokale Dokumentquelle bleiben deaktiviert, weil die KI sonst nur Metadaten ohne belastbare Analysegrundlage hätte.
 
 Die Analysegrundlage enthält zusätzlich:
