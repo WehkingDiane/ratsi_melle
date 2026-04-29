@@ -25,7 +25,7 @@ def list_analysis_outputs() -> list[dict[str, Any]]:
     jobs: dict[str, dict[str, Any]] = {}
     for db_path in (paths.ANALYSIS_WORKFLOW_DB, paths.LOCAL_INDEX_DB):
         for row in _analysis_jobs_from_db(db_path):
-            job_id = str(row.get("job_id") or row.get("id") or "")
+            job_id = str(row.get("job_id") or "")
             if not job_id:
                 continue
             job = jobs.setdefault(job_id, _empty_job(job_id))
@@ -49,9 +49,13 @@ def get_analysis_output(job_id: str) -> dict[str, Any] | None:
     """Return one analysis job/output bundle by id."""
 
     normalized_id = str(job_id)
-    for job in list_analysis_outputs():
+    jobs = list_analysis_outputs()
+    for job in jobs:
         if str(job.get("job_id")) == normalized_id:
             return job
+    db_matches = [job for job in jobs if str(job.get("db_job_id") or "") == normalized_id]
+    if len(db_matches) == 1:
+        return db_matches[0]
     return None
 
 
@@ -75,14 +79,28 @@ def _analysis_jobs_from_db(db_path: Path) -> list[dict[str, Any]]:
     for output in output_rows:
         outputs_by_job[str(output.get("job_id"))].append(output)
 
+    source_key = _db_source_key(db_path)
     jobs = []
     for row in job_rows:
-        row["job_id"] = row.get("job_id") or row.get("id")
-        row["db_outputs"] = outputs_by_job.get(str(row.get("job_id")), [])
+        db_job_id = row.get("job_id") or row.get("id")
+        if not db_job_id:
+            continue
+        row["db_job_id"] = db_job_id
+        row["db_source"] = source_key
+        row["job_id"] = f"{source_key}:{db_job_id}"
+        row["db_outputs"] = outputs_by_job.get(str(db_job_id), [])
         for output in row["db_outputs"]:
             _merge_db_output(row, output)
         jobs.append(row)
     return jobs
+
+
+def _db_source_key(db_path: Path) -> str:
+    if db_path == paths.ANALYSIS_WORKFLOW_DB:
+        return "workflow"
+    if db_path == paths.LOCAL_INDEX_DB:
+        return "local"
+    return db_path.stem.replace("_index", "").replace("analysis_", "") or "db"
 
 
 def _analysis_output_rows(conn: sqlite3.Connection) -> list[dict[str, Any]]:

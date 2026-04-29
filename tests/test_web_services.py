@@ -156,16 +156,92 @@ def test_workflow_analysis_output_schema_is_displayed(workspace_tmp: Path, monke
     monkeypatch.setattr(analysis_services, "ANALYSIS_WORKFLOW_DB", workflow_db)
     monkeypatch.setattr(analysis_services, "ANALYSIS_OUTPUTS_DIR", workspace_tmp / "missing_outputs")
 
-    job = analysis_services.get_analysis_output(str(job_id))
+    job = analysis_services.get_analysis_output(f"workflow:{job_id}")
 
     assert job is not None
     assert job_id != 1
-    assert job["job_id"] == job_id
+    assert job["job_id"] == f"workflow:{job_id}"
+    assert job["db_job_id"] == job_id
     assert job["session_id"] == "7123"
     assert job["output_type"] == "raw_analysis"
     assert job["schema_version"] == "2.0"
     assert job["markdown"] == "# Workflow-Analyse"
     assert "data/analysis_outputs/2026/03/session/job_1.raw.json" in job["files"]
+
+
+def test_db_analysis_outputs_are_namespaced_by_source(workspace_tmp: Path, monkeypatch) -> None:
+    workflow_db = workspace_tmp / "data" / "db" / "analysis_workflow.sqlite"
+    workflow_job_id = create_analysis_job(
+        AnalysisJobRecord(
+            session_id="workflow-session",
+            scope="session",
+            purpose="content_analysis",
+            model_name="none",
+            prompt_version="web",
+            status="done",
+        ),
+        workflow_db,
+    )
+    local_db = workspace_tmp / "data" / "db" / "local_index.sqlite"
+    local_db.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(local_db) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE analysis_jobs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TEXT NOT NULL,
+                session_id TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                top_numbers_json TEXT,
+                purpose TEXT NOT NULL DEFAULT 'content_analysis',
+                model_name TEXT,
+                prompt_version TEXT,
+                status TEXT NOT NULL,
+                error_message TEXT
+            );
+            CREATE TABLE analysis_outputs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                job_id INTEGER NOT NULL,
+                output_format TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            """
+        )
+        conn.execute(
+            "INSERT INTO analysis_jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                1,
+                "2026-04-29T20:00:00Z",
+                "local-session",
+                "session",
+                "[]",
+                "content_analysis",
+                "none",
+                "web",
+                "done",
+                None,
+            ),
+        )
+        conn.execute(
+            "INSERT INTO analysis_outputs (job_id, output_format, content, created_at) VALUES (?, ?, ?, ?)",
+            (1, "markdown", "# Lokale Analyse", "2026-04-29T20:00:00Z"),
+        )
+    assert workflow_job_id == 1
+    monkeypatch.setattr(analysis_services, "REPO_ROOT", workspace_tmp)
+    monkeypatch.setattr(analysis_services, "LOCAL_INDEX_DB", local_db)
+    monkeypatch.setattr(analysis_services, "ANALYSIS_WORKFLOW_DB", workflow_db)
+    monkeypatch.setattr(analysis_services, "ANALYSIS_OUTPUTS_DIR", workspace_tmp / "missing_outputs")
+
+    jobs = {str(job["job_id"]): job for job in analysis_services.list_analysis_outputs()}
+
+    assert {"workflow:1", "local:1"} <= set(jobs)
+    assert jobs["workflow:1"]["session_id"] == "workflow-session"
+    assert jobs["local:1"]["session_id"] == "local-session"
+    assert jobs["local:1"]["markdown"] == "# Lokale Analyse"
+    assert analysis_services.get_analysis_output("workflow:1")["session_id"] == "workflow-session"
+    assert analysis_services.get_analysis_output("local:1")["session_id"] == "local-session"
+    assert analysis_services.get_analysis_output("1") is None
 
 
 def test_session_detail_reads_agenda_and_documents(workspace_tmp: Path, monkeypatch) -> None:
