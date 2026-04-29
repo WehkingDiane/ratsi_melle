@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Service-Job {{ job_id }} - Ratsi Melle{% endblock %}
+{% block title %}Datenjob {{ job_id }} - Ratsi Melle{% endblock %}
 
 {% block content %}
 <section class="page-heading">
   <p class="eyebrow">Service</p>
-  <h1>Service-Job</h1>
-  <p>Der Job laeuft im Hintergrund weiter, auch wenn du die Seite wechselst.</p>
+  <h1>Datenjob</h1>
+  <p>Der Job läuft im Hintergrund weiter, auch wenn du die Seite wechselst.</p>
 </section>
 
 {% if job %}
@@ -21,14 +21,14 @@
   {% if job.status == "running" or job.status == "queued" %}
   <div class="running-banner">
     <span class="job-spinner" aria-hidden="true"></span>
-    <span>Script wird ausgefuehrt. Diese Seite aktualisiert sich nicht automatisch, der Header zeigt den laufenden Status.</span>
+    <span>Script wird ausgeführt. Die Logausgabe wird automatisch aktualisiert.</span>
   </div>
   {% endif %}
   <pre class="text-block compact">{{ job.command_text }}</pre>
   <pre class="text-block">{{ job.output|default:"Noch keine Ausgabe." }}</pre>
 </section>
 {% else %}
-<p class="empty-state">Dieser Service-Job ist nicht mehr im lokalen Prozessspeicher vorhanden.</p>
+<p class="empty-state">Dieser Datenjob ist nicht mehr im lokalen Prozessspeicher vorhanden.</p>
 {% endif %}
 
 {% include "core/partials/service_status.html" %}

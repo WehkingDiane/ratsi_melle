@@ -296,6 +296,10 @@ tr:last-child td {
   white-space: nowrap;
 }
 
+.job-indicator[hidden] {
+  display: none;
+}
+
 .job-indicator:hover {
   text-decoration: none;
 }

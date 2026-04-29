@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from django.http import HttpResponseNotFound
 from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.shortcuts import render
@@ -87,3 +88,10 @@ def service_job_status(request):
     active = [job.to_dict() for job in service_jobs.active_service_jobs()]
     recent = [job.to_dict() for job in service_jobs.list_service_jobs(limit=5)]
     return JsonResponse({"active": active, "recent": recent})
+
+
+def service_job_detail_status(request, job_id: str):
+    job = service_jobs.get_service_job(job_id)
+    if job is None:
+        return HttpResponseNotFound()
+    return JsonResponse({"job": job.to_dict()})

@@ -19,7 +19,7 @@
 
 <section class="grid two-columns">
   <article class="panel">
-    <h2>Sitzung waehlen</h2>
+    <h2>Sitzung wählen</h2>
     {% if sessions %}
     <div class="table-wrap compact-table">
       <table>
@@ -29,7 +29,7 @@
           <tr>
             <td class="date-value">{{ session.display_date|default:session.date|default:"-" }}</td>
             <td>{{ session.meeting_name|default:session.session_id }}</td>
-            <td><a href="{% url 'analysis:analysis_start' %}?session_id={{ session.session_id }}">Waehlen</a></td>
+            <td><a href="{% url 'analysis:analysis_start' %}?session_id={{ session.session_id }}">Wählen</a></td>
           </tr>
         {% endfor %}
         </tbody>
@@ -70,7 +70,7 @@
           {% endfor %}
         </div>
         {% else %}
-        <p class="empty-state">Keine TOPs fuer diese Sitzung vorhanden.</p>
+        <p class="empty-state">Keine TOPs für diese Sitzung vorhanden.</p>
         {% endif %}
       </fieldset>
 

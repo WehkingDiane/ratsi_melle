@@ -6,7 +6,7 @@
 <section class="page-heading">
   <p class="eyebrow">Daten</p>
   <h1>Fetch</h1>
-  <p>Sitzungen und Dokumente laden. Diese Aktionen koennen je nach Zeitraum laenger laufen.</p>
+  <p>Sitzungen und Dokumente laden. Diese Aktionen können je nach Zeitraum länger laufen.</p>
 </section>
 
 {% include "core/partials/service_result.html" %}
@@ -18,7 +18,7 @@
       {% csrf_token %}
       <input type="hidden" name="action" value="fetch_sessions">
       <label>Jahr <input type="text" name="year" value="{{ current_year }}"></label>
-      <label>Monate <input type="text" name="months" placeholder="z. B. 1 2 3 oder leer fuer alle"></label>
+      <label>Monate <input type="text" name="months" placeholder="z. B. 1 2 3 oder leer für alle"></label>
       <button class="button primary" type="submit">Sitzungen laden</button>
     </form>
   </article>

@@ -23,8 +23,8 @@
       indicator.hidden = false;
       indicator.href = "/daten/jobs/" + job.job_id + "/";
       text.textContent = active.length === 1
-        ? "Service laeuft: " + job.action
-        : active.length + " Service-Jobs laufen";
+        ? "Datenjob läuft: " + job.action
+        : active.length + " Datenjobs laufen";
     } catch (_error) {
       return;
     }

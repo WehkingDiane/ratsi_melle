@@ -55,24 +55,33 @@ def test_main_navigation_is_in_shared_layout(client) -> None:
 
     assert response.status_code == 200
     assert "Ratsi Melle" in content
-    assert "Lokale Arbeitsoberflaeche" in content
+    assert "Lokale Arbeitsoberfläche" in content
     assert "Dashboard" in content
-    assert "Dashboard oeffnen" in content
+    assert "Dashboard öffnen" in content
     assert "Analyse" in content
-    assert "Analyse-Uebersicht" in content
+    assert "Analyse-Übersicht" in content
     assert "KI-Analyse starten" in content
     assert "Sitzungen" in content
     assert "Analysejobs" in content
     assert "Daten" in content
     assert "Fetch: Daten holen" in content
     assert "Build: Datenbank-Tools" in content
-    assert "Veroeffentlichung" in content
-    assert "Veroeffentlichung oeffnen" in content
+    assert "Veröffentlichung" in content
+    assert "Veröffentlichung öffnen" in content
     assert "Suche" in content
-    assert "Suche oeffnen" in content
+    assert "Suche öffnen" in content
     assert "Einstellungen" in content
-    assert "Einstellungen oeffnen" in content
-    assert "Lokale Entwicklungsoberflaeche" in content
+    assert "Einstellungen öffnen" in content
+    assert "Lokale Entwicklungsoberfläche" in content
+
+
+def test_job_indicator_is_hidden_without_active_job(client) -> None:
+    response = client.get("/")
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert 'id="job-indicator"' in content
+    assert 'id="job-indicator" href="/daten/" hidden' in content
 
 
 def test_analysis_start_page_loads_for_session(client) -> None:
@@ -130,6 +139,31 @@ def test_service_post_starts_background_job(client, monkeypatch) -> None:
 
     assert response.status_code == 302
     assert response.headers["Location"] == "/daten/jobs/abc123/"
+
+
+def test_service_job_status_detail_returns_live_output(client, monkeypatch) -> None:
+    from data_tools import views
+
+    class Job:
+        def to_dict(self):
+            return {
+                "job_id": "abc123",
+                "action": "build_local_index",
+                "status": "running",
+                "output": "Zeile 1\nZeile 2",
+                "exit_code": None,
+                "started_at": "01.01.2026 10:00:00",
+                "finished_at": "",
+            }
+
+    monkeypatch.setattr(views.service_jobs, "get_service_job", lambda _job_id: Job())
+
+    response = client.get("/daten/jobs/abc123/status/")
+    payload = response.json()
+
+    assert response.status_code == 200
+    assert payload["job"]["output"] == "Zeile 1\nZeile 2"
+    assert payload["job"]["status"] == "running"
 
 
 def test_old_analysis_service_urls_redirect_to_data_area(client) -> None:

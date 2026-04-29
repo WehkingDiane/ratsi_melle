@@ -14,5 +14,6 @@ urlpatterns = [
     path("fetch/", views.service_fetch, name="service_fetch"),
     path("build/", views.service_build, name="service_build"),
     path("jobs/status/", views.service_job_status, name="service_job_status"),
+    path("jobs/<str:job_id>/status/", views.service_job_detail_status, name="service_job_detail_status"),
     path("jobs/<str:job_id>/", views.service_job_detail, name="service_job_detail"),
 ]

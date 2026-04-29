@@ -287,15 +287,15 @@ def run_analysis_from_form(data: dict[str, Any]) -> tuple[dict[str, Any] | None,
 
     session = get_session(session_id) if session_id else None
     if not session:
-        errors.append("Bitte eine vorhandene Sitzung waehlen.")
+        errors.append("Bitte eine vorhandene Sitzung wählen.")
     if scope not in {"session", "tops"}:
-        errors.append("Der Scope ist ungueltig.")
+        errors.append("Der Scope ist ungültig.")
     if scope == "tops" and not selected_tops:
-        errors.append("Bitte mindestens einen TOP waehlen oder Scope 'Ganze Sitzung' nutzen.")
+        errors.append("Bitte mindestens einen TOP wählen oder Scope 'Ganze Sitzung' nutzen.")
     if provider_id not in {option["value"] for option in provider_options()}:
-        errors.append("Der KI-Provider ist ungueltig.")
+        errors.append("Der KI-Provider ist ungültig.")
     if purpose not in {option["value"] for option in analysis_purpose_options()}:
-        errors.append("Der Analysezweck ist ungueltig.")
+        errors.append("Der Analysezweck ist ungültig.")
 
     template = get_prompt_template(template_id) if template_id else None
     if template:
@@ -303,7 +303,7 @@ def run_analysis_from_form(data: dict[str, Any]) -> tuple[dict[str, Any] | None,
         if not prompt:
             prompt = str(template.get("text") or "")
     if not prompt:
-        errors.append("Bitte einen Prompt eingeben oder eine Vorlage waehlen.")
+        errors.append("Bitte einen Prompt eingeben oder eine Vorlage wählen.")
 
     if errors or not session:
         return None, errors
@@ -364,7 +364,7 @@ def _service_command(action: str, data: dict[str, Any]) -> list[str]:
             except ValueError as exc:
                 raise ValueError("Limit muss eine Zahl sein.") from exc
             if parsed_limit < 1:
-                raise ValueError("Limit muss groesser als 0 sein.")
+                raise ValueError("Limit muss größer als 0 sein.")
             command.extend(["--limit", str(parsed_limit)])
         return command
 
@@ -375,7 +375,7 @@ def _validated_year(value: Any) -> int:
     try:
         year = int(str(value or "").strip())
     except ValueError as exc:
-        raise ValueError("Bitte ein gueltiges Jahr angeben.") from exc
+        raise ValueError("Bitte ein gültiges Jahr angeben.") from exc
     if year < 2000 or year > 2100:
         raise ValueError("Das Jahr muss zwischen 2000 und 2100 liegen.")
     return year
@@ -390,9 +390,9 @@ def _validated_months(value: Any) -> list[str]:
         try:
             month = int(token)
         except ValueError as exc:
-            raise ValueError("Monate muessen Zahlen zwischen 1 und 12 sein.") from exc
+            raise ValueError("Monate müssen Zahlen zwischen 1 und 12 sein.") from exc
         if month < 1 or month > 12:
-            raise ValueError("Monate muessen zwischen 1 und 12 liegen.")
+            raise ValueError("Monate müssen zwischen 1 und 12 liegen.")
         months.append(str(month))
     return months
 
