@@ -234,6 +234,28 @@ def test_service_post_starts_background_job(client, monkeypatch) -> None:
     assert response.headers["Location"] == "/daten/jobs/abc123/"
 
 
+def test_service_post_requires_csrf_when_enforced(monkeypatch) -> None:
+    from django.test import Client
+
+    from data_tools import views
+
+    monkeypatch.setattr(
+        views.services,
+        "build_service_command",
+        lambda _action, _data: (["python", "scripts/build_local_index.py"], []),
+    )
+
+    response = Client(enforce_csrf_checks=True).post(
+        "/daten/build/",
+        {
+            "action": "build_local_index",
+            "refresh_existing": "1",
+        },
+    )
+
+    assert response.status_code == 403
+
+
 def test_service_job_status_detail_returns_live_output(client, monkeypatch) -> None:
     from data_tools import views
 

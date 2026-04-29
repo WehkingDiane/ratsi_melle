@@ -4,6 +4,7 @@ import json
 import shutil
 import sqlite3
 import sys
+import time
 import uuid
 from pathlib import Path
 from types import FunctionType
@@ -17,6 +18,7 @@ if str(WEB_ROOT) not in sys.path:
     sys.path.insert(0, str(WEB_ROOT))
 
 from analysis import services as analysis_services
+from core import service_jobs
 from core import services as core_services
 from data_tools import services as data_services
 from src.analysis.workflow_db import AnalysisArtifactRecord
@@ -343,3 +345,26 @@ def test_service_action_validates_months() -> None:
 
     assert command is None
     assert errors
+
+
+def test_service_job_launch_failure_is_marked_error(monkeypatch, workspace_tmp: Path) -> None:
+    def fail_popen(*_args, **_kwargs):
+        raise OSError("missing executable")
+
+    monkeypatch.setattr(service_jobs.subprocess, "Popen", fail_popen)
+
+    job = service_jobs.start_service_job("build_local_index", ["missing-command"], workspace_tmp)
+
+    for _ in range(50):
+        current = service_jobs.get_service_job(job.job_id)
+        if current and current.status == "error":
+            break
+        time.sleep(0.01)
+
+    current = service_jobs.get_service_job(job.job_id)
+
+    assert current is not None
+    assert current.status == "error"
+    assert current.to_dict()["running"] is False
+    assert "Service konnte nicht gestartet werden" in current.summary
+    assert "missing executable" in current.output

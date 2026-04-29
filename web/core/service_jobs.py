@@ -78,13 +78,24 @@ def _run_job(job_id: str, cwd: Path) -> None:
     if job is None:
         return
     _update_job(job_id, status="running", started_at=_now())
-    process = subprocess.Popen(
-        job.command,
-        cwd=str(cwd),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-    )
+    try:
+        process = subprocess.Popen(
+            job.command,
+            cwd=str(cwd),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        message = f"Service konnte nicht gestartet werden: {exc}"
+        _update_job(
+            job_id,
+            status="error",
+            output=message,
+            summary=message,
+            finished_at=_now(),
+        )
+        return
 
     lines: list[str] = []
     assert process.stdout is not None
