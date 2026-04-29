@@ -5,6 +5,8 @@ from __future__ import annotations
 from django.urls import path
 from django.views.generic import RedirectView
 
+from data_tools import views as data_tool_views
+
 from . import views
 
 
@@ -20,7 +22,7 @@ urlpatterns = [
     path("service/", RedirectView.as_view(pattern_name="data_tools:index", permanent=False)),
     path("service/fetch/", RedirectView.as_view(pattern_name="data_tools:service_fetch", permanent=False)),
     path("service/build/", RedirectView.as_view(pattern_name="data_tools:service_build", permanent=False)),
-    path("service/jobs/status/", views.legacy_service_job_status, name="service_job_status"),
+    path("service/jobs/status/", data_tool_views.service_job_status, name="service_job_status"),
     path(
         "service/jobs/<str:job_id>/",
         RedirectView.as_view(pattern_name="data_tools:service_job_detail", permanent=False),

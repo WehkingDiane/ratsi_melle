@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
+from types import FunctionType
 
 import pytest
 
@@ -87,6 +88,18 @@ def test_templates_are_kept_in_their_feature_apps() -> None:
     }.issubset(data_templates)
 
 
+def test_core_views_only_expose_core_pages() -> None:
+    from core import views
+
+    public_views = {
+        name
+        for name, value in vars(views).items()
+        if isinstance(value, FunctionType) and value.__module__ == views.__name__ and not name.startswith("_")
+    }
+
+    assert public_views == {"dashboard"}
+
+
 def test_main_navigation_is_in_shared_layout(client) -> None:
     response = client.get("/")
     content = response.content.decode("utf-8")
@@ -130,7 +143,7 @@ def test_analysis_start_page_loads_for_session(client) -> None:
 
 
 def test_analysis_start_explains_session_document_transfer(client, monkeypatch) -> None:
-    from core import views
+    from analysis import views
 
     session = {
         "session_id": "7123",
@@ -172,7 +185,7 @@ def test_analysis_start_explains_session_document_transfer(client, monkeypatch) 
 
 
 def test_analysis_start_post_redirects_to_created_job(client, monkeypatch) -> None:
-    from core import views
+    from analysis import views
 
     monkeypatch.setattr(
         views.services,
