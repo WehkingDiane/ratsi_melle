@@ -15,6 +15,9 @@ if str(WEB_ROOT) not in sys.path:
 django = pytest.importorskip("django")
 
 
+CORE_TEMPLATE_ROOT = WEB_ROOT / "core" / "templates" / "core"
+
+
 @pytest.fixture()
 def client():
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "web.settings")
@@ -47,6 +50,12 @@ def test_analysis_pages_load(path: str, client) -> None:
     response = client.get(path)
 
     assert response.status_code == 200
+
+
+def test_core_templates_do_not_contain_feature_page_duplicates() -> None:
+    template_files = {path.name for path in CORE_TEMPLATE_ROOT.glob("*.html")}
+
+    assert template_files == {"dashboard.html"}
 
 
 def test_main_navigation_is_in_shared_layout(client) -> None:
