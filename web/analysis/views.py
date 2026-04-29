@@ -5,7 +5,7 @@ from __future__ import annotations
 from django.shortcuts import redirect
 from django.shortcuts import render
 
-from core import services
+from . import services
 
 
 def analysis_home(request):

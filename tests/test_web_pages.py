@@ -269,7 +269,7 @@ def test_old_analysis_service_urls_redirect_to_data_area(client) -> None:
 def test_legacy_v1_analysis_output_page_loads(client, monkeypatch, tmp_path) -> None:
     import json
 
-    from core import services
+    from analysis import services
 
     outputs = tmp_path / "analysis_outputs"
     outputs.mkdir()

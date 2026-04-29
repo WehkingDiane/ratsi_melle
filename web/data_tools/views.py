@@ -9,7 +9,8 @@ from django.shortcuts import render
 from django.utils import timezone
 
 from core import service_jobs
-from core import services
+
+from . import services
 
 
 def service_home(request):

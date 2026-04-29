@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from django.shortcuts import render
 
-from . import services
+from analysis import services as analysis_services
 
 
 def dashboard(request):
-    overview = services.source_overview()
-    recent_sessions = services.list_sessions()[:5]
-    recent_jobs = services.list_analysis_outputs()[:5]
+    overview = analysis_services.source_overview()
+    recent_sessions = analysis_services.list_sessions()[:5]
+    recent_jobs = analysis_services.list_analysis_outputs()[:5]
     return render(
         request,
         "core/dashboard.html",

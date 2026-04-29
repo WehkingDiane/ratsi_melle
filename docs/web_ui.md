@@ -43,10 +43,12 @@ web/
   analysis/
     urls.py
     views.py
+    services.py
     templates/analysis/
   data_tools/
     urls.py
     views.py
+    services.py
     templates/data_tools/
   publishing/
     urls.py
@@ -62,7 +64,7 @@ web/
     templates/settings_ui/
 ```
 
-`core` enthält das gemeinsame Layout, das Dashboard, zentrale CSS-Dateien und gemeinsam genutzte Services. `web/core/views.py` enthält nur die Dashboard-View. Die Services sind unter `web/core/services/` fachlich aufgeteilt: `sessions.py` lädt Sitzungseinträge, `outputs.py` liest Analyseausgaben, `source_check.py` prüft lokale Quellen, `prompts.py` lädt Prompt-Vorlagen, `status.py` liefert Status- und Übersichtsangaben. `analysis` enthält die Analyse-Navigation und vorhandene Views für Sitzungen und Analysejobs. `data_tools` enthält die Views für technische Fetch-, Build- und Servicejob-Funktionen. `publishing`, `search` und `settings_ui` sind als eigene Bereiche angelegt und enthalten derzeit Platzhalterseiten.
+`core` enthält das gemeinsame Layout, das Dashboard, zentrale CSS-Dateien und gemeinsam genutzte Helfer. `web/core/views.py` enthält nur die Dashboard-View. `analysis` enthält die Analyse-Navigation, Views und Service-Fassade für Sitzungen, Analysejobs, Prompt-Vorlagen und Analyse-Start. `data_tools` enthält die Views und Service-Fassade für technische Fetch-, Build- und Servicejob-Funktionen. `publishing`, `search` und `settings_ui` sind als eigene Bereiche angelegt und enthalten derzeit Platzhalterseiten.
 
 Analyse-Seitentemplates und fachliche Analyse-Partials liegen ausschließlich unter `web/analysis/templates/analysis/`. Daten-Templates liegen ausschließlich unter `web/data_tools/templates/data_tools/`. `web/core/templates/` bleibt auf `base.html`, das Dashboard und gemeinsam nutzbare Core-Partials beschränkt.
 
