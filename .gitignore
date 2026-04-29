@@ -5,6 +5,8 @@
 .codex/
 __pycache__/
 .pytest_cache/
+pytest_tmp*/
+tests/_runtime_tmp/
 logs/
 
 # Runtime data
