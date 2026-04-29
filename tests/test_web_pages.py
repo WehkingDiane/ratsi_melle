@@ -59,6 +59,8 @@ def test_main_navigation_is_in_shared_layout(client) -> None:
     assert "Dashboard" in content
     assert "Analyse" in content
     assert "Daten" in content
+    assert "Fetch: Daten holen" in content
+    assert "Build: Datenbank-Tools" in content
     assert "Veroeffentlichung" in content
     assert "Suche" in content
     assert "Einstellungen" in content

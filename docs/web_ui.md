@@ -70,7 +70,7 @@ Das gemeinsame Layout in `web/core/templates/base.html` stellt Header, Hauptnavi
 
 - Dashboard
 - Analyse
-- Daten
+- Daten mit Unterpunkten fuer Fetch und Build
 - Veroeffentlichung
 - Suche
 - Einstellungen

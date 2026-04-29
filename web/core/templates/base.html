@@ -27,7 +27,13 @@
       <nav class="main-nav" aria-label="Hauptnavigation">
         <a class="{% if active_nav == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">Dashboard</a>
         <a class="{% if active_nav == 'analysis' %}active{% endif %}" href="{% url 'analysis:index' %}">Analyse</a>
-        <a class="{% if active_nav == 'data' %}active{% endif %}" href="{% url 'data_tools:index' %}">Daten</a>
+        <div class="nav-menu">
+          <a class="nav-menu-label {% if active_nav == 'data' %}active{% endif %}" href="{% url 'data_tools:index' %}" aria-haspopup="true">Daten</a>
+          <div class="nav-dropdown" aria-label="Daten-Untermenue">
+            <a href="{% url 'data_tools:service_fetch' %}">Fetch: Daten holen</a>
+            <a href="{% url 'data_tools:service_build' %}">Build: Datenbank-Tools</a>
+          </div>
+        </div>
         <a class="{% if active_nav == 'publishing' %}active{% endif %}" href="{% url 'publishing:index' %}">Veroeffentlichung</a>
         <a class="{% if active_nav == 'search' %}active{% endif %}" href="{% url 'search:index' %}">Suche</a>
         <a class="{% if active_nav == 'settings' %}active{% endif %}" href="{% url 'settings_ui:index' %}">Einstellungen</a>
