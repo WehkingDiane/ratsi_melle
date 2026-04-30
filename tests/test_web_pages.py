@@ -6,6 +6,7 @@ from pathlib import Path
 from types import FunctionType
 
 import pytest
+from bs4 import BeautifulSoup
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -134,6 +135,51 @@ def test_main_navigation_is_in_shared_layout(client) -> None:
     assert "Einstellungen" in content
     assert "Einstellungen öffnen" in content
     assert "Lokale Entwicklungsoberfläche" in content
+
+
+def test_navigation_dropdowns_have_expected_links(client) -> None:
+    response = client.get("/")
+    soup = BeautifulSoup(response.content.decode("utf-8"), "html.parser")
+
+    labels = {
+        menu.select_one(".nav-menu-label").get_text(strip=True): [
+            link.get_text(strip=True) for link in menu.select(".nav-dropdown a")
+        ]
+        for menu in soup.select(".main-nav .nav-menu")
+    }
+
+    assert labels == {
+        "Dashboard": ["Dashboard öffnen"],
+        "Analyse": ["Analyse-Übersicht", "KI-Analyse starten", "Sitzungen", "Analysejobs"],
+        "Daten": ["Fetch: Daten holen", "Build: Datenbank-Tools"],
+        "Veröffentlichung": ["Veröffentlichung öffnen"],
+        "Suche": ["Suche öffnen"],
+        "Einstellungen": ["Einstellungen öffnen"],
+    }
+    assert all(
+        menu.select_one(".nav-menu-label").get("aria-haspopup") == "true"
+        for menu in soup.select(".main-nav .nav-menu")
+    )
+
+
+@pytest.mark.parametrize(
+    ("path", "active_label"),
+    [
+        ("/", "Dashboard"),
+        ("/analyse/", "Analyse"),
+        ("/daten/", "Daten"),
+        ("/veroeffentlichung/", "Veröffentlichung"),
+        ("/suche/", "Suche"),
+        ("/einstellungen/", "Einstellungen"),
+    ],
+)
+def test_active_navigation_matches_section(path: str, active_label: str, client) -> None:
+    response = client.get(path)
+    soup = BeautifulSoup(response.content.decode("utf-8"), "html.parser")
+    active_items = [item.get_text(strip=True) for item in soup.select(".nav-menu-label.active")]
+
+    assert response.status_code == 200
+    assert active_items == [active_label]
 
 
 def test_job_indicator_is_hidden_without_active_job(client) -> None:
@@ -296,6 +342,32 @@ def test_service_job_status_detail_returns_live_output(client, monkeypatch) -> N
     assert payload["job"]["status"] == "running"
 
 
+def test_service_job_detail_exposes_live_update_hooks(client, monkeypatch) -> None:
+    from data_tools import views
+
+    class Job:
+        job_id = "abc123"
+        action = "build_local_index"
+        status = "running"
+        exit_code = None
+        started_at = "01.01.2026 10:00:00"
+        finished_at = ""
+        command_text = "python scripts/build_local_index.py"
+        output = "Zeile 1"
+
+    monkeypatch.setattr(views.service_jobs, "get_service_job", lambda _job_id: Job())
+
+    response = client.get("/daten/jobs/abc123/")
+    soup = BeautifulSoup(response.content.decode("utf-8"), "html.parser")
+
+    assert response.status_code == 200
+    assert soup.select_one("[data-service-job-id]")["data-service-job-id"] == "abc123"
+    assert soup.select_one("#job-status").get_text(strip=True) == "running"
+    assert soup.select_one("#job-output").get_text(strip=True) == "Zeile 1"
+    assert soup.select_one("#job-running-banner") is not None
+    assert soup.select_one('script[src="/static/core/js/service_job_detail.js"]') is not None
+
+
 def test_old_analysis_service_urls_redirect_to_data_area(client) -> None:
     response = client.get("/analyse/service/")
 
@@ -330,3 +402,42 @@ def test_legacy_v1_analysis_output_page_loads(client, monkeypatch, tmp_path) -> 
 
     assert response.status_code == 200
     assert "Antwort" in content
+
+
+def test_analysis_job_detail_renders_result_sections(client, monkeypatch) -> None:
+    from analysis import views
+
+    monkeypatch.setattr(
+        views.services,
+        "get_analysis_output",
+        lambda _job_id: {
+            "job_id": "workflow:7",
+            "session_id": "7123",
+            "purpose": "content_analysis",
+            "status": "done",
+            "schema_version": "2.0",
+            "output_type": "raw_analysis",
+            "model_name": "none",
+            "prompt_version": "web",
+            "markdown": "# Analyse",
+            "ki_response": "KI-Antwort",
+            "prompt_text": "Prompt aus Datei",
+            "structured_outputs": [{"output_type": "raw_analysis"}],
+            "sources": ["data/analysis_outputs/job_7.raw.json"],
+            "has_content": True,
+            "error_message": "",
+        },
+    )
+
+    response = client.get("/analyse/jobs/workflow:7/")
+    soup = BeautifulSoup(response.content.decode("utf-8"), "html.parser")
+    headings = [heading.get_text(strip=True) for heading in soup.select("h2")]
+
+    assert response.status_code == 200
+    assert "Metadaten" in headings
+    assert "Markdown" in headings
+    assert "KI-Antwort" in headings
+    assert "Prompt" in headings
+    assert "Strukturierte Daten" in headings
+    assert "Quellen" in headings
+    assert "data/analysis_outputs/job_7.raw.json" in soup.get_text()
