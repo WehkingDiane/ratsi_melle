@@ -5,9 +5,13 @@ from __future__ import annotations
 import subprocess
 import threading
 import uuid
-from dataclasses import dataclass, field
+from collections import deque
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+
+
+MAX_OUTPUT_LINES = 500
 
 
 @dataclass
@@ -97,18 +101,18 @@ def _run_job(job_id: str, cwd: Path) -> None:
         )
         return
 
-    lines: list[str] = []
+    lines: deque[str] = deque(maxlen=MAX_OUTPUT_LINES)
     assert process.stdout is not None
     for line in process.stdout:
         stripped = line.rstrip()
         lines.append(stripped)
-        _update_job(job_id, output="\n".join(lines[-500:]), summary=stripped)
+        _update_job(job_id, output="\n".join(lines), summary=stripped)
     process.wait()
     _update_job(
         job_id,
         status="ok" if process.returncode == 0 else "error",
         exit_code=int(process.returncode or 0),
-        output="\n".join(lines[-500:]),
+        output="\n".join(lines),
         finished_at=_now(),
     )
 

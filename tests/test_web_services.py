@@ -244,6 +244,67 @@ def test_db_analysis_outputs_are_namespaced_by_source(workspace_tmp: Path, monke
     assert analysis_services.get_analysis_output("1") is None
 
 
+def test_legacy_db_analysis_outputs_are_read_in_id_order(workspace_tmp: Path, monkeypatch) -> None:
+    local_db = workspace_tmp / "data" / "db" / "local_index.sqlite"
+    local_db.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(local_db) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE analysis_jobs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TEXT NOT NULL,
+                session_id TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                top_numbers_json TEXT,
+                purpose TEXT NOT NULL DEFAULT 'content_analysis',
+                model_name TEXT,
+                prompt_version TEXT,
+                status TEXT NOT NULL,
+                error_message TEXT
+            );
+            CREATE TABLE analysis_outputs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                job_id INTEGER NOT NULL,
+                output_format TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            """
+        )
+        conn.execute(
+            "INSERT INTO analysis_jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                1,
+                "2026-04-29T20:00:00Z",
+                "local-session",
+                "session",
+                "[]",
+                "content_analysis",
+                "none",
+                "web",
+                "done",
+                None,
+            ),
+        )
+        conn.execute(
+            "INSERT INTO analysis_outputs VALUES (?, ?, ?, ?, ?)",
+            (2, 1, "markdown", "# Zweiter Output", "2026-04-29T20:01:00Z"),
+        )
+        conn.execute(
+            "INSERT INTO analysis_outputs VALUES (?, ?, ?, ?, ?)",
+            (1, 1, "markdown", "# Erster Output", "2026-04-29T20:00:00Z"),
+        )
+    monkeypatch.setattr(analysis_services, "REPO_ROOT", workspace_tmp)
+    monkeypatch.setattr(analysis_services, "LOCAL_INDEX_DB", local_db)
+    monkeypatch.setattr(analysis_services, "ANALYSIS_WORKFLOW_DB", workspace_tmp / "missing_workflow.sqlite")
+    monkeypatch.setattr(analysis_services, "ANALYSIS_OUTPUTS_DIR", workspace_tmp / "missing_outputs")
+
+    job = analysis_services.get_analysis_output("local:1")
+
+    assert job is not None
+    assert job["markdown"] == "# Erster Output"
+
+
 def test_session_detail_reads_agenda_and_documents(workspace_tmp: Path, monkeypatch) -> None:
     tmp_path = workspace_tmp
     db_path = tmp_path / "local_index.sqlite"
@@ -457,3 +518,31 @@ def test_service_job_launch_failure_is_marked_error(monkeypatch, workspace_tmp: 
     assert current.to_dict()["running"] is False
     assert "Service konnte nicht gestartet werden" in current.summary
     assert "missing executable" in current.output
+
+
+def test_service_job_output_keeps_only_bounded_tail(monkeypatch, workspace_tmp: Path) -> None:
+    class FakeProcess:
+        stdout = (f"line-{index}\n" for index in range(600))
+        returncode = 0
+
+        def wait(self) -> None:
+            return None
+
+    monkeypatch.setattr(service_jobs.subprocess, "Popen", lambda *_args, **_kwargs: FakeProcess())
+
+    job = service_jobs.start_service_job("build_local_index", ["fake-command"], workspace_tmp)
+
+    for _ in range(50):
+        current = service_jobs.get_service_job(job.job_id)
+        if current and current.status == "ok":
+            break
+        time.sleep(0.01)
+
+    current = service_jobs.get_service_job(job.job_id)
+
+    assert current is not None
+    lines = current.output.splitlines()
+    assert current.status == "ok"
+    assert len(lines) == 500
+    assert lines[0] == "line-100"
+    assert lines[-1] == "line-599"

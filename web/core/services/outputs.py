@@ -106,10 +106,16 @@ def _db_source_key(db_path: Path) -> str:
 def _analysis_output_rows(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     columns = _table_columns(conn, "analysis_outputs")
     if {"job_id", "output_format", "content", "created_at"} <= columns:
+        selected = [
+            column
+            for column in ("id", "job_id", "output_format", "content", "created_at")
+            if column in columns
+        ]
+        order_column = "id" if "id" in columns else "created_at"
         return [
             dict(row)
             for row in conn.execute(
-                "SELECT job_id, output_format, content, created_at FROM analysis_outputs"
+                f"SELECT {', '.join(selected)} FROM analysis_outputs ORDER BY {order_column}"
             ).fetchall()
         ]
     if {"job_id", "output_type", "json_path", "markdown_path"} <= columns:
@@ -127,7 +133,13 @@ def _analysis_output_rows(conn: sqlite3.Connection) -> list[dict[str, Any]]:
             )
             if column in columns
         ]
-        return [dict(row) for row in conn.execute(f"SELECT {', '.join(selected)} FROM analysis_outputs").fetchall()]
+        order_column = "output_id" if "output_id" in columns else "created_at"
+        return [
+            dict(row)
+            for row in conn.execute(
+                f"SELECT {', '.join(selected)} FROM analysis_outputs ORDER BY {order_column}"
+            ).fetchall()
+        ]
     return []
 
 
