@@ -5,6 +5,8 @@
 .codex/
 __pycache__/
 .pytest_cache/
+pytest_tmp*/
+tests/_runtime_tmp/
 logs/
 
 # Runtime data
@@ -14,6 +16,7 @@ data/processed/
 # Databases
 data/db/*
 !data/db/.gitkeep
+web/*.sqlite3
 
 # Analysis artifacts
 data/analysis_requests/*

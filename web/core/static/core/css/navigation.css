@@ -1,0 +1,141 @@
+.main-nav {
+  align-items: center;
+  display: flex;
+  flex: 1 1 auto;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.main-nav a,
+.nav-menu-label {
+  border-radius: 6px;
+  color: var(--muted);
+  font-weight: 700;
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+.main-nav a.active,
+.main-nav a:hover,
+.nav-menu:focus-within .nav-menu-label,
+.nav-menu:hover .nav-menu-label {
+  background: #eef4ff;
+  color: var(--accent-strong);
+  text-decoration: none;
+}
+
+.nav-menu {
+  position: relative;
+}
+
+.nav-menu-label {
+  display: inline-flex;
+}
+
+.nav-menu-label::after {
+  content: "";
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+  margin-left: 7px;
+  margin-top: 8px;
+}
+
+.nav-dropdown {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgb(24 32 43 / 12%);
+  display: none;
+  min-width: 220px;
+  padding: 8px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+}
+
+.nav-dropdown a {
+  display: block;
+  padding: 9px 10px;
+}
+
+.nav-menu:focus-within .nav-dropdown,
+.nav-menu:hover .nav-dropdown {
+  display: block;
+}
+
+.nav-checkbox,
+.nav-toggle {
+  display: none;
+}
+
+@media (max-width: 920px) {
+  .nav-toggle {
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-grid;
+    gap: 4px;
+    height: 40px;
+    justify-content: center;
+    padding: 0;
+    width: 40px;
+  }
+
+  .nav-toggle span {
+    background: var(--text);
+    display: block;
+    height: 2px;
+    width: 18px;
+  }
+
+  .main-nav {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 10px 28px rgb(24 32 43 / 12%);
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 240px;
+    padding: 8px;
+    position: absolute;
+    right: 16px;
+    top: 70px;
+  }
+
+  .nav-checkbox:checked ~ .main-nav {
+    display: flex;
+  }
+
+  .main-nav a {
+    min-height: 40px;
+    padding: 9px 12px;
+  }
+
+  .nav-menu {
+    display: grid;
+  }
+
+  .nav-menu-label {
+    min-height: 40px;
+    padding: 9px 12px;
+  }
+
+  .nav-dropdown {
+    border: 0;
+    box-shadow: none;
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+    padding: 0 0 0 14px;
+    position: static;
+  }
+
+  .nav-dropdown a {
+    font-size: 14px;
+    min-height: 36px;
+  }
+}

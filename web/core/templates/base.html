@@ -1,0 +1,83 @@
+{% load static %}
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Ratsi Melle{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'core/css/base.css' %}">
+  <link rel="stylesheet" href="{% static 'core/css/layout.css' %}">
+  <link rel="stylesheet" href="{% static 'core/css/navigation.css' %}">
+  <link rel="stylesheet" href="{% static 'core/css/components.css' %}">
+  <link rel="stylesheet" href="{% static 'core/css/status.css' %}">
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <div class="brand-block">
+        <a class="brand" href="{% url 'dashboard' %}">Ratsi Melle</a>
+        <p>Lokale Arbeitsoberfläche</p>
+      </div>
+      <input class="nav-checkbox" type="checkbox" id="nav-toggle">
+      <label class="nav-toggle" for="nav-toggle" aria-label="Navigation umschalten">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+      <nav class="main-nav" aria-label="Hauptnavigation">
+        <div class="nav-menu">
+          <a class="nav-menu-label {% if active_nav == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}" aria-haspopup="true">Dashboard</a>
+          <div class="nav-dropdown" aria-label="Dashboard-Untermenü">
+            <a href="{% url 'dashboard' %}">Dashboard öffnen</a>
+          </div>
+        </div>
+        <div class="nav-menu">
+          <a class="nav-menu-label {% if active_nav == 'analysis' %}active{% endif %}" href="{% url 'analysis:index' %}" aria-haspopup="true">Analyse</a>
+          <div class="nav-dropdown" aria-label="Analyse-Untermenü">
+            <a href="{% url 'analysis:index' %}">Analyse-Übersicht</a>
+            <a href="{% url 'analysis:analysis_start' %}">KI-Analyse starten</a>
+            <a href="{% url 'analysis:session_list' %}">Sitzungen</a>
+            <a href="{% url 'analysis:job_list' %}">Analysejobs</a>
+          </div>
+        </div>
+        <div class="nav-menu">
+          <a class="nav-menu-label {% if active_nav == 'data' %}active{% endif %}" href="{% url 'data_tools:index' %}" aria-haspopup="true">Daten</a>
+          <div class="nav-dropdown" aria-label="Daten-Untermenü">
+            <a href="{% url 'data_tools:service_fetch' %}">Fetch: Daten holen</a>
+            <a href="{% url 'data_tools:service_build' %}">Build: Datenbank-Tools</a>
+          </div>
+        </div>
+        <div class="nav-menu">
+          <a class="nav-menu-label {% if active_nav == 'publishing' %}active{% endif %}" href="{% url 'publishing:index' %}" aria-haspopup="true">Veröffentlichung</a>
+          <div class="nav-dropdown" aria-label="Veröffentlichung-Untermenü">
+            <a href="{% url 'publishing:index' %}">Veröffentlichung öffnen</a>
+          </div>
+        </div>
+        <div class="nav-menu">
+          <a class="nav-menu-label {% if active_nav == 'search' %}active{% endif %}" href="{% url 'search:index' %}" aria-haspopup="true">Suche</a>
+          <div class="nav-dropdown" aria-label="Suche-Untermenü">
+            <a href="{% url 'search:index' %}">Suche öffnen</a>
+          </div>
+        </div>
+        <div class="nav-menu">
+          <a class="nav-menu-label {% if active_nav == 'settings' %}active{% endif %}" href="{% url 'settings_ui:index' %}" aria-haspopup="true">Einstellungen</a>
+          <div class="nav-dropdown" aria-label="Einstellungen-Untermenü">
+            <a href="{% url 'settings_ui:index' %}">Einstellungen öffnen</a>
+          </div>
+        </div>
+      </nav>
+      <a class="job-indicator" id="job-indicator" href="{% url 'data_tools:index' %}" hidden>
+        <span class="job-spinner" aria-hidden="true"></span>
+        <span id="job-indicator-text">Datenjob läuft</span>
+      </a>
+    </div>
+  </header>
+  <main class="shell">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="site-footer">
+    <div class="site-footer-inner">Lokale Entwicklungsoberfläche</div>
+  </footer>
+  <script src="{% static 'core/js/service_status.js' %}"></script>
+</body>
+</html>

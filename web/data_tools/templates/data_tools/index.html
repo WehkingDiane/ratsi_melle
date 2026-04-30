@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Daten - Ratsi Melle{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow">Arbeitsbereich</p>
+  <h1>Daten</h1>
+  <p>Fetch- und Build-Funktionen für lokale Daten, Indexe und Suche.</p>
+</section>
+
+<section class="grid two-columns">
+  <article class="panel">
+    <h2>Fetch</h2>
+    <p class="muted">Sitzungen und Dokumente aus SessionNet laden.</p>
+    <div class="actions">
+      <a class="button primary" href="{% url 'data_tools:service_fetch' %}">Fetch-Seite öffnen</a>
+    </div>
+  </article>
+  <article class="panel">
+    <h2>Build</h2>
+    <p class="muted">Lokale SQLite-Indexe und Vektorindex aufbauen.</p>
+    <div class="actions">
+      <a class="button primary" href="{% url 'data_tools:service_build' %}">Build-Seite öffnen</a>
+    </div>
+  </article>
+</section>
+
+{% include "core/partials/service_status.html" %}
+
+{% if jobs %}
+<section class="panel service-status">
+  <h2>Letzte Datenjobs</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Job</th><th>Aktion</th><th>Status</th><th>Start</th></tr></thead>
+      <tbody>
+      {% for job in jobs %}
+      <tr>
+        <td><a href="{% url 'data_tools:service_job_detail' job.job_id %}">{{ job.job_id }}</a></td>
+        <td>{{ job.action }}</td>
+        <td>{{ job.status }}</td>
+        <td class="datetime-value">{{ job.started_at|default:"-" }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

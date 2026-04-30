@@ -1,0 +1,26 @@
+{% if sessions %}
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Datum</th>
+        <th>Gremium</th>
+        <th>Sitzung</th>
+        {% if not compact %}<th>TOPs</th><th>Dokumente</th><th></th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for session in sessions %}
+      <tr>
+        <td class="date-value">{{ session.display_date|default:session.date|default:"-" }}</td>
+        <td>{{ session.committee|default:"-" }}</td>
+        <td><a href="{% url 'analysis:session_detail' session.session_id %}">{{ session.meeting_name|default:session.session_id }}</a></td>
+        {% if not compact %}<td>{{ session.agenda_count|default:"0" }}</td><td>{{ session.document_count|default:"0" }}</td><td><a href="{% url 'analysis:analysis_start' %}?session_id={{ session.session_id }}">Analyse</a></td>{% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="empty-state">Keine Sitzungen gefunden. Prüfe, ob `data/db/local_index.sqlite` vorhanden ist.</p>
+{% endif %}

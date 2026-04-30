@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Daten-Build - Ratsi Melle{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow">Daten</p>
+  <h1>Build</h1>
+  <p>Indexe aus vorhandenen oder online gelesenen Daten aufbauen.</p>
+</section>
+
+{% include "core/partials/service_result.html" %}
+
+<section class="grid two-columns">
+  <article class="panel">
+    <h2>Lokalen Index bauen</h2>
+    <form method="post" class="form-stack">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="build_local_index">
+      <label class="checkbox-inline"><input type="checkbox" name="refresh_existing" value="1"> Bestehende Sitzungen aktualisieren</label>
+      <label class="checkbox-inline"><input type="checkbox" name="only_refresh" value="1"> Nur bestehende Sitzungen aktualisieren</label>
+      <button class="button primary" type="submit">Lokalen Index bauen</button>
+    </form>
+  </article>
+
+  <article class="panel">
+    <h2>Online-Index bauen</h2>
+    <form method="post" class="form-stack">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="build_online_index">
+      <label>Jahr <input type="text" name="year" value="{{ current_year }}"></label>
+      <label>Monate <input type="text" name="months" placeholder="z. B. 1 2 3 oder leer für alle"></label>
+      <label class="checkbox-inline"><input type="checkbox" name="refresh_existing" value="1"> Bestehende Sitzungen aktualisieren</label>
+      <label class="checkbox-inline"><input type="checkbox" name="only_refresh" value="1"> Nur bestehende Sitzungen aktualisieren</label>
+      <button class="button primary" type="submit">Online-Index bauen</button>
+    </form>
+  </article>
+
+  <article class="panel">
+    <h2>Vektorindex bauen</h2>
+    <form method="post" class="form-stack">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="build_vector_index">
+      <label>Limit <input type="text" name="limit" placeholder="Optional, z. B. 100"></label>
+      <button class="button primary" type="submit">Vektorindex bauen</button>
+    </form>
+  </article>
+</section>
+
+{% include "core/partials/service_status.html" %}
+{% endblock %}

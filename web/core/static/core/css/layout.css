@@ -1,0 +1,142 @@
+.site-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  min-height: 76px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.site-header-inner {
+  align-items: center;
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+  margin: 0 auto;
+  max-width: 1180px;
+  min-height: 76px;
+  padding: 0 32px;
+}
+
+.brand-block {
+  display: grid;
+  gap: 2px;
+}
+
+.brand {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.brand-block p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0;
+}
+
+.shell {
+  min-height: calc(100vh - 137px);
+  margin: 0 auto;
+  max-width: 1180px;
+  padding: 32px;
+}
+
+.site-footer {
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.site-footer-inner {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0 auto;
+  max-width: 1180px;
+  padding: 16px 32px;
+}
+
+.page-heading {
+  margin-bottom: 28px;
+}
+
+.page-heading h1 {
+  font-size: 32px;
+  line-height: 1.2;
+  margin: 0 0 8px;
+}
+
+.page-heading p {
+  color: var(--muted);
+  margin: 0;
+  max-width: 760px;
+}
+
+.eyebrow {
+  color: var(--accent-strong) !important;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  margin-bottom: 6px !important;
+  text-transform: uppercase;
+}
+
+.grid {
+  display: grid;
+  gap: 20px;
+}
+
+.two-columns {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.three-columns {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.area-grid,
+.dashboard-status {
+  margin-bottom: 28px;
+}
+
+.split-content {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  margin-top: 28px;
+}
+
+.section-title {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin: 20px 0 10px;
+}
+
+.section-title h2,
+.panel h2 {
+  font-size: 18px;
+  margin: 0;
+}
+
+@media (max-width: 820px) {
+  .site-header-inner {
+    align-items: center;
+    gap: 12px;
+    min-height: 70px;
+    padding: 10px 16px;
+  }
+
+  .shell {
+    padding: 20px 16px;
+  }
+
+  .site-footer-inner {
+    padding: 14px 16px;
+  }
+
+  .two-columns,
+  .three-columns,
+  .split-content {
+    grid-template-columns: 1fr;
+  }
+}

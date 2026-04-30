@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}Sitzungen - Ratsi Melle{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow">Analyse</p>
+  <h1>Sitzungen</h1>
+  <p>Vorhandene Sitzungen aus dem lokalen Index.</p>
+</section>
+
+{% include "analysis/partials/session_table.html" with sessions=sessions %}
+{% endblock %}

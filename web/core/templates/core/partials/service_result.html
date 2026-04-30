@@ -1,0 +1,9 @@
+{% if errors %}
+<section class="message-list">
+  {% for error in errors %}
+  <p class="status-error">{{ error }}</p>
+  {% endfor %}
+</section>
+{% endif %}
+
+<p class="empty-state service-note">Nach dem Start wird ein Hintergrundjob angelegt. Seitenwechsel brechen den laufenden Prozess nicht ab.</p>
