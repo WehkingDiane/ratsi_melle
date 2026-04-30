@@ -122,7 +122,8 @@ def _read_text_excerpt(path: Path | None, max_chars: int = 12000) -> str:
     if path is None or path.suffix.lower() not in {".txt", ".md", ".markdown", ".html", ".htm"}:
         return ""
     try:
-        return path.read_text(encoding="utf-8", errors="replace")[:max_chars].strip()
+        with path.open("r", encoding="utf-8", errors="replace") as handle:
+            return handle.read(max_chars).strip()
     except OSError:
         return ""
 
