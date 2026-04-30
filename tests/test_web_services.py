@@ -169,6 +169,59 @@ def test_workflow_analysis_output_schema_is_displayed(workspace_tmp: Path, monke
     assert "data/analysis_outputs/2026/03/session/job_1.raw.json" in job["files"]
 
 
+def test_workflow_output_paths_accept_windows_separators(workspace_tmp: Path, monkeypatch) -> None:
+    output_dir = workspace_tmp / "data" / "analysis_outputs" / "2026" / "03" / "session"
+    output_dir.mkdir(parents=True)
+    json_path = output_dir / "job_1.raw.json"
+    markdown_path = output_dir / "job_1.md"
+    json_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "2.0",
+                "output_type": "raw_analysis",
+                "job_id": 1,
+                "session_id": "7123",
+                "status": "done",
+            }
+        ),
+        encoding="utf-8",
+    )
+    markdown_path.write_text("# Windows-Pfad", encoding="utf-8")
+    workflow_db = workspace_tmp / "data" / "db" / "analysis_workflow.sqlite"
+    job_id = create_analysis_job(
+        AnalysisJobRecord(
+            session_id="7123",
+            scope="session",
+            purpose="content_analysis",
+            model_name="none",
+            prompt_version="web",
+            status="done",
+        ),
+        workflow_db,
+    )
+    add_analysis_output(
+        AnalysisArtifactRecord(
+            job_id=job_id,
+            output_type="raw_analysis",
+            schema_version="2.0",
+            json_path=r"data\analysis_outputs\2026\03\session\job_1.raw.json",
+            markdown_path=r"data\analysis_outputs\2026\03\session\job_1.md",
+            status="done",
+        ),
+        workflow_db,
+    )
+    monkeypatch.setattr(analysis_services, "REPO_ROOT", workspace_tmp)
+    monkeypatch.setattr(analysis_services, "LOCAL_INDEX_DB", workspace_tmp / "missing.sqlite")
+    monkeypatch.setattr(analysis_services, "ANALYSIS_WORKFLOW_DB", workflow_db)
+    monkeypatch.setattr(analysis_services, "ANALYSIS_OUTPUTS_DIR", workspace_tmp / "missing_outputs")
+
+    job = analysis_services.get_analysis_output(f"workflow:{job_id}")
+
+    assert job is not None
+    assert job["markdown"] == "# Windows-Pfad"
+    assert "data/analysis_outputs/2026/03/session/job_1.raw.json" in job["files"]
+
+
 def test_db_analysis_outputs_are_namespaced_by_source(workspace_tmp: Path, monkeypatch) -> None:
     workflow_db = workspace_tmp / "data" / "db" / "analysis_workflow.sqlite"
     workflow_job_id = create_analysis_job(
@@ -825,3 +878,36 @@ def test_service_job_output_keeps_only_bounded_tail(monkeypatch, workspace_tmp: 
     assert len(lines) == 500
     assert lines[0] == "line-100"
     assert lines[-1] == "line-599"
+
+
+def test_terminal_service_jobs_are_pruned_but_active_jobs_remain() -> None:
+    with service_jobs._lock:
+        old_jobs = dict(service_jobs._jobs)
+        service_jobs._jobs.clear()
+        try:
+            for index in range(service_jobs.MAX_RETAINED_JOBS + 5):
+                job = service_jobs.ServiceJob(
+                    job_id=f"done-{index}",
+                    action="build_local_index",
+                    command=["fake-command"],
+                    status="ok",
+                    output=f"line-{index}",
+                )
+                service_jobs._jobs[job.job_id] = job
+            active = service_jobs.ServiceJob(
+                job_id="active",
+                action="fetch_sessions",
+                command=["fake-command"],
+                status="running",
+            )
+            service_jobs._jobs[active.job_id] = active
+
+            service_jobs._prune_jobs_locked()
+
+            assert len(service_jobs._jobs) == service_jobs.MAX_RETAINED_JOBS
+            assert "active" in service_jobs._jobs
+            assert "done-0" not in service_jobs._jobs
+            assert f"done-{service_jobs.MAX_RETAINED_JOBS + 4}" in service_jobs._jobs
+        finally:
+            service_jobs._jobs.clear()
+            service_jobs._jobs.update(old_jobs)

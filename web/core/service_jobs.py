@@ -12,6 +12,7 @@ from pathlib import Path
 
 
 MAX_OUTPUT_LINES = 500
+MAX_RETAINED_JOBS = 50
 
 
 @dataclass
@@ -56,6 +57,7 @@ def start_service_job(action: str, command: list[str], cwd: Path) -> ServiceJob:
     job = ServiceJob(job_id=uuid.uuid4().hex[:12], action=action, command=command)
     with _lock:
         _jobs[job.job_id] = job
+        _prune_jobs_locked()
     thread = threading.Thread(target=_run_job, args=(job.job_id, cwd), daemon=True)
     thread.start()
     return job
@@ -124,6 +126,19 @@ def _update_job(job_id: str, **updates: object) -> None:
             return
         for key, value in updates.items():
             setattr(job, key, value)
+        if job.status not in {"queued", "running"}:
+            _prune_jobs_locked()
+
+
+def _prune_jobs_locked() -> None:
+    terminal_jobs = [
+        job_id
+        for job_id, job in _jobs.items()
+        if job.status not in {"queued", "running"}
+    ]
+    while len(_jobs) > MAX_RETAINED_JOBS and terminal_jobs:
+        job_id = terminal_jobs.pop(0)
+        _jobs.pop(job_id, None)
 
 
 def _now() -> str:

@@ -231,6 +231,7 @@ def _resolve_output_path(value: Any) -> Path | None:
     raw = str(value or "").strip()
     if not raw:
         return None
+    raw = raw.replace("\\", "/")
     path = Path(raw)
     if not path.is_absolute():
         path = paths.REPO_ROOT / path
