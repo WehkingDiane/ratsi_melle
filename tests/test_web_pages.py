@@ -202,6 +202,11 @@ def test_analysis_start_post_redirects_to_created_job(client, monkeypatch) -> No
         "run_analysis_from_form",
         lambda _data: ({"job_id": 99}, []),
     )
+    monkeypatch.setattr(
+        views.services,
+        "canonical_analysis_job_id",
+        lambda _result: "workflow:7",
+    )
 
     response = client.post(
         "/analyse/starten/",
@@ -215,7 +220,7 @@ def test_analysis_start_post_redirects_to_created_job(client, monkeypatch) -> No
     )
 
     assert response.status_code == 302
-    assert response.headers["Location"] == "/analyse/jobs/99/"
+    assert response.headers["Location"] == "/analyse/jobs/workflow:7/"
 
 
 def test_service_post_starts_background_job(client, monkeypatch) -> None:

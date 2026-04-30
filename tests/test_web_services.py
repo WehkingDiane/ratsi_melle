@@ -399,6 +399,130 @@ def test_file_analysis_outputs_prefer_workflow_job_when_db_ids_collide(
     assert jobs["local:1"]["ki_response"] == ""
 
 
+def test_canonical_analysis_job_id_prefers_workflow_source_job(
+    workspace_tmp: Path, monkeypatch
+) -> None:
+    workflow_db = workspace_tmp / "data" / "db" / "analysis_workflow.sqlite"
+    workflow_job_id = create_analysis_job(
+        AnalysisJobRecord(
+            session_id="workflow-session",
+            scope="session",
+            purpose="content_analysis",
+            source_db=str(workspace_tmp / "data" / "db" / "local_index.sqlite"),
+            source_job_id=1,
+            model_name="none",
+            prompt_version="web",
+            status="done",
+        ),
+        workflow_db,
+    )
+    local_db = workspace_tmp / "data" / "db" / "local_index.sqlite"
+    local_db.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(local_db) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE analysis_jobs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TEXT NOT NULL,
+                session_id TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                top_numbers_json TEXT,
+                purpose TEXT NOT NULL DEFAULT 'content_analysis',
+                model_name TEXT,
+                prompt_version TEXT,
+                status TEXT NOT NULL,
+                error_message TEXT
+            );
+            CREATE TABLE analysis_outputs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                job_id INTEGER NOT NULL,
+                output_format TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            """
+        )
+        conn.execute(
+            "INSERT INTO analysis_jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                1,
+                "2026-04-29T20:00:00Z",
+                "local-session",
+                "session",
+                "[]",
+                "content_analysis",
+                "none",
+                "web",
+                "done",
+                None,
+            ),
+        )
+    monkeypatch.setattr(analysis_services, "REPO_ROOT", workspace_tmp)
+    monkeypatch.setattr(analysis_services, "LOCAL_INDEX_DB", local_db)
+    monkeypatch.setattr(analysis_services, "ANALYSIS_WORKFLOW_DB", workflow_db)
+    monkeypatch.setattr(analysis_services, "ANALYSIS_OUTPUTS_DIR", workspace_tmp / "missing_outputs")
+
+    assert analysis_services.canonical_analysis_job_id({"job_id": 1}) == f"workflow:{workflow_job_id}"
+
+
+def test_prompt_artifact_is_loaded_from_prompt_directory(workspace_tmp: Path, monkeypatch) -> None:
+    local_db = workspace_tmp / "data" / "db" / "local_index.sqlite"
+    prompt_dir = workspace_tmp / "data" / "analysis_prompts"
+    local_db.parent.mkdir(parents=True, exist_ok=True)
+    prompt_dir.mkdir(parents=True)
+    with sqlite3.connect(local_db) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE analysis_jobs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TEXT NOT NULL,
+                session_id TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                top_numbers_json TEXT,
+                purpose TEXT NOT NULL DEFAULT 'content_analysis',
+                model_name TEXT,
+                prompt_version TEXT,
+                status TEXT NOT NULL,
+                error_message TEXT
+            );
+            CREATE TABLE analysis_outputs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                job_id INTEGER NOT NULL,
+                output_format TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            """
+        )
+        conn.execute(
+            "INSERT INTO analysis_jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                1,
+                "2026-04-29T20:00:00Z",
+                "local-session",
+                "session",
+                "[]",
+                "content_analysis",
+                "none",
+                "web",
+                "done",
+                None,
+            ),
+        )
+    (prompt_dir / "job_1.txt").write_text("Prompt aus Datei\n", encoding="utf-8")
+    monkeypatch.setattr(analysis_services, "REPO_ROOT", workspace_tmp)
+    monkeypatch.setattr(analysis_services, "LOCAL_INDEX_DB", local_db)
+    monkeypatch.setattr(analysis_services, "ANALYSIS_WORKFLOW_DB", workspace_tmp / "missing_workflow.sqlite")
+    monkeypatch.setattr(analysis_services, "ANALYSIS_OUTPUTS_DIR", workspace_tmp / "missing_outputs")
+    monkeypatch.setattr(analysis_services, "ANALYSIS_PROMPTS_DIR", prompt_dir)
+
+    job = analysis_services.get_analysis_output("local:1")
+
+    assert job is not None
+    assert job["prompt_text"] == "Prompt aus Datei"
+    assert "data/analysis_prompts/job_1.txt" in job["files"]
+
+
 def test_legacy_db_analysis_outputs_are_read_in_id_order(workspace_tmp: Path, monkeypatch) -> None:
     local_db = workspace_tmp / "data" / "db" / "local_index.sqlite"
     local_db.parent.mkdir(parents=True, exist_ok=True)

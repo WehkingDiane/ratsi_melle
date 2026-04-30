@@ -83,6 +83,31 @@ def get_analysis_output(job_id: str) -> dict[str, Any] | None:
     return None
 
 
+def canonical_analysis_job_id(result: dict[str, Any]) -> str:
+    """Return the canonical public id for a freshly created analysis result."""
+
+    raw_job_id = str(result.get("job_id") or "")
+    if not raw_job_id:
+        return ""
+    jobs = list_analysis_outputs()
+    workflow_source_matches = [
+        job for job in jobs
+        if str(job.get("db_source") or "") == "workflow"
+        and str(job.get("source_job_id") or "") == raw_job_id
+    ]
+    if len(workflow_source_matches) == 1:
+        return str(workflow_source_matches[0].get("job_id") or raw_job_id)
+
+    exact = get_analysis_output(raw_job_id)
+    if exact:
+        return str(exact.get("job_id") or raw_job_id)
+
+    for preferred in (f"workflow:{raw_job_id}", f"local:{raw_job_id}"):
+        if any(str(job.get("job_id") or "") == preferred for job in jobs):
+            return preferred
+    return raw_job_id
+
+
 def _analysis_jobs_from_db(db_path: Path) -> list[dict[str, Any]]:
     conn = connect(db_path)
     if conn is None:
@@ -222,32 +247,42 @@ def _add_file_source(job: dict[str, Any], path: Path) -> None:
 
 
 def _analysis_jobs_from_files() -> list[dict[str, Any]]:
-    if not paths.ANALYSIS_OUTPUTS_DIR.exists():
-        return []
-
     jobs: dict[str, dict[str, Any]] = {}
-    for path in paths.ANALYSIS_OUTPUTS_DIR.rglob("*"):
-        if not path.is_file() or path.name == ".gitkeep":
+    for root in _analysis_artifact_roots():
+        if not root.exists():
             continue
-        job_id = _job_id_from_path(path)
-        if not job_id:
-            continue
-        job = jobs.setdefault(job_id, _empty_job(job_id))
-        try:
-            rel_path = path.relative_to(paths.REPO_ROOT).as_posix()
-        except ValueError:
-            rel_path = str(path)
-        job["files"].append(rel_path)
-        job["sources"].add(rel_path)
-        suffix = path.suffix.lower()
-        if suffix == ".json":
-            _read_json_output(path, job)
-        elif suffix == ".md":
-            job.setdefault("markdown", _read_text(path))
-        elif suffix == ".txt" and "prompts" in path.parts:
-            job.setdefault("prompt_text", _read_text(path))
+        is_prompt_root = root == paths.ANALYSIS_PROMPTS_DIR
+        for path in root.rglob("*"):
+            if not path.is_file() or path.name == ".gitkeep":
+                continue
+            job_id = _job_id_from_path(path)
+            if not job_id:
+                continue
+            job = jobs.setdefault(job_id, _empty_job(job_id))
+            try:
+                rel_path = path.relative_to(paths.REPO_ROOT).as_posix()
+            except ValueError:
+                rel_path = str(path)
+            job["files"].append(rel_path)
+            job["sources"].add(rel_path)
+            suffix = path.suffix.lower()
+            if suffix == ".json":
+                _read_json_output(path, job)
+            elif suffix == ".md" and not job.get("markdown"):
+                job["markdown"] = _read_text(path)
+            elif suffix == ".txt" and is_prompt_root:
+                job["prompt_text"] = _read_text(path).strip()
 
     return list(jobs.values())
+
+
+def _analysis_artifact_roots() -> list[Path]:
+    roots = [paths.ANALYSIS_OUTPUTS_DIR, paths.ANALYSIS_PROMPTS_DIR]
+    unique_roots: list[Path] = []
+    for root in roots:
+        if root not in unique_roots:
+            unique_roots.append(root)
+    return unique_roots
 
 
 def _read_json_output(path: Path, job: dict[str, Any], *, preserve_job_id: bool = False) -> None:

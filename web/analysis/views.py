@@ -82,7 +82,7 @@ def analysis_start(request):
         else:
             result, errors = services.run_analysis_from_form(post_data)
             if result:
-                return redirect("analysis:job_detail", job_id=result["job_id"])
+                return redirect("analysis:job_detail", job_id=services.canonical_analysis_job_id(result))
         selected_session_id = post_data["session_id"]
         selected_session = services.get_session(selected_session_id) if selected_session_id else None
         scope = post_data["scope"]

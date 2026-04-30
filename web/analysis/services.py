@@ -20,6 +20,7 @@ REPO_ROOT = paths.REPO_ROOT
 LOCAL_INDEX_DB = paths.LOCAL_INDEX_DB
 ANALYSIS_WORKFLOW_DB = paths.ANALYSIS_WORKFLOW_DB
 ANALYSIS_OUTPUTS_DIR = paths.ANALYSIS_OUTPUTS_DIR
+ANALYSIS_PROMPTS_DIR = paths.ANALYSIS_PROMPTS_DIR
 PROMPT_TEMPLATES_PATH = paths.PROMPT_TEMPLATES_PATH
 
 
@@ -28,6 +29,7 @@ def _sync_paths() -> None:
     paths.LOCAL_INDEX_DB = Path(LOCAL_INDEX_DB)
     paths.ANALYSIS_WORKFLOW_DB = Path(ANALYSIS_WORKFLOW_DB)
     paths.ANALYSIS_OUTPUTS_DIR = Path(ANALYSIS_OUTPUTS_DIR)
+    paths.ANALYSIS_PROMPTS_DIR = Path(ANALYSIS_PROMPTS_DIR)
     paths.PROMPT_TEMPLATES_PATH = Path(PROMPT_TEMPLATES_PATH)
 
 
@@ -54,6 +56,11 @@ def list_analysis_outputs() -> list[dict[str, Any]]:
 def get_analysis_output(job_id: str) -> dict[str, Any] | None:
     _sync_paths()
     return outputs.get_analysis_output(job_id)
+
+
+def canonical_analysis_job_id(result: dict[str, Any]) -> str:
+    _sync_paths()
+    return outputs.canonical_analysis_job_id(result)
 
 
 def list_prompt_templates(scope: str = "") -> list[dict[str, Any]]:
