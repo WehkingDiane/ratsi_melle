@@ -56,6 +56,16 @@ def test_analysis_pages_load(path: str, client) -> None:
     assert response.status_code == 200
 
 
+def test_nested_pages_use_absolute_static_urls(client) -> None:
+    response = client.get("/analyse/starten/")
+    content = response.content.decode("utf-8")
+
+    assert 'href="/static/core/css/base.css"' in content
+    assert 'src="/static/core/js/service_status.js"' in content
+    assert 'href="static/' not in content
+    assert 'src="static/' not in content
+
+
 def test_templates_are_kept_in_their_feature_apps() -> None:
     core_templates = {
         path.relative_to(WEB_ROOT / "core" / "templates").as_posix()

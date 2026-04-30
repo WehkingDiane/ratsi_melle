@@ -33,7 +33,7 @@ def list_analysis_outputs() -> list[dict[str, Any]]:
             job["sources"].add(str(db_path.relative_to(paths.REPO_ROOT)))
 
     for file_job in _analysis_jobs_from_files():
-        job_id = str(file_job["job_id"])
+        job_id = _job_key_for_file_job(str(file_job["job_id"]), jobs)
         job = jobs.setdefault(job_id, _empty_job(job_id))
         _merge_job(job, file_job)
 
@@ -43,6 +43,17 @@ def list_analysis_outputs() -> list[dict[str, Any]]:
         reverse=True,
     )
     return [_public_job(job) for job in sorted_jobs]
+
+
+def _job_key_for_file_job(file_job_id: str, jobs: dict[str, dict[str, Any]]) -> str:
+    matches = [
+        job_key
+        for job_key, job in jobs.items()
+        if str(job.get("db_job_id") or "") == file_job_id
+    ]
+    if len(matches) == 1:
+        return matches[0]
+    return file_job_id
 
 
 def get_analysis_output(job_id: str) -> dict[str, Any] | None:
@@ -210,7 +221,7 @@ def _analysis_jobs_from_files() -> list[dict[str, Any]]:
             continue
         job = jobs.setdefault(job_id, _empty_job(job_id))
         try:
-            rel_path = str(path.relative_to(paths.REPO_ROOT))
+            rel_path = path.relative_to(paths.REPO_ROOT).as_posix()
         except ValueError:
             rel_path = str(path)
         job["files"].append(rel_path)

@@ -244,6 +244,77 @@ def test_db_analysis_outputs_are_namespaced_by_source(workspace_tmp: Path, monke
     assert analysis_services.get_analysis_output("1") is None
 
 
+def test_file_analysis_outputs_merge_into_unique_db_job(workspace_tmp: Path, monkeypatch) -> None:
+    local_db = workspace_tmp / "data" / "db" / "local_index.sqlite"
+    output_dir = workspace_tmp / "data" / "analysis_outputs"
+    local_db.parent.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True)
+    with sqlite3.connect(local_db) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE analysis_jobs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TEXT NOT NULL,
+                session_id TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                top_numbers_json TEXT,
+                purpose TEXT NOT NULL DEFAULT 'content_analysis',
+                model_name TEXT,
+                prompt_version TEXT,
+                status TEXT NOT NULL,
+                error_message TEXT
+            );
+            CREATE TABLE analysis_outputs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                job_id INTEGER NOT NULL,
+                output_format TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            """
+        )
+        conn.execute(
+            "INSERT INTO analysis_jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                1,
+                "2026-04-29T20:00:00Z",
+                "local-session",
+                "session",
+                "[]",
+                "content_analysis",
+                "none",
+                "web",
+                "done",
+                None,
+            ),
+        )
+    (output_dir / "job_1.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "2.0",
+                "output_type": "raw_analysis",
+                "job_id": 1,
+                "ki_response": "Datei-Antwort",
+                "status": "done",
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(analysis_services, "REPO_ROOT", workspace_tmp)
+    monkeypatch.setattr(analysis_services, "LOCAL_INDEX_DB", local_db)
+    monkeypatch.setattr(analysis_services, "ANALYSIS_WORKFLOW_DB", workspace_tmp / "missing_workflow.sqlite")
+    monkeypatch.setattr(analysis_services, "ANALYSIS_OUTPUTS_DIR", output_dir)
+
+    jobs = {str(job["job_id"]): job for job in analysis_services.list_analysis_outputs()}
+
+    assert "local:1" in jobs
+    assert "1" not in jobs
+    assert jobs["local:1"]["db_job_id"] == 1
+    assert jobs["local:1"]["ki_response"] == "Datei-Antwort"
+    assert jobs["local:1"]["output_type"] == "raw_analysis"
+    assert "data/analysis_outputs/job_1.json" in jobs["local:1"]["files"]
+
+
 def test_legacy_db_analysis_outputs_are_read_in_id_order(workspace_tmp: Path, monkeypatch) -> None:
     local_db = workspace_tmp / "data" / "db" / "local_index.sqlite"
     local_db.parent.mkdir(parents=True, exist_ok=True)
