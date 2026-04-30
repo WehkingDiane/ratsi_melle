@@ -33,7 +33,7 @@ def list_analysis_outputs() -> list[dict[str, Any]]:
             job["sources"].add(str(db_path.relative_to(paths.REPO_ROOT)))
 
     for file_job in _analysis_jobs_from_files():
-        job_id = _job_key_for_file_job(str(file_job["job_id"]), jobs)
+        job_id = _job_key_for_file_job(file_job, jobs)
         job = jobs.setdefault(job_id, _empty_job(job_id))
         _merge_job(job, file_job)
 
@@ -45,7 +45,8 @@ def list_analysis_outputs() -> list[dict[str, Any]]:
     return [_public_job(job) for job in sorted_jobs]
 
 
-def _job_key_for_file_job(file_job_id: str, jobs: dict[str, dict[str, Any]]) -> str:
+def _job_key_for_file_job(file_job: dict[str, Any], jobs: dict[str, dict[str, Any]]) -> str:
+    file_job_id = str(file_job["job_id"])
     matches = [
         job_key
         for job_key, job in jobs.items()
@@ -53,6 +54,18 @@ def _job_key_for_file_job(file_job_id: str, jobs: dict[str, dict[str, Any]]) -> 
     ]
     if len(matches) == 1:
         return matches[0]
+    if len(matches) > 1:
+        file_sources = {str(source) for source in file_job.get("sources", set())}
+        source_matches = [
+            job_key
+            for job_key in matches
+            if file_sources & {str(source) for source in jobs[job_key].get("sources", set())}
+        ]
+        if len(source_matches) == 1:
+            return source_matches[0]
+        workflow_matches = [job_key for job_key in matches if job_key.startswith("workflow:")]
+        if len(workflow_matches) == 1:
+            return workflow_matches[0]
     return file_job_id
 
 
