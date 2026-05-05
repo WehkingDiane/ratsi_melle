@@ -50,7 +50,11 @@ def get_active_prompt_template(template_id: str, scope: str) -> tuple[PromptTemp
 
 def save_prompt_template_from_form(data: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
     """Persist a prompt template from the management form."""
+    repo = prompt_repository()
+    allow_update = bool(data.get("allow_update"))
     template_id = str(data.get("id") or "").strip() or _slugify(str(data.get("label") or ""))
+    if not allow_update and repo.get_template(template_id) is not None:
+        template_id = _unique_template_id(template_id, repo)
     label = str(data.get("label") or "").strip()
     scope = str(data.get("scope") or "session").strip()
     description = str(data.get("description") or "").strip()
@@ -70,7 +74,7 @@ def save_prompt_template_from_form(data: dict[str, Any]) -> tuple[dict[str, Any]
         visibility=visibility,
     )
     try:
-        saved = prompt_repository().save_template(template)
+        saved = repo.save_template(template)
     except PromptTemplateError as exc:
         return None, [str(exc)]
     return saved.to_dict(), []

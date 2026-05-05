@@ -851,6 +851,76 @@ def test_prompt_template_error_messages_use_correct_umlauts(monkeypatch, workspa
     assert "gewÃ" not in errors[0]
 
 
+def test_new_prompt_templates_with_same_label_do_not_overwrite(monkeypatch, workspace_tmp: Path) -> None:
+    template_path = workspace_tmp / "prompt_templates.json"
+    example_path = workspace_tmp / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    first, first_errors = analysis_services.save_prompt_template_from_form(
+        {
+            "label": "Gleiche Vorlage",
+            "prompt_text": "Analysiere {{session_title}}.",
+            "scope": "session",
+            "visibility": "private",
+            "is_active": "1",
+        }
+    )
+    second, second_errors = analysis_services.save_prompt_template_from_form(
+        {
+            "label": "Gleiche Vorlage",
+            "prompt_text": "Analysiere {{committee}}.",
+            "scope": "session",
+            "visibility": "private",
+            "is_active": "1",
+        }
+    )
+
+    assert first_errors == []
+    assert second_errors == []
+    assert first["id"] == "gleiche_vorlage"
+    assert second["id"] == "gleiche_vorlage_2"
+    assert analysis_services.get_prompt_template("gleiche_vorlage")["prompt_text"] == "Analysiere {{session_title}}."
+
+
+def test_editing_existing_prompt_template_increments_revision(monkeypatch, workspace_tmp: Path) -> None:
+    template_path = workspace_tmp / "prompt_templates.json"
+    example_path = workspace_tmp / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    created, errors = analysis_services.save_prompt_template_from_form(
+        {
+            "id": "edit_test",
+            "label": "Edit Test",
+            "prompt_text": "Analysiere {{session_title}}.",
+            "scope": "session",
+            "visibility": "private",
+            "is_active": "1",
+        }
+    )
+    edited, edit_errors = analysis_services.save_prompt_template_from_form(
+        {
+            "id": "edit_test",
+            "label": "Edit Test",
+            "prompt_text": "Analysiere {{committee}}.",
+            "scope": "session",
+            "visibility": "private",
+            "is_active": "1",
+            "allow_update": True,
+        }
+    )
+
+    assert errors == []
+    assert edit_errors == []
+    assert created["revision"] == 1
+    assert edited["id"] == "edit_test"
+    assert edited["revision"] == 2
+    assert edited["prompt_text"] == "Analysiere {{committee}}."
+
+
 def test_analysis_output_reads_private_prompt_snapshot(monkeypatch, workspace_tmp: Path) -> None:
     import sqlite3
 

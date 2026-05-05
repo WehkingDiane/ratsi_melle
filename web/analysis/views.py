@@ -131,6 +131,7 @@ def prompt_template_form(request, template_id: str = ""):
             "variables": request.POST.get("variables", ""),
             "visibility": request.POST.get("visibility", "private"),
             "is_active": request.POST.get("is_active", "0"),
+            "allow_update": bool(template_id),
         }
         saved, errors = services.save_prompt_template_from_form(form_data)
         if saved:
