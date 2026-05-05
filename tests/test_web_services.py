@@ -849,6 +849,17 @@ def test_save_prompt_template_from_form_returns_errors_for_invalid_store(monkeyp
     assert "Analysiere" not in errors[0]
 
 
+def test_get_prompt_template_returns_none_for_invalid_store(monkeypatch, workspace_tmp: Path) -> None:
+    template_path = workspace_tmp / "prompt_templates.json"
+    template_path.write_text("{not json", encoding="utf-8")
+    example_path = workspace_tmp / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    assert analysis_services.get_prompt_template("kaputt") is None
+
+
 def test_prompt_template_slugify_handles_german_umlauts(monkeypatch, workspace_tmp: Path) -> None:
     template_path = workspace_tmp / "prompt_templates.json"
     example_path = workspace_tmp / "prompt_templates.example.json"
