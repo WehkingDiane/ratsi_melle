@@ -1,31 +1,33 @@
-# Grundkonzept Django-Oberflaeche
+# Grundkonzept Django-Oberfläche
+
+Hinweis: Dieses Dokument beschreibt das Ziel- und Konzeptbild der Django-Oberfläche. Den aktuellen implementierten Stand der lokalen Weboberfläche beschreibt [docs/web_ui.md](web_ui.md).
 
 Ziel:
-- Die grosse produktartige Oberflaeche wird kuenftig als Django-Anwendung aufgebaut.
-- Streamlit bleibt als schnelle interne Developer-Oberflaeche fuer Fetch-, Build- und Diagnosepfade bestehen.
-- Die Django-Oberflaeche soll in klar getrennte Seiten aufgeteilt werden, damit jede Seite einzeln gestaltet, gebaut und iteriert werden kann.
+- Die große produktartige Oberfläche wird künftig als Django-Anwendung aufgebaut.
+- Streamlit bleibt als schnelle interne Developer-Oberfläche für Fetch-, Build- und Diagnosepfade bestehen.
+- Die Django-Oberfläche soll in klar getrennte Seiten aufgeteilt werden, damit jede Seite einzeln gestaltet, gebaut und iteriert werden kann.
 
-## 1. Rollenverteilung der Oberflaechen
+## 1. Rollenverteilung der Oberflächen
 
 ### Django
-- primaere Nutzeroberflaeche
-- produktartige Recherche- und Analyseoberflaeche
+- primäre Nutzeroberfläche
+- produktartige Recherche- und Analyseoberfläche
 - saubere Seitenstruktur mit festen URLs
-- langfristig bessere Basis fuer Layout, Rechte, gespeicherte Ansichten und stabile Navigation
+- langfristig bessere Basis für Layout, Rechte, gespeicherte Ansichten und stabile Navigation
 
 ### Streamlit
-- interne Developer-/Operations-Oberflaeche
-- schnelle Skript-Runner fuer Fetch und Build
+- interne Developer-/Operations-Oberfläche
+- schnelle Skript-Runner für Fetch und Build
 - Status- und Diagnoseansichten
-- fruehe oder experimentelle KI-Analysepfade
+- frühe oder experimentelle KI-Analysepfade
 
-## 2. Leitprinzipien fuer die Django-Oberflaeche
+## 2. Leitprinzipien für die Django-Oberfläche
 
 - Jede Hauptfunktion bekommt eine eigene Seite.
-- Navigation und Seitenstruktur sind wichtiger als ein fruehes Detaildesign.
-- Fachlogik bleibt moeglichst ausserhalb von Views und Templates.
-- Bestehende Python-Fachlogik aus `src/analysis/`, `src/fetching/`, `src/interfaces/shared/` und spaeter weiteren Servicemodulen wird wiederverwendet.
-- Dokumente, Sitzungen, TOPs und Analysen werden als zusammenhaengender Recherchefluss gedacht, nicht als lose Einzelfeatures.
+- Navigation und Seitenstruktur sind wichtiger als ein frühes Detaildesign.
+- Fachlogik bleibt möglichst außerhalb von Views und Templates.
+- Bestehende Python-Fachlogik aus `src/analysis/`, `src/fetching/`, `src/interfaces/shared/` und später weiteren Servicemodulen wird wiederverwendet.
+- Dokumente, Sitzungen, TOPs und Analysen werden als zusammenhängender Recherchefluss gedacht, nicht als lose Einzelfeatures.
 
 ## 3. Empfohlene Hauptnavigation
 
@@ -38,38 +40,38 @@ Ziel:
 
 ### 2. Recherche
 - Sitzungen filtern
-- Gremien waehlen
+- Gremien wählen
 - Sitzungslisten durchsuchen
-- einzelne Sitzungen und TOPs oeffnen
+- einzelne Sitzungen und TOPs öffnen
 - Dokumente einer Sitzung oder eines TOPs einsehen
 
 ### 3. Semantische Suche
 - freie Suchanfrage
 - Trefferliste aus dem Vektorindex
-- spaeter Filter nach Gremium, Zeitraum, Dokumenttyp, Sitzung
+- später Filter nach Gremium, Zeitraum, Dokumenttyp, Sitzung
 - Treffer auf Sitzung, TOP oder Dokument herunterbrechen
 
 ### 4. Analyse
-- Gremium, Sitzung, TOP oder Dokumente gezielt waehlen
+- Gremium, Sitzung, TOP oder Dokumente gezielt wählen
 - Prompt konfigurieren
-- Provider und Modell waehlen
+- Provider und Modell wählen
 - KI-Analyse starten
-- Ergebnis lesen, speichern, spaeter erneut oeffnen
+- Ergebnis lesen, speichern, später erneut öffnen
 
 ### 5. Dokumente
 - dokumentzentrierte Ansicht
 - Dateiliste, Typen, Metadaten, Quellen
-- spaeter PDF-Viewer oder Textvorschau
+- später PDF-Viewer oder Textvorschau
 
 ### 6. Einstellungen
 - Provider-Konfiguration
 - API-Keys
 - Prompt-Vorlagen
-- spaeter systemweite Defaults
+- später systemweite Defaults
 
 ## 4. Minimale erste Seitenaufteilung
 
-Fuer einen ersten strukturierten Django-Start reichen diese Seiten:
+Für einen ersten strukturierten Django-Start reichen diese Seiten:
 
 ### `dashboard/`
 - System- und Datenstatus
@@ -97,9 +99,9 @@ Fuer einen ersten strukturierten Django-Start reichen diese Seiten:
 ### `settings/`
 - API-Keys und Prompt-Vorlagen
 
-## 5. Fachliche Kernobjekte der Django-Oberflaeche
+## 5. Fachliche Kernobjekte der Django-Oberfläche
 
-Die Oberflaeche sollte nicht um technische Skripte, sondern um diese Nutzobjekte herum gebaut werden:
+Die Oberfläche sollte nicht um technische Skripte, sondern um diese Nutzobjekte herum gebaut werden:
 
 - `Gremium`
 - `Sitzung`
@@ -108,7 +110,7 @@ Die Oberflaeche sollte nicht um technische Skripte, sondern um diese Nutzobjekte
 - `Analyseauftrag`
 - `Analyseergebnis`
 
-Diese Objekte koennen in Django anfangs auch ohne vollstaendige neue DB-Modelle ueber bestehende SQLite-/Service-Zugriffe abgebildet werden. Wichtiger ist zuerst die Seiten- und Interaktionslogik.
+Diese Objekte können in Django anfangs auch ohne vollständige neue DB-Modelle über bestehende SQLite-/Service-Zugriffe abgebildet werden. Wichtiger ist zuerst die Seiten- und Interaktionslogik.
 
 ## 6. Empfohlene Django-Projektstruktur
 
@@ -141,7 +143,7 @@ django_ui/
 - Views
 - Templates
 - Formularlogik
-- Seitenspezifische Interaktion
+- seitenspezifische Interaktion
 
 ### Bestehende Projektlogik
 - Datenzugriff
@@ -150,16 +152,16 @@ django_ui/
 - Vektorsuche
 - Pfadauflösung
 
-Das heisst:
-- Django soll moeglichst die vorhandene Fachlogik konsumieren
+Das heißt:
+- Django soll möglichst die vorhandene Fachlogik konsumieren
 - nicht alles neu in Django hinein kopieren
 
-## 8. Priorisierte Reihenfolge fuer die Umsetzung
+## 8. Priorisierte Reihenfolge für die Umsetzung
 
-### Phase 1: Grundgeruest
+### Phase 1: Grundgerüst
 - Django-Projekt anlegen
 - Basislayout mit Header, linker Navigation, Content-Bereich
-- Platzhalterseiten fuer Dashboard, Recherche, Suche, Analyse, Einstellungen
+- Platzhalterseiten für Dashboard, Recherche, Suche, Analyse, Einstellungen
 
 ### Phase 2: Recherchefluss
 - Gremienfilter
@@ -176,29 +178,29 @@ Das heisst:
 - semantische Suche in eigene Django-Seite integrieren
 - Verlinkung zu Sitzung/TOP/Dokument
 
-### Phase 5: Design und Nutzerfuehrung
+### Phase 5: Design und Nutzerführung
 - visuelle Gestaltung
 - konsistente Komponenten
 - bessere Lesbarkeit und Orientierung
 
-## 9. Was bewusst nicht in die Django-Hauptoberflaeche gehoert
+## 9. Was bewusst nicht in die Django-Hauptoberfläche gehört
 
-- rohe Skriptsteuerung fuer Fetch/Build als prominente Hauptfunktion
-- technische Diagnosepfade fuer Entwickler
-- alte Export-Workflows als primaere Nutzerfunktion
+- rohe Skriptsteuerung für Fetch/Build als prominente Hauptfunktion
+- technische Diagnosepfade für Entwickler
+- alte Export-Workflows als primäre Nutzerfunktion
 
-Diese Dinge bleiben besser in Streamlit oder spaeter in einem Admin-/Operations-Bereich.
+Diese Dinge bleiben besser in Streamlit oder später in einem Admin-/Operations-Bereich.
 
 ## 10. Ergebnis dieses Grundkonzepts
 
-Die Django-Oberflaeche wird:
+Die Django-Oberfläche wird:
 - nutzerzentriert
 - seitenbasiert
 - layoutstabil
 - gestalterisch flexibler als Streamlit
 
-Die Streamlit-Oberflaeche bleibt:
+Die Streamlit-Oberfläche bleibt:
 - schnell
 - technisch
 - developer-orientiert
-- ideal fuer Datenpflege, Build-Pfade und interne Erstanalysen
+- ideal für Datenpflege, Build-Pfade und interne Erstanalysen
