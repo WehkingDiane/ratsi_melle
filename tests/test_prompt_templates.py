@@ -39,6 +39,19 @@ def test_prompt_template_from_dict_parses_is_active_strings() -> None:
     assert PromptTemplate.from_dict({key: value for key, value in base.items() if key != "is_active"}).is_active is True
 
 
+def test_prompt_template_from_dict_preserves_legacy_scope_lists() -> None:
+    template = PromptTemplate.from_dict(
+        {
+            **_template().to_dict(),
+            "scope": ["document", "tops", "session"],
+        }
+    )
+
+    assert template.scope == "document"
+    assert template.all_scopes == ["document", "tops", "session"]
+    assert template.matches_scope("tops") is True
+
+
 def test_prompt_template_validation_rejects_invalid_scope() -> None:
     with pytest.raises(PromptTemplateError, match="scope"):
         validate_template(_template(scope="invalid"))
@@ -116,6 +129,20 @@ def test_json_repository_scope_filter_save_revision_and_deactivate(tmp_path: Pat
 
     repo.delete_template("session_demo")
     assert repo.get_template("session_demo").is_active is False
+
+
+def test_json_repository_filters_legacy_multi_scope_templates(tmp_path: Path) -> None:
+    store_path = tmp_path / "prompt_templates.json"
+    payload = _template("multi_scope", "document").to_dict()
+    payload["scope"] = ["document", "tops", "session"]
+    store_path.write_text(json.dumps({"templates": [payload]}, ensure_ascii=False), encoding="utf-8")
+    repo = JsonPromptTemplateRepository(path=store_path, example_path=tmp_path / "missing.json")
+
+    tops_templates = repo.list_templates("tops")
+
+    assert [template.id for template in tops_templates] == ["multi_scope"]
+    assert tops_templates[0].scope == "tops"
+    assert tops_templates[0].all_scopes == ["tops", "document", "session"]
 
 
 def test_json_repository_reports_invalid_json(tmp_path: Path) -> None:

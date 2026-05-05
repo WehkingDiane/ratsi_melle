@@ -44,7 +44,7 @@ class MemoryPromptTemplateRepository(PromptTemplateRepository):
     def list_templates(self, scope: str | None = None) -> list[PromptTemplate]:
         templates = sorted(self._templates.values(), key=lambda item: item.label.lower())
         if scope:
-            return [template for template in templates if template.scope == scope]
+            return [replace(template, scope=scope) for template in templates if template.matches_scope(scope)]
         return templates
 
     def get_template(self, template_id: str) -> PromptTemplate | None:
@@ -79,7 +79,7 @@ class JsonPromptTemplateRepository(PromptTemplateRepository):
     def list_templates(self, scope: str | None = None) -> list[PromptTemplate]:
         templates = self._load()
         if scope:
-            templates = [template for template in templates if template.scope == scope]
+            templates = [replace(template, scope=scope) for template in templates if template.matches_scope(scope)]
         return sorted(templates, key=lambda item: item.label.lower())
 
     def get_template(self, template_id: str) -> PromptTemplate | None:

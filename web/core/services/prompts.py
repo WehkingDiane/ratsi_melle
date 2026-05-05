@@ -43,7 +43,7 @@ def get_active_prompt_template(template_id: str, scope: str) -> tuple[PromptTemp
         return None, ["Die gewählte Prompt-Vorlage wurde nicht gefunden."]
     if not template.is_active:
         return None, ["Die gewählte Prompt-Vorlage ist deaktiviert."]
-    if template.scope != scope:
+    if not template.matches_scope(scope):
         return None, ["Die gewählte Prompt-Vorlage passt nicht zum Analyse-Scope."]
     return template, []
 

@@ -29,11 +29,15 @@ class PromptTemplateError(ValueError):
 def validate_template(template: PromptTemplate) -> PromptTemplate:
     """Validate and normalize one prompt template."""
     errors: list[str] = []
+    scopes = template.all_scopes
     if not template.id.strip():
         errors.append("id is required")
     if not template.label.strip():
         errors.append("label is required")
-    if template.scope not in VALID_SCOPES:
+    invalid_scopes = sorted(scope for scope in scopes if scope not in VALID_SCOPES)
+    if not scopes:
+        errors.append(f"scope must be one of {', '.join(sorted(VALID_SCOPES))}")
+    elif invalid_scopes:
         errors.append(f"scope must be one of {', '.join(sorted(VALID_SCOPES))}")
     if not template.prompt_text.strip():
         errors.append("prompt_text is required")
@@ -51,10 +55,11 @@ def validate_template(template: PromptTemplate) -> PromptTemplate:
         template,
         id=template.id.strip(),
         label=template.label.strip(),
-        scope=template.scope.strip(),
+        scope=scopes[0] if scopes else template.scope.strip(),
         description=template.description.strip(),
         prompt_text=template.prompt_text.strip(),
         variables=sorted(placeholders),
+        scopes=scopes,
         visibility=template.visibility.strip(),
     )
 
