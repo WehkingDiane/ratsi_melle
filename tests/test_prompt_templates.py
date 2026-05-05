@@ -39,6 +39,12 @@ def test_prompt_template_from_dict_parses_is_active_strings() -> None:
     assert PromptTemplate.from_dict({key: value for key, value in base.items() if key != "is_active"}).is_active is True
 
 
+def test_prompt_template_from_dict_normalizes_invalid_revision() -> None:
+    template = PromptTemplate.from_dict({**_template().to_dict(), "revision": "v2"})
+
+    assert template.revision == 1
+
+
 def test_prompt_template_from_dict_preserves_legacy_scope_lists() -> None:
     template = PromptTemplate.from_dict(
         {
@@ -143,6 +149,19 @@ def test_json_repository_filters_legacy_multi_scope_templates(tmp_path: Path) ->
     assert [template.id for template in tops_templates] == ["multi_scope"]
     assert tops_templates[0].scope == "tops"
     assert tops_templates[0].all_scopes == ["tops", "document", "session"]
+
+
+def test_json_repository_normalizes_invalid_revision(tmp_path: Path) -> None:
+    store_path = tmp_path / "prompt_templates.json"
+    payload = _template("bad_revision").to_dict()
+    payload["revision"] = "v2"
+    store_path.write_text(json.dumps({"templates": [payload]}, ensure_ascii=False), encoding="utf-8")
+    repo = JsonPromptTemplateRepository(path=store_path, example_path=tmp_path / "missing.json")
+
+    templates = repo.list_templates()
+
+    assert templates[0].id == "bad_revision"
+    assert templates[0].revision == 1
 
 
 def test_json_repository_reports_invalid_json(tmp_path: Path) -> None:

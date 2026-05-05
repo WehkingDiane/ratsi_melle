@@ -42,6 +42,15 @@ def scopes_from_json(*values: Any) -> list[str]:
     return scopes
 
 
+def int_from_json(value: Any, default: int = 1) -> int:
+    """Return a positive integer for JSON values that may be malformed."""
+    try:
+        parsed = int(value or default)
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed >= 1 else default
+
+
 @dataclass(frozen=True)
 class PromptTemplate:
     """Prompt template metadata and text stored outside the public repository."""
@@ -78,7 +87,7 @@ class PromptTemplate:
             is_active=bool_from_json(data.get("is_active"), default=True),
             owner_id=str(data.get("owner_id") or ""),
             visibility=str(data.get("visibility") or "private"),
-            revision=int(data.get("revision") or 1),
+            revision=int_from_json(data.get("revision"), default=1),
             created_at=str(data.get("created_at") or utc_now()),
             updated_at=str(data.get("updated_at") or utc_now()),
         )

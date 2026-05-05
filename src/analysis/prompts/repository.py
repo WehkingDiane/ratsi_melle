@@ -130,7 +130,7 @@ class JsonPromptTemplateRepository(PromptTemplateRepository):
         raw_templates = data.get("templates") if isinstance(data, dict) else data
         if not isinstance(raw_templates, list):
             raise PromptTemplateError("Prompt template JSON must contain a templates list.")
-        return [validate_template(PromptTemplate.from_dict(item)) for item in raw_templates if isinstance(item, dict)]
+        return [_template_from_record(item) for item in raw_templates if isinstance(item, dict)]
 
     def _write(self, templates: list[PromptTemplate]) -> None:
         payload = {"templates": [template.to_dict() for template in sorted(templates, key=lambda item: item.id)]}
@@ -157,3 +157,12 @@ class JsonPromptTemplateRepository(PromptTemplateRepository):
 def default_prompt_template_repository() -> PromptTemplateRepository:
     """Return the default private JSON prompt template repository."""
     return JsonPromptTemplateRepository()
+
+
+def _template_from_record(item: dict[str, Any]) -> PromptTemplate:
+    try:
+        return validate_template(PromptTemplate.from_dict(item))
+    except PromptTemplateError:
+        raise
+    except (TypeError, ValueError) as exc:
+        raise PromptTemplateError("Invalid prompt template record.") from exc

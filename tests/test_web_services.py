@@ -826,6 +826,41 @@ def test_list_prompt_templates_returns_empty_list_for_invalid_store(monkeypatch,
     assert analysis_services.list_prompt_templates("session") == []
 
 
+def test_list_prompt_templates_handles_invalid_revision(monkeypatch, workspace_tmp: Path) -> None:
+    template_path = workspace_tmp / "prompt_templates.json"
+    template_path.write_text(
+        json.dumps(
+            {
+                "templates": [
+                    {
+                        "id": "bad_revision",
+                        "label": "Bad Revision",
+                        "scope": "session",
+                        "description": "",
+                        "prompt_text": "Analysiere {{session_title}}.",
+                        "variables": ["session_title"],
+                        "is_active": True,
+                        "visibility": "private",
+                        "revision": "v2",
+                    }
+                ]
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    example_path = workspace_tmp / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    templates = analysis_services.list_prompt_templates("session")
+
+    assert len(templates) == 1
+    assert templates[0]["id"] == "bad_revision"
+    assert templates[0]["revision"] == 1
+
+
 def test_save_prompt_template_from_form_returns_errors_for_invalid_store(monkeypatch, workspace_tmp: Path) -> None:
     template_path = workspace_tmp / "prompt_templates.json"
     template_path.write_text("{not json", encoding="utf-8")
