@@ -437,6 +437,38 @@ def test_prompt_template_edit_get_handles_invalid_store(client, monkeypatch, tmp
     assert "Prompt-Vorlage" in response.content.decode("utf-8")
 
 
+def test_prompt_template_duplicate_post_handles_invalid_store(client, monkeypatch, tmp_path) -> None:
+    from analysis import services
+
+    template_path = tmp_path / "private" / "prompt_templates.json"
+    template_path.parent.mkdir(parents=True)
+    template_path.write_text("{not json", encoding="utf-8")
+    example_path = tmp_path / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    response = client.post("/analyse/prompts/kaputt/duplizieren/")
+
+    assert response.status_code == 302
+
+
+def test_prompt_template_deactivate_post_handles_invalid_store(client, monkeypatch, tmp_path) -> None:
+    from analysis import services
+
+    template_path = tmp_path / "private" / "prompt_templates.json"
+    template_path.parent.mkdir(parents=True)
+    template_path.write_text("{not json", encoding="utf-8")
+    example_path = tmp_path / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    response = client.post("/analyse/prompts/kaputt/deaktivieren/")
+
+    assert response.status_code == 302
+
+
 def test_analysis_start_with_template_id_handles_invalid_store(client, monkeypatch, tmp_path) -> None:
     from analysis import services
 

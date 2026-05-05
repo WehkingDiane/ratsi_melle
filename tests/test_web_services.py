@@ -860,6 +860,28 @@ def test_get_prompt_template_returns_none_for_invalid_store(monkeypatch, workspa
     assert analysis_services.get_prompt_template("kaputt") is None
 
 
+def test_prompt_template_actions_return_errors_for_invalid_store(monkeypatch, workspace_tmp: Path) -> None:
+    from core.services.prompts import deactivate_prompt_template
+    from core.services.prompts import duplicate_prompt_template
+    from core.services.prompts import get_active_prompt_template
+    from core.services import paths
+
+    template_path = workspace_tmp / "prompt_templates.json"
+    template_path.write_text("{not json", encoding="utf-8")
+    example_path = workspace_tmp / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(paths, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(paths, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    _template, active_errors = get_active_prompt_template("kaputt", "session")
+    _duplicate, duplicate_errors = duplicate_prompt_template("kaputt")
+    deactivate_errors = deactivate_prompt_template("kaputt")
+
+    assert active_errors == ["Prompt-Vorlagen konnten nicht gelesen werden. Bitte private Vorlagen-Datei prüfen."]
+    assert duplicate_errors == ["Prompt-Vorlagen konnten nicht gelesen werden. Bitte private Vorlagen-Datei prüfen."]
+    assert deactivate_errors == ["Prompt-Vorlagen konnten nicht gelesen werden. Bitte private Vorlagen-Datei prüfen."]
+
+
 def test_prompt_template_slugify_handles_german_umlauts(monkeypatch, workspace_tmp: Path) -> None:
     template_path = workspace_tmp / "prompt_templates.json"
     example_path = workspace_tmp / "prompt_templates.example.json"
