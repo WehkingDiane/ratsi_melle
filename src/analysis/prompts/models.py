@@ -12,6 +12,21 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
+def bool_from_json(value: Any, default: bool = True) -> bool:
+    """Return a bool for JSON values that may have been stored as strings."""
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on", "active", "aktiv"}:
+            return True
+        if normalized in {"0", "false", "no", "off", "inactive", "inaktiv"}:
+            return False
+    return bool(value)
+
+
 @dataclass(frozen=True)
 class PromptTemplate:
     """Prompt template metadata and text stored outside the public repository."""
@@ -45,7 +60,7 @@ class PromptTemplate:
             description=str(data.get("description") or ""),
             prompt_text=str(data.get("prompt_text") or data.get("text") or ""),
             variables=[str(item).strip() for item in variables if str(item).strip()],
-            is_active=bool(data.get("is_active", True)),
+            is_active=bool_from_json(data.get("is_active"), default=True),
             owner_id=str(data.get("owner_id") or ""),
             visibility=str(data.get("visibility") or "private"),
             revision=int(data.get("revision") or 1),

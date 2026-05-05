@@ -573,7 +573,7 @@ def test_prompt_artifact_is_loaded_from_prompt_directory(workspace_tmp: Path, mo
 
     assert job is not None
     assert job["prompt_text"] == "Prompt aus Datei"
-    assert "data/analysis_prompts/job_1.txt" in job["files"]
+    assert "data/analysis_prompts/job_1.txt" not in job["files"]
 
 
 def test_legacy_db_analysis_outputs_are_read_in_id_order(workspace_tmp: Path, monkeypatch) -> None:
@@ -996,6 +996,33 @@ def test_analysis_output_reads_private_prompt_snapshot(monkeypatch, workspace_tm
     assert job["prompt_text"] == "Privater Prompt"
     assert str(snapshot_path) not in job["sources"]
     assert str(snapshot_path) not in job["files"]
+
+
+def test_public_job_filters_configured_private_prompt_paths(monkeypatch, workspace_tmp: Path) -> None:
+    from core.services import outputs
+    from core.services import paths
+
+    private_dir = workspace_tmp / "custom_private"
+    snapshot_path = private_dir / "prompt_snapshots" / "job_1.txt"
+    prompt_copy_path = private_dir / "analysis_prompts" / "job_1.txt"
+    public_path = "data/analysis_outputs/job_1.raw.json"
+
+    monkeypatch.setattr(paths, "PRIVATE_DATA_DIR", private_dir)
+    monkeypatch.setattr(paths, "PROMPT_SNAPSHOTS_DIR", private_dir / "prompt_snapshots")
+    monkeypatch.setattr(paths, "ANALYSIS_PROMPTS_DIR", private_dir / "analysis_prompts")
+    monkeypatch.setattr(paths, "PROMPT_TEMPLATES_PATH", private_dir / "prompt_templates.json")
+
+    job = outputs._public_job(
+        {
+            "job_id": "local:1",
+            "sources": {str(snapshot_path), str(prompt_copy_path), public_path},
+            "files": [str(snapshot_path), str(prompt_copy_path), public_path],
+            "rendered_prompt_snapshot_path": str(snapshot_path),
+        }
+    )
+
+    assert job["sources"] == [public_path]
+    assert job["files"] == [public_path]
 
 
 def test_service_action_builds_local_index_command() -> None:

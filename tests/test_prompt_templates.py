@@ -30,6 +30,15 @@ def test_prompt_template_model_and_validation() -> None:
     assert template.revision == 1
 
 
+def test_prompt_template_from_dict_parses_is_active_strings() -> None:
+    base = _template().to_dict()
+
+    assert PromptTemplate.from_dict({**base, "is_active": "false"}).is_active is False
+    assert PromptTemplate.from_dict({**base, "is_active": "0"}).is_active is False
+    assert PromptTemplate.from_dict({**base, "is_active": "true"}).is_active is True
+    assert PromptTemplate.from_dict({key: value for key, value in base.items() if key != "is_active"}).is_active is True
+
+
 def test_prompt_template_validation_rejects_invalid_scope() -> None:
     with pytest.raises(PromptTemplateError, match="scope"):
         validate_template(_template(scope="invalid"))

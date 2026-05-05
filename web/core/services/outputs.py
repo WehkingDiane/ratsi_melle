@@ -405,11 +405,13 @@ def _public_job(job: dict[str, Any]) -> dict[str, Any]:
 
 
 def _is_private_prompt_artifact_source(value: Any, job: dict[str, Any]) -> bool:
-    raw = str(value or "").replace("\\", "/")
+    raw = str(value or "")
     if not raw:
         return False
-    snapshot = str(job.get("rendered_prompt_snapshot_path") or "").replace("\\", "/")
-    if snapshot and raw == snapshot:
+    raw_normalized = raw.replace("\\", "/")
+    snapshot = str(job.get("rendered_prompt_snapshot_path") or "")
+    snapshot_normalized = snapshot.replace("\\", "/")
+    if snapshot_normalized and raw_normalized == snapshot_normalized:
         return True
     if snapshot and Path(snapshot).is_absolute():
         try:
@@ -417,4 +419,39 @@ def _is_private_prompt_artifact_source(value: Any, job: dict[str, Any]) -> bool:
                 return True
         except OSError:
             pass
-    return "/data/private/" in raw or raw.startswith("data/private/")
+    return _path_points_to_private_prompt_artifact(raw)
+
+
+def _path_points_to_private_prompt_artifact(value: str) -> bool:
+    candidate = Path(value)
+    candidates = [candidate]
+    if not candidate.is_absolute():
+        candidates.append(paths.REPO_ROOT / candidate)
+
+    private_roots = (
+        paths.PRIVATE_DATA_DIR,
+        paths.PROMPT_SNAPSHOTS_DIR,
+        paths.ANALYSIS_PROMPTS_DIR,
+        paths.PROMPT_TEMPLATES_PATH.parent,
+    )
+    for candidate_path in candidates:
+        if any(_path_is_relative_to(candidate_path, root) for root in private_roots):
+            return True
+
+    normalized = value.replace("\\", "/")
+    for root in private_roots:
+        try:
+            relative_root = root.relative_to(paths.REPO_ROOT).as_posix()
+        except ValueError:
+            continue
+        if normalized == relative_root or normalized.startswith(f"{relative_root}/"):
+            return True
+    return False
+
+
+def _path_is_relative_to(candidate: Path, root: Path) -> bool:
+    try:
+        candidate.resolve(strict=False).relative_to(root.resolve(strict=False))
+    except (OSError, ValueError):
+        return False
+    return True
