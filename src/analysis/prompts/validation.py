@@ -1,0 +1,53 @@
+"""Prompt template validation and rendering helpers."""
+
+from __future__ import annotations
+
+import re
+from dataclasses import replace
+from string import Template
+
+from src.analysis.prompts.models import PromptTemplate
+
+VALID_SCOPES = {"session", "tops", "document"}
+VALID_VISIBILITIES = {"private", "shared"}
+PLACEHOLDER_RE = re.compile(r"{{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*}}")
+
+
+class PromptTemplateError(ValueError):
+    """Raised when prompt template data is invalid."""
+
+
+def validate_template(template: PromptTemplate) -> PromptTemplate:
+    """Validate and normalize one prompt template."""
+    errors: list[str] = []
+    if not template.id.strip():
+        errors.append("id is required")
+    if not template.label.strip():
+        errors.append("label is required")
+    if template.scope not in VALID_SCOPES:
+        errors.append(f"scope must be one of {', '.join(sorted(VALID_SCOPES))}")
+    if not template.prompt_text.strip():
+        errors.append("prompt_text is required")
+    if template.visibility not in VALID_VISIBILITIES:
+        errors.append(f"visibility must be one of {', '.join(sorted(VALID_VISIBILITIES))}")
+    if template.revision < 1:
+        errors.append("revision must be >= 1")
+    if errors:
+        raise PromptTemplateError("; ".join(errors))
+    return replace(
+        template,
+        id=template.id.strip(),
+        label=template.label.strip(),
+        scope=template.scope.strip(),
+        description=template.description.strip(),
+        prompt_text=template.prompt_text.strip(),
+        variables=[variable.strip() for variable in template.variables if variable.strip()],
+        visibility=template.visibility.strip(),
+    )
+
+
+def render_prompt(template: PromptTemplate, context: dict[str, object]) -> str:
+    """Render ``{{name}}`` placeholders using the provided context values."""
+    source = PLACEHOLDER_RE.sub(lambda match: "${" + match.group(1) + "}", template.prompt_text)
+    safe_context = {key: str(value or "") for key, value in context.items()}
+    return Template(source).safe_substitute(safe_context)

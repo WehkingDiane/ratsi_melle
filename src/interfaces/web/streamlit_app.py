@@ -25,6 +25,7 @@ from src.paths import (
     DB_DIR,
     LOCAL_INDEX_DB,
     ONLINE_INDEX_DB,
+    PROMPT_TEMPLATES_PATH,
     QDRANT_DIR,
     RAW_DATA_DIR,
     REPO_ROOT,
@@ -33,7 +34,7 @@ from src.paths import (
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-_PROMPT_TEMPLATES_PATH = REPO_ROOT / "configs" / "prompt_templates.json"
+_PROMPT_TEMPLATES_PATH = PROMPT_TEMPLATES_PATH
 _PROVIDER_OPTIONS = {
     "Kein Provider (nur Grundlage)": "none",
     "Claude (Anthropic)": "claude",

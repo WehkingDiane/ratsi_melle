@@ -791,14 +791,21 @@ def test_run_analysis_from_form_rejects_top_without_analysis_documents(monkeypat
 
 def test_save_prompt_template_from_form_persists_template(monkeypatch, workspace_tmp: Path) -> None:
     template_path = workspace_tmp / "prompt_templates.json"
+    example_path = workspace_tmp / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
     monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
 
     template, errors = analysis_services.save_prompt_template_from_form(
         {
-            "template_label": "Meine TOP Vorlage",
+            "id": "meine_top_vorlage",
+            "label": "Meine TOP Vorlage",
             "prompt_text": "Bitte mit Beschlusskontext analysieren.",
             "scope": "tops",
-            "purpose": "content_analysis",
+            "description": "Test",
+            "variables": "agenda_item",
+            "visibility": "private",
+            "is_active": "1",
         }
     )
 

@@ -14,6 +14,11 @@ app_name = "analysis"
 
 urlpatterns = [
     path("", views.analysis_home, name="index"),
+    path("prompts/", views.prompt_template_list, name="prompt_template_list"),
+    path("prompts/neu/", views.prompt_template_form, name="prompt_template_new"),
+    path("prompts/<str:template_id>/", views.prompt_template_form, name="prompt_template_edit"),
+    path("prompts/<str:template_id>/duplizieren/", views.prompt_template_duplicate, name="prompt_template_duplicate"),
+    path("prompts/<str:template_id>/deaktivieren/", views.prompt_template_deactivate, name="prompt_template_deactivate"),
     path("starten/", views.analysis_start, name="analysis_start"),
     path("sitzungen/", views.session_list, name="session_list"),
     path("sitzungen/<str:session_id>/", views.session_detail, name="session_detail"),

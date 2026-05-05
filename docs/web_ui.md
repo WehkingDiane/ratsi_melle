@@ -125,13 +125,14 @@ Die Analysegrundlage enthält zusätzlich:
 
 Textdateien wie `.txt`, `.md` und `.html` werden als Auszug in die Analysegrundlage aufgenommen. PDF-Dateien werden als PDF-Pfade an Provider weitergegeben, die PDF-Anhänge oder PDF-Textextraktion unterstützen.
 
-Mit Provider `none` wird nur die Analysegrundlage erzeugt. Ein echter KI-Aufruf erfolgt erst bei Auswahl eines KI-Providers. Eigene Prompt-Vorlagen können direkt im Analyseformular gespeichert werden. Sie werden in `configs/prompt_templates.json` abgelegt und danach in der Vorlagenauswahl angeboten.
+Mit Provider `none` wird nur die Analysegrundlage erzeugt. Ein echter KI-Aufruf erfolgt erst bei Auswahl eines KI-Providers. Prompt-Vorlagen werden unter `/analyse/prompts/` verwaltet und privat gespeichert. Das Analyseformular bietet nur aktive Vorlagen an, die zum gewaehlten Scope passen.
 
 ## Bereits funktionsfähig
 
 - Dashboard mit Datenstatus und Schnelleinstiegen
 - Analyse-Startseite
 - Analyse starten mit bestehendem `AnalysisService`
+- private Prompt-Vorlagenverwaltung unter `/analyse/prompts/`
 - Sitzungsliste und Sitzungsdetails aus `data/db/local_index.sqlite`
 - Analysejobliste und Analysejobdetails aus `data/analysis_outputs/`
 - Anzeige alter v1-Analyseoutputs
@@ -147,10 +148,28 @@ Mit Provider `none` wird nur die Analysegrundlage erzeugt. Ein echter KI-Aufruf 
 - Produktives Deployment
 - Authentifizierung, Rollen und Benutzerverwaltung
 
+## Private Prompt-Vorlagen
+
+Produktive Prompt-Vorlagen werden nicht im Repository gespeichert. Der Standardpfad liegt im privaten Datenbereich:
+
+```text
+data/private/prompt_templates.json
+```
+
+Der Pfad kann ueber Environment-Variablen angepasst werden:
+
+- `RATSI_PRIVATE_DATA_DIR` fuer den privaten Datenbereich
+- `RATSI_PROMPT_TEMPLATES_PATH` fuer die konkrete JSON-Datei
+
+Beim ersten Zugriff kann die private Datei aus `configs/prompt_templates.example.json` initialisiert werden. Diese Beispiel-Datei enthaelt nur harmlose Demo-Prompts. Echte Vorlagen werden ueber die Django-Seite `/analyse/prompts/` erstellt und bleiben durch `.gitignore` ausserhalb des Repository-Inhalts.
+
+Neue Analysejobs speichern Template-ID, Revision und Label. Der gerenderte Prompt-Snapshot wird im privaten Datenbereich abgelegt, damit alte Jobs nachvollziehbar bleiben, auch wenn eine Vorlage spaeter geaendert wird.
+
 ## Datenquellen
 
 - `data/db/local_index.sqlite` für Sitzungen, TOPs, Dokumente und einfache Analyse-Tabellen
 - `data/db/analysis_workflow.sqlite` für neuere Analyse-Workflow-Metadaten, falls vorhanden
 - `data/analysis_outputs/` für JSON-, Markdown- und Prompt-Dateien
+- `data/private/` fuer private Prompt-Vorlagen und gerenderte Prompt-Snapshots
 
 Fehlende Datenquellen führen nicht zu Fehlern. Die Oberfläche zeigt stattdessen leere Listen oder Hinweise.

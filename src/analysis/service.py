@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -32,7 +32,7 @@ from src.analysis.workflow_db import (
     create_publication_job,
 )
 from src.fetching.storage_layout import resolve_local_file_path
-from src.paths import ANALYSIS_OUTPUTS_DIR, ANALYSIS_PROMPTS_DIR, DEFAULT_ANALYSIS_MARKDOWN
+from src.paths import ANALYSIS_OUTPUTS_DIR, ANALYSIS_PROMPTS_DIR, DEFAULT_ANALYSIS_MARKDOWN, PROMPT_SNAPSHOTS_DIR
 
 
 @dataclass(frozen=True)
@@ -47,6 +47,9 @@ class AnalysisRequest:
     provider_id: str = PROVIDER_NONE
     model_name: str = ""
     prompt_version: str = "draft"
+    prompt_template_id: str = ""
+    prompt_template_revision: int | None = None
+    prompt_template_label: str = ""
     purpose: str = DEFAULT_ANALYSIS_PURPOSE
     provider_kwargs: dict = field(default_factory=dict)
     pdf_paths: list[Path] = field(default_factory=list)
@@ -84,8 +87,8 @@ class AnalysisService:
         with sqlite3.connect(db_path) as conn:
             self.ensure_analysis_tables(conn)
             cur = conn.execute(
-                "INSERT INTO analysis_jobs (created_at, session_id, scope, top_numbers_json, purpose, model_name, prompt_version, status, error_message) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO analysis_jobs (created_at, session_id, scope, top_numbers_json, purpose, model_name, prompt_version, prompt_template_id, prompt_template_revision, prompt_template_label, rendered_prompt_snapshot_path, status, error_message) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     created_at,
                     request.session["session_id"],
@@ -94,6 +97,10 @@ class AnalysisService:
                     request.purpose or DEFAULT_ANALYSIS_PURPOSE,
                     effective_model,
                     request.prompt_version,
+                    request.prompt_template_id or None,
+                    request.prompt_template_revision,
+                    request.prompt_template_label or None,
+                    None,
                     "running",
                     None,
                 ),
@@ -135,6 +142,9 @@ class AnalysisService:
             purpose=request.purpose or DEFAULT_ANALYSIS_PURPOSE,
             model_name=effective_model,
             prompt_version=request.prompt_version,
+            prompt_template_id=request.prompt_template_id,
+            prompt_template_revision=request.prompt_template_revision,
+            prompt_template_label=request.prompt_template_label,
             prompt_text=request.prompt,
             markdown=markdown,
             ki_response=ki_response_text,
@@ -292,6 +302,12 @@ class AnalysisService:
             ANALYSIS_PROMPTS_DIR / f"job_{record.job_id}.txt",
             record.prompt_text + "\n",
         )
+        snapshot_path = _write_text_no_overwrite(
+            PROMPT_SNAPSHOTS_DIR / f"job_{record.job_id}.txt",
+            record.prompt_text + "\n",
+        )
+        record = replace(record, rendered_prompt_snapshot_path=str(snapshot_path))
+        self._update_prompt_snapshot_path(record)
         DEFAULT_ANALYSIS_MARKDOWN.write_text(md_content, encoding="utf-8")
         workflow_job_id = self._index_workflow_outputs(
             record=record,
@@ -352,6 +368,10 @@ class AnalysisService:
                 purpose TEXT NOT NULL DEFAULT 'content_analysis',
                 model_name TEXT,
                 prompt_version TEXT,
+                prompt_template_id TEXT,
+                prompt_template_revision INTEGER,
+                prompt_template_label TEXT,
+                rendered_prompt_snapshot_path TEXT,
                 status TEXT NOT NULL,
                 error_message TEXT
             );
@@ -367,6 +387,10 @@ class AnalysisService:
             """
         )
         self._ensure_column(conn, "analysis_jobs", "purpose", "TEXT NOT NULL DEFAULT 'content_analysis'")
+        self._ensure_column(conn, "analysis_jobs", "prompt_template_id", "TEXT")
+        self._ensure_column(conn, "analysis_jobs", "prompt_template_revision", "INTEGER")
+        self._ensure_column(conn, "analysis_jobs", "prompt_template_label", "TEXT")
+        self._ensure_column(conn, "analysis_jobs", "rendered_prompt_snapshot_path", "TEXT")
 
     def _load_documents(
         self,
@@ -479,6 +503,10 @@ class AnalysisService:
                     source_job_id=record.job_id,
                     model_name=record.model_name,
                     prompt_version=record.prompt_version,
+                    prompt_template_id=record.prompt_template_id,
+                    prompt_template_revision=record.prompt_template_revision,
+                    prompt_template_label=record.prompt_template_label,
+                    rendered_prompt_snapshot_path=record.rendered_prompt_snapshot_path,
                     status=record.status,
                     error_message=record.error_message,
                 )
@@ -513,6 +541,18 @@ class AnalysisService:
             return workflow_job_id
         except sqlite3.Error:
             return None
+
+    def _update_prompt_snapshot_path(self, record: AnalysisOutputRecord) -> None:
+        try:
+            with sqlite3.connect(record.source_db) as conn:
+                self.ensure_analysis_tables(conn)
+                conn.execute(
+                    "UPDATE analysis_jobs SET rendered_prompt_snapshot_path = ? WHERE id = ?",
+                    (record.rendered_prompt_snapshot_path, record.job_id),
+                )
+                conn.commit()
+        except sqlite3.Error:
+            return
 
     def _index_publication_output(
         self,
@@ -582,6 +622,7 @@ def _job_stem(record: AnalysisOutputRecord) -> str:
 def _write_text_no_overwrite(path: Path, content: str) -> Path:
     """Write text to a unique path without replacing existing artifacts."""
 
+    path.parent.mkdir(parents=True, exist_ok=True)
     target = path
     counter = 1
     while target.exists():

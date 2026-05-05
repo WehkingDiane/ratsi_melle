@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Prompt-Vorlage - Ratsi Melle{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow">Analyse</p>
+  <h1>Prompt-Vorlage</h1>
+  <p>Vorlagen werden im privaten Datenbereich gespeichert.</p>
+</section>
+
+{% if errors %}
+<section class="message-list">
+  {% for error in errors %}
+  <p class="status-error">{{ error }}</p>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="panel">
+  <form method="post" class="form-stack">
+    {% csrf_token %}
+    {% if not template.id %}
+    <label>ID
+      <input type="text" name="id" placeholder="z_b_sitzungsanalyse">
+    </label>
+    {% endif %}
+    <label>Name
+      <input type="text" name="label" value="{{ template.label|default:'' }}" required>
+    </label>
+    <label>Scope
+      <select name="scope">
+        <option value="session" {% if template.scope == "session" %}selected{% endif %}>Sitzung</option>
+        <option value="tops" {% if template.scope == "tops" %}selected{% endif %}>TOPs</option>
+        <option value="document" {% if template.scope == "document" %}selected{% endif %}>Dokument</option>
+      </select>
+    </label>
+    <label>Beschreibung
+      <textarea name="description" rows="3">{{ template.description|default:'' }}</textarea>
+    </label>
+    <label>Prompt-Text
+      <textarea name="prompt_text" rows="12" required>{{ template.prompt_text|default:'' }}</textarea>
+    </label>
+    <label>Variablen
+      <input type="text" name="variables" value="{{ template.variables|join:', ' }}" placeholder="session_title, session_date, committee">
+    </label>
+    <label>Sichtbarkeit
+      <select name="visibility">
+        <option value="private" {% if template.visibility == "private" %}selected{% endif %}>Privat</option>
+        <option value="shared" {% if template.visibility == "shared" %}selected{% endif %}>Geteilt</option>
+      </select>
+    </label>
+    <label><input type="checkbox" name="is_active" value="1" {% if template.is_active %}checked{% endif %}> Aktiv</label>
+
+    <section class="info-panel">
+      <h2>Verfuegbare Platzhalter</h2>
+      <p>{% verbatim %}{{session_title}}, {{session_date}}, {{committee}}, {{agenda_item}}, {{document_text}}, {{source_list}}, {{analysis_goal}}{% endverbatim %}</p>
+    </section>
+
+    <div class="actions">
+      <button class="button primary" type="submit">Speichern</button>
+      <a class="button" href="{% url 'analysis:prompt_template_list' %}">Abbrechen</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

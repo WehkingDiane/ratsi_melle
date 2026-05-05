@@ -12,6 +12,11 @@ logs/
 # Runtime data
 data/raw/
 data/processed/
+data/private/**
+!data/private/.gitkeep
+*.private.json
+*.local.json
+prompt_templates.json
 
 # Databases
 data/db/*
