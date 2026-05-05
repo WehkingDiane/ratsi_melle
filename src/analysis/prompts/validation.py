@@ -10,6 +10,15 @@ from src.analysis.prompts.models import PromptTemplate
 
 VALID_SCOPES = {"session", "tops", "document"}
 VALID_VISIBILITIES = {"private", "shared"}
+ALLOWED_PLACEHOLDERS = {
+    "session_title",
+    "session_date",
+    "committee",
+    "agenda_item",
+    "document_text",
+    "source_list",
+    "analysis_goal",
+}
 PLACEHOLDER_RE = re.compile(r"{{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*}}")
 
 
@@ -32,6 +41,10 @@ def validate_template(template: PromptTemplate) -> PromptTemplate:
         errors.append(f"visibility must be one of {', '.join(sorted(VALID_VISIBILITIES))}")
     if template.revision < 1:
         errors.append("revision must be >= 1")
+    placeholders = extract_placeholders(template.prompt_text)
+    unknown_placeholders = sorted(placeholders - ALLOWED_PLACEHOLDERS)
+    if unknown_placeholders:
+        errors.append("unknown placeholders: " + ", ".join(unknown_placeholders))
     if errors:
         raise PromptTemplateError("; ".join(errors))
     return replace(
@@ -41,9 +54,14 @@ def validate_template(template: PromptTemplate) -> PromptTemplate:
         scope=template.scope.strip(),
         description=template.description.strip(),
         prompt_text=template.prompt_text.strip(),
-        variables=[variable.strip() for variable in template.variables if variable.strip()],
+        variables=sorted(placeholders),
         visibility=template.visibility.strip(),
     )
+
+
+def extract_placeholders(prompt_text: str) -> set[str]:
+    """Return placeholder names used in a prompt template."""
+    return {match.group(1) for match in PLACEHOLDER_RE.finditer(prompt_text)}
 
 
 def render_prompt(template: PromptTemplate, context: dict[str, object]) -> str:

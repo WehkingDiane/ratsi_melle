@@ -44,6 +44,34 @@ def test_render_prompt_substitutes_known_placeholders() -> None:
     assert rendered == "Analysiere Ratssitzung fuer Inhaltsanalyse."
 
 
+def test_prompt_template_validation_rejects_unknown_placeholder() -> None:
+    with pytest.raises(PromptTemplateError, match="unknown placeholders: unknown_value"):
+        validate_template(
+            PromptTemplate(
+                id="bad",
+                label="Bad",
+                scope="session",
+                description="",
+                prompt_text="Analysiere {{unknown_value}}.",
+            )
+        )
+
+
+def test_prompt_template_validation_accepts_known_placeholders_and_syncs_variables() -> None:
+    template = validate_template(
+        PromptTemplate(
+            id="known",
+            label="Known",
+            scope="session",
+            description="",
+            prompt_text="Analysiere {{committee}} und {{session_date}}.",
+            variables=["committee", "unused"],
+        )
+    )
+
+    assert template.variables == ["committee", "session_date"]
+
+
 def test_memory_repository_filters_and_deactivates() -> None:
     repo = MemoryPromptTemplateRepository([_template(), _template("top_demo", "tops")])
 
