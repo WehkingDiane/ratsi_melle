@@ -8,6 +8,10 @@ from types import ModuleType
 import pytest
 
 from scripts import build_vector_index
+from src.indexing.id_strategy import stable_document_id
+from src.indexing.payload_builder import build_document_payload, resolve_local_path
+from src.indexing.reconciliation import find_orphaned_ids
+from src.indexing.vectorizer import HybridVectorizer
 
 
 class _FakeVectorStore:
@@ -87,6 +91,14 @@ def test_stable_qdrant_id_distinguishes_duplicate_urls_by_agenda_item() -> None:
     assert session_doc == session_doc_none
 
 
+def test_stable_document_id_is_deterministic_and_sensitive_to_inputs() -> None:
+    base = stable_document_id("901", "https://example.org/doc.pdf", "Oe 1")
+
+    assert stable_document_id("901", "https://example.org/doc.pdf", "Oe 1") == base
+    assert stable_document_id("902", "https://example.org/doc.pdf", "Oe 1") != base
+    assert stable_document_id("901", "https://example.org/other.pdf", "Oe 1") != base
+
+
 def test_get_document_text_resolves_legacy_session_paths(tmp_path: Path, monkeypatch) -> None:
     session_dir = tmp_path / "data" / "raw" / "2025" / "09" / "2025-09-18_Rat_901"
     pdf_path = session_dir / "session-documents" / "protokoll.pdf"
@@ -121,6 +133,104 @@ def test_resolved_payload_local_path_uses_storage_helper(tmp_path: Path) -> None
     )
 
     assert resolved == str(pdf_path.resolve())
+
+
+def test_build_document_payload_preserves_existing_fields(tmp_path: Path) -> None:
+    session_dir = tmp_path / "data" / "raw" / "2025" / "09" / "2025-09-18_Rat_901"
+    pdf_path = session_dir / "session-documents" / "vorlage.pdf"
+    pdf_path.parent.mkdir(parents=True, exist_ok=True)
+    pdf_path.write_bytes(b"pdf")
+
+    assert resolve_local_path(
+        {
+            "session_path": str(tmp_path / "data" / "raw" / "2025" / "2025-09-18_Rat_901"),
+            "local_path": r"session-documents\vorlage.pdf",
+        }
+    ) == str(pdf_path.resolve())
+
+    payload = build_document_payload(
+        {
+            "session_id": "901",
+            "title": "Vorlage",
+            "document_type": "beschlussvorlage",
+            "agenda_item": "Oe 1",
+            "url": "https://example.org/vorlage.pdf",
+            "local_path": r"session-documents\vorlage.pdf",
+            "date": "2025-09-18",
+            "committee": "Rat",
+            "session_path": str(tmp_path / "data" / "raw" / "2025" / "2025-09-18_Rat_901"),
+        }
+    )
+
+    assert payload == {
+        "session_id": "901",
+        "title": "Vorlage",
+        "document_type": "beschlussvorlage",
+        "agenda_item": "Oe 1",
+        "url": "https://example.org/vorlage.pdf",
+        "local_path": str(pdf_path.resolve()),
+        "date": "2025-09-18",
+        "committee": "Rat",
+    }
+
+
+def test_build_document_payload_uses_empty_path_for_missing_file() -> None:
+    payload = build_document_payload(
+        {
+            "session_id": "901",
+            "title": None,
+            "document_type": None,
+            "agenda_item": None,
+            "url": None,
+            "local_path": "missing.pdf",
+            "date": None,
+            "committee": None,
+            "session_path": "",
+        }
+    )
+
+    assert payload["local_path"] == ""
+    assert payload["title"] == ""
+    assert payload["url"] == ""
+
+
+def test_find_orphaned_ids_returns_indexed_ids_missing_from_current_set() -> None:
+    assert find_orphaned_ids({1, 2, 3}, {2, 3, 4}) == {1}
+    assert find_orphaned_ids({1, 2}, {1, 2}) == set()
+    assert find_orphaned_ids(set(), {1}) == set()
+
+
+def test_hybrid_vectorizer_combines_dense_and_sparse_vectors_by_order() -> None:
+    class Dense:
+        def embed_documents(self, texts: list[str]) -> list[list[float]]:
+            return [[float(index)] for index, _text in enumerate(texts)]
+
+    class Sparse:
+        def encode_documents(self, texts: list[str]) -> list[dict]:
+            return [
+                {"indices": [index], "values": [float(len(text))]}
+                for index, text in enumerate(texts)
+            ]
+
+    result = HybridVectorizer(Dense(), Sparse()).encode_documents(["eins", "zwei"])
+
+    assert result == [
+        {"dense_vector": [0.0], "sparse_vector": {"indices": [0], "values": [4.0]}},
+        {"dense_vector": [1.0], "sparse_vector": {"indices": [1], "values": [4.0]}},
+    ]
+
+
+def test_hybrid_vectorizer_rejects_mismatched_output_lengths() -> None:
+    class Dense:
+        def embed_documents(self, texts: list[str]) -> list[list[float]]:
+            return [[1.0]]
+
+    class Sparse:
+        def encode_documents(self, texts: list[str]) -> list[dict]:
+            return [{"indices": [1], "values": [1.0]} for _text in texts]
+
+    with pytest.raises(ValueError, match="document count"):
+        HybridVectorizer(Dense(), Sparse()).encode_documents(["eins", "zwei"])
 
 
 def test_validate_runtime_dependencies_fails_fast_for_missing_third_party_module(

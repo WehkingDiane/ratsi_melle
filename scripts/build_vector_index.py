@@ -13,7 +13,6 @@ batches of embeddings into the Qdrant collection.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import importlib
 import sqlite3
 import sys
@@ -27,25 +26,13 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from src.fetching.storage_layout import resolve_local_file_path
+from src.indexing.id_strategy import stable_document_id
+from src.indexing.payload_builder import build_document_payload, resolve_local_path as _resolved_payload_local_path
+from src.indexing.reconciliation import find_orphaned_ids
+from src.indexing.vectorizer import HybridVectorizer
 from src.paths import LOCAL_INDEX_DB, QDRANT_DIR
 
-
-# ---------------------------------------------------------------------------
-# Stable Qdrant ID (hash-based, survives SQLite row recreation)
-# ---------------------------------------------------------------------------
-
-def _stable_qdrant_id(session_id: str, url: str, agenda_item: str = "") -> int:
-    """Derive a stable integer ID from session_id + url + agenda_item.
-
-    Using a hash instead of the SQLite autoincrement id means the Qdrant
-    point ID stays the same even after build_local_index --refresh-existing
-    deletes and recreates document rows with new autoincrement values.
-
-    ``agenda_item`` is included so repeated references to the same attachment
-    URL within one session still produce distinct vector IDs.
-    """
-    key = f"{session_id or ''}|{url or ''}|{agenda_item or ''}"
-    return int(hashlib.md5(key.encode()).hexdigest()[:16], 16)
+_stable_qdrant_id = stable_document_id
 
 
 # ---------------------------------------------------------------------------
@@ -136,22 +123,11 @@ def _reconcile_orphaned_vectors(
         print("Skipping orphan cleanup because --limit is set.")
         return 0
 
-    orphaned = already_indexed - current_ids
+    orphaned = find_orphaned_ids(already_indexed, current_ids)
     if orphaned:
         print(f"  Removing {len(orphaned)} orphaned vector(s) …")
         vector_store.delete_ids(orphaned)
     return len(orphaned)
-
-
-def _resolved_payload_local_path(row: dict) -> str:
-    """Return an absolute local document path for the payload when available."""
-    resolved = resolve_local_file_path(
-        session_path=str(row.get("session_path") or ""),
-        local_path=str(row.get("local_path") or ""),
-    )
-    if resolved is None or not resolved.is_file():
-        return ""
-    return str(resolved.resolve())
 
 
 def _validate_runtime_dependencies() -> tuple[type, type]:
@@ -231,7 +207,7 @@ def main(argv: list[str] | None = None) -> None:
 
     # Use stable hash IDs (not SQLite autoincrement) to survive index refreshes
     for doc in all_docs:
-        doc["_qdrant_id"] = _stable_qdrant_id(
+        doc["_qdrant_id"] = stable_document_id(
             str(doc.get("session_id") or ""),
             str(doc.get("url") or ""),
             str(doc.get("agenda_item") or ""),
@@ -264,6 +240,7 @@ def main(argv: list[str] | None = None) -> None:
         print(f"  Device: {device.upper()}, batch size: {batch_size}")
 
         n = len(docs_to_index)
+        vectorizer = HybridVectorizer(embedder, bm25)
 
         for batch_start in range(0, n, batch_size):
             batch = docs_to_index[batch_start : batch_start + batch_size]
@@ -275,28 +252,16 @@ def main(argv: list[str] | None = None) -> None:
                 print(f"  [{global_index}/{n}] {title_preview} …")
                 texts.append(_get_document_text(doc))
 
-            dense_vectors = embedder.embed_documents(texts)
-            sparse_vectors = bm25.encode_documents(texts)
+            vector_results = vectorizer.encode_documents(texts)
 
             points: list[dict] = []
-            for doc, dense_vec, sparse_vec in zip(batch, dense_vectors, sparse_vectors):
-                resolved_path = _resolved_payload_local_path(doc)
-
+            for doc, vectors in zip(batch, vector_results):
                 points.append(
                     {
                         "id": doc["_qdrant_id"],
-                        "dense_vector": dense_vec,
-                        "sparse_vector": sparse_vec,
-                        "payload": {
-                            "session_id": doc.get("session_id"),
-                            "title": doc.get("title") or "",
-                            "document_type": doc.get("document_type") or "",
-                            "agenda_item": doc.get("agenda_item") or "",
-                            "url": doc.get("url") or "",
-                            "local_path": resolved_path,
-                            "date": doc.get("date") or "",
-                            "committee": doc.get("committee") or "",
-                        },
+                        "dense_vector": vectors["dense_vector"],
+                        "sparse_vector": vectors["sparse_vector"],
+                        "payload": build_document_payload(doc),
                     }
                 )
 

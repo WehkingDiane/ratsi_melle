@@ -183,7 +183,11 @@ Dokumente sollen nicht nur ueber exakte Schlagwoerter, sondern auch inhaltlich a
 | Embedding-Service | `src/analysis/embeddings.py` | Harrier laden, Dense-Vektoren erzeugen |
 | Sparse-Encoder | `src/analysis/bm25_sparse.py` | BM25-Sparse-Vektoren ueber `fastembed` |
 | Vector Store | `src/analysis/vector_store.py` | Qdrant-Wrapper |
-| Indexierung | `scripts/build_vector_index.py` | SQLite lesen, PDF-Text extrahieren, Qdrant befuellen |
+| Index-CLI | `scripts/build_vector_index.py` | SQLite lesen, PDF-Text extrahieren, Qdrant befuellen |
+| ID-Strategie | `src/indexing/id_strategy.py` | stabile Qdrant-IDs aus Dokumentmetadaten erzeugen |
+| Payload-Building | `src/indexing/payload_builder.py` | Qdrant-Payloads und absolute lokale Pfade bauen |
+| Hybrid-Vectorizer | `src/indexing/vectorizer.py` | Dense- und Sparse-Vektoren je Dokument koordinieren |
+| Reconciliation | `src/indexing/reconciliation.py` | verwaiste Qdrant-IDs erkennen |
 
 ### Architektur
 
@@ -201,6 +205,8 @@ Qdrant Local Store
     ↓
 Hybrid-Suche mit RRF-Rangfusion
 ```
+
+Die fachlichen Indexing-Schritte fuer stabile IDs, Payload-Aufbau, Hybrid-Vektorisierung und Reconciliation liegen in `src/indexing/`. Das CLI-Skript bleibt damit der Orchestrator fuer Datenladen, Batching und Qdrant-Upsert.
 
 ### Speicherort
 
