@@ -148,6 +148,8 @@ def prompt_template_form(request, template_id: str = ""):
 
 
 def prompt_template_duplicate(request, template_id: str):
+    if request.method != "POST":
+        return redirect("analysis:prompt_template_list")
     _template, errors = services.duplicate_prompt_template(template_id)
     if errors:
         return redirect(f"{reverse('analysis:prompt_template_list')}?error=duplicate")

@@ -41,7 +41,10 @@
         <td>{{ template.revision }}</td>
         <td class="actions">
           <a href="{% url 'analysis:prompt_template_edit' template.id %}">Bearbeiten</a>
-          <a href="{% url 'analysis:prompt_template_duplicate' template.id %}">Duplizieren</a>
+          <form method="post" action="{% url 'analysis:prompt_template_duplicate' template.id %}">
+            {% csrf_token %}
+            <button class="link-button" type="submit">Duplizieren</button>
+          </form>
           {% if template.is_active %}
           <form method="post" action="{% url 'analysis:prompt_template_deactivate' template.id %}">
             {% csrf_token %}

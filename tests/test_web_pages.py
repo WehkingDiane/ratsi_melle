@@ -317,6 +317,10 @@ def test_prompt_template_management_create_edit_duplicate_deactivate(client, mon
 
     response = client.get("/analyse/prompts/session_test/duplizieren/")
     assert response.status_code == 302
+    assert services.get_prompt_template("session_test_copy") is None
+
+    response = client.post("/analyse/prompts/session_test/duplizieren/")
+    assert response.status_code == 302
     assert services.get_prompt_template("session_test_copy") is not None
 
     response = client.post("/analyse/prompts/session_test/deaktivieren/")
