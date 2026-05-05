@@ -826,6 +826,29 @@ def test_list_prompt_templates_returns_empty_list_for_invalid_store(monkeypatch,
     assert analysis_services.list_prompt_templates("session") == []
 
 
+def test_save_prompt_template_from_form_returns_errors_for_invalid_store(monkeypatch, workspace_tmp: Path) -> None:
+    template_path = workspace_tmp / "prompt_templates.json"
+    template_path.write_text("{not json", encoding="utf-8")
+    example_path = workspace_tmp / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    template, errors = analysis_services.save_prompt_template_from_form(
+        {
+            "label": "Kaputte Vorlage",
+            "prompt_text": "Analysiere {{session_title}}.",
+            "scope": "session",
+            "visibility": "private",
+            "is_active": "1",
+        }
+    )
+
+    assert template is None
+    assert errors == ["Prompt-Vorlagen konnten nicht gelesen werden. Bitte private Vorlagen-Datei prüfen."]
+    assert "Analysiere" not in errors[0]
+
+
 def test_prompt_template_slugify_handles_german_umlauts(monkeypatch, workspace_tmp: Path) -> None:
     template_path = workspace_tmp / "prompt_templates.json"
     example_path = workspace_tmp / "prompt_templates.example.json"

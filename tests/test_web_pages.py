@@ -362,6 +362,64 @@ def test_analysis_start_handles_invalid_prompt_template_store(client, monkeypatc
     assert "KI-Analyse starten" in response.content.decode("utf-8")
 
 
+def test_prompt_template_create_post_handles_invalid_store(client, monkeypatch, tmp_path) -> None:
+    from analysis import services
+
+    template_path = tmp_path / "private" / "prompt_templates.json"
+    template_path.parent.mkdir(parents=True)
+    template_path.write_text("{not json", encoding="utf-8")
+    example_path = tmp_path / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    response = client.post(
+        "/analyse/prompts/neu/",
+        {
+            "label": "Kaputte Vorlage",
+            "scope": "session",
+            "description": "",
+            "prompt_text": "Analysiere {{session_title}}.",
+            "variables": "session_title",
+            "visibility": "private",
+            "is_active": "1",
+        },
+    )
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "Prompt-Vorlagen konnten nicht gelesen werden" in content
+
+
+def test_prompt_template_edit_post_handles_invalid_store(client, monkeypatch, tmp_path) -> None:
+    from analysis import services
+
+    template_path = tmp_path / "private" / "prompt_templates.json"
+    template_path.parent.mkdir(parents=True)
+    template_path.write_text("{not json", encoding="utf-8")
+    example_path = tmp_path / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    response = client.post(
+        "/analyse/prompts/kaputt/",
+        {
+            "label": "Kaputte Vorlage",
+            "scope": "session",
+            "description": "",
+            "prompt_text": "Analysiere {{session_title}}.",
+            "variables": "session_title",
+            "visibility": "private",
+            "is_active": "1",
+        },
+    )
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "Prompt-Vorlagen konnten nicht gelesen werden" in content
+
+
 def test_analysis_start_filters_active_templates_by_scope(client, monkeypatch) -> None:
     from analysis import views
 

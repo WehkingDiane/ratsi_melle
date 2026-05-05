@@ -12,6 +12,9 @@ from src.analysis.prompts.validation import PromptTemplateError
 from . import paths
 
 
+PROMPT_TEMPLATE_STORE_READ_ERROR = "Prompt-Vorlagen konnten nicht gelesen werden. Bitte private Vorlagen-Datei prüfen."
+
+
 def prompt_repository() -> PromptTemplateRepository:
     """Return the configured prompt repository."""
     return JsonPromptTemplateRepository(
@@ -33,7 +36,10 @@ def list_prompt_templates(scope: str = "", *, active_only: bool = False) -> list
 
 def get_prompt_template(template_id: str) -> dict[str, Any] | None:
     """Return one prompt template by id."""
-    template = prompt_repository().get_template(template_id)
+    try:
+        template = prompt_repository().get_template(template_id)
+    except PromptTemplateError:
+        return None
     return template.to_dict() if template else None
 
 
@@ -56,10 +62,13 @@ def save_prompt_template_from_form(data: dict[str, Any]) -> tuple[dict[str, Any]
     repo = prompt_repository()
     allow_update = bool(data.get("allow_update"))
     template_id = str(data.get("id") or "").strip() or _slugify(str(data.get("label") or ""))
-    existing = repo.get_template(template_id)
-    if not allow_update and existing is not None:
-        template_id = _unique_template_id(template_id, repo)
-        existing = None
+    try:
+        existing = repo.get_template(template_id)
+        if not allow_update and existing is not None:
+            template_id = _unique_template_id(template_id, repo)
+            existing = None
+    except PromptTemplateError:
+        return None, [PROMPT_TEMPLATE_STORE_READ_ERROR]
     label = str(data.get("label") or "").strip()
     scope = str(data.get("scope") or "session").strip()
     description = str(data.get("description") or "").strip()
