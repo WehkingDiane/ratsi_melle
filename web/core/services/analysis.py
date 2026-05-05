@@ -46,11 +46,11 @@ def run_analysis_from_form(data: dict[str, Any]) -> tuple[dict[str, Any] | None,
 
     session = get_session(session_id) if session_id else None
     if not session:
-        errors.append("Bitte eine vorhandene Sitzung waehlen.")
+        errors.append("Bitte eine vorhandene Sitzung wählen.")
     if scope not in {"session", "tops"}:
-        errors.append("Der Scope ist ungueltig.")
+        errors.append("Der Scope ist ungültig.")
     if scope == "tops" and not selected_tops:
-        errors.append("Bitte mindestens einen TOP waehlen oder Scope 'Ganze Sitzung' nutzen.")
+        errors.append("Bitte mindestens einen TOP wählen oder Scope 'Ganze Sitzung' nutzen.")
     if scope == "tops" and session and selected_tops:
         available_tops = {
             str(item.get("number") or "")
@@ -60,13 +60,13 @@ def run_analysis_from_form(data: dict[str, Any]) -> tuple[dict[str, Any] | None,
         invalid_tops = [top for top in selected_tops if top not in available_tops]
         if invalid_tops:
             errors.append(
-                "Bitte nur TOPs mit lokal vorhandenen Dokumenten auswaehlen: "
+                "Bitte nur TOPs mit lokal vorhandenen Dokumenten auswählen: "
                 + ", ".join(invalid_tops)
             )
     if provider_id not in {option["value"] for option in provider_options()}:
-        errors.append("Der KI-Provider ist ungueltig.")
+        errors.append("Der KI-Provider ist ungültig.")
     if purpose not in {option["value"] for option in analysis_purpose_options()}:
-        errors.append("Der Analysezweck ist ungueltig.")
+        errors.append("Der Analysezweck ist ungültig.")
 
     template, template_errors = get_active_prompt_template(template_id, scope)
     errors.extend(template_errors)

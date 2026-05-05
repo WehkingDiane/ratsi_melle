@@ -37,14 +37,14 @@ def get_prompt_template(template_id: str) -> dict[str, Any] | None:
 def get_active_prompt_template(template_id: str, scope: str) -> tuple[PromptTemplate | None, list[str]]:
     """Return an active template and validate that it matches the requested scope."""
     if not template_id:
-        return None, ["Bitte eine Prompt-Vorlage wÃ¤hlen."]
+        return None, ["Bitte eine Prompt-Vorlage wählen."]
     template = prompt_repository().get_template(template_id)
     if template is None:
-        return None, ["Die gewÃ¤hlte Prompt-Vorlage wurde nicht gefunden."]
+        return None, ["Die gewählte Prompt-Vorlage wurde nicht gefunden."]
     if not template.is_active:
-        return None, ["Die gewÃ¤hlte Prompt-Vorlage ist deaktiviert."]
+        return None, ["Die gewählte Prompt-Vorlage ist deaktiviert."]
     if template.scope != scope:
-        return None, ["Die gewÃ¤hlte Prompt-Vorlage passt nicht zum Analyse-Scope."]
+        return None, ["Die gewählte Prompt-Vorlage passt nicht zum Analyse-Scope."]
     return template, []
 
 
@@ -123,10 +123,10 @@ def _unique_template_id(base_id: str, repo: PromptTemplateRepository) -> str:
 def _slugify(value: str) -> str:
     value = (
         value.lower()
-        .replace("Ã¤", "ae")
-        .replace("Ã¶", "oe")
-        .replace("Ã¼", "ue")
-        .replace("ÃŸ", "ss")
+        .replace("ä", "ae")
+        .replace("ö", "oe")
+        .replace("ü", "ue")
+        .replace("ß", "ss")
     )
     chars = []
     for char in value:

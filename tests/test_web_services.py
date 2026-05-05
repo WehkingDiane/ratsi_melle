@@ -815,6 +815,42 @@ def test_save_prompt_template_from_form_persists_template(monkeypatch, workspace
     assert any(item["label"] == "Meine TOP Vorlage" for item in loaded)
 
 
+def test_prompt_template_slugify_handles_german_umlauts(monkeypatch, workspace_tmp: Path) -> None:
+    template_path = workspace_tmp / "prompt_templates.json"
+    example_path = workspace_tmp / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    template, errors = analysis_services.save_prompt_template_from_form(
+        {
+            "label": "Meine öffentliche Vorlage",
+            "prompt_text": "Analysiere {{session_title}}.",
+            "scope": "session",
+            "visibility": "private",
+            "is_active": "1",
+        }
+    )
+
+    assert errors == []
+    assert template["id"] == "meine_oeffentliche_vorlage"
+
+
+def test_prompt_template_error_messages_use_correct_umlauts(monkeypatch, workspace_tmp: Path) -> None:
+    from core.services.prompts import get_active_prompt_template
+
+    template_path = workspace_tmp / "prompt_templates.json"
+    example_path = workspace_tmp / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    _template, errors = get_active_prompt_template("fehlt", "session")
+
+    assert "gewählte" in errors[0]
+    assert "gewÃ" not in errors[0]
+
+
 def test_analysis_output_reads_private_prompt_snapshot(monkeypatch, workspace_tmp: Path) -> None:
     import sqlite3
 

@@ -107,14 +107,14 @@
       <label>
         Prompt-Vorlage
         <select name="template_id">
-          <option value="">Vorlage waehlen</option>
+          <option value="">Vorlage wählen</option>
           {% for template in templates %}
           <option value="{{ template.id }}" {% if template.id == selected_template_id %}selected{% endif %}>{{ template.label }}</option>
           {% endfor %}
         </select>
       </label>
       {% if not templates %}
-      <p class="empty-state">Keine aktive Prompt-Vorlage fuer diesen Scope vorhanden. Lege zuerst eine private Vorlage an.</p>
+      <p class="empty-state">Keine aktive Prompt-Vorlage für diesen Scope vorhanden. Lege zuerst eine private Vorlage an.</p>
       {% endif %}
       {% if selected_template.description %}
       <p class="empty-state">{{ selected_template.description }}</p>
@@ -130,7 +130,7 @@
       <section class="info-panel">
         <h3>Private Prompt-Vorlagen</h3>
         <p>Echte Vorlagen werden im privaten Datenbereich gespeichert und nicht im Git-Repository abgelegt.</p>
-        <p>{% verbatim %}Verfuegbare Platzhalter: {{session_title}}, {{session_date}}, {{committee}}, {{agenda_item}}, {{document_text}}, {{source_list}}, {{analysis_goal}}{% endverbatim %}</p>
+        <p>{% verbatim %}Verfügbare Platzhalter: {{session_title}}, {{session_date}}, {{committee}}, {{agenda_item}}, {{document_text}}, {{source_list}}, {{analysis_goal}}{% endverbatim %}</p>
         <a href="{% url 'analysis:prompt_template_list' %}">Prompt-Vorlagen verwalten</a>
       </section>
 
