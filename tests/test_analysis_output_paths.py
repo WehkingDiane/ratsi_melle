@@ -11,12 +11,14 @@ def test_v2_output_paths_use_session_folder_and_do_not_overwrite(
     tmp_path: Path, monkeypatch
 ) -> None:
     outputs_dir = tmp_path / "data" / "analysis_outputs"
-    prompts_dir = outputs_dir / "prompts"
+    prompts_dir = tmp_path / "data" / "private" / "analysis_prompts"
+    snapshots_dir = tmp_path / "data" / "private" / "prompt_snapshots"
     latest_md = outputs_dir / "summaries" / "analysis_latest.md"
     workflow_db = tmp_path / "data" / "db" / "analysis_workflow.sqlite"
 
     monkeypatch.setattr("src.analysis.service.ANALYSIS_OUTPUTS_DIR", outputs_dir)
     monkeypatch.setattr("src.analysis.service.ANALYSIS_PROMPTS_DIR", prompts_dir)
+    monkeypatch.setattr("src.analysis.service.PROMPT_SNAPSHOTS_DIR", snapshots_dir)
     monkeypatch.setattr("src.analysis.service.DEFAULT_ANALYSIS_MARKDOWN", latest_md)
     monkeypatch.setattr("src.analysis.workflow_db.ANALYSIS_WORKFLOW_DB", workflow_db)
 
@@ -70,6 +72,9 @@ def test_v2_output_paths_use_session_folder_and_do_not_overwrite(
     assert (session_out_dir / "job_1.article.md").exists()
     assert (session_out_dir / "job_1.raw.1.json").exists()
     assert (session_out_dir / "job_1.article.1.md").exists()
+    assert (prompts_dir / "job_1.txt").exists()
+    assert (snapshots_dir / "job_1.txt").exists()
+    assert not (outputs_dir / "prompts" / "job_1.txt").exists()
 
     raw_payload = json.loads((session_out_dir / "job_1.raw.json").read_text(encoding="utf-8"))
     availability = {
@@ -82,12 +87,14 @@ def test_publication_artifacts_are_skipped_for_failed_jobs(
     tmp_path: Path, monkeypatch
 ) -> None:
     outputs_dir = tmp_path / "data" / "analysis_outputs"
-    prompts_dir = outputs_dir / "prompts"
+    prompts_dir = tmp_path / "data" / "private" / "analysis_prompts"
+    snapshots_dir = tmp_path / "data" / "private" / "prompt_snapshots"
     latest_md = outputs_dir / "summaries" / "analysis_latest.md"
     workflow_db = tmp_path / "data" / "db" / "analysis_workflow.sqlite"
 
     monkeypatch.setattr("src.analysis.service.ANALYSIS_OUTPUTS_DIR", outputs_dir)
     monkeypatch.setattr("src.analysis.service.ANALYSIS_PROMPTS_DIR", prompts_dir)
+    monkeypatch.setattr("src.analysis.service.PROMPT_SNAPSHOTS_DIR", snapshots_dir)
     monkeypatch.setattr("src.analysis.service.DEFAULT_ANALYSIS_MARKDOWN", latest_md)
     monkeypatch.setattr("src.analysis.workflow_db.ANALYSIS_WORKFLOW_DB", workflow_db)
 

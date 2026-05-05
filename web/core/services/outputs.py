@@ -140,6 +140,7 @@ def _analysis_jobs_from_db(db_path: Path) -> list[dict[str, Any]]:
         row["db_outputs"] = outputs_by_job.get(str(db_job_id), [])
         for output in row["db_outputs"]:
             _merge_db_output(row, output)
+        _load_prompt_snapshot(row)
         jobs.append(row)
     return jobs
 
@@ -337,6 +338,15 @@ def _read_text(path: Path) -> str:
         return path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
         return ""
+
+
+def _load_prompt_snapshot(job: dict[str, Any]) -> None:
+    if job.get("prompt_text"):
+        return
+    snapshot_path = _resolve_output_path(job.get("rendered_prompt_snapshot_path"))
+    if snapshot_path is None or not snapshot_path.is_file():
+        return
+    job["prompt_text"] = _read_text(snapshot_path).strip()
 
 
 def _empty_job(job_id: str) -> dict[str, Any]:

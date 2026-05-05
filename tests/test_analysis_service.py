@@ -99,7 +99,7 @@ def test_analysis_service_persists_versioned_outputs(tmp_path: Path, monkeypatch
     service = AnalysisService()
 
     outputs_dir = tmp_path / "data" / "analysis_outputs"
-    prompts_dir = outputs_dir / "prompts"
+    prompts_dir = tmp_path / "data" / "private" / "analysis_prompts"
     latest_md = outputs_dir / "summaries" / "analysis_latest.md"
     workflow_db = tmp_path / "data" / "db" / "analysis_workflow.sqlite"
     snapshot_dir = tmp_path / "data" / "private" / "prompt_snapshots"

@@ -298,7 +298,7 @@ class AnalysisService:
             output_dir / f"{job_stem}.structured.json",
             json.dumps(structured_output.to_dict(), indent=2, ensure_ascii=False),
         )
-        prompt_path = _write_text_no_overwrite(
+        _write_text_no_overwrite(
             ANALYSIS_PROMPTS_DIR / f"job_{record.job_id}.txt",
             record.prompt_text + "\n",
         )
@@ -325,10 +325,6 @@ class AnalysisService:
                 self._index_publication_output(
                     record, publication, publication_path, workflow_job_id
                 )
-
-        # Keep prompt_path referenced so static checkers do not treat it as unused
-        # when workflow indexing is disabled in tests via monkeypatching.
-        _ = prompt_path
 
     def _resolve_output_dir(self, record: AnalysisOutputRecord) -> Path:
         """Compute session-oriented output directory mirroring the raw data structure."""

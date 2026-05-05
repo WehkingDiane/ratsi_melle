@@ -815,6 +815,81 @@ def test_save_prompt_template_from_form_persists_template(monkeypatch, workspace
     assert any(item["label"] == "Meine TOP Vorlage" for item in loaded)
 
 
+def test_analysis_output_reads_private_prompt_snapshot(monkeypatch, workspace_tmp: Path) -> None:
+    import sqlite3
+
+    from core.services import outputs
+    from core.services import paths
+
+    db_path = workspace_tmp / "data" / "db" / "local_index.sqlite"
+    snapshot_path = workspace_tmp / "data" / "private" / "prompt_snapshots" / "job_1.txt"
+    snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+    snapshot_path.write_text("Privater Prompt", encoding="utf-8")
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(db_path) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE analysis_jobs (
+                id INTEGER PRIMARY KEY,
+                created_at TEXT,
+                session_id TEXT,
+                scope TEXT,
+                top_numbers_json TEXT,
+                purpose TEXT,
+                model_name TEXT,
+                prompt_version TEXT,
+                prompt_template_id TEXT,
+                prompt_template_revision INTEGER,
+                prompt_template_label TEXT,
+                rendered_prompt_snapshot_path TEXT,
+                status TEXT,
+                error_message TEXT
+            );
+            CREATE TABLE analysis_outputs (
+                id INTEGER PRIMARY KEY,
+                job_id INTEGER,
+                output_format TEXT,
+                content TEXT,
+                created_at TEXT
+            );
+            """
+        )
+        conn.execute(
+            "INSERT INTO analysis_jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                1,
+                "2026-01-01T00:00:00Z",
+                "7123",
+                "session",
+                "[]",
+                "content_analysis",
+                "none",
+                "template@2",
+                "template",
+                2,
+                "Vorlage",
+                str(snapshot_path),
+                "done",
+                "",
+            ),
+        )
+        conn.execute(
+            "INSERT INTO analysis_outputs (job_id, output_format, content, created_at) VALUES (?, ?, ?, ?)",
+            (1, "markdown", "# Analyse", "2026-01-01T00:00:00Z"),
+        )
+
+    monkeypatch.setattr(paths, "LOCAL_INDEX_DB", db_path)
+    monkeypatch.setattr(paths, "ANALYSIS_WORKFLOW_DB", workspace_tmp / "missing.sqlite")
+    monkeypatch.setattr(paths, "ANALYSIS_OUTPUTS_DIR", workspace_tmp / "data" / "analysis_outputs")
+    monkeypatch.setattr(paths, "ANALYSIS_PROMPTS_DIR", workspace_tmp / "data" / "private" / "analysis_prompts")
+
+    job = outputs.get_analysis_output("local:1")
+
+    assert job["prompt_template_label"] == "Vorlage"
+    assert job["prompt_template_revision"] == 2
+    assert job["prompt_text"] == "Privater Prompt"
+
+
 def test_service_action_builds_local_index_command() -> None:
     command, errors = data_services.build_service_command(
         "build_local_index",
