@@ -921,6 +921,53 @@ def test_editing_existing_prompt_template_increments_revision(monkeypatch, works
     assert edited["prompt_text"] == "Analysiere {{committee}}."
 
 
+def test_editing_existing_multi_scope_prompt_template_preserves_scopes(monkeypatch, workspace_tmp: Path) -> None:
+    template_path = workspace_tmp / "prompt_templates.json"
+    example_path = workspace_tmp / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    template_path.write_text(
+        json.dumps(
+            {
+                "templates": [
+                    {
+                        "id": "multi_scope_edit",
+                        "label": "Multi Scope",
+                        "scope": ["document", "tops", "session"],
+                        "description": "Legacy",
+                        "prompt_text": "Analysiere {{session_title}}.",
+                        "variables": ["session_title"],
+                        "is_active": True,
+                        "visibility": "private",
+                        "revision": 1,
+                    }
+                ]
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    edited, errors = analysis_services.save_prompt_template_from_form(
+        {
+            "id": "multi_scope_edit",
+            "label": "Multi Scope bearbeitet",
+            "prompt_text": "Analysiere {{committee}}.",
+            "scope": "session",
+            "visibility": "private",
+            "is_active": "1",
+            "allow_update": True,
+        }
+    )
+
+    assert errors == []
+    assert edited["revision"] == 2
+    assert edited["scopes"] == ["session", "document", "tops"]
+    assert [item["id"] for item in analysis_services.list_prompt_templates("tops")] == ["multi_scope_edit"]
+    assert analysis_services.get_prompt_template("multi_scope_edit")["prompt_text"] == "Analysiere {{committee}}."
+
+
 def test_analysis_output_reads_private_prompt_snapshot(monkeypatch, workspace_tmp: Path) -> None:
     import sqlite3
 

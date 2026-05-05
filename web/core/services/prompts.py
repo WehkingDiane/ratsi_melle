@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Any
 
-from src.analysis.prompts.models import PromptTemplate
+from src.analysis.prompts.models import PromptTemplate, scopes_from_json
 from src.analysis.prompts.repository import JsonPromptTemplateRepository, PromptTemplateRepository
 from src.analysis.prompts.validation import PromptTemplateError
 
@@ -53,8 +53,10 @@ def save_prompt_template_from_form(data: dict[str, Any]) -> tuple[dict[str, Any]
     repo = prompt_repository()
     allow_update = bool(data.get("allow_update"))
     template_id = str(data.get("id") or "").strip() or _slugify(str(data.get("label") or ""))
-    if not allow_update and repo.get_template(template_id) is not None:
+    existing = repo.get_template(template_id)
+    if not allow_update and existing is not None:
         template_id = _unique_template_id(template_id, repo)
+        existing = None
     label = str(data.get("label") or "").strip()
     scope = str(data.get("scope") or "session").strip()
     description = str(data.get("description") or "").strip()
@@ -62,6 +64,9 @@ def save_prompt_template_from_form(data: dict[str, Any]) -> tuple[dict[str, Any]
     variables = _parse_variables(data.get("variables"))
     visibility = str(data.get("visibility") or "private").strip()
     is_active = str(data.get("is_active", "1")).lower() not in {"0", "false", "off", ""}
+    scopes = [scope]
+    if allow_update and existing and len(existing.all_scopes) > 1:
+        scopes = scopes_from_json(scope, existing.all_scopes)
 
     template = PromptTemplate(
         id=template_id,
@@ -70,6 +75,7 @@ def save_prompt_template_from_form(data: dict[str, Any]) -> tuple[dict[str, Any]
         description=description,
         prompt_text=prompt_text,
         variables=variables,
+        scopes=scopes,
         is_active=is_active,
         visibility=visibility,
     )
