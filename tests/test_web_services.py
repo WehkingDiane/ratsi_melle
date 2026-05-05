@@ -994,6 +994,8 @@ def test_analysis_output_reads_private_prompt_snapshot(monkeypatch, workspace_tm
     assert job["prompt_template_label"] == "Vorlage"
     assert job["prompt_template_revision"] == 2
     assert job["prompt_text"] == "Privater Prompt"
+    assert str(snapshot_path) not in job["sources"]
+    assert str(snapshot_path) not in job["files"]
 
 
 def test_service_action_builds_local_index_command() -> None:

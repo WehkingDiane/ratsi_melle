@@ -388,9 +388,33 @@ def _merge_job(target: dict[str, Any], source: dict[str, Any]) -> None:
 
 def _public_job(job: dict[str, Any]) -> dict[str, Any]:
     public = dict(job)
-    public["sources"] = sorted(public.get("sources", []))
-    public["files"] = sorted(set(public.get("files", [])))
+    public["sources"] = sorted(
+        source for source in public.get("sources", [])
+        if not _is_private_prompt_artifact_source(source, public)
+    )
+    public["files"] = sorted(
+        {
+            file_path for file_path in public.get("files", [])
+            if not _is_private_prompt_artifact_source(file_path, public)
+        }
+    )
     public["has_content"] = any(
         public.get(key) for key in ("markdown", "ki_response", "prompt_text", "structured_outputs")
     )
     return public
+
+
+def _is_private_prompt_artifact_source(value: Any, job: dict[str, Any]) -> bool:
+    raw = str(value or "").replace("\\", "/")
+    if not raw:
+        return False
+    snapshot = str(job.get("rendered_prompt_snapshot_path") or "").replace("\\", "/")
+    if snapshot and raw == snapshot:
+        return True
+    if snapshot and Path(snapshot).is_absolute():
+        try:
+            if Path(raw).resolve() == Path(snapshot).resolve():
+                return True
+        except OSError:
+            pass
+    return "/data/private/" in raw or raw.startswith("data/private/")
