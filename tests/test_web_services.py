@@ -815,6 +815,17 @@ def test_save_prompt_template_from_form_persists_template(monkeypatch, workspace
     assert any(item["label"] == "Meine TOP Vorlage" for item in loaded)
 
 
+def test_list_prompt_templates_returns_empty_list_for_invalid_store(monkeypatch, workspace_tmp: Path) -> None:
+    template_path = workspace_tmp / "prompt_templates.json"
+    template_path.write_text("{not json", encoding="utf-8")
+    example_path = workspace_tmp / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    assert analysis_services.list_prompt_templates("session") == []
+
+
 def test_prompt_template_slugify_handles_german_umlauts(monkeypatch, workspace_tmp: Path) -> None:
     template_path = workspace_tmp / "prompt_templates.json"
     example_path = workspace_tmp / "prompt_templates.example.json"

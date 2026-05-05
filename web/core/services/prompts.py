@@ -22,7 +22,10 @@ def prompt_repository() -> PromptTemplateRepository:
 
 def list_prompt_templates(scope: str = "", *, active_only: bool = False) -> list[dict[str, Any]]:
     """Return configured prompt templates, optionally filtered by scope."""
-    templates = prompt_repository().list_templates(scope or None)
+    try:
+        templates = prompt_repository().list_templates(scope or None)
+    except PromptTemplateError:
+        return []
     if active_only:
         templates = [template for template in templates if template.is_active]
     return [template.to_dict() for template in templates]
