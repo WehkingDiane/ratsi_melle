@@ -65,6 +65,7 @@ def service_build(request):
         {
             "active_nav": "data",
             "status": services.service_status(),
+            "vector_status": services.vector_index_status(),
             "errors": errors,
             "current_year": current_year,
         },
