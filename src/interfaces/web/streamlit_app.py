@@ -1,4 +1,8 @@
-"""Streamlit web interface for the ratsi_melle analysis tool."""
+"""Deprecated Streamlit interface kept for legacy compatibility.
+
+Active UI development happens in the Django application under ``web/``.
+Use ``scripts/run_web.py`` as the primary UI start command.
+"""
 
 from __future__ import annotations
 

@@ -1,8 +1,8 @@
-# Web-UI (Streamlit)
+# Deprecated Web-UI (Streamlit)
 
 Diese Datei beschreibt die browserbasierte Oberfläche unter `src/interfaces/web/streamlit_app.py`.
 
-> Einordnung: Die Web-UI ist die bevorzugte Benutzeroberflaeche des Projekts. Die fruehere Desktop-GUI wird nur noch als Legacy-/Developer-Pfad mitgefuehrt und soll mittelfristig entfallen.
+> Status: Deprecated. Die aktive und primaere Weboberflaeche liegt unter `web/` und wird mit `python scripts/run_web.py` gestartet. Diese Streamlit-Beschreibung bleibt nur fuer Legacy-Kompatibilitaet archiviert.
 
 ## Ziel
 
@@ -12,16 +12,16 @@ Diese Datei beschreibt die browserbasierte Oberfläche unter `src/interfaces/web
 
 ## Starten
 
-Empfohlen aus dem Repository-Root:
+Legacy-Start aus dem Repository-Root:
 
 ```bash
-python scripts/run_web.py
+python -m streamlit run src/interfaces/web/streamlit_app.py
 ```
 
 Optional mit abweichendem Port:
 
 ```bash
-python scripts/run_web.py --server.port 8502
+python -m streamlit run src/interfaces/web/streamlit_app.py --server.port 8502
 ```
 
 Danach ist die Oberfläche typischerweise unter `http://localhost:8501` erreichbar.

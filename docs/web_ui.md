@@ -6,6 +6,8 @@ Die Weboberfläche unter `web/` ist die lokale Arbeitsoberfläche für Ratsi Mel
 
 Die Anwendung ist für den lokalen Betrieb auf dem Entwicklungsrechner gedacht. Sie ist nicht für öffentlichen Betrieb, Mehrbenutzerbetrieb oder Deployment ausgelegt und enthält keine Benutzerverwaltung.
 
+`scripts/run_web.py` ist der primaere UI-Startpunkt. Aeltere UI-Pfade unter `src/interfaces/web/streamlit_app.py` und `src/interfaces/gui/` sind deprecated und gehoeren nicht mehr zum aktiven Navigations- oder Dokumentationspfad.
+
 ## Start
 
 ```bash

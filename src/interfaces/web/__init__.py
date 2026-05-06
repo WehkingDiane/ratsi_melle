@@ -1,1 +1,1 @@
-"""Browser-based Streamlit interface for the ratsi_melle analysis tool."""
+"""Deprecated Streamlit interface package kept for legacy compatibility."""

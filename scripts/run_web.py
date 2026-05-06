@@ -1,4 +1,4 @@
-"""Launch the Django web interface.
+"""Launch the primary Django web interface.
 
 Usage:
     python scripts/run_web.py

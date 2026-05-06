@@ -1,4 +1,8 @@
-"""Prompt template registry – load and save JSON-based prompt templates."""
+"""Legacy prompt registry for the deprecated Streamlit UI.
+
+New Django UI work should use ``src.analysis.prompts`` repositories and models.
+This module stays only for compatibility with ``src.interfaces.web.streamlit_app``.
+"""
 
 from __future__ import annotations
 

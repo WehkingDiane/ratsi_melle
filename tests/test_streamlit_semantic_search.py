@@ -1,3 +1,9 @@
+"""Legacy Streamlit compatibility tests.
+
+The active UI path is the Django application under ``web/``. These tests cover
+helpers that remain only while the deprecated Streamlit module is still shipped.
+"""
+
 from __future__ import annotations
 
 import importlib

@@ -19,9 +19,9 @@ Diese Datei buendelt die offene Arbeitsliste des Projekts. Sie ersetzt die frueh
 
 ### Oberflaechen
 
-- Streamlit als Developer-Oberflaeche weiter auf interne Schnell-Workflows fokussieren
-- Django-Hauptoberflaeche modular nach dem Grundkonzept aufbauen
-- Legacy-Desktop-GUI schrittweise aus dem aktiven Pfad herausnehmen
+- Django-Hauptoberflaeche unter `web/` modular nach dem Grundkonzept ausbauen
+- `scripts/run_web.py` als primaeren UI-Startpunkt stabil halten
+- Streamlit und Legacy-Desktop-GUI nur noch als deprecated Kompatibilitaet mitfuehren
 
 ### Betrieb und Qualitaet
 
@@ -144,7 +144,7 @@ Zusätzlich benoetigt der Analysepfad:
 
 ## 3. Naechste sinnvolle Schritte
 
-- Streamlit weiter als reine Developer-Oberflaeche zuschneiden
 - Django-Oberflaeche in einzelne Seiten und Apps aufteilen
+- Restliche aktive Dokumentation von deprecated UI-Pfaden bereinigen
 - TOP-basierte KI-Analyse als ersten belastbaren End-to-End-Pfad fertigstellen
 - Aufgabenliste regelmaessig bereinigen und erledigte Punkte streichen oder verschieben
