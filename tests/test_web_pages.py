@@ -557,6 +557,71 @@ def test_service_post_starts_background_job(client, monkeypatch) -> None:
     assert response.headers["Location"] == "/daten/jobs/abc123/"
 
 
+def test_service_build_page_renders_vector_status(client, monkeypatch) -> None:
+    from data_tools import views
+
+    monkeypatch.setattr(
+        views.services,
+        "vector_index_status",
+        lambda: {
+            "status": "needs_update",
+            "sqlite_document_count": 10,
+            "indexable_document_count": 9,
+            "indexed_vector_count": 7,
+            "missing_vector_count": 2,
+            "orphaned_vector_count": 1,
+            "coverage_percent": 77.8,
+            "latest_session_date": "2026-03-11",
+            "warnings": ["Vektorindex ist nicht vollstaendig."],
+        },
+    )
+
+    response = client.get("/daten/build/")
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "Vektorindex bauen" in content
+    assert "SQLite-Dokumente" in content
+    assert "10" in content
+    assert "77,8 %" in content
+    assert "Vektorindex ist nicht vollstaendig." in content
+
+
+def test_build_vector_index_form_starts_existing_service_job(client, monkeypatch) -> None:
+    from data_tools import views
+
+    captured = {}
+
+    class Job:
+        job_id = "vector123"
+
+    def fake_build_service_command(action, data):
+        captured["action"] = action
+        captured["limit"] = data.get("limit")
+        return (["python", "scripts/build_vector_index.py", "--limit", "25"], [])
+
+    def fake_start_service_job(action, command, cwd):
+        captured["job_action"] = action
+        captured["command"] = command
+        captured["cwd"] = cwd
+        return Job()
+
+    monkeypatch.setattr(views.services, "build_service_command", fake_build_service_command)
+    monkeypatch.setattr(views.service_jobs, "start_service_job", fake_start_service_job)
+
+    response = client.post(
+        "/daten/build/",
+        {"action": "build_vector_index", "limit": "25"},
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/daten/jobs/vector123/"
+    assert captured["action"] == "build_vector_index"
+    assert captured["limit"] == "25"
+    assert captured["job_action"] == "build_vector_index"
+    assert captured["command"] == ["python", "scripts/build_vector_index.py", "--limit", "25"]
+
+
 def test_service_post_requires_csrf_when_enforced(monkeypatch) -> None:
     from django.test import Client
 
