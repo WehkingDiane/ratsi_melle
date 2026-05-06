@@ -1,0 +1,12 @@
+# Deprecated UI dependencies.
+#
+# The active UI is the Django application under web/ and uses requirements.txt.
+# Install this file only when maintaining or running legacy Streamlit/Desktop UI paths.
+
+-r requirements.txt
+
+streamlit==1.53.1
+
+# Optional deprecated Desktop-GUI dependencies.
+customtkinter
+CTkMenuBar

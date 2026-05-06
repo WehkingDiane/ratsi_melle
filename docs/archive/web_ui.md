@@ -29,8 +29,8 @@ Danach ist die Oberfläche typischerweise unter `http://localhost:8501` erreichb
 ## Voraussetzungen
 
 - Python 3.11+
-- Projektabhängigkeiten installiert:
-  - `pip install -r requirements.txt`
+- Legacy-UI-Abhaengigkeiten installiert:
+  - `pip install -r requirements-legacy-ui.txt`
 - Für die semantische Suche zusätzlich:
   - `pip install torch --index-url https://download.pytorch.org/whl/cpu`
   - alternativ bei Intel-XPU:

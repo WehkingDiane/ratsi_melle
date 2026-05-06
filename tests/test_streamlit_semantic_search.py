@@ -9,6 +9,11 @@ from __future__ import annotations
 import importlib
 from pathlib import Path
 
+import pytest
+
+pytestmark = pytest.mark.legacy_ui
+pytest.importorskip("streamlit")
+
 from src.interfaces.web import streamlit_app
 from src.paths import LOCAL_INDEX_DB, QDRANT_DIR
 

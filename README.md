@@ -30,6 +30,12 @@ pip install -r requirements.txt
 
 `torch` wird weiterhin separat installiert, passend zur Zielumgebung.
 
+Deprecated UI-Pfade sind nicht Teil der Kernabhaengigkeiten. Fuer Wartung oder lokalen Betrieb von Streamlit/Desktop-Legacy-UI:
+
+```bash
+pip install -r requirements-legacy-ui.txt
+```
+
 ## Wichtige Befehle
 
 ```bash
@@ -54,6 +60,7 @@ python scripts/run_web.py
 Sie ist danach standardmäßig unter `http://127.0.0.1:8000/` erreichbar. Details stehen in [docs/web_ui.md](/mnt/c/users/diane/git/ratsi_melle/docs/web_ui.md:1).
 
 `scripts/run_web.py` ist der primaere UI-Startpunkt. `src/interfaces/web/streamlit_app.py` ist deprecated und nur noch fuer Legacy-Kompatibilitaet vorgesehen.
+Die Streamlit-Abhaengigkeit liegt deshalb in `requirements-legacy-ui.txt`, nicht in `requirements.txt`.
 
 ## Daten und Suche
 

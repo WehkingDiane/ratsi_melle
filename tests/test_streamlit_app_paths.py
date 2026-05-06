@@ -9,6 +9,11 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
+pytestmark = pytest.mark.legacy_ui
+pytest.importorskip("streamlit")
+
 from src.interfaces.web.streamlit_app import _existing_local_document_path, _local_document_policy_text
 
 

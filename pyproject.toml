@@ -4,4 +4,5 @@ testpaths = ["tests"]
 norecursedirs = ["old", "data", ".venv", ".venv-wsl"]
 markers = [
     "live: marks tests as requiring real external API calls (deselect with -m 'not live')",
+    "legacy_ui: marks tests for deprecated Streamlit/Desktop UI compatibility",
 ]
