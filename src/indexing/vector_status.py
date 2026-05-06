@@ -84,6 +84,14 @@ def _read_sqlite_document_ids(
             conn.row_factory = sqlite3.Row
             document_count = conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
             latest_session_date = conn.execute("SELECT MAX(date) FROM sessions").fetchone()[0]
+            latest_document_date = conn.execute(
+                """
+                SELECT MAX(s.date)
+                FROM documents d
+                LEFT JOIN sessions s ON s.session_id = d.session_id
+                WHERE s.date IS NOT NULL AND s.date != ''
+                """
+            ).fetchone()[0]
             rows = conn.execute(
                 """
                 SELECT d.session_id, d.url, d.agenda_item, s.date
@@ -108,7 +116,7 @@ def _read_sqlite_document_ids(
     status["sqlite_document_count"] = int(document_count or 0)
     status["indexable_document_count"] = len(current_ids)
     status["latest_session_date"] = latest_session_date or None
-    status["latest_document_date"] = latest_session_date or None
+    status["latest_document_date"] = latest_document_date or None
     if len(current_ids) != int(document_count or 0):
         warnings.append(
             "Einige SQLite-Dokumente teilen sich dieselbe stabile Vektor-ID; "

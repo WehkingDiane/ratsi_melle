@@ -33,8 +33,27 @@ def test_vector_index_status_reports_sqlite_without_qdrant(tmp_path: Path) -> No
     assert status["indexable_document_count"] == 2
     assert status["indexed_vector_count"] == 0
     assert status["latest_session_date"] == "2026-03-11"
+    assert status["latest_document_date"] == "2026-03-11"
     assert status["status"] == "missing_qdrant"
     assert any("Qdrant" in warning for warning in status["warnings"])
+
+
+def test_vector_index_status_uses_document_backed_latest_document_date(tmp_path: Path) -> None:
+    db_path = tmp_path / "local_index.sqlite"
+    _write_local_index(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            "INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            ("9999", "2026-12-01", "Rat", "Sitzung ohne Dokumente", "18:00", "Rathaus", "", ""),
+        )
+
+    status = vector_index_status(
+        local_index_db=db_path,
+        qdrant_dir=tmp_path / "missing_qdrant",
+    )
+
+    assert status["latest_session_date"] == "2026-12-01"
+    assert status["latest_document_date"] == "2026-03-11"
 
 
 def test_vector_index_status_warns_on_sqlite_error(tmp_path: Path) -> None:
