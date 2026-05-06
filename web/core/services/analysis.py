@@ -68,11 +68,12 @@ def run_analysis_from_form(data: dict[str, Any]) -> tuple[dict[str, Any] | None,
     if purpose not in {option["value"] for option in analysis_purpose_options()}:
         errors.append("Der Analysezweck ist ungültig.")
 
+    selected_tops_for_scope = selected_tops if scope == "tops" else []
     template, template_errors = get_active_prompt_template(template_id, scope)
     errors.extend(template_errors)
     prompt = ""
     if template and session:
-        prompt = render_prompt(template, _prompt_context(session, scope, selected_tops, purpose))
+        prompt = render_prompt(template, _prompt_context(session, scope, selected_tops_for_scope, purpose))
 
     if errors or not session:
         return None, errors
@@ -81,7 +82,7 @@ def run_analysis_from_form(data: dict[str, Any]) -> tuple[dict[str, Any] | None,
         db_path=paths.LOCAL_INDEX_DB,
         session=session,
         scope=scope,
-        selected_tops=selected_tops if scope == "tops" else [],
+        selected_tops=selected_tops_for_scope,
         prompt=prompt,
         provider_id=provider_id,
         model_name=model_name,
@@ -103,9 +104,10 @@ def _prompt_context(
 ) -> dict[str, object]:
     title = str(session.get("meeting_name") or session.get("committee") or session.get("session_id") or "")
     agenda_items = session.get("agenda_items") or []
+    selected_top_set = {str(top) for top in selected_tops} if scope == "tops" else set()
     selected_items = [
         item for item in agenda_items
-        if not selected_tops or str(item.get("number") or "") in selected_tops
+        if not selected_top_set or str(item.get("number") or "") in selected_top_set
     ]
     source_list = "\n".join(
         f"- {item.get('number', '')} {item.get('title', '')}".strip()

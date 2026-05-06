@@ -789,6 +789,119 @@ def test_run_analysis_from_form_rejects_top_without_analysis_documents(monkeypat
     assert any("lokal vorhandenen Dokumenten" in error for error in errors)
 
 
+def test_run_analysis_from_form_ignores_stale_tops_for_session_scope(monkeypatch, workspace_tmp: Path) -> None:
+    from core.services import analysis as core_analysis_services
+
+    db_path = workspace_tmp / "local_index.sqlite"
+    template_path = workspace_tmp / "prompt_templates.json"
+    example_path = workspace_tmp / "prompt_templates.example.json"
+    template_path.write_text(
+        json.dumps(
+            {
+                "templates": [
+                    {
+                        "id": "session_sources",
+                        "label": "Session Sources",
+                        "scope": "session",
+                        "description": "",
+                        "prompt_text": "Quellen:\n{{source_list}}",
+                        "variables": ["source_list"],
+                        "is_active": True,
+                        "visibility": "private",
+                        "revision": 1,
+                    }
+                ]
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    with sqlite3.connect(db_path) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE sessions (
+                session_id TEXT PRIMARY KEY,
+                date TEXT,
+                committee TEXT,
+                meeting_name TEXT,
+                start_time TEXT,
+                location TEXT,
+                detail_url TEXT,
+                session_path TEXT
+            );
+            CREATE TABLE agenda_items (
+                id INTEGER PRIMARY KEY,
+                session_id TEXT,
+                number TEXT,
+                title TEXT,
+                reporter TEXT,
+                status TEXT,
+                decision TEXT,
+                documents_present INTEGER
+            );
+            CREATE TABLE documents (
+                id INTEGER PRIMARY KEY,
+                session_id TEXT,
+                title TEXT,
+                category TEXT,
+                document_type TEXT,
+                agenda_item TEXT,
+                url TEXT,
+                local_path TEXT,
+                content_type TEXT,
+                content_length INTEGER
+            );
+            """
+        )
+        conn.execute(
+            "INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            ("7123", "2026-03-11", "Rat", "Ratssitzung", "18:00", "Rathaus", "", str(workspace_tmp)),
+        )
+        conn.execute(
+            "INSERT INTO agenda_items VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (1, "7123", "Oe 7", "Windkraft", "", "oeffentlich", "", 1),
+        )
+        conn.execute(
+            "INSERT INTO agenda_items VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (2, "7123", "Oe 8", "Haushalt", "", "oeffentlich", "", 1),
+        )
+
+    captured = {}
+
+    class _Record:
+        def to_dict(self) -> dict[str, int]:
+            return {"job_id": 1}
+
+    class _AnalysisService:
+        def run_journalistic_analysis(self, request):
+            captured["request"] = request
+            return _Record()
+
+    monkeypatch.setattr(analysis_services, "LOCAL_INDEX_DB", db_path)
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+    monkeypatch.setattr(core_analysis_services, "AnalysisService", _AnalysisService)
+
+    result, errors = analysis_services.run_analysis_from_form(
+        {
+            "session_id": "7123",
+            "scope": "session",
+            "top_numbers": ["Oe 7"],
+            "template_id": "session_sources",
+            "provider_id": "none",
+            "purpose": "content_analysis",
+        }
+    )
+
+    request = captured["request"]
+    assert errors == []
+    assert result == {"job_id": 1}
+    assert request.selected_tops == []
+    assert "- Oe 7 Windkraft" in request.prompt
+    assert "- Oe 8 Haushalt" in request.prompt
+
+
 def test_save_prompt_template_from_form_persists_template(monkeypatch, workspace_tmp: Path) -> None:
     template_path = workspace_tmp / "prompt_templates.json"
     example_path = workspace_tmp / "prompt_templates.example.json"
