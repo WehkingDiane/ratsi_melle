@@ -2,9 +2,9 @@
 
 Diese Datei beschreibt die verbleibende Desktop-GUI unter `src/interfaces/gui/`.
 
-> Status: Die Desktop-GUI ist ein Legacy-Pfad. Neue Funktionsarbeit sollte in die Web-UI unter `src/interfaces/web/streamlit_app.py` fliessen. Die Desktop-GUI bleibt vorerst fuer bestehende lokale Workflows erhalten, ist aber nicht mehr die primaere Oberflaeche.
+> Status: Deprecated. Neue UI-Funktionsarbeit soll in die Django-Weboberflaeche unter `web/` fliessen. Die Desktop-GUI bleibt vorerst fuer bestehende lokale Workflows erhalten, ist aber nicht mehr die primaere Oberflaeche.
 >
-> Installationshinweis: Die Legacy-GUI ist nicht mehr Teil des Standard-Setups aus `requirements.txt`. Fuer die Nutzung muessen `customtkinter` und `CTkMenuBar` zusaetzlich installiert werden.
+> Installationshinweis: Die Legacy-GUI ist nicht mehr Teil des Standard-Setups aus `requirements.txt`. Fuer die Nutzung `pip install -r requirements-legacy-ui.txt` verwenden.
 
 > Hinweis: Die GUI ist noch nicht fertig. Die Oberflaeche und die zugrunde liegende Architektur werden kontinuierlich erweitert und iterativ verbessert.
 

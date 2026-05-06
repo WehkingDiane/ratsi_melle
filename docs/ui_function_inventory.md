@@ -4,12 +4,12 @@ Stand: Commit `edec87aa86fe2eb4058ccc83d916f0eb54dc5ae5`
 
 Ziel dieser Datei:
 - alle aktuell vorhandenen Funktionen aus Skripten und UIs gesammelt sichtbar machen
-- Redundanzen und Ueberlappungen zwischen Web-UI und Desktop-GUI offenlegen
-- eine sinnvolle Gruppierung fuer eine spaetere Web-UI-Neuplanung vorbereiten
+- Redundanzen und Ueberlappungen zwischen Django-Weboberflaeche und deprecated Legacy-UIs offenlegen
+- eine sinnvolle Gruppierung fuer die weitere Django-Web-UI-Entwicklung vorbereiten
 
 Aktueller Strategierahmen:
-- Streamlit bleibt die schnelle interne Developer-Oberflaeche.
-- Die grosse produktartige Nutzeroberflaeche wird separat als Django-Anwendung konzipiert.
+- Aktive UI-Entwicklung findet ausschliesslich in der Django-Anwendung unter `web/` statt.
+- Streamlit und Desktop-GUI sind deprecated Legacy-Pfade und dienen nur noch als Inventarquellen fuer noch nicht migrierte Funktionen.
 
 ## 1. Datenabruf und Rohdatenaufbau
 

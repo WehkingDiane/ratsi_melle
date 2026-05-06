@@ -2,17 +2,15 @@
 
 Diese Anleitung beschreibt die Nutzung der Desktop-GUI unter `src/interfaces/gui/`.
 
-> Hinweis: Fuer browserbasierte Nutzung, semantische Suche und die weitere Produktentwicklung ist die Streamlit-Weboberflaeche der bevorzugte Weg. Die archivierte Beschreibung dazu liegt in `docs/archive/web_ui.md`.
+> Hinweis: Fuer browserbasierte Nutzung und die weitere Produktentwicklung ist die Django-Weboberflaeche unter `web/` der bevorzugte Weg. Die archivierte Streamlit-Beschreibung liegt in `docs/archive/web_ui.md`.
 >
 > Status: Die Desktop-GUI bleibt vorerst fuer bestehende lokale Developer-Workflows erhalten, ist aber ein Legacy-Pfad und soll mittelfristig ersetzt werden.
 
 ## Voraussetzungen
 
 - Python 3.11+ ist installiert.
-- Die Projektabhaengigkeiten sind installiert:
-  - `pip install -r requirements.txt`
-- Fuer die Legacy-Desktop-GUI zusaetzlich:
-  - `pip install customtkinter CTkMenuBar`
+- Die Legacy-UI-Abhaengigkeiten sind installiert:
+  - `pip install -r requirements-legacy-ui.txt`
 - Unter WSL ist fuer Tkinter ggf. `python3-tk` erforderlich.
 - Fuer datenbezogene Funktionen sollte eine lokale SQLite-DB vorhanden sein, typischerweise `data/db/local_index.sqlite`.
 

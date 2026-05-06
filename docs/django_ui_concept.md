@@ -3,9 +3,10 @@
 Hinweis: Dieses Dokument beschreibt das Ziel- und Konzeptbild der Django-Oberfläche. Den aktuellen implementierten Stand der lokalen Weboberfläche beschreibt [docs/web_ui.md](web_ui.md).
 
 Ziel:
-- Die große produktartige Oberfläche wird künftig als Django-Anwendung aufgebaut.
-- Streamlit bleibt als schnelle interne Developer-Oberfläche für Fetch-, Build- und Diagnosepfade bestehen.
-- Die Django-Oberfläche soll in klar getrennte Seiten aufgeteilt werden, damit jede Seite einzeln gestaltet, gebaut und iteriert werden kann.
+- Die produktartige Oberflaeche wird als Django-Anwendung unter `web/` weiterentwickelt.
+- Aktive UI-Entwicklung konzentriert sich ausschliesslich auf diesen Django-Pfad.
+- Streamlit und die Desktop-GUI sind deprecated Legacy-Pfade und werden nicht mehr als aktive Hauptpfade geplant.
+- Die Django-Oberflaeche soll in klar getrennte Seiten aufgeteilt werden, damit jede Seite einzeln gestaltet, gebaut und iteriert werden kann.
 
 ## 1. Rollenverteilung der Oberflächen
 
@@ -15,11 +16,10 @@ Ziel:
 - saubere Seitenstruktur mit festen URLs
 - langfristig bessere Basis für Layout, Rechte, gespeicherte Ansichten und stabile Navigation
 
-### Streamlit
-- interne Developer-/Operations-Oberfläche
-- schnelle Skript-Runner für Fetch und Build
-- Status- und Diagnoseansichten
-- frühe oder experimentelle KI-Analysepfade
+### Deprecated Legacy-Pfade
+- `src/interfaces/web/streamlit_app.py` bleibt nur fuer Legacy-Kompatibilitaet erhalten.
+- `src/interfaces/gui/` bleibt nur fuer bestehende lokale Alt-Workflows erhalten.
+- Neue UI-Funktionen, Navigation und Dokumentation entstehen unter `web/`.
 
 ## 2. Leitprinzipien für die Django-Oberfläche
 
@@ -183,13 +183,13 @@ Das heißt:
 - konsistente Komponenten
 - bessere Lesbarkeit und Orientierung
 
-## 9. Was bewusst nicht in die Django-Hauptoberfläche gehört
+## 9. Was nicht prominent in die Django-Hauptoberflaeche gehoert
 
 - rohe Skriptsteuerung für Fetch/Build als prominente Hauptfunktion
 - technische Diagnosepfade für Entwickler
 - alte Export-Workflows als primäre Nutzerfunktion
 
-Diese Dinge bleiben besser in Streamlit oder später in einem Admin-/Operations-Bereich.
+Diese Dinge gehoeren, falls weiter benoetigt, in klar abgegrenzte Django-Admin-/Operations-Seiten statt in Streamlit.
 
 ## 10. Ergebnis dieses Grundkonzepts
 
@@ -199,8 +199,6 @@ Die Django-Oberfläche wird:
 - layoutstabil
 - gestalterisch flexibler als Streamlit
 
-Die Streamlit-Oberfläche bleibt:
-- schnell
-- technisch
-- developer-orientiert
-- ideal für Datenpflege, Build-Pfade und interne Erstanalysen
+Deprecated Legacy-Pfade bleiben nur als Kompatibilitaet erhalten:
+- `src/interfaces/web/streamlit_app.py`
+- `src/interfaces/gui/`
