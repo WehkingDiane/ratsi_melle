@@ -1,0 +1,24 @@
+{
+  "templates": [
+    {
+      "id": "demo_session_summary",
+      "label": "Demo: Sitzungszusammenfassung",
+      "scope": "session",
+      "description": "Harmloses Beispiel fuer eine lokale Sitzungsanalyse.",
+      "prompt_text": "Fasse die Sitzung {{session_title}} vom {{session_date}} fuer einen internen Demo-Test zusammen. Nutze nur die bereitgestellten Kontextdaten.",
+      "variables": [
+        "session_title",
+        "session_date",
+        "committee",
+        "source_list",
+        "analysis_goal"
+      ],
+      "is_active": true,
+      "owner_id": "",
+      "visibility": "private",
+      "revision": 1,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  ]
+}

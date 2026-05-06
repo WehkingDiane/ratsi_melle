@@ -30,8 +30,10 @@ def load_templates(path: Path) -> list[dict]:
     try:
         text = path.read_text(encoding="utf-8")
         data = json.loads(text)
+        if isinstance(data, dict) and isinstance(data.get("templates"), list):
+            return [_streamlit_compatible_template(item) for item in data["templates"] if isinstance(item, dict)]
         if isinstance(data, list):
-            return data
+            return [_streamlit_compatible_template(item) for item in data if isinstance(item, dict)]
         logger.warning("prompt_templates.json: expected list, got %s", type(data))
     except FileNotFoundError:
         logger.info("Prompt template file not found: %s – using defaults", path)
@@ -44,11 +46,28 @@ def save_templates(templates: list[dict], path: Path) -> None:
     """Persist prompt templates to a JSON file."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        json.dumps(templates, indent=2, ensure_ascii=False) + "\n",
+        json.dumps({"templates": templates}, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
 
 
 def filter_by_scope(templates: list[dict], scope: str) -> list[dict]:
     """Return only templates whose scope list includes the given scope value."""
-    return [t for t in templates if scope in t.get("scope", [])]
+    filtered = []
+    for template in templates:
+        template_scope = template.get("scope", [])
+        if isinstance(template_scope, str):
+            if template_scope == scope:
+                filtered.append(template)
+        elif scope in template_scope:
+            filtered.append(template)
+    return filtered
+
+
+def _streamlit_compatible_template(template: dict) -> dict:
+    item = dict(template)
+    if "text" not in item and "prompt_text" in item:
+        item["text"] = item["prompt_text"]
+    if "prompt_text" not in item and "text" in item:
+        item["prompt_text"] = item["text"]
+    return item

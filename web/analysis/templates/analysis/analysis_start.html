@@ -107,26 +107,32 @@
       <label>
         Prompt-Vorlage
         <select name="template_id">
-          <option value="">Ohne Vorlage</option>
+          <option value="">Vorlage wählen</option>
           {% for template in templates %}
           <option value="{{ template.id }}" {% if template.id == selected_template_id %}selected{% endif %}>{{ template.label }}</option>
           {% endfor %}
         </select>
       </label>
+      {% if not templates %}
+      <p class="empty-state">Keine aktive Prompt-Vorlage für diesen Scope vorhanden. Lege zuerst eine private Vorlage an.</p>
+      {% endif %}
+      {% if selected_template.description %}
+      <p class="empty-state">{{ selected_template.description }}</p>
+      {% endif %}
 
-      <label>
-        Prompt
-        <textarea name="prompt_text" rows="8">{{ prompt_text }}</textarea>
-      </label>
+      {% if selected_template_id and prompt_text %}
+      <details class="info-panel">
+        <summary>Prompt-Vorschau</summary>
+        <pre class="text-block compact">{{ prompt_text }}</pre>
+      </details>
+      {% endif %}
 
-      <fieldset>
-        <legend>Prompt-Vorlage speichern</legend>
-        <label>
-          Name der Vorlage
-          <input type="text" name="template_label" placeholder="z. B. TOP-Analyse mit Beschlusskontext">
-        </label>
-        <button class="button" type="submit" name="form_action" value="save_template">Prompt-Vorlage speichern</button>
-      </fieldset>
+      <section class="info-panel">
+        <h3>Private Prompt-Vorlagen</h3>
+        <p>Echte Vorlagen werden im privaten Datenbereich gespeichert und nicht im Git-Repository abgelegt.</p>
+        <p>{% verbatim %}Verfügbare Platzhalter: {{session_title}}, {{session_date}}, {{committee}}, {{agenda_item}}, {{document_text}}, {{source_list}}, {{analysis_goal}}{% endverbatim %}</p>
+        <a href="{% url 'analysis:prompt_template_list' %}">Prompt-Vorlagen verwalten</a>
+      </section>
 
       <div class="grid two-columns tight">
         <label>

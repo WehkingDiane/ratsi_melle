@@ -17,6 +17,8 @@
     <div><dt>Typ</dt><dd>{{ job.output_type|default:"-" }}</dd></div>
     <div><dt>Modell</dt><dd>{{ job.model_name|default:"-" }}</dd></div>
     <div><dt>Prompt</dt><dd>{{ job.prompt_version|default:"-" }}</dd></div>
+    <div><dt>Vorlage</dt><dd>{% if job.prompt_template_label %}{{ job.prompt_template_label }}{% elif job.prompt_template_id %}{{ job.prompt_template_id }}{% else %}-{% endif %}</dd></div>
+    <div><dt>Vorlagenrevision</dt><dd>{{ job.prompt_template_revision|default:"-" }}</dd></div>
   </dl>
   {% if job.error_message %}<p class="status-error">{{ job.error_message }}</p>{% endif %}
 </section>

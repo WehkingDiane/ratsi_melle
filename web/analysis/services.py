@@ -21,7 +21,10 @@ LOCAL_INDEX_DB = paths.LOCAL_INDEX_DB
 ANALYSIS_WORKFLOW_DB = paths.ANALYSIS_WORKFLOW_DB
 ANALYSIS_OUTPUTS_DIR = paths.ANALYSIS_OUTPUTS_DIR
 ANALYSIS_PROMPTS_DIR = paths.ANALYSIS_PROMPTS_DIR
+PRIVATE_DATA_DIR = paths.PRIVATE_DATA_DIR
 PROMPT_TEMPLATES_PATH = paths.PROMPT_TEMPLATES_PATH
+PROMPT_TEMPLATES_EXAMPLE = paths.PROMPT_TEMPLATES_EXAMPLE
+PROMPT_SNAPSHOTS_DIR = paths.PROMPT_SNAPSHOTS_DIR
 
 
 def _sync_paths() -> None:
@@ -30,7 +33,10 @@ def _sync_paths() -> None:
     paths.ANALYSIS_WORKFLOW_DB = Path(ANALYSIS_WORKFLOW_DB)
     paths.ANALYSIS_OUTPUTS_DIR = Path(ANALYSIS_OUTPUTS_DIR)
     paths.ANALYSIS_PROMPTS_DIR = Path(ANALYSIS_PROMPTS_DIR)
+    paths.PRIVATE_DATA_DIR = Path(PRIVATE_DATA_DIR)
     paths.PROMPT_TEMPLATES_PATH = Path(PROMPT_TEMPLATES_PATH)
+    paths.PROMPT_TEMPLATES_EXAMPLE = Path(PROMPT_TEMPLATES_EXAMPLE)
+    paths.PROMPT_SNAPSHOTS_DIR = Path(PROMPT_SNAPSHOTS_DIR)
 
 
 def list_sessions() -> list[dict[str, Any]]:
@@ -76,6 +82,16 @@ def get_prompt_template(template_id: str) -> dict[str, Any] | None:
 def save_prompt_template_from_form(data: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
     _sync_paths()
     return prompts.save_prompt_template_from_form(data)
+
+
+def duplicate_prompt_template(template_id: str) -> tuple[dict[str, Any] | None, list[str]]:
+    _sync_paths()
+    return prompts.duplicate_prompt_template(template_id)
+
+
+def deactivate_prompt_template(template_id: str) -> list[str]:
+    _sync_paths()
+    return prompts.deactivate_prompt_template(template_id)
 
 
 def source_overview() -> dict[str, Any]:

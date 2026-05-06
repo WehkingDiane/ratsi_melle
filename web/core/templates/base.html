@@ -35,6 +35,7 @@
           <a class="nav-menu-label {% if active_nav == 'analysis' %}active{% endif %}" href="{% url 'analysis:index' %}" aria-haspopup="true">Analyse</a>
           <div class="nav-dropdown" aria-label="Analyse-Untermenü">
             <a href="{% url 'analysis:index' %}">Analyse-Übersicht</a>
+            <a href="{% url 'analysis:prompt_template_list' %}">Prompt-Vorlagen</a>
             <a href="{% url 'analysis:analysis_start' %}">KI-Analyse starten</a>
             <a href="{% url 'analysis:session_list' %}">Sitzungen</a>
             <a href="{% url 'analysis:job_list' %}">Analysejobs</a>

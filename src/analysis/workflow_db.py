@@ -26,6 +26,10 @@ class AnalysisJobRecord:
     source_job_id: int | None = None
     model_name: str = ""
     prompt_version: str = ""
+    prompt_template_id: str = ""
+    prompt_template_revision: int | None = None
+    prompt_template_label: str = ""
+    rendered_prompt_snapshot_path: str = ""
     status: str = "draft"
     error_message: str = ""
 
@@ -71,6 +75,10 @@ def initialize_analysis_workflow_db(db_path: Path | None = None) -> Path:
                 source_job_id INTEGER,
                 model_name TEXT,
                 prompt_version TEXT,
+                prompt_template_id TEXT,
+                prompt_template_revision INTEGER,
+                prompt_template_label TEXT,
+                rendered_prompt_snapshot_path TEXT,
                 status TEXT NOT NULL,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
@@ -109,6 +117,10 @@ def initialize_analysis_workflow_db(db_path: Path | None = None) -> Path:
         _ensure_column(conn, "analysis_jobs", "updated_at", "TEXT")
         _ensure_column(conn, "analysis_jobs", "source_db", "TEXT")
         _ensure_column(conn, "analysis_jobs", "source_job_id", "INTEGER")
+        _ensure_column(conn, "analysis_jobs", "prompt_template_id", "TEXT")
+        _ensure_column(conn, "analysis_jobs", "prompt_template_revision", "INTEGER")
+        _ensure_column(conn, "analysis_jobs", "prompt_template_label", "TEXT")
+        _ensure_column(conn, "analysis_jobs", "rendered_prompt_snapshot_path", "TEXT")
         conn.commit()
     return db_path
 
@@ -125,8 +137,10 @@ def create_analysis_job(
             """
             INSERT INTO analysis_jobs
                 (session_id, scope, top_numbers_json, purpose, source_db, source_job_id,
-                 model_name, prompt_version, status, created_at, updated_at, error_message)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 model_name, prompt_version, prompt_template_id, prompt_template_revision,
+                 prompt_template_label, rendered_prompt_snapshot_path, status, created_at,
+                 updated_at, error_message)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 job.session_id,
@@ -137,6 +151,10 @@ def create_analysis_job(
                 job.source_job_id,
                 job.model_name,
                 job.prompt_version,
+                job.prompt_template_id or None,
+                job.prompt_template_revision,
+                job.prompt_template_label or None,
+                job.rendered_prompt_snapshot_path or None,
                 job.status,
                 now,
                 now,

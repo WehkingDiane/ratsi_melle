@@ -1,6 +1,6 @@
 # Analyseausgaben
 
-Die Analyseausgaben sind ab Schema v2 nach Zweck, Struktur und Workflow-Status getrennt. Das Ziel ist, lokale Analysen weiter automatisierbar zu machen, ohne grosse Inhalte in SQLite zu speichern.
+Die Analyseausgaben sind ab Schema v2 nach Zweck, Struktur und Workflow-Status getrennt. Das Ziel ist, lokale Analysen weiter automatisierbar zu machen, ohne große Inhalte in SQLite zu speichern.
 
 ## v1 und v2
 
@@ -11,7 +11,7 @@ Die Analyseausgaben sind ab Schema v2 nach Zweck, Struktur und Workflow-Status g
 - `raw_analysis`: Quellen- und Rohinformationen zur Sitzung, zu TOPs und Dokumenten.
 - `structured_analysis`: maschinenlesbare Analyse mit Fakten, Entscheidungen, finanziellen Effekten, betroffenen Gruppen und offenen Fragen.
 - `publication_draft`: journalistischer Entwurf mit Review- und Publikationsstatus.
-- `journalistic_article`: Markdown-Artefakt fuer den lesbaren Artikel- oder Analyseentwurf.
+- `journalistic_article`: Markdown-Artefakt für den lesbaren Artikel- oder Analyseentwurf.
 
 Alte v1-Dateien bleiben lesbar. `normalize_analysis_output(data)` bildet sie auf ein kompatibles Normalformat ab und setzt fehlende Zwecke auf `content_analysis`.
 
@@ -23,18 +23,18 @@ Jeder neue Analyseauftrag kann ein `purpose` enthalten. Der Default ist:
 content_analysis
 ```
 
-Unterstuetzte Werte:
+Unterstützte Werte:
 
 - `journalistic_publication`
 - `session_preparation`
 - `content_analysis`
 - `fact_extraction`
 
-Journalistische Entwuerfe sollen explizit `journalistic_publication` verwenden. Dadurch koennen spaetere Workflows Review, Freigabe und Veroeffentlichung separat behandeln.
+Journalistische Entwürfe sollen explizit `journalistic_publication` verwenden. Dadurch können spätere Workflows Review, Freigabe und Veröffentlichung separat behandeln.
 
 ## Dateistruktur
 
-Neue Artefakte werden sitzungsorientiert abgelegt:
+Neue JSON- und Markdown-Artefakte werden sitzungsorientiert abgelegt:
 
 ```text
 data/analysis_outputs/YYYY/MM/session-folder/
@@ -44,7 +44,16 @@ data/analysis_outputs/YYYY/MM/session-folder/
   job_1.article.md
 ```
 
-Bestehende Dateien werden nicht ueberschrieben. Falls ein Zielname bereits existiert, wird ein numerischer Suffix ergaenzt, zum Beispiel `job_1.raw.1.json`.
+Bestehende Dateien werden nicht überschrieben. Falls ein Zielname bereits existiert, wird ein numerischer Suffix ergänzt, zum Beispiel `job_1.raw.1.json`.
+
+Gerenderte Prompt-Snapshots und private Prompt-Artefakte liegen nicht unter `data/analysis_outputs/`, sondern im privaten Datenbereich:
+
+```text
+data/private/analysis_prompts/
+data/private/prompt_snapshots/
+```
+
+Diese privaten Prompt-Dateien werden nicht als normale Quellen oder Ausgabedateien in der Job-Detailansicht angezeigt.
 
 ## Workflow-DB
 
@@ -54,17 +63,26 @@ Die Workflow-Datenbank liegt unter:
 data/db/analysis_workflow.sqlite
 ```
 
-Sie dient als Index und Statussystem. Grosse Inhalte bleiben in JSON- und Markdown-Dateien. Die wichtigsten Tabellen sind:
+Sie dient als Index und Statussystem. Große Inhalte bleiben in JSON- und Markdown-Dateien. Die wichtigsten Tabellen sind:
 
-- `analysis_jobs`: Analyseauftrag mit Sitzung, Scope, TOPs, Zweck, Modell, Prompt-Version und Status.
+- `analysis_jobs`: Analyseauftrag mit Sitzung, Scope, TOPs, Zweck, Modell, Prompt-Version, Prompt-Vorlagen-Metadaten und Status.
 - `analysis_outputs`: Verweise auf JSON- und Markdown-Artefakte mit Output-Typ und Schema-Version.
-- `publication_jobs`: vorbereiteter Review- und Veroeffentlichungsstatus fuer Publikationsentwuerfe.
+- `publication_jobs`: vorbereiteter Review- und Veröffentlichungsstatus für Publikationsentwürfe.
 
-Eine echte Veroeffentlichung findet noch nicht statt. `publication_jobs` bereitet nur spaetere Ziele wie lokale statische Webseiten, CMS, WordPress oder Workflow-Systeme vor.
+Eine echte Veröffentlichung findet noch nicht statt. `publication_jobs` bereitet nur spätere Ziele wie lokale statische Webseiten, CMS, WordPress oder Workflow-Systeme vor.
+
+Prompt-bezogene Felder in `analysis_jobs`:
+
+- `prompt_template_id`: ID der ausgewählten Prompt-Vorlage zum Zeitpunkt des Analysejobs.
+- `prompt_template_revision`: Revision der Vorlage zum Zeitpunkt des Analysejobs.
+- `prompt_template_label`: Anzeigename der verwendeten Vorlage.
+- `rendered_prompt_snapshot_path`: privater Pfad zum gerenderten Prompt-Snapshot.
+
+Alte Analysejobs ohne diese Felder bleiben lesbar. Wenn eine Vorlage später geändert wird, bleiben ID, Revision, Label und Snapshot des alten Jobs unverändert nachvollziehbar.
 
 ## Beispiel
 
-Ein Publikationsentwurf enthaelt mindestens:
+Ein Publikationsentwurf enthält mindestens:
 
 ```json
 {
@@ -91,5 +109,5 @@ Analyseauftrag anlegen
 -> strukturierte Analyse erzeugen
 -> optional Publikationsentwurf erzeugen
 -> Review/Freigabe nachverfolgen
--> spaeter automatisiert veroeffentlichen
+-> später automatisiert veröffentlichen
 ```

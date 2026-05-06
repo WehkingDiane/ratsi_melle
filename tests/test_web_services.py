@@ -573,7 +573,7 @@ def test_prompt_artifact_is_loaded_from_prompt_directory(workspace_tmp: Path, mo
 
     assert job is not None
     assert job["prompt_text"] == "Prompt aus Datei"
-    assert "data/analysis_prompts/job_1.txt" in job["files"]
+    assert "data/analysis_prompts/job_1.txt" not in job["files"]
 
 
 def test_legacy_db_analysis_outputs_are_read_in_id_order(workspace_tmp: Path, monkeypatch) -> None:
@@ -789,16 +789,136 @@ def test_run_analysis_from_form_rejects_top_without_analysis_documents(monkeypat
     assert any("lokal vorhandenen Dokumenten" in error for error in errors)
 
 
+def test_run_analysis_from_form_ignores_stale_tops_for_session_scope(monkeypatch, workspace_tmp: Path) -> None:
+    from core.services import analysis as core_analysis_services
+
+    db_path = workspace_tmp / "local_index.sqlite"
+    template_path = workspace_tmp / "prompt_templates.json"
+    example_path = workspace_tmp / "prompt_templates.example.json"
+    template_path.write_text(
+        json.dumps(
+            {
+                "templates": [
+                    {
+                        "id": "session_sources",
+                        "label": "Session Sources",
+                        "scope": "session",
+                        "description": "",
+                        "prompt_text": "Quellen:\n{{source_list}}",
+                        "variables": ["source_list"],
+                        "is_active": True,
+                        "visibility": "private",
+                        "revision": 1,
+                    }
+                ]
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    with sqlite3.connect(db_path) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE sessions (
+                session_id TEXT PRIMARY KEY,
+                date TEXT,
+                committee TEXT,
+                meeting_name TEXT,
+                start_time TEXT,
+                location TEXT,
+                detail_url TEXT,
+                session_path TEXT
+            );
+            CREATE TABLE agenda_items (
+                id INTEGER PRIMARY KEY,
+                session_id TEXT,
+                number TEXT,
+                title TEXT,
+                reporter TEXT,
+                status TEXT,
+                decision TEXT,
+                documents_present INTEGER
+            );
+            CREATE TABLE documents (
+                id INTEGER PRIMARY KEY,
+                session_id TEXT,
+                title TEXT,
+                category TEXT,
+                document_type TEXT,
+                agenda_item TEXT,
+                url TEXT,
+                local_path TEXT,
+                content_type TEXT,
+                content_length INTEGER
+            );
+            """
+        )
+        conn.execute(
+            "INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            ("7123", "2026-03-11", "Rat", "Ratssitzung", "18:00", "Rathaus", "", str(workspace_tmp)),
+        )
+        conn.execute(
+            "INSERT INTO agenda_items VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (1, "7123", "Oe 7", "Windkraft", "", "oeffentlich", "", 1),
+        )
+        conn.execute(
+            "INSERT INTO agenda_items VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (2, "7123", "Oe 8", "Haushalt", "", "oeffentlich", "", 1),
+        )
+
+    captured = {}
+
+    class _Record:
+        def to_dict(self) -> dict[str, int]:
+            return {"job_id": 1}
+
+    class _AnalysisService:
+        def run_journalistic_analysis(self, request):
+            captured["request"] = request
+            return _Record()
+
+    monkeypatch.setattr(analysis_services, "LOCAL_INDEX_DB", db_path)
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+    monkeypatch.setattr(core_analysis_services, "AnalysisService", _AnalysisService)
+
+    result, errors = analysis_services.run_analysis_from_form(
+        {
+            "session_id": "7123",
+            "scope": "session",
+            "top_numbers": ["Oe 7"],
+            "template_id": "session_sources",
+            "provider_id": "none",
+            "purpose": "content_analysis",
+        }
+    )
+
+    request = captured["request"]
+    assert errors == []
+    assert result == {"job_id": 1}
+    assert request.selected_tops == []
+    assert "- Oe 7 Windkraft" in request.prompt
+    assert "- Oe 8 Haushalt" in request.prompt
+
+
 def test_save_prompt_template_from_form_persists_template(monkeypatch, workspace_tmp: Path) -> None:
     template_path = workspace_tmp / "prompt_templates.json"
+    example_path = workspace_tmp / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
     monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
 
     template, errors = analysis_services.save_prompt_template_from_form(
         {
-            "template_label": "Meine TOP Vorlage",
+            "id": "meine_top_vorlage",
+            "label": "Meine TOP Vorlage",
             "prompt_text": "Bitte mit Beschlusskontext analysieren.",
             "scope": "tops",
-            "purpose": "content_analysis",
+            "description": "Test",
+            "variables": "agenda_item",
+            "visibility": "private",
+            "is_active": "1",
         }
     )
 
@@ -806,6 +926,365 @@ def test_save_prompt_template_from_form_persists_template(monkeypatch, workspace
     assert template is not None
     loaded = analysis_services.list_prompt_templates("tops")
     assert any(item["label"] == "Meine TOP Vorlage" for item in loaded)
+
+
+def test_list_prompt_templates_returns_empty_list_for_invalid_store(monkeypatch, workspace_tmp: Path) -> None:
+    template_path = workspace_tmp / "prompt_templates.json"
+    template_path.write_text("{not json", encoding="utf-8")
+    example_path = workspace_tmp / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    assert analysis_services.list_prompt_templates("session") == []
+
+
+def test_list_prompt_templates_handles_invalid_revision(monkeypatch, workspace_tmp: Path) -> None:
+    template_path = workspace_tmp / "prompt_templates.json"
+    template_path.write_text(
+        json.dumps(
+            {
+                "templates": [
+                    {
+                        "id": "bad_revision",
+                        "label": "Bad Revision",
+                        "scope": "session",
+                        "description": "",
+                        "prompt_text": "Analysiere {{session_title}}.",
+                        "variables": ["session_title"],
+                        "is_active": True,
+                        "visibility": "private",
+                        "revision": "v2",
+                    }
+                ]
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    example_path = workspace_tmp / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    templates = analysis_services.list_prompt_templates("session")
+
+    assert len(templates) == 1
+    assert templates[0]["id"] == "bad_revision"
+    assert templates[0]["revision"] == 1
+
+
+def test_save_prompt_template_from_form_returns_errors_for_invalid_store(monkeypatch, workspace_tmp: Path) -> None:
+    template_path = workspace_tmp / "prompt_templates.json"
+    template_path.write_text("{not json", encoding="utf-8")
+    example_path = workspace_tmp / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    template, errors = analysis_services.save_prompt_template_from_form(
+        {
+            "label": "Kaputte Vorlage",
+            "prompt_text": "Analysiere {{session_title}}.",
+            "scope": "session",
+            "visibility": "private",
+            "is_active": "1",
+        }
+    )
+
+    assert template is None
+    assert errors == ["Prompt-Vorlagen konnten nicht gelesen werden. Bitte private Vorlagen-Datei prüfen."]
+    assert "Analysiere" not in errors[0]
+
+
+def test_get_prompt_template_returns_none_for_invalid_store(monkeypatch, workspace_tmp: Path) -> None:
+    template_path = workspace_tmp / "prompt_templates.json"
+    template_path.write_text("{not json", encoding="utf-8")
+    example_path = workspace_tmp / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    assert analysis_services.get_prompt_template("kaputt") is None
+
+
+def test_prompt_template_actions_return_errors_for_invalid_store(monkeypatch, workspace_tmp: Path) -> None:
+    from core.services.prompts import deactivate_prompt_template
+    from core.services.prompts import duplicate_prompt_template
+    from core.services.prompts import get_active_prompt_template
+    from core.services import paths
+
+    template_path = workspace_tmp / "prompt_templates.json"
+    template_path.write_text("{not json", encoding="utf-8")
+    example_path = workspace_tmp / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(paths, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(paths, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    _template, active_errors = get_active_prompt_template("kaputt", "session")
+    _duplicate, duplicate_errors = duplicate_prompt_template("kaputt")
+    deactivate_errors = deactivate_prompt_template("kaputt")
+
+    assert active_errors == ["Prompt-Vorlagen konnten nicht gelesen werden. Bitte private Vorlagen-Datei prüfen."]
+    assert duplicate_errors == ["Prompt-Vorlagen konnten nicht gelesen werden. Bitte private Vorlagen-Datei prüfen."]
+    assert deactivate_errors == ["Prompt-Vorlagen konnten nicht gelesen werden. Bitte private Vorlagen-Datei prüfen."]
+
+
+def test_prompt_template_slugify_handles_german_umlauts(monkeypatch, workspace_tmp: Path) -> None:
+    template_path = workspace_tmp / "prompt_templates.json"
+    example_path = workspace_tmp / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    template, errors = analysis_services.save_prompt_template_from_form(
+        {
+            "label": "Meine öffentliche Vorlage",
+            "prompt_text": "Analysiere {{session_title}}.",
+            "scope": "session",
+            "visibility": "private",
+            "is_active": "1",
+        }
+    )
+
+    assert errors == []
+    assert template["id"] == "meine_oeffentliche_vorlage"
+
+
+def test_prompt_template_error_messages_use_correct_umlauts(monkeypatch, workspace_tmp: Path) -> None:
+    from core.services.prompts import get_active_prompt_template
+
+    template_path = workspace_tmp / "prompt_templates.json"
+    example_path = workspace_tmp / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    _template, errors = get_active_prompt_template("fehlt", "session")
+
+    assert "gewählte" in errors[0]
+    assert "gewÃ" not in errors[0]
+
+
+def test_new_prompt_templates_with_same_label_do_not_overwrite(monkeypatch, workspace_tmp: Path) -> None:
+    template_path = workspace_tmp / "prompt_templates.json"
+    example_path = workspace_tmp / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    first, first_errors = analysis_services.save_prompt_template_from_form(
+        {
+            "label": "Gleiche Vorlage",
+            "prompt_text": "Analysiere {{session_title}}.",
+            "scope": "session",
+            "visibility": "private",
+            "is_active": "1",
+        }
+    )
+    second, second_errors = analysis_services.save_prompt_template_from_form(
+        {
+            "label": "Gleiche Vorlage",
+            "prompt_text": "Analysiere {{committee}}.",
+            "scope": "session",
+            "visibility": "private",
+            "is_active": "1",
+        }
+    )
+
+    assert first_errors == []
+    assert second_errors == []
+    assert first["id"] == "gleiche_vorlage"
+    assert second["id"] == "gleiche_vorlage_2"
+    assert analysis_services.get_prompt_template("gleiche_vorlage")["prompt_text"] == "Analysiere {{session_title}}."
+
+
+def test_editing_existing_prompt_template_increments_revision(monkeypatch, workspace_tmp: Path) -> None:
+    template_path = workspace_tmp / "prompt_templates.json"
+    example_path = workspace_tmp / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    created, errors = analysis_services.save_prompt_template_from_form(
+        {
+            "id": "edit_test",
+            "label": "Edit Test",
+            "prompt_text": "Analysiere {{session_title}}.",
+            "scope": "session",
+            "visibility": "private",
+            "is_active": "1",
+        }
+    )
+    edited, edit_errors = analysis_services.save_prompt_template_from_form(
+        {
+            "id": "edit_test",
+            "label": "Edit Test",
+            "prompt_text": "Analysiere {{committee}}.",
+            "scope": "session",
+            "visibility": "private",
+            "is_active": "1",
+            "allow_update": True,
+        }
+    )
+
+    assert errors == []
+    assert edit_errors == []
+    assert created["revision"] == 1
+    assert edited["id"] == "edit_test"
+    assert edited["revision"] == 2
+    assert edited["prompt_text"] == "Analysiere {{committee}}."
+
+
+def test_editing_existing_multi_scope_prompt_template_preserves_scopes(monkeypatch, workspace_tmp: Path) -> None:
+    template_path = workspace_tmp / "prompt_templates.json"
+    example_path = workspace_tmp / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    template_path.write_text(
+        json.dumps(
+            {
+                "templates": [
+                    {
+                        "id": "multi_scope_edit",
+                        "label": "Multi Scope",
+                        "scope": ["document", "tops", "session"],
+                        "description": "Legacy",
+                        "prompt_text": "Analysiere {{session_title}}.",
+                        "variables": ["session_title"],
+                        "is_active": True,
+                        "visibility": "private",
+                        "revision": 1,
+                    }
+                ]
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    edited, errors = analysis_services.save_prompt_template_from_form(
+        {
+            "id": "multi_scope_edit",
+            "label": "Multi Scope bearbeitet",
+            "prompt_text": "Analysiere {{committee}}.",
+            "scope": "session",
+            "visibility": "private",
+            "is_active": "1",
+            "allow_update": True,
+        }
+    )
+
+    assert errors == []
+    assert edited["revision"] == 2
+    assert edited["scopes"] == ["session", "document", "tops"]
+    assert [item["id"] for item in analysis_services.list_prompt_templates("tops")] == ["multi_scope_edit"]
+    assert analysis_services.get_prompt_template("multi_scope_edit")["prompt_text"] == "Analysiere {{committee}}."
+
+
+def test_analysis_output_reads_private_prompt_snapshot(monkeypatch, workspace_tmp: Path) -> None:
+    import sqlite3
+
+    from core.services import outputs
+    from core.services import paths
+
+    db_path = workspace_tmp / "data" / "db" / "local_index.sqlite"
+    snapshot_path = workspace_tmp / "data" / "private" / "prompt_snapshots" / "job_1.txt"
+    snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+    snapshot_path.write_text("Privater Prompt", encoding="utf-8")
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(db_path) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE analysis_jobs (
+                id INTEGER PRIMARY KEY,
+                created_at TEXT,
+                session_id TEXT,
+                scope TEXT,
+                top_numbers_json TEXT,
+                purpose TEXT,
+                model_name TEXT,
+                prompt_version TEXT,
+                prompt_template_id TEXT,
+                prompt_template_revision INTEGER,
+                prompt_template_label TEXT,
+                rendered_prompt_snapshot_path TEXT,
+                status TEXT,
+                error_message TEXT
+            );
+            CREATE TABLE analysis_outputs (
+                id INTEGER PRIMARY KEY,
+                job_id INTEGER,
+                output_format TEXT,
+                content TEXT,
+                created_at TEXT
+            );
+            """
+        )
+        conn.execute(
+            "INSERT INTO analysis_jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                1,
+                "2026-01-01T00:00:00Z",
+                "7123",
+                "session",
+                "[]",
+                "content_analysis",
+                "none",
+                "template@2",
+                "template",
+                2,
+                "Vorlage",
+                str(snapshot_path),
+                "done",
+                "",
+            ),
+        )
+        conn.execute(
+            "INSERT INTO analysis_outputs (job_id, output_format, content, created_at) VALUES (?, ?, ?, ?)",
+            (1, "markdown", "# Analyse", "2026-01-01T00:00:00Z"),
+        )
+
+    monkeypatch.setattr(paths, "LOCAL_INDEX_DB", db_path)
+    monkeypatch.setattr(paths, "ANALYSIS_WORKFLOW_DB", workspace_tmp / "missing.sqlite")
+    monkeypatch.setattr(paths, "ANALYSIS_OUTPUTS_DIR", workspace_tmp / "data" / "analysis_outputs")
+    monkeypatch.setattr(paths, "ANALYSIS_PROMPTS_DIR", workspace_tmp / "data" / "private" / "analysis_prompts")
+
+    job = outputs.get_analysis_output("local:1")
+
+    assert job["prompt_template_label"] == "Vorlage"
+    assert job["prompt_template_revision"] == 2
+    assert job["prompt_text"] == "Privater Prompt"
+    assert str(snapshot_path) not in job["sources"]
+    assert str(snapshot_path) not in job["files"]
+
+
+def test_public_job_filters_configured_private_prompt_paths(monkeypatch, workspace_tmp: Path) -> None:
+    from core.services import outputs
+    from core.services import paths
+
+    private_dir = workspace_tmp / "custom_private"
+    snapshot_path = private_dir / "prompt_snapshots" / "job_1.txt"
+    prompt_copy_path = private_dir / "analysis_prompts" / "job_1.txt"
+    public_path = "data/analysis_outputs/job_1.raw.json"
+
+    monkeypatch.setattr(paths, "PRIVATE_DATA_DIR", private_dir)
+    monkeypatch.setattr(paths, "PROMPT_SNAPSHOTS_DIR", private_dir / "prompt_snapshots")
+    monkeypatch.setattr(paths, "ANALYSIS_PROMPTS_DIR", private_dir / "analysis_prompts")
+    monkeypatch.setattr(paths, "PROMPT_TEMPLATES_PATH", private_dir / "prompt_templates.json")
+
+    job = outputs._public_job(
+        {
+            "job_id": "local:1",
+            "sources": {str(snapshot_path), str(prompt_copy_path), public_path},
+            "files": [str(snapshot_path), str(prompt_copy_path), public_path],
+            "rendered_prompt_snapshot_path": str(snapshot_path),
+        }
+    )
+
+    assert job["sources"] == [public_path]
+    assert job["files"] == [public_path]
 
 
 def test_service_action_builds_local_index_command() -> None:

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Prompt-Vorlagen - Ratsi Melle{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow">Analyse</p>
+  <h1>Prompt-Vorlagen</h1>
+  <p>Echte Vorlagen werden privat gespeichert und liegen nicht im Git-Repository.</p>
+</section>
+
+<section class="panel">
+  <form method="get" class="form-inline">
+    <label>Scope
+      <select name="scope">
+        <option value="" {% if not scope %}selected{% endif %}>Alle</option>
+        <option value="session" {% if scope == "session" %}selected{% endif %}>Sitzung</option>
+        <option value="tops" {% if scope == "tops" %}selected{% endif %}>TOPs</option>
+        <option value="document" {% if scope == "document" %}selected{% endif %}>Dokument</option>
+      </select>
+    </label>
+    <button class="button" type="submit">Filtern</button>
+    <a class="button primary" href="{% url 'analysis:prompt_template_new' %}">Neue Vorlage</a>
+  </form>
+</section>
+
+<section class="panel">
+  {% if templates %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Name</th><th>Scope</th><th>Status</th><th>Revision</th><th></th></tr></thead>
+      <tbody>
+      {% for template in templates %}
+      <tr>
+        <td>
+          <strong>{{ template.label }}</strong>
+          {% if template.description %}<small>{{ template.description }}</small>{% endif %}
+        </td>
+        <td>{{ template.scope }}</td>
+        <td>{% if template.is_active %}aktiv{% else %}deaktiviert{% endif %}</td>
+        <td>{{ template.revision }}</td>
+        <td class="actions">
+          <a href="{% url 'analysis:prompt_template_edit' template.id %}">Bearbeiten</a>
+          <form method="post" action="{% url 'analysis:prompt_template_duplicate' template.id %}">
+            {% csrf_token %}
+            <button class="link-button" type="submit">Duplizieren</button>
+          </form>
+          {% if template.is_active %}
+          <form method="post" action="{% url 'analysis:prompt_template_deactivate' template.id %}">
+            {% csrf_token %}
+            <button class="link-button" type="submit">Deaktivieren</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-state">Keine Prompt-Vorlagen gefunden.</p>
+  {% endif %}
+</section>
+{% endblock %}

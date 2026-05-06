@@ -30,7 +30,8 @@ def test_ensure_analysis_tables_creates_correct_schema(tmp_path: Path) -> None:
         assert jobs_cols >= {
             "id", "created_at", "session_id", "scope",
             "top_numbers_json", "purpose", "model_name", "prompt_version",
-            "status", "error_message",
+            "prompt_template_id", "prompt_template_revision", "prompt_template_label",
+            "rendered_prompt_snapshot_path", "status", "error_message",
         }
 
         outputs_cols = {row[1] for row in conn.execute("PRAGMA table_info(analysis_outputs)").fetchall()}
@@ -98,12 +99,14 @@ def test_analysis_service_persists_versioned_outputs(tmp_path: Path, monkeypatch
     service = AnalysisService()
 
     outputs_dir = tmp_path / "data" / "analysis_outputs"
-    prompts_dir = outputs_dir / "prompts"
+    prompts_dir = tmp_path / "data" / "private" / "analysis_prompts"
     latest_md = outputs_dir / "summaries" / "analysis_latest.md"
     workflow_db = tmp_path / "data" / "db" / "analysis_workflow.sqlite"
+    snapshot_dir = tmp_path / "data" / "private" / "prompt_snapshots"
     monkeypatch.setattr("src.analysis.service.ANALYSIS_OUTPUTS_DIR", outputs_dir)
     monkeypatch.setattr("src.analysis.service.ANALYSIS_PROMPTS_DIR", prompts_dir)
     monkeypatch.setattr("src.analysis.service.DEFAULT_ANALYSIS_MARKDOWN", latest_md)
+    monkeypatch.setattr("src.analysis.service.PROMPT_SNAPSHOTS_DIR", snapshot_dir)
     monkeypatch.setattr("src.analysis.workflow_db.ANALYSIS_WORKFLOW_DB", workflow_db)
 
     request = AnalysisRequest(
@@ -112,6 +115,10 @@ def test_analysis_service_persists_versioned_outputs(tmp_path: Path, monkeypatch
         scope="session",
         selected_tops=[],
         prompt="Bitte zentrale Entscheidungen und Kosten nennen.",
+        prompt_template_id="session_demo",
+        prompt_template_revision=3,
+        prompt_template_label="Demo",
+        prompt_version="session_demo@3",
     )
     record = service.run_journalistic_analysis(request)
 
@@ -134,6 +141,14 @@ def test_analysis_service_persists_versioned_outputs(tmp_path: Path, monkeypatch
     assert prompt_output.exists()
     assert latest_md.exists()
     assert workflow_db.exists()
+
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        job_row = dict(conn.execute("SELECT * FROM analysis_jobs WHERE id = ?", (record.job_id,)).fetchone())
+    assert job_row["prompt_template_id"] == "session_demo"
+    assert job_row["prompt_template_revision"] == 3
+    assert job_row["prompt_template_label"] == "Demo"
+    assert Path(job_row["rendered_prompt_snapshot_path"]).is_file()
 
     payload = json.loads(raw_output.read_text(encoding="utf-8"))
     assert payload["schema_version"] == ANALYSIS_OUTPUT_SCHEMA_VERSION_V2

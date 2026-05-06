@@ -1,18 +1,18 @@
 # Ratsinformations-Analysetool Melle
 
-Dieses Projekt sammelt oeffentliche Sitzungs- und Dokumentdaten aus dem Ratsinformationssystem der Stadt Melle, bereitet sie strukturiert auf und stellt sie fuer Recherche, KI-Analysen und semantische Suche bereit.
+Dieses Projekt sammelt öffentliche Sitzungs- und Dokumentdaten aus dem Ratsinformationssystem der Stadt Melle, bereitet sie strukturiert auf und stellt sie für Recherche, KI-Analysen und semantische Suche bereit.
 
 ## Zweck
 
 - Sitzungen, Tagesordnungspunkte und Dokumente aus SessionNet erfassen
-- lokale und online-basierte Indizes fuer Recherche aufbauen
-- Dokumente fuer KI-gestuetzte Analysen vorbereiten
-- semantische Suche ueber einen lokalen Qdrant-Index bereitstellen
+- lokale und online-basierte Indizes für Recherche aufbauen
+- Dokumente für KI-gestützte Analysen vorbereiten
+- semantische Suche über einen lokalen Qdrant-Index bereitstellen
 
-## Oberflaechen
+## Oberflächen
 
-- **Developer-UI (Streamlit)** fuer schnelle interne Workflows und Skriptsteuerung
-- **Django-Hauptoberflaeche (geplant)** fuer die spaetere produktartige Recherche- und Analyseoberflaeche
+- **Developer-UI (Streamlit)** für schnelle interne Workflows und Skriptsteuerung
+- **Django-Weboberfläche** unter `web/` für lokale Recherche-, Analyse-, Prompt-Vorlagen- und Datenpflegepfade
 - **Desktop-GUI (Legacy)** bleibt vorerst im Repository, ist aber kein aktiver Hauptpfad mehr
 
 ## Voraussetzungen
@@ -20,7 +20,7 @@ Dieses Projekt sammelt oeffentliche Sitzungs- und Dokumentdaten aus dem Ratsinfo
 - Python 3.11+
 - `pip`
 - `git`
-- optional fuer die alte Desktop-GUI: `customtkinter`, `CTkMenuBar`, unter WSL zusaetzlich `python3-tk`
+- optional für die alte Desktop-GUI: `customtkinter`, `CTkMenuBar`, unter WSL zusätzlich `python3-tk`
 
 ## Installation
 
@@ -43,7 +43,15 @@ python scripts/run_web.py
 python -m pytest
 ```
 
-`fetch_session_from_index.py` nutzt `data/db/online_session_index.sqlite` als Auswahlquelle. Damit kann eine einzelne Sitzung anhand ihrer `session_id` nach `data/raw/` geladen werden, ohne die Monatsuebersicht erneut komplett abzuarbeiten.
+`fetch_session_from_index.py` nutzt `data/db/online_session_index.sqlite` als Auswahlquelle. Damit kann eine einzelne Sitzung anhand ihrer `session_id` nach `data/raw/` geladen werden, ohne die Monatsübersicht erneut komplett abzuarbeiten.
+
+Die Django-Weboberfläche startet lokal mit:
+
+```bash
+python scripts/run_web.py
+```
+
+Sie ist danach standardmäßig unter `http://127.0.0.1:8000/` erreichbar. Details stehen in [docs/web_ui.md](/mnt/c/users/diane/git/ratsi_melle/docs/web_ui.md:1).
 
 ## Daten und Suche
 
@@ -51,18 +59,23 @@ python -m pytest
 - Online-Index: `data/db/online_session_index.sqlite`
 - Lokaler Vektorindex: `data/db/qdrant/`
 - Analyse-Workflow und v2-Ausgaben: [docs/analysis_outputs.md](/mnt/c/users/diane/git/ratsi_melle/docs/analysis_outputs.md:1)
+- Private Prompt-Vorlagen: `data/private/prompt_templates.json`
+- Private Prompt-Artefakte und gerenderte Snapshots: `data/private/analysis_prompts/` und `data/private/prompt_snapshots/`
+
+Echte Prompt-Vorlagen und gerenderte Prompt-Snapshots gehören nicht ins Repository. Die privaten Pfade unter `data/private/` sind durch `.gitignore` geschützt.
 
 ## Sicherheitsgrenzen
 
-- Lokale Dokumentpfade werden nur akzeptiert, wenn sie unter einer zulaessigen `data/raw/`-Wurzel liegen.
+- Lokale Dokumentpfade werden nur akzeptiert, wenn sie unter einer zulässigen `data/raw/`-Wurzel liegen.
 - `manifest.json`-Pfade bleiben auf das jeweilige Sitzungspaket begrenzt; Traversal per `../` wird verworfen.
 - Dokumentdownloads und lokale Text-/PDF-Extraktion sind aktuell auf 25 MiB pro Datei begrenzt, um Speicher- und Plattenplatz-DoS zu begrenzen.
 
-Die gemeinsame Grundlagen-Doku fuer Zielsystem, Fetching, Datenhaltung, Vektorindex und semantische Suche steht in [docs/data_processing_concept.md](/mnt/c/users/diane/git/ratsi_melle/docs/data_processing_concept.md:1).
+Die gemeinsame Grundlagen-Doku für Zielsystem, Fetching, Datenhaltung, Vektorindex und semantische Suche steht in [docs/data_processing_concept.md](/mnt/c/users/diane/git/ratsi_melle/docs/data_processing_concept.md:1).
 
 ## Weitere Dokumentation
 
 - Projekt- und Arbeitsregeln: [AGENTS.md](/mnt/c/users/diane/git/ratsi_melle/AGENTS.md:1)
 - Repository-Regeln: [docs/repository_guidelines.md](/mnt/c/users/diane/git/ratsi_melle/docs/repository_guidelines.md:1)
-- Django-Konzept: [docs/django_ui_concept.md](/mnt/c/users/diane/git/ratsi_melle/docs/django_ui_concept.md:1)
+- Aktueller Stand der Django-Weboberfläche: [docs/web_ui.md](/mnt/c/users/diane/git/ratsi_melle/docs/web_ui.md:1)
+- Django-Zielkonzept: [docs/django_ui_concept.md](/mnt/c/users/diane/git/ratsi_melle/docs/django_ui_concept.md:1)
 - Offene Aufgaben und Ausbaupfade: [docs/project_tasks.md](/mnt/c/users/diane/git/ratsi_melle/docs/project_tasks.md:1)

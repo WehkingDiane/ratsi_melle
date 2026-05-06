@@ -140,6 +140,7 @@ def _analysis_jobs_from_db(db_path: Path) -> list[dict[str, Any]]:
         row["db_outputs"] = outputs_by_job.get(str(db_job_id), [])
         for output in row["db_outputs"]:
             _merge_db_output(row, output)
+        _load_prompt_snapshot(row)
         jobs.append(row)
     return jobs
 
@@ -302,6 +303,10 @@ def _read_json_output(path: Path, job: dict[str, Any], *, preserve_job_id: bool 
         "purpose",
         "model_name",
         "prompt_version",
+        "prompt_template_id",
+        "prompt_template_revision",
+        "prompt_template_label",
+        "rendered_prompt_snapshot_path",
         "prompt_text",
         "markdown",
         "ki_response",
@@ -335,6 +340,15 @@ def _read_text(path: Path) -> str:
         return ""
 
 
+def _load_prompt_snapshot(job: dict[str, Any]) -> None:
+    if job.get("prompt_text"):
+        return
+    snapshot_path = _resolve_output_path(job.get("rendered_prompt_snapshot_path"))
+    if snapshot_path is None or not snapshot_path.is_file():
+        return
+    job["prompt_text"] = _read_text(snapshot_path).strip()
+
+
 def _empty_job(job_id: str) -> dict[str, Any]:
     return {
         "job_id": str(job_id),
@@ -344,6 +358,10 @@ def _empty_job(job_id: str) -> dict[str, Any]:
         "purpose": "",
         "model_name": "",
         "prompt_version": "",
+        "prompt_template_id": "",
+        "prompt_template_revision": None,
+        "prompt_template_label": "",
+        "rendered_prompt_snapshot_path": "",
         "status": "",
         "error_message": "",
         "markdown": "",
@@ -370,9 +388,70 @@ def _merge_job(target: dict[str, Any], source: dict[str, Any]) -> None:
 
 def _public_job(job: dict[str, Any]) -> dict[str, Any]:
     public = dict(job)
-    public["sources"] = sorted(public.get("sources", []))
-    public["files"] = sorted(set(public.get("files", [])))
+    public["sources"] = sorted(
+        source for source in public.get("sources", [])
+        if not _is_private_prompt_artifact_source(source, public)
+    )
+    public["files"] = sorted(
+        {
+            file_path for file_path in public.get("files", [])
+            if not _is_private_prompt_artifact_source(file_path, public)
+        }
+    )
     public["has_content"] = any(
         public.get(key) for key in ("markdown", "ki_response", "prompt_text", "structured_outputs")
     )
     return public
+
+
+def _is_private_prompt_artifact_source(value: Any, job: dict[str, Any]) -> bool:
+    raw = str(value or "")
+    if not raw:
+        return False
+    raw_normalized = raw.replace("\\", "/")
+    snapshot = str(job.get("rendered_prompt_snapshot_path") or "")
+    snapshot_normalized = snapshot.replace("\\", "/")
+    if snapshot_normalized and raw_normalized == snapshot_normalized:
+        return True
+    if snapshot and Path(snapshot).is_absolute():
+        try:
+            if Path(raw).resolve() == Path(snapshot).resolve():
+                return True
+        except OSError:
+            pass
+    return _path_points_to_private_prompt_artifact(raw)
+
+
+def _path_points_to_private_prompt_artifact(value: str) -> bool:
+    candidate = Path(value)
+    candidates = [candidate]
+    if not candidate.is_absolute():
+        candidates.append(paths.REPO_ROOT / candidate)
+
+    private_roots = (
+        paths.PRIVATE_DATA_DIR,
+        paths.PROMPT_SNAPSHOTS_DIR,
+        paths.ANALYSIS_PROMPTS_DIR,
+        paths.PROMPT_TEMPLATES_PATH.parent,
+    )
+    for candidate_path in candidates:
+        if any(_path_is_relative_to(candidate_path, root) for root in private_roots):
+            return True
+
+    normalized = value.replace("\\", "/")
+    for root in private_roots:
+        try:
+            relative_root = root.relative_to(paths.REPO_ROOT).as_posix()
+        except ValueError:
+            continue
+        if normalized == relative_root or normalized.startswith(f"{relative_root}/"):
+            return True
+    return False
+
+
+def _path_is_relative_to(candidate: Path, root: Path) -> bool:
+    try:
+        candidate.resolve(strict=False).relative_to(root.resolve(strict=False))
+    except (OSError, ValueError):
+        return False
+    return True

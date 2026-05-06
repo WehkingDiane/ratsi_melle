@@ -39,6 +39,10 @@ class AnalysisOutputRecord:
     purpose: str = DEFAULT_ANALYSIS_PURPOSE
     model_name: str = ""
     prompt_version: str = ""
+    prompt_template_id: str = ""
+    prompt_template_revision: int | None = None
+    prompt_template_label: str = ""
+    rendered_prompt_snapshot_path: str = ""
     prompt_text: str = ""
     markdown: str = ""
     ki_response: str = ""
@@ -208,6 +212,10 @@ def normalize_analysis_output(data: dict) -> dict[str, object]:
         "session_id": str(data.get("session_id") or ""),
         "scope": str(data.get("scope") or "session"),
         "top_numbers": list(data.get("top_numbers") or []),
+        "prompt_template_id": str(data.get("prompt_template_id") or ""),
+        "prompt_template_revision": data.get("prompt_template_revision"),
+        "prompt_template_label": str(data.get("prompt_template_label") or ""),
+        "rendered_prompt_snapshot_path": str(data.get("rendered_prompt_snapshot_path") or ""),
         "ki_response": str(data.get("ki_response") or ""),
         "markdown": str(data.get("markdown") or ""),
         "status": str(data.get("status") or ""),

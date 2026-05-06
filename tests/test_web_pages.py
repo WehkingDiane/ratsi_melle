@@ -37,6 +37,8 @@ def client():
     [
         "/",
         "/analyse/",
+        "/analyse/prompts/",
+        "/analyse/prompts/neu/",
         "/analyse/starten/",
         "/analyse/sitzungen/",
         "/analyse/sitzungen/does-not-exist/",
@@ -87,6 +89,8 @@ def test_templates_are_kept_in_their_feature_apps() -> None:
         "index.html",
         "job_detail.html",
         "job_list.html",
+        "prompt_template_form.html",
+        "prompt_templates.html",
         "session_detail.html",
         "session_list.html",
     }.issubset(analysis_templates)
@@ -122,6 +126,7 @@ def test_main_navigation_is_in_shared_layout(client) -> None:
     assert "Dashboard öffnen" in content
     assert "Analyse" in content
     assert "Analyse-Übersicht" in content
+    assert "Prompt-Vorlagen" in content
     assert "KI-Analyse starten" in content
     assert "Sitzungen" in content
     assert "Analysejobs" in content
@@ -150,7 +155,7 @@ def test_navigation_dropdowns_have_expected_links(client) -> None:
 
     assert labels == {
         "Dashboard": ["Dashboard öffnen"],
-        "Analyse": ["Analyse-Übersicht", "KI-Analyse starten", "Sitzungen", "Analysejobs"],
+        "Analyse": ["Analyse-Übersicht", "Prompt-Vorlagen", "KI-Analyse starten", "Sitzungen", "Analysejobs"],
         "Daten": ["Fetch: Daten holen", "Build: Datenbank-Tools"],
         "Veröffentlichung": ["Veröffentlichung öffnen"],
         "Suche": ["Suche öffnen"],
@@ -267,6 +272,263 @@ def test_analysis_start_post_redirects_to_created_job(client, monkeypatch) -> No
 
     assert response.status_code == 302
     assert response.headers["Location"] == "/analyse/jobs/workflow:7/"
+
+
+def test_prompt_template_management_create_edit_duplicate_deactivate(client, monkeypatch, tmp_path) -> None:
+    from analysis import services
+
+    example_path = tmp_path / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_PATH", tmp_path / "private" / "prompt_templates.json")
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    response = client.get("/analyse/prompts/")
+    assert response.status_code == 200
+    assert "Prompt-Vorlagen" in response.content.decode("utf-8")
+
+    response = client.post(
+        "/analyse/prompts/neu/",
+        {
+            "id": "session_test",
+            "label": "Session Test",
+            "scope": "session",
+            "description": "Beschreibung",
+            "prompt_text": "Analysiere {{session_title}}.",
+            "variables": "session_title",
+            "visibility": "private",
+            "is_active": "1",
+        },
+    )
+    assert response.status_code == 302
+
+    response = client.post(
+        "/analyse/prompts/session_test/",
+        {
+            "label": "Session Test 2",
+            "scope": "session",
+            "description": "Beschreibung",
+            "prompt_text": "Analysiere {{session_title}} fuer {{analysis_goal}}.",
+            "variables": "session_title, analysis_goal",
+            "visibility": "private",
+            "is_active": "1",
+        },
+    )
+    assert response.status_code == 302
+
+    response = client.get("/analyse/prompts/session_test/duplizieren/")
+    assert response.status_code == 302
+    assert services.get_prompt_template("session_test_copy") is None
+
+    response = client.post("/analyse/prompts/session_test/duplizieren/")
+    assert response.status_code == 302
+    assert services.get_prompt_template("session_test_copy") is not None
+
+    response = client.post("/analyse/prompts/session_test/deaktivieren/")
+    assert response.status_code == 302
+    assert services.get_prompt_template("session_test")["is_active"] is False
+
+
+def test_prompt_template_list_handles_invalid_store(client, monkeypatch, tmp_path) -> None:
+    from analysis import services
+
+    template_path = tmp_path / "private" / "prompt_templates.json"
+    template_path.parent.mkdir(parents=True)
+    template_path.write_text("{not json", encoding="utf-8")
+    example_path = tmp_path / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    response = client.get("/analyse/prompts/")
+
+    assert response.status_code == 200
+    assert "Prompt-Vorlagen" in response.content.decode("utf-8")
+
+
+def test_analysis_start_handles_invalid_prompt_template_store(client, monkeypatch, tmp_path) -> None:
+    from analysis import services
+
+    template_path = tmp_path / "private" / "prompt_templates.json"
+    template_path.parent.mkdir(parents=True)
+    template_path.write_text("{not json", encoding="utf-8")
+    example_path = tmp_path / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    response = client.get("/analyse/starten/")
+
+    assert response.status_code == 200
+    assert "KI-Analyse starten" in response.content.decode("utf-8")
+
+
+def test_prompt_template_create_post_handles_invalid_store(client, monkeypatch, tmp_path) -> None:
+    from analysis import services
+
+    template_path = tmp_path / "private" / "prompt_templates.json"
+    template_path.parent.mkdir(parents=True)
+    template_path.write_text("{not json", encoding="utf-8")
+    example_path = tmp_path / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    response = client.post(
+        "/analyse/prompts/neu/",
+        {
+            "label": "Kaputte Vorlage",
+            "scope": "session",
+            "description": "",
+            "prompt_text": "Analysiere {{session_title}}.",
+            "variables": "session_title",
+            "visibility": "private",
+            "is_active": "1",
+        },
+    )
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "Prompt-Vorlagen konnten nicht gelesen werden" in content
+
+
+def test_prompt_template_edit_post_handles_invalid_store(client, monkeypatch, tmp_path) -> None:
+    from analysis import services
+
+    template_path = tmp_path / "private" / "prompt_templates.json"
+    template_path.parent.mkdir(parents=True)
+    template_path.write_text("{not json", encoding="utf-8")
+    example_path = tmp_path / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    response = client.post(
+        "/analyse/prompts/kaputt/",
+        {
+            "label": "Kaputte Vorlage",
+            "scope": "session",
+            "description": "",
+            "prompt_text": "Analysiere {{session_title}}.",
+            "variables": "session_title",
+            "visibility": "private",
+            "is_active": "1",
+        },
+    )
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "Prompt-Vorlagen konnten nicht gelesen werden" in content
+
+
+def test_prompt_template_edit_get_handles_invalid_store(client, monkeypatch, tmp_path) -> None:
+    from analysis import services
+
+    template_path = tmp_path / "private" / "prompt_templates.json"
+    template_path.parent.mkdir(parents=True)
+    template_path.write_text("{not json", encoding="utf-8")
+    example_path = tmp_path / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    response = client.get("/analyse/prompts/kaputt/")
+
+    assert response.status_code == 200
+    assert "Prompt-Vorlage" in response.content.decode("utf-8")
+
+
+def test_prompt_template_duplicate_post_handles_invalid_store(client, monkeypatch, tmp_path) -> None:
+    from analysis import services
+
+    template_path = tmp_path / "private" / "prompt_templates.json"
+    template_path.parent.mkdir(parents=True)
+    template_path.write_text("{not json", encoding="utf-8")
+    example_path = tmp_path / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    response = client.post("/analyse/prompts/kaputt/duplizieren/")
+
+    assert response.status_code == 302
+
+
+def test_prompt_template_deactivate_post_handles_invalid_store(client, monkeypatch, tmp_path) -> None:
+    from analysis import services
+
+    template_path = tmp_path / "private" / "prompt_templates.json"
+    template_path.parent.mkdir(parents=True)
+    template_path.write_text("{not json", encoding="utf-8")
+    example_path = tmp_path / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    response = client.post("/analyse/prompts/kaputt/deaktivieren/")
+
+    assert response.status_code == 302
+
+
+def test_analysis_start_with_template_id_handles_invalid_store(client, monkeypatch, tmp_path) -> None:
+    from analysis import services
+
+    template_path = tmp_path / "private" / "prompt_templates.json"
+    template_path.parent.mkdir(parents=True)
+    template_path.write_text("{not json", encoding="utf-8")
+    example_path = tmp_path / "prompt_templates.example.json"
+    example_path.write_text('{"templates": []}\n', encoding="utf-8")
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    response = client.get("/analyse/starten/?template_id=kaputt")
+
+    assert response.status_code == 200
+    assert "KI-Analyse starten" in response.content.decode("utf-8")
+
+
+def test_analysis_start_filters_active_templates_by_scope(client, monkeypatch) -> None:
+    from analysis import views
+
+    session = {
+        "session_id": "7123",
+        "date": "2026-03-11",
+        "display_date": "11.03.2026",
+        "committee": "Rat",
+        "meeting_name": "Ratssitzung",
+        "source_status": {"available_count": 1, "document_count": 1},
+        "agenda_items": [],
+    }
+    monkeypatch.setattr(views.services, "get_session", lambda _session_id: session)
+    monkeypatch.setattr(views.services, "list_sessions", lambda: [session])
+    monkeypatch.setattr(
+        views.services,
+        "list_prompt_templates",
+        lambda scope: [
+            {
+                "id": "session_active",
+                "label": "Aktiv",
+                "scope": "session",
+                "description": "Aktive Vorlage",
+                "prompt_text": "Prompt",
+                "is_active": True,
+            },
+            {
+                "id": "session_inactive",
+                "label": "Inaktiv",
+                "scope": "session",
+                "description": "",
+                "prompt_text": "Prompt",
+                "is_active": False,
+            },
+        ] if scope == "session" else [],
+    )
+
+    response = client.get("/analyse/starten/?session_id=7123")
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "Aktiv" in content
+    assert "Inaktiv" not in content
 
 
 def test_service_post_starts_background_job(client, monkeypatch) -> None:
