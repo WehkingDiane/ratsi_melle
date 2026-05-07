@@ -217,6 +217,7 @@ Die fachlichen Indexing-Schritte fuer stabile IDs, Payload-Aufbau, Hybrid-Vektor
 
 - Qdrant-Punkte werden nicht ueber SQLite-Autoincrement, sondern ueber einen stabilen Hash aus `session_id`, `url` und `agenda_item` identifiziert.
 - Bei vollständigen Läufen werden verwaiste Punkte entfernt.
+- Bei `--limit`-Läufen wird die Anzahl der neu zu bauenden fehlenden Dokumentvektoren begrenzt, nicht die Menge der geprueften SQLite-Dokumente.
 - Bei `--limit`-Läufen ist Orphan-Reconciliation bewusst deaktiviert.
 
 ## 8. Textextraktion fuer Suche und Analyse
@@ -265,6 +266,7 @@ Der angezeigte Score ist:
 
 ### `scripts/build_vector_index.py`
 - baut oder aktualisiert den Qdrant-Vektorindex
+- `--limit N` baut hoechstens die naechsten `N` fehlenden Dokumentvektoren
 
 ## 11. Abhängigkeiten
 

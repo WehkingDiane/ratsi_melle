@@ -5,9 +5,10 @@ Usage
     python scripts/build_vector_index.py [--db PATH] [--qdrant-dir PATH] [--limit N]
 
 The script reads all documents from the ``documents`` table, skips those
-already present in the vector store, extracts text from local PDF files
-(up to 10 pages) or falls back to title + document_type, and upserts
-batches of embeddings into the Qdrant collection.
+already present in the vector store, optionally limits the number of missing
+documents to build, extracts text from local PDF files (up to 10 pages) or
+falls back to title + document_type, and upserts batches of embeddings into the
+Qdrant collection.
 """
 
 from __future__ import annotations
@@ -184,7 +185,7 @@ def main(argv: list[str] | None = None) -> None:
         "--limit",
         type=int,
         default=None,
-        help="Process at most N documents (useful for testing).",
+        help="Index at most N missing documents (useful for incremental runs).",
     )
     args = parser.parse_args(argv)
 
@@ -198,7 +199,7 @@ def main(argv: list[str] | None = None) -> None:
     HarrierEmbedder, DocumentVectorStore = _validate_runtime_dependencies()
 
     print("Loading documents from database …")
-    all_docs = _load_documents(db_path, limit=args.limit)
+    all_docs = _load_documents(db_path)
     total_in_db = len(all_docs)
     print(f"  Found {total_in_db} document(s) in DB.")
 
@@ -215,13 +216,20 @@ def main(argv: list[str] | None = None) -> None:
 
     current_ids = {d["_qdrant_id"] for d in all_docs}
     already_indexed = vector_store.get_indexed_ids()
-    docs_to_index = [d for d in all_docs if d["_qdrant_id"] not in already_indexed]
+    missing_docs = [d for d in all_docs if d["_qdrant_id"] not in already_indexed]
+    docs_to_index = missing_docs[: args.limit] if args.limit is not None else missing_docs
     indexed_count = 0
 
     if not docs_to_index:
         print("Nothing to index – all documents are already in the vector store.")
     else:
-        print(f"  {len(already_indexed)} already indexed, {len(docs_to_index)} new.")
+        if args.limit is not None and len(missing_docs) > len(docs_to_index):
+            print(
+                f"  {len(already_indexed)} already indexed, "
+                f"{len(missing_docs)} missing, indexing next {len(docs_to_index)}."
+            )
+        else:
+            print(f"  {len(already_indexed)} already indexed, {len(docs_to_index)} new.")
         print("Loading embedding models …")
         embedder = HarrierEmbedder()
 

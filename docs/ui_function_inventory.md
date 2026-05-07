@@ -113,7 +113,7 @@ Aktueller Strategierahmen:
 - Hauptparameter:
   - `--db`
   - `--qdrant-dir`
-  - `--limit`
+  - `--limit` begrenzt die Anzahl der neu zu bauenden fehlenden Dokumentvektoren
 - Ergebnis:
   - lokaler Qdrant-Index unter `data/db/qdrant/`
 
