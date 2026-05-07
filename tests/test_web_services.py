@@ -21,6 +21,7 @@ from analysis import services as analysis_services
 from core import service_jobs
 from core import services as core_services
 from data_tools import services as data_services
+from search import services as search_services
 from src.analysis.workflow_db import AnalysisArtifactRecord
 from src.analysis.workflow_db import AnalysisJobRecord
 from src.analysis.workflow_db import add_analysis_output
@@ -48,6 +49,58 @@ def test_analysis_services_return_empty_lists_without_data(workspace_tmp: Path, 
     assert analysis_services.get_session("7123") is None
     assert analysis_services.list_analysis_outputs() == []
     assert analysis_services.get_analysis_output("1") is None
+
+
+def test_search_documents_finds_document_metadata(workspace_tmp: Path, monkeypatch) -> None:
+    db_path = workspace_tmp / "data" / "db" / "local_index.sqlite"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(db_path) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE sessions (
+                session_id TEXT PRIMARY KEY,
+                date TEXT,
+                committee TEXT,
+                meeting_name TEXT,
+                start_time TEXT,
+                location TEXT,
+                detail_url TEXT,
+                session_path TEXT
+            );
+            CREATE TABLE documents (
+                id INTEGER PRIMARY KEY,
+                session_id TEXT,
+                title TEXT,
+                category TEXT,
+                document_type TEXT,
+                agenda_item TEXT,
+                url TEXT,
+                local_path TEXT,
+                content_type TEXT,
+                content_length INTEGER
+            );
+            """
+        )
+        conn.execute(
+            "INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            ("7123", "2026-03-11", "Rat", "Ratssitzung", "18:00", "Rathaus", "https://example.test/si0057.asp", ""),
+        )
+        conn.execute(
+            "INSERT INTO documents VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (1, "7123", "Windkraft in Riemsloh", "BV", "beschlussvorlage", "Oe 7", "https://example.test/do.asp", "agenda/oe7.pdf", "application/pdf", 12),
+        )
+        conn.execute(
+            "INSERT INTO documents VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (2, "7123", "Haushalt", "BV", "beschlussvorlage", "Oe 8", "", "agenda/oe8.pdf", "application/pdf", 12),
+        )
+
+    monkeypatch.setattr(search_services, "LOCAL_INDEX_DB", db_path)
+
+    results = search_services.search_documents("windkraft rat")
+
+    assert [result["title"] for result in results] == ["Windkraft in Riemsloh"]
+    assert results[0]["display_date"] == "11.03.2026"
+    assert results[0]["detail_url"] == "https://example.test/si0057.asp"
 
 
 def test_service_facades_keep_domain_exports_separate() -> None:
