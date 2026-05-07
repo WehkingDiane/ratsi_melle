@@ -369,6 +369,11 @@ def test_analysis_start_explains_session_document_transfer(client, monkeypatch) 
     assert "nicht auswählbar" in content
     assert 'value="Oe 2" disabled' in content
 
+    assert 'id="analysis-start-submit"' in content
+    assert "Analyse wurde gestartet" in content
+    assert 'aria-live="polite"' in content
+    assert "submitButton.disabled = true" in content
+
 
 def test_analysis_start_scope_switch_filters_prompt_templates(client, monkeypatch) -> None:
     from analysis import views
