@@ -2,10 +2,10 @@
 
 Priority order when resolving a key:
   1. OS keychain via keyring  (Windows Credential Manager / macOS Keychain / …)
-  2. Environment variable     (ANTHROPIC_API_KEY, OPENAI_API_KEY, …)
+  2. Environment variable     (ANTHROPIC_API_KEY, OPENAI_API_KEY, HF_TOKEN, …)
 
 Keys are stored under the service name ``ratsi_melle`` with the
-provider_id (e.g. ``claude``, ``codex``) as the account name.
+provider_id (e.g. ``claude``, ``codex``, ``huggingface``) as the account name.
 """
 
 from __future__ import annotations
@@ -14,10 +14,11 @@ import os
 
 _SERVICE = "ratsi_melle"
 
-# Env-var fallback for each provider
-_ENV_VARS: dict[str, str] = {
-    "claude": "ANTHROPIC_API_KEY",
-    "codex": "OPENAI_API_KEY",
+# Env-var fallback for each provider. The first name is used for status text.
+_ENV_VARS: dict[str, tuple[str, ...]] = {
+    "claude": ("ANTHROPIC_API_KEY",),
+    "codex": ("OPENAI_API_KEY",),
+    "huggingface": ("HF_TOKEN", "HUGGINGFACE_HUB_TOKEN"),
 }
 
 
@@ -36,9 +37,10 @@ def get_api_key(provider_id: str) -> str | None:
     except Exception:  # noqa: BLE001
         pass
 
-    env_var = _ENV_VARS.get(provider_id)
-    if env_var:
-        return os.environ.get(env_var) or None
+    for env_var in _ENV_VARS.get(provider_id, ()):
+        value = os.environ.get(env_var)
+        if value:
+            return value
     return None
 
 
@@ -85,7 +87,16 @@ def key_source(provider_id: str) -> str:
     except Exception:  # noqa: BLE001
         pass
 
-    env_var = _ENV_VARS.get(provider_id)
-    if env_var and os.environ.get(env_var):
-        return f"env ({env_var})"
+    for env_var in _ENV_VARS.get(provider_id, ()):
+        if os.environ.get(env_var):
+            return f"env ({env_var})"
     return "nicht gesetzt"
+
+
+def configure_huggingface_token_env() -> None:
+    """Expose the configured Hugging Face token to libraries that read env vars."""
+    token = get_api_key("huggingface")
+    if not token:
+        return
+    os.environ.setdefault("HF_TOKEN", token)
+    os.environ.setdefault("HUGGINGFACE_HUB_TOKEN", token)

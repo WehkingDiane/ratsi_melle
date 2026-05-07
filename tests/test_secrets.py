@@ -2,11 +2,19 @@
 
 from __future__ import annotations
 
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.config.secrets import delete_api_key, get_api_key, has_api_key, key_source, set_api_key
+from src.config.secrets import (
+    configure_huggingface_token_env,
+    delete_api_key,
+    get_api_key,
+    has_api_key,
+    key_source,
+    set_api_key,
+)
 
 
 def _make_keyring(stored: dict[str, str]):
@@ -29,6 +37,14 @@ def test_get_api_key_falls_back_to_env(monkeypatch) -> None:
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-env-claude")
     with patch.dict("sys.modules", {"keyring": mock_kr}):
         assert get_api_key("claude") == "sk-env-claude"
+
+
+def test_get_huggingface_token_falls_back_to_supported_env(monkeypatch) -> None:
+    mock_kr = _make_keyring({})
+    monkeypatch.delenv("HF_TOKEN", raising=False)
+    monkeypatch.setenv("HUGGINGFACE_HUB_TOKEN", "hf_env_token")
+    with patch.dict("sys.modules", {"keyring": mock_kr}):
+        assert get_api_key("huggingface") == "hf_env_token"
 
 
 def test_get_api_key_returns_none_when_not_set(monkeypatch) -> None:
@@ -93,6 +109,17 @@ def test_key_source_env(monkeypatch) -> None:
     with patch.dict("sys.modules", {"keyring": mock_kr}):
         src = key_source("claude")
     assert "env" in src and "ANTHROPIC_API_KEY" in src
+
+
+def test_configure_huggingface_token_env_sets_hub_env_vars(monkeypatch) -> None:
+    mock_kr = _make_keyring({"huggingface": "hf_stored"})
+    monkeypatch.delenv("HF_TOKEN", raising=False)
+    monkeypatch.delenv("HUGGINGFACE_HUB_TOKEN", raising=False)
+    with patch.dict("sys.modules", {"keyring": mock_kr}):
+        configure_huggingface_token_env()
+
+    assert os.environ["HF_TOKEN"] == "hf_stored"
+    assert os.environ["HUGGINGFACE_HUB_TOKEN"] == "hf_stored"
 
 
 def test_key_source_not_set(monkeypatch) -> None:

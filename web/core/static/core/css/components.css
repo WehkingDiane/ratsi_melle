@@ -224,6 +224,7 @@ tr:last-child td {
 }
 
 .form-stack input[type="text"],
+.form-stack input[type="password"],
 .form-stack select,
 .form-stack textarea {
   border: 1px solid var(--border);

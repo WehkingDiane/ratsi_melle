@@ -6,11 +6,41 @@
 <section class="page-heading">
   <p class="eyebrow">Arbeitsbereich</p>
   <h1>Einstellungen</h1>
-  <p>Platzhalter für spätere lokale Konfigurationen der Arbeitsoberfläche.</p>
+  <p>Lokale Konfigurationen und sichere Token-Ablage.</p>
 </section>
 
-<section class="panel placeholder-panel">
-  <h2>Noch nicht umgesetzt</h2>
-  <p class="muted">Die Anwendung läuft lokal und ohne Benutzerverwaltung. Einstellungen werden hier erst ergänzt, wenn konkrete UI-Optionen gebraucht werden.</p>
+{% if messages or errors %}
+<section class="message-list">
+  {% for message in messages %}
+  <div class="info-panel"><p>{{ message }}</p></div>
+  {% endfor %}
+  {% for error in errors %}
+  <div class="running-banner"><p>{{ error }}</p></div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="panel">
+  <h2>Hugging Face Token</h2>
+  <p class="muted">Token werden im OS-Schluesselring gespeichert. Umgebungsvariablen bleiben als Fallback moeglich.</p>
+
+  {% for token in token_sources %}
+  <form class="form-stack" method="post">
+    {% csrf_token %}
+    <input type="hidden" name="provider_id" value="{{ token.provider_id }}">
+    <dl class="facts inline">
+      <div><dt>Status</dt><dd>{{ token.source }}</dd></div>
+      <div><dt>Fallback</dt><dd>{{ token.env_hint }}</dd></div>
+    </dl>
+    <label>
+      {{ token.label }} Token
+      <input type="password" name="token" autocomplete="off" placeholder="Token eingeben">
+    </label>
+    <div class="actions">
+      <button class="button primary" type="submit" name="action" value="save_token">Speichern</button>
+      <button class="button" type="submit" name="action" value="delete_token">Loeschen</button>
+    </div>
+  </form>
+  {% endfor %}
 </section>
 {% endblock %}

@@ -110,7 +110,7 @@ Der Header zeigt den Projektnamen "Ratsi Melle" und die Unterzeile "Lokale Arbei
 - `/daten/jobs/<job_id>/status/` liefert den aktuellen Datenjobstatus als JSON für die automatische Logaktualisierung.
 - `/veroeffentlichung/` ist ein Platzhalter für Publikations- und Reviewfunktionen.
 - `/suche/` durchsucht Dokumente im lokalen Index nach Titel, Dokumenttyp, Kategorie, TOP, Sitzung, Gremium und Datum.
-- `/einstellungen/` ist ein Platzhalter für lokale Einstellungen.
+- `/einstellungen/` verwaltet lokale Einstellungen, darunter die sichere Ablage eines Hugging-Face-Tokens im OS-Schlüsselring.
 
 Alte Service-URLs unter `/analyse/service/` werden auf den Datenbereich umgeleitet, damit technische Datenpflege nicht mehr im Analysebereich hängt.
 
@@ -142,6 +142,7 @@ Mit Provider `none` wird nur die Analysegrundlage erzeugt. Ein echter KI-Aufruf 
 - private Prompt-Vorlagenverwaltung unter `/analyse/prompts/`
 - Sitzungsliste und Sitzungsdetails aus `data/db/local_index.sqlite`
 - Dokument-Metadatensuche unter `/suche/`
+- Hugging-Face-Token-Verwaltung unter `/einstellungen/`
 - Analysejobliste und Analysejobdetails aus `data/analysis_outputs/`
 - Anzeige alter v1-Analyseoutputs
 - Fetch- und Build-Servicefunktionen unter `/daten/`
@@ -152,7 +153,7 @@ Mit Provider `none` wird nur die Analysegrundlage erzeugt. Ein echter KI-Aufruf 
 
 - Veröffentlichung und Review
 - Volltext- oder semantische Suche über Dokumentinhalte und Analyseoutputs
-- UI-Einstellungen
+- weitere UI-Einstellungen
 - Produktives Deployment
 - Authentifizierung, Rollen und Benutzerverwaltung
 

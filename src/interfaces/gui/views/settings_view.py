@@ -10,6 +10,7 @@ from ..config import BUTTON_FONT, FIELD_FONT, LABEL_FONT
 _KEY_PROVIDERS: list[tuple[str, str]] = [
     ("claude", "Claude (Anthropic)"),
     ("codex", "Codex (OpenAI)"),
+    ("huggingface", "Hugging Face"),
 ]
 
 
@@ -27,7 +28,7 @@ def build_settings_view(app, parent: ctk.CTkFrame) -> None:
         text=(
             "Schluessel werden sicher im OS-Schluesselring gespeichert\n"
             "(Windows Credential Manager)  –  nie in einer Datei auf der Festplatte.\n"
-            "Umgebungsvariablen (ANTHROPIC_API_KEY, OPENAI_API_KEY) wirken als Fallback."
+            "Umgebungsvariablen (ANTHROPIC_API_KEY, OPENAI_API_KEY, HF_TOKEN) wirken als Fallback."
         ),
         font=FIELD_FONT,
         justify="left",

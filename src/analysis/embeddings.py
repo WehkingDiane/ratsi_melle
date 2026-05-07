@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
 
+from src.config.secrets import configure_huggingface_token_env
+
 # Suppress HuggingFace Hub unauthenticated-request warning – no token needed
 # for public models and we don't want to prompt users to create an account.
 os.environ.setdefault("HF_HUB_DISABLE_IMPLICIT_TOKEN", "1")
@@ -45,6 +47,7 @@ class HarrierEmbedder:
 
     def _get_model(self) -> "SentenceTransformer":
         if self._model is None:
+            configure_huggingface_token_env()
             from sentence_transformers import SentenceTransformer
 
             device = _detect_device()

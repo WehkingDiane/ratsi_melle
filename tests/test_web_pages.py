@@ -187,6 +187,65 @@ def test_active_navigation_matches_section(path: str, active_label: str, client)
     assert active_items == [active_label]
 
 
+def test_settings_page_exposes_huggingface_token_form(client, monkeypatch) -> None:
+    from settings_ui import views
+
+    monkeypatch.setattr(views, "key_source", lambda provider_id: "nicht gesetzt")
+
+    response = client.get("/einstellungen/")
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "Hugging Face Token" in content
+    assert 'name="provider_id" value="huggingface"' in content
+    assert 'type="password" name="token"' in content
+    assert "HF_TOKEN oder HUGGINGFACE_HUB_TOKEN" in content
+
+
+def test_settings_page_saves_huggingface_token(client, monkeypatch) -> None:
+    from settings_ui import views
+
+    saved = {}
+    monkeypatch.setattr(views, "set_api_key", lambda provider_id, token: saved.update({provider_id: token}))
+    monkeypatch.setattr(views, "key_source", lambda provider_id: "keychain" if provider_id in saved else "nicht gesetzt")
+
+    response = client.post(
+        "/einstellungen/",
+        {
+            "action": "save_token",
+            "provider_id": "huggingface",
+            "token": "hf_test_token",
+        },
+    )
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert saved == {"huggingface": "hf_test_token"}
+    assert "Hugging Face-Token gespeichert" in content
+    assert "hf_test_token" not in content
+
+
+def test_settings_page_deletes_huggingface_token(client, monkeypatch) -> None:
+    from settings_ui import views
+
+    deleted = []
+    monkeypatch.setattr(views, "delete_api_key", lambda provider_id: deleted.append(provider_id))
+    monkeypatch.setattr(views, "key_source", lambda provider_id: "nicht gesetzt")
+
+    response = client.post(
+        "/einstellungen/",
+        {
+            "action": "delete_token",
+            "provider_id": "huggingface",
+        },
+    )
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert deleted == ["huggingface"]
+    assert "Hugging Face-Token geloescht" in content
+
+
 def test_job_indicator_is_hidden_without_active_job(client) -> None:
     response = client.get("/")
     content = response.content.decode("utf-8")
