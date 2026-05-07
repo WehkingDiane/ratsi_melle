@@ -113,8 +113,8 @@ def test_key_source_env(monkeypatch) -> None:
 
 def test_configure_huggingface_token_env_sets_hub_env_vars(monkeypatch) -> None:
     mock_kr = _make_keyring({"huggingface": "hf_stored"})
-    monkeypatch.delenv("HF_TOKEN", raising=False)
-    monkeypatch.delenv("HUGGINGFACE_HUB_TOKEN", raising=False)
+    monkeypatch.setenv("HF_TOKEN", "hf_stale")
+    monkeypatch.setenv("HUGGINGFACE_HUB_TOKEN", "hf_stale")
     with patch.dict("sys.modules", {"keyring": mock_kr}):
         configure_huggingface_token_env()
 

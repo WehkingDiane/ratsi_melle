@@ -98,5 +98,5 @@ def configure_huggingface_token_env() -> None:
     token = get_api_key("huggingface")
     if not token:
         return
-    os.environ.setdefault("HF_TOKEN", token)
-    os.environ.setdefault("HUGGINGFACE_HUB_TOKEN", token)
+    os.environ["HF_TOKEN"] = token
+    os.environ["HUGGINGFACE_HUB_TOKEN"] = token
