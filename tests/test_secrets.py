@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.config import secrets as secrets_module
 from src.config.secrets import (
     configure_huggingface_token_env,
     delete_api_key,
@@ -24,6 +25,11 @@ def _make_keyring(stored: dict[str, str]):
     mock.set_password.side_effect = lambda svc, acc, val: stored.update({acc: val})
     mock.delete_password.side_effect = lambda svc, acc: stored.pop(acc, None)
     return mock
+
+
+@pytest.fixture(autouse=True)
+def _reset_managed_huggingface_token(monkeypatch) -> None:
+    monkeypatch.setattr(secrets_module, "_MANAGED_HUGGINGFACE_TOKEN", None)
 
 
 def test_get_api_key_from_keyring() -> None:
@@ -121,6 +127,49 @@ def test_configure_huggingface_token_env_sets_hub_env_vars(monkeypatch) -> None:
     assert token == "hf_stored"
     assert os.environ["HF_TOKEN"] == "hf_stored"
     assert os.environ["HUGGING_FACE_HUB_TOKEN"] == "hf_stored"
+
+
+def test_configure_huggingface_token_env_clears_removed_managed_token(monkeypatch) -> None:
+    stored = {"huggingface": "hf_stored"}
+    mock_kr = _make_keyring(stored)
+    monkeypatch.delenv("HF_TOKEN", raising=False)
+    monkeypatch.delenv("HUGGING_FACE_HUB_TOKEN", raising=False)
+
+    with patch.dict("sys.modules", {"keyring": mock_kr}):
+        assert configure_huggingface_token_env() == "hf_stored"
+        stored.clear()
+        assert configure_huggingface_token_env() is None
+        assert get_api_key("huggingface") is None
+
+    assert "HF_TOKEN" not in os.environ
+    assert "HUGGING_FACE_HUB_TOKEN" not in os.environ
+
+
+def test_delete_huggingface_token_clears_managed_env(monkeypatch) -> None:
+    stored = {"huggingface": "hf_stored"}
+    mock_kr = _make_keyring(stored)
+    monkeypatch.delenv("HF_TOKEN", raising=False)
+    monkeypatch.delenv("HUGGING_FACE_HUB_TOKEN", raising=False)
+
+    with patch.dict("sys.modules", {"keyring": mock_kr}):
+        assert configure_huggingface_token_env() == "hf_stored"
+        delete_api_key("huggingface")
+        assert get_api_key("huggingface") is None
+
+    assert "HF_TOKEN" not in os.environ
+    assert "HUGGING_FACE_HUB_TOKEN" not in os.environ
+
+
+def test_configure_huggingface_token_env_preserves_external_env(monkeypatch) -> None:
+    mock_kr = _make_keyring({})
+    monkeypatch.setenv("HF_TOKEN", "hf_external")
+    monkeypatch.delenv("HUGGING_FACE_HUB_TOKEN", raising=False)
+
+    with patch.dict("sys.modules", {"keyring": mock_kr}):
+        assert configure_huggingface_token_env() == "hf_external"
+        assert get_api_key("huggingface") == "hf_external"
+
+    assert os.environ["HF_TOKEN"] == "hf_external"
 
 
 def test_key_source_not_set(monkeypatch) -> None:
