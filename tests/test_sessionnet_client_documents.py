@@ -11,7 +11,14 @@ if str(REPO_ROOT) not in sys.path:  # pragma: no branch - test safety
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.fetching.models import DocumentReference
+from src.fetching import sessionnet_client
 from src.fetching.sessionnet_client import FetchingError, SessionNetClient
+
+
+def test_default_document_download_limit_is_100_mib(tmp_path: Path) -> None:
+    client = SessionNetClient(storage_root=tmp_path)
+
+    assert client.max_document_bytes == 100 * 1024 * 1024
 
 
 def test_detect_extension_uses_content_disposition_filename(tmp_path):
@@ -113,6 +120,60 @@ def test_fetch_document_payload_rejects_oversized_download(tmp_path: Path, monke
     else:  # pragma: no cover - explicit failure path
         raise AssertionError("Expected oversized download to be rejected")
 
+    response.close.assert_called_once()
+
+
+def test_fetch_document_payload_warns_for_large_declared_download(
+    tmp_path: Path,
+    monkeypatch,
+    caplog,
+) -> None:
+    client = SessionNetClient(storage_root=tmp_path, max_document_bytes=10)
+    monkeypatch.setattr(sessionnet_client, "_LARGE_DOCUMENT_WARNING_BYTES", 4)
+    response = Mock()
+    response.headers.copy.return_value = {"Content-Length": "5"}
+    response.iter_content.return_value = [b"ok"]
+    response.close = Mock()
+    monkeypatch.setattr(
+        SessionNetClient,
+        "_request",
+        lambda self, method, path, params=None, *, stream=False: response,
+    )
+    document = DocumentReference(title="Gross", url="https://session.melle.info/bi/getfile.asp?id=12")
+
+    payload, headers = client._fetch_document_payload(document)
+
+    assert payload == b"ok"
+    assert headers == {"Content-Length": "5"}
+    assert "larger than 25 MiB" in caplog.text
+    assert document.url in caplog.text
+    response.close.assert_called_once()
+
+
+def test_fetch_document_payload_warns_when_stream_crosses_large_threshold(
+    tmp_path: Path,
+    monkeypatch,
+    caplog,
+) -> None:
+    client = SessionNetClient(storage_root=tmp_path, max_document_bytes=10)
+    monkeypatch.setattr(sessionnet_client, "_LARGE_DOCUMENT_WARNING_BYTES", 4)
+    response = Mock()
+    response.headers.copy.return_value = {}
+    response.iter_content.return_value = [b"abc", b"de"]
+    response.close = Mock()
+    monkeypatch.setattr(
+        SessionNetClient,
+        "_request",
+        lambda self, method, path, params=None, *, stream=False: response,
+    )
+    document = DocumentReference(title="Gross", url="https://session.melle.info/bi/getfile.asp?id=13")
+
+    payload, headers = client._fetch_document_payload(document)
+
+    assert payload == b"abcde"
+    assert headers == {}
+    assert "larger than 25 MiB" in caplog.text
+    assert document.url in caplog.text
     response.close.assert_called_once()
 
 
