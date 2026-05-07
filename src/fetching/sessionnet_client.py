@@ -35,6 +35,7 @@ DEFAULT_HEADERS = {
     "User-Agent": "ratsi-melle-fetcher/0.1 (+https://github.com/openai)"
 }
 _MAX_DOCUMENT_BYTES = 100 * 1024 * 1024
+_LARGE_DOCUMENT_WARNING_BYTES = 25 * 1024 * 1024
 
 
 class FetchingError(RuntimeError):
@@ -387,11 +388,19 @@ class SessionNetClient:
             response = self._request("GET", document.url, stream=True)
             headers = response.headers.copy()  # keep case-insensitive access to header names
             declared_size = self._parse_content_length(headers.get("Content-Length"))
+            large_document_warning_logged = False
             if declared_size is not None and declared_size > self.max_document_bytes:
                 response.close()
                 raise FetchingError(
                     f"Document exceeds size limit ({declared_size} > {self.max_document_bytes} bytes)"
                 )
+            if declared_size is not None and declared_size > _LARGE_DOCUMENT_WARNING_BYTES:
+                LOGGER.warning(
+                    "Document is larger than 25 MiB (%s bytes): %s",
+                    declared_size,
+                    document.url,
+                )
+                large_document_warning_logged = True
 
             content = bytearray()
             try:
@@ -399,6 +408,13 @@ class SessionNetClient:
                     if not chunk:
                         continue
                     content.extend(chunk)
+                    if not large_document_warning_logged and len(content) > _LARGE_DOCUMENT_WARNING_BYTES:
+                        LOGGER.warning(
+                            "Document is larger than 25 MiB (%s bytes so far): %s",
+                            len(content),
+                            document.url,
+                        )
+                        large_document_warning_logged = True
                     if len(content) > self.max_document_bytes:
                         raise FetchingError(
                             f"Document exceeds size limit ({len(content)} > {self.max_document_bytes} bytes)"
