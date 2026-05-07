@@ -854,6 +854,26 @@ def test_session_display_fields_fall_back_to_humanized_committee(
                 "",
             ),
         )
+        conn.execute(
+            "INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                "9003",
+                "2026-02-24",
+                "",
+                None,
+                "",
+                "",
+                "",
+                str(
+                    workspace_tmp
+                    / "data"
+                    / "raw"
+                    / "2026"
+                    / "02"
+                    / "2026-02-24_Ortsrat_Gesmold_9003"
+                ),
+            ),
+        )
 
     monkeypatch.setattr(analysis_services, "LOCAL_INDEX_DB", db_path)
 
@@ -866,6 +886,8 @@ def test_session_display_fields_fall_back_to_humanized_committee(
     assert sessions["7121"]["meeting_name"] == "Ausschuss für Bildung"
     assert sessions["9001"]["committee"] == "Ortsrat Oldendorf"
     assert sessions["9001"]["meeting_name"] == "Ortsrat Oldendorf"
+    assert sessions["9003"]["committee"] == "Ortsrat Gesmold"
+    assert sessions["9003"]["meeting_name"] == "Ortsrat Gesmold"
     assert (
         sessions["9002"]["committee"]
         == "Ausschuss für Umwelt, Klimaschutz, Straßen und Tiefbau"

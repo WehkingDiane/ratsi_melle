@@ -136,7 +136,7 @@ def _with_session_display_fields(session: dict[str, Any]) -> dict[str, Any]:
 
 def _committee_from_session_path(session_path: str) -> str:
     folder_name = Path(session_path.replace("\\", "/")).name
-    match = re.match(r"^\d{4}-\d{2}-\d{2}-(?P<committee>.+)-\d+$", folder_name)
+    match = re.match(r"^\d{4}-\d{2}-\d{2}[-_](?P<committee>.+)[-_]\d+$", folder_name)
     return match.group("committee") if match else ""
 
 
