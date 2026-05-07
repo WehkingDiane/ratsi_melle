@@ -254,6 +254,27 @@ def test_validate_runtime_dependencies_fails_fast_for_missing_third_party_module
     assert "fastembed" in error_output
 
 
+@pytest.mark.parametrize("value", ["0", "-1"])
+def test_main_rejects_non_positive_limit(value: str, tmp_path: Path, capsys) -> None:
+    db_path = tmp_path / "local_index.sqlite"
+    db_path.write_text("", encoding="utf-8")
+
+    with pytest.raises(SystemExit) as excinfo:
+        build_vector_index.main(
+            [
+                "--db",
+                str(db_path),
+                "--qdrant-dir",
+                str(tmp_path / "qdrant"),
+                "--limit",
+                value,
+            ]
+        )
+
+    assert excinfo.value.code == 2
+    assert "must be greater than 0" in capsys.readouterr().err
+
+
 def test_main_reconciles_orphaned_vectors_even_when_nothing_is_new(
     monkeypatch,
     tmp_path: Path,

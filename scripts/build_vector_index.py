@@ -160,6 +160,17 @@ def _validate_runtime_dependencies() -> tuple[type, type]:
     return HarrierEmbedder, DocumentVectorStore
 
 
+def _positive_int(value: str) -> int:
+    """Parse a strictly positive integer for argparse."""
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("must be an integer") from exc
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("must be greater than 0")
+    return parsed
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -183,7 +194,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument(
         "--limit",
-        type=int,
+        type=_positive_int,
         default=None,
         help="Index at most N missing documents (useful for incremental runs).",
     )
