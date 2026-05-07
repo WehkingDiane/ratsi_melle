@@ -11,6 +11,7 @@ from src.interfaces.gui.config import BUTTON_FONT, FIELD_FONT, LABEL_FONT
 _PROVIDERS: list[tuple[str, str]] = [
     ("claude", "Claude (Anthropic)"),
     ("codex", "Codex (OpenAI)"),
+    ("huggingface", "Hugging Face"),
 ]
 
 

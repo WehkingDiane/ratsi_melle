@@ -220,6 +220,7 @@ Die fachlichen Indexing-Schritte fuer stabile IDs, Payload-Aufbau, Hybrid-Vektor
 - Bei vollständigen Läufen werden verwaiste Punkte entfernt.
 - Bei `--limit`-Läufen wird die Anzahl der neu zu bauenden fehlenden Dokumentvektoren begrenzt, nicht die Menge der geprueften SQLite-Dokumente.
 - Bei `--limit`-Läufen ist Orphan-Reconciliation bewusst deaktiviert.
+- Ein optionaler Hugging-Face-Token kann sicher im OS-Schlüsselring hinterlegt werden und wird beim Laden des Embedding-Modells als `HF_TOKEN` bereitgestellt.
 
 ## 8. Textextraktion fuer Suche und Analyse
 

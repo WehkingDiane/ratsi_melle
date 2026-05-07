@@ -183,7 +183,7 @@ Aktueller Strategierahmen:
   - Ergebnis anzeigen
   - Markdown exportieren
 - Settings:
-  - API-Key-Verwaltung ueber separaten Dialog und Settings-View
+  - API-Key-/Token-Verwaltung ueber separaten Dialog und Settings-View
 
 #### Web-UI
 - Tab `Analyse`
@@ -274,7 +274,7 @@ Status:
 
 #### Service / Settings
 - Service-View als Platzhalter fuer Betriebsfunktionen
-- Settings-View fuer API-Key-Status und Verwaltung
+- Settings-View fuer API-Key-/Token-Status und Verwaltung
 - Theme-Umschaltung Light/Dark
 - Menue mit:
   - Log loeschen
@@ -283,7 +283,7 @@ Status:
 
 ### In der Web-UI teilweise vorhanden
 - Tab `Einstellungen`
-  - API-Keys speichern
+  - API-Keys und Hugging-Face-Token speichern
   - Prompt-Vorlagen verwalten
 - kein eigenes Dateninventar
 - keine Datenstrukturansicht
@@ -327,7 +327,7 @@ Status:
 - Analysevorbereitung
 - semantische Suche
 - Datenabruf-Skripte
-- Einstellungen fuer API-Keys und Prompt-Vorlagen
+- Einstellungen fuer API-Keys, Hugging-Face-Token und Prompt-Vorlagen
 
 ## 9. Was aktuell nur in der Desktop-GUI vorhanden ist
 
@@ -358,7 +358,7 @@ Status:
 - nicht als Kernbereich fuer die neue Hauptnavigation einplanen
 
 ### D. Konfiguration
-- API-Keys
+- API-Keys und Hugging-Face-Token
 - Prompt-Vorlagen
 - spaeter evtl. Modell-/Provider-Defaults
 
@@ -404,7 +404,7 @@ Status:
 - vorhandene Analyse-Artefakte nur falls spaeter wieder benoetigt
 
 #### `Einstellungen`
-- API-Keys
+- API-Keys und Hugging-Face-Token
 - Prompt-Vorlagen
 
 ## 12. Offene Entscheidungen vor dem naechsten UI-Entwurf

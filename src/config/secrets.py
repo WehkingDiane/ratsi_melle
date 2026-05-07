@@ -2,10 +2,10 @@
 
 Priority order when resolving a key:
   1. OS keychain via keyring  (Windows Credential Manager / macOS Keychain / …)
-  2. Environment variable     (ANTHROPIC_API_KEY, OPENAI_API_KEY, …)
+  2. Environment variable     (ANTHROPIC_API_KEY, OPENAI_API_KEY, HF_TOKEN, …)
 
 Keys are stored under the service name ``ratsi_melle`` with the
-provider_id (e.g. ``claude``, ``codex``) as the account name.
+provider_id (e.g. ``claude``, ``codex``, ``huggingface``) as the account name.
 """
 
 from __future__ import annotations
@@ -14,11 +14,45 @@ import os
 
 _SERVICE = "ratsi_melle"
 
-# Env-var fallback for each provider
-_ENV_VARS: dict[str, str] = {
-    "claude": "ANTHROPIC_API_KEY",
-    "codex": "OPENAI_API_KEY",
+# Env-var fallback for each provider. The first name is used for status text.
+_ENV_VARS: dict[str, tuple[str, ...]] = {
+    "claude": ("ANTHROPIC_API_KEY",),
+    "codex": ("OPENAI_API_KEY",),
+    "huggingface": ("HF_TOKEN", "HUGGING_FACE_HUB_TOKEN"),
 }
+_MANAGED_HUGGINGFACE_TOKEN: str | None = None
+
+
+def _get_keyring_key(provider_id: str) -> str | None:
+    try:
+        import keyring
+
+        return keyring.get_password(_SERVICE, provider_id)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _get_env_key(provider_id: str) -> str | None:
+    for env_var in _ENV_VARS.get(provider_id, ()):
+        value = os.environ.get(env_var)
+        if value and not (
+            provider_id == "huggingface"
+            and _MANAGED_HUGGINGFACE_TOKEN
+            and value == _MANAGED_HUGGINGFACE_TOKEN
+        ):
+            return value
+    return None
+
+
+def _clear_managed_huggingface_env() -> None:
+    global _MANAGED_HUGGINGFACE_TOKEN
+
+    if not _MANAGED_HUGGINGFACE_TOKEN:
+        return
+    for env_var in _ENV_VARS["huggingface"]:
+        if os.environ.get(env_var) == _MANAGED_HUGGINGFACE_TOKEN:
+            os.environ.pop(env_var, None)
+    _MANAGED_HUGGINGFACE_TOKEN = None
 
 
 def get_api_key(provider_id: str) -> str | None:
@@ -27,19 +61,10 @@ def get_api_key(provider_id: str) -> str | None:
     Checks the OS keychain first, then falls back to the corresponding
     environment variable.
     """
-    try:
-        import keyring
-
-        stored = keyring.get_password(_SERVICE, provider_id)
-        if stored:
-            return stored
-    except Exception:  # noqa: BLE001
-        pass
-
-    env_var = _ENV_VARS.get(provider_id)
-    if env_var:
-        return os.environ.get(env_var) or None
-    return None
+    stored = _get_keyring_key(provider_id)
+    if stored:
+        return stored
+    return _get_env_key(provider_id)
 
 
 def set_api_key(provider_id: str, key: str) -> None:
@@ -65,6 +90,8 @@ def delete_api_key(provider_id: str) -> None:
         keyring.delete_password(_SERVICE, provider_id)
     except Exception:  # noqa: BLE001
         pass
+    if provider_id == "huggingface":
+        _clear_managed_huggingface_env()
 
 
 def has_api_key(provider_id: str) -> bool:
@@ -77,15 +104,29 @@ def key_source(provider_id: str) -> str:
 
     Returns one of: ``"keychain"``, ``"env"`` (*ENV_VAR_NAME*), ``"nicht gesetzt"``.
     """
-    try:
-        import keyring
+    if _get_keyring_key(provider_id):
+        return "keychain"
 
-        if keyring.get_password(_SERVICE, provider_id):
-            return "keychain"
-    except Exception:  # noqa: BLE001
-        pass
-
-    env_var = _ENV_VARS.get(provider_id)
-    if env_var and os.environ.get(env_var):
-        return f"env ({env_var})"
+    for env_var in _ENV_VARS.get(provider_id, ()):
+        value = os.environ.get(env_var)
+        if value and not (
+            provider_id == "huggingface"
+            and _MANAGED_HUGGINGFACE_TOKEN
+            and value == _MANAGED_HUGGINGFACE_TOKEN
+        ):
+            return f"env ({env_var})"
     return "nicht gesetzt"
+
+
+def configure_huggingface_token_env() -> str | None:
+    """Expose the configured Hugging Face token to libraries that read env vars."""
+    global _MANAGED_HUGGINGFACE_TOKEN
+
+    token = _get_keyring_key("huggingface")
+    if not token:
+        _clear_managed_huggingface_env()
+        return _get_env_key("huggingface")
+    os.environ["HF_TOKEN"] = token
+    os.environ["HUGGING_FACE_HUB_TOKEN"] = token
+    _MANAGED_HUGGINGFACE_TOKEN = token
+    return token

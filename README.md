@@ -70,6 +70,7 @@ Die Streamlit-Abhaengigkeit liegt deshalb in `requirements-legacy-ui.txt`, nicht
 - Analyse-Workflow und v2-Ausgaben: [docs/analysis_outputs.md](/mnt/c/users/diane/git/ratsi_melle/docs/analysis_outputs.md:1)
 - Private Prompt-Vorlagen: `data/private/prompt_templates.json`
 - Private Prompt-Artefakte und gerenderte Snapshots: `data/private/analysis_prompts/` und `data/private/prompt_snapshots/`
+- Optionaler Hugging-Face-Token: sichere Ablage ueber `/einstellungen/` im OS-Schluesselring; Fallback ueber `HF_TOKEN` oder `HUGGING_FACE_HUB_TOKEN`
 
 Echte Prompt-Vorlagen und gerenderte Prompt-Snapshots gehören nicht ins Repository. Die privaten Pfade unter `data/private/` sind durch `.gitignore` geschützt.
 
@@ -78,6 +79,7 @@ Echte Prompt-Vorlagen und gerenderte Prompt-Snapshots gehören nicht ins Reposit
 - Lokale Dokumentpfade werden nur akzeptiert, wenn sie unter einer zulässigen `data/raw/`-Wurzel liegen.
 - `manifest.json`-Pfade bleiben auf das jeweilige Sitzungspaket begrenzt; Traversal per `../` wird verworfen.
 - Dokumentdownloads und lokale Text-/PDF-Extraktion sind aktuell auf 25 MiB pro Datei begrenzt, um Speicher- und Plattenplatz-DoS zu begrenzen.
+- API-Keys und der optionale Hugging-Face-Token werden ueber den OS-Schluesselring gespeichert; Secrets gehoeren nicht in Repository-Dateien.
 
 Die gemeinsame Grundlagen-Doku für Zielsystem, Fetching, Datenhaltung, Vektorindex und semantische Suche steht in [docs/data_processing_concept.md](/mnt/c/users/diane/git/ratsi_melle/docs/data_processing_concept.md:1).
 
