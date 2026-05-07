@@ -370,6 +370,77 @@ def test_analysis_start_explains_session_document_transfer(client, monkeypatch) 
     assert 'value="Oe 2" disabled' in content
 
 
+def test_analysis_start_scope_switch_filters_prompt_templates(client, monkeypatch) -> None:
+    from analysis import views
+
+    session = {
+        "session_id": "7123",
+        "date": "2026-03-11",
+        "display_date": "11.03.2026",
+        "committee": "Rat",
+        "meeting_name": "Ratssitzung",
+        "source_status": {"available_count": 1, "document_count": 1},
+        "agenda_items": [],
+    }
+    templates_by_scope = {
+        "session": [
+            {
+                "id": "session_tpl",
+                "label": "Session Vorlage",
+                "is_active": True,
+                "prompt_text": "Session Prompt",
+            }
+        ],
+        "tops": [
+            {
+                "id": "tops_tpl",
+                "label": "TOP Vorlage",
+                "is_active": True,
+                "prompt_text": "TOP Prompt",
+            }
+        ],
+    }
+
+    monkeypatch.setattr(views.services, "get_session", lambda _session_id: session)
+    monkeypatch.setattr(views.services, "list_sessions", lambda: [session])
+    monkeypatch.setattr(
+        views.services,
+        "list_prompt_templates",
+        lambda scope="": templates_by_scope.get(scope, []),
+    )
+    monkeypatch.setattr(
+        views.services,
+        "get_prompt_template",
+        lambda template_id: next(
+            (
+                template
+                for templates in templates_by_scope.values()
+                for template in templates
+                if template["id"] == template_id
+            ),
+            None,
+        ),
+    )
+
+    response = client.get("/analyse/starten/?session_id=7123&scope=session&template_id=session_tpl")
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "Session Vorlage" in content
+    assert "TOP Vorlage" not in content
+    assert 'href="/analyse/starten/?session_id=7123&amp;scope=session"' in content
+    assert 'url.searchParams.delete("template_id")' in content
+
+    response = client.get("/analyse/starten/?session_id=7123&scope=tops")
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "TOP Vorlage" in content
+    assert "Session Vorlage" not in content
+    assert 'href="/analyse/starten/?session_id=7123&amp;scope=tops"' in content
+    assert 'value="session_tpl" selected' not in content
+
+
 def test_analysis_start_post_redirects_to_created_job(client, monkeypatch) -> None:
     from analysis import views
 

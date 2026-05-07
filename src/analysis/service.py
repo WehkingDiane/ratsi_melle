@@ -279,10 +279,23 @@ class AnalysisService:
         DEFAULT_ANALYSIS_MARKDOWN.parent.mkdir(parents=True, exist_ok=True)
 
         job_stem = f"job_{record.job_id}"
+        parsed_ki = _parse_ki_json_response(record.ki_response)
         md_content = record.markdown
         # Only append KI response for session/tops scope; document scope already
         # embeds the answer under "## KI-Antwort" inside record.markdown
-        if record.ki_response and record.scope != "document":
+        if parsed_ki and record.purpose == "journalistic_publication":
+            title, subtitle, intro, body, sources = _publication_parts_from_ki_json(
+                parsed_ki, session or {}
+            )
+            if body:
+                md_content = _publication_markdown_from_parts(
+                    title=title,
+                    subtitle=subtitle,
+                    intro=intro,
+                    body=body,
+                    sources=sources,
+                )
+        elif record.ki_response and record.scope != "document":
             md_content += f"\n\n## KI-Analyse\n\n{record.ki_response}\n"
         article_path = _write_text_no_overwrite(
             output_dir / f"{job_stem}.article.md", md_content
@@ -298,6 +311,11 @@ class AnalysisService:
             output_dir / f"{job_stem}.structured.json",
             json.dumps(structured_output.to_dict(), indent=2, ensure_ascii=False),
         )
+        if parsed_ki:
+            _write_text_no_overwrite(
+                output_dir / f"{job_stem}.ki_response.json",
+                json.dumps(parsed_ki, indent=2, ensure_ascii=False),
+            )
         _write_text_no_overwrite(
             ANALYSIS_PROMPTS_DIR / f"job_{record.job_id}.txt",
             record.prompt_text + "\n",
@@ -455,29 +473,55 @@ class AnalysisService:
     def _build_structured_analysis(
         self, record: AnalysisOutputRecord, session: dict
     ) -> StructuredAnalysisOutput:
-        title = str(session.get("meeting_name") or session.get("committee") or "")
+        parsed = _parse_ki_json_response(record.ki_response)
+        title = (
+            str(parsed.get("title") or "")
+            or str(parsed.get("topic") or "")
+            or str(session.get("meeting_name") or session.get("committee") or "")
+        )
+        open_questions = _list_from_json_value(
+            parsed.get("open_questions") or parsed.get("missing_information") or []
+        )
+        risks = _list_from_json_value(
+            parsed.get("source_notes") or parsed.get("contradictions") or []
+        )
+        if record.error_message:
+            risks.append(record.error_message)
         return StructuredAnalysisOutput(
             job_id=record.job_id,
             session_id=record.session_id,
             purpose=record.purpose or DEFAULT_ANALYSIS_PURPOSE,
             topic=Topic(title=title),
-            open_questions=[],
-            risks_or_uncertainties=[record.error_message] if record.error_message else [],
+            open_questions=open_questions,
+            risks_or_uncertainties=risks,
         )
 
     def _build_publication_draft(
         self, record: AnalysisOutputRecord, markdown: str, session: dict
     ) -> PublicationDraftOutput:
-        title = str(session.get("meeting_name") or session.get("committee") or "Analyseentwurf")
+        parsed = _parse_ki_json_response(record.ki_response)
+        title, subtitle, intro, body, sources = _publication_parts_from_ki_json(parsed, session)
+        if body:
+            body_markdown = _publication_markdown_from_parts(
+                title=title,
+                subtitle=subtitle,
+                intro=intro,
+                body=body,
+                sources=sources,
+            )
+        else:
+            body_markdown = markdown
+        summary_short = subtitle or intro[:240]
+        summary_long = intro or body[:1000]
         date_prefix = (record.session_date or record.created_at[:10]).strip()
         slug_source = f"{date_prefix}-{title or record.session_id}"
         return PublicationDraftOutput(
             job_id=record.job_id,
             session_id=record.session_id,
             title=title,
-            summary_short="",
-            summary_long="",
-            body_markdown=markdown,
+            summary_short=summary_short,
+            summary_long=summary_long,
+            body_markdown=body_markdown,
             slug=_slugify(slug_source).lower(),
         )
 
@@ -595,6 +639,99 @@ class AnalysisService:
 # ---------------------------------------------------------------------------
 # Module-level helpers
 # ---------------------------------------------------------------------------
+
+def _parse_ki_json_response(response_text: str) -> dict:
+    """Parse a KI response that should contain a JSON object."""
+
+    text = response_text.strip()
+    if not text:
+        return {}
+
+    if text.startswith("```"):
+        lines = text.splitlines()
+        if lines and lines[0].strip().startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        return {}
+
+    return data if isinstance(data, dict) else {}
+
+
+def _publication_parts_from_ki_json(
+    parsed: dict, session: dict
+) -> tuple[str, str, str, str, list]:
+    article = parsed.get("article") if isinstance(parsed.get("article"), dict) else {}
+    title = (
+        str(parsed.get("title") or "")
+        or str(article.get("title") or "")
+        or str(session.get("meeting_name") or session.get("committee") or "Analyseentwurf")
+    )
+    subtitle = str(parsed.get("subtitle") or "")
+    intro = str(parsed.get("intro") or "")
+    body = str(parsed.get("body") or "")
+
+    if article:
+        title = str(article.get("title") or title)
+        subtitle = str(article.get("subtitle") or subtitle)
+        intro = str(article.get("teaser") or intro)
+        body = str(article.get("body_markdown") or body)
+
+    sources = parsed.get("sources") or article.get("sources") or []
+    if not isinstance(sources, list):
+        sources = []
+
+    return title, subtitle, intro, body, sources
+
+
+def _publication_markdown_from_parts(
+    *,
+    title: str,
+    subtitle: str,
+    intro: str,
+    body: str,
+    sources: list,
+) -> str:
+    parts: list[str] = []
+
+    if title:
+        parts.append(f"# {title}")
+    if subtitle:
+        parts.append(f"**{subtitle}**")
+    if intro:
+        parts.append(intro)
+    if body:
+        parts.append(body)
+    if sources:
+        parts.append("## Quellen")
+        for index, source in enumerate(sources, start=1):
+            if not isinstance(source, dict):
+                continue
+            source_title = str(source.get("title") or "Quelle")
+            document_type = str(source.get("document_type") or "")
+            url = str(source.get("url") or "")
+            line = f"{index}. {source_title}"
+            if document_type:
+                line += f" ({document_type})"
+            if url:
+                line += f" - {url}"
+            parts.append(line)
+
+    return "\n\n".join(parts).strip()
+
+
+def _list_from_json_value(value: object) -> list[str]:
+    if isinstance(value, list):
+        return [str(item) for item in value]
+    if value:
+        return [str(value)]
+    return []
+
 
 def _slugify(text: str) -> str:
     """Convert arbitrary text to a safe, ASCII filename slug."""
