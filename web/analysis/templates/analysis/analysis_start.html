@@ -36,7 +36,7 @@
           <tr>
             <td class="date-value">{{ session.display_date|default:session.date|default:"-" }}</td>
             <td>{{ session.meeting_name|default:session.session_id }}</td>
-            <td><a href="{% url 'analysis:analysis_start' %}?session_id={{ session.session_id }}">Wählen</a></td>
+            <td><a href="{% url 'analysis:analysis_start' %}?session_id={{ session.session_id|urlencode }}&amp;scope={{ scope|urlencode }}">Wählen</a></td>
           </tr>
         {% endfor %}
         </tbody>
@@ -159,4 +159,25 @@
     {% endif %}
   </article>
 </section>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll('input[name="scope"]').forEach(function (input) {
+    input.addEventListener("change", function () {
+      if (!input.checked) {
+        return;
+      }
+
+      var url = new URL(window.location.pathname, window.location.origin);
+      var sessionInput = document.querySelector('input[name="session_id"]');
+      var sessionId = sessionInput ? sessionInput.value : "";
+      if (sessionId) {
+        url.searchParams.set("session_id", sessionId);
+      }
+      url.searchParams.set("scope", input.value);
+      url.searchParams.delete("template_id");
+      window.location.href = url.toString();
+    });
+  });
+});
+</script>
 {% endblock %}
