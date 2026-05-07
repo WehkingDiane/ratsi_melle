@@ -170,6 +170,40 @@ def test_persist_analysis_artifacts_writes_valid_ki_json_artifact(
     assert "# Titel" in article.read_text(encoding="utf-8")
 
 
+def test_persist_analysis_artifacts_keeps_markdown_for_partial_ki_json(
+    tmp_path: Path, monkeypatch
+) -> None:
+    outputs_dir = tmp_path / "data" / "analysis_outputs"
+    prompts_dir = tmp_path / "data" / "private" / "analysis_prompts"
+    latest_md = outputs_dir / "summaries" / "analysis_latest.md"
+    workflow_db = tmp_path / "data" / "db" / "analysis_workflow.sqlite"
+    snapshot_dir = tmp_path / "data" / "private" / "prompt_snapshots"
+    monkeypatch.setattr("src.analysis.service.ANALYSIS_OUTPUTS_DIR", outputs_dir)
+    monkeypatch.setattr("src.analysis.service.ANALYSIS_PROMPTS_DIR", prompts_dir)
+    monkeypatch.setattr("src.analysis.service.DEFAULT_ANALYSIS_MARKDOWN", latest_md)
+    monkeypatch.setattr("src.analysis.service.PROMPT_SNAPSHOTS_DIR", snapshot_dir)
+    monkeypatch.setattr("src.analysis.workflow_db.ANALYSIS_WORKFLOW_DB", workflow_db)
+
+    record = AnalysisOutputRecord(
+        job_id=78,
+        created_at="2026-05-07T12:00:00Z",
+        session_id="123",
+        purpose="journalistic_publication",
+        markdown="# Fallback Analyse\n\nVollstaendige Analysegrundlage.",
+        ki_response='{"title":"Nur Metadaten"}',
+        source_db=str(tmp_path / "missing.sqlite"),
+        session_date="2026-05-07",
+    )
+
+    AnalysisService().persist_analysis_artifacts(record, session={"committee": "Rat"})
+
+    output_dir = outputs_dir / "2026" / "05" / "2026-05-07-123"
+    article = output_dir / "job_78.article.md"
+    latest = latest_md.read_text(encoding="utf-8")
+    assert article.read_text(encoding="utf-8") == "# Fallback Analyse\n\nVollstaendige Analysegrundlage.\n"
+    assert latest == "# Fallback Analyse\n\nVollstaendige Analysegrundlage."
+
+
 def _build_db(tmp_path: Path) -> Path:
     db_path = tmp_path / "data" / "db" / "local_index.sqlite"
     db_path.parent.mkdir(parents=True, exist_ok=True)

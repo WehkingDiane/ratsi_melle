@@ -287,13 +287,14 @@ class AnalysisService:
             title, subtitle, intro, body, sources = _publication_parts_from_ki_json(
                 parsed_ki, session or {}
             )
-            md_content = _publication_markdown_from_parts(
-                title=title,
-                subtitle=subtitle,
-                intro=intro,
-                body=body,
-                sources=sources,
-            ) or record.markdown
+            if body:
+                md_content = _publication_markdown_from_parts(
+                    title=title,
+                    subtitle=subtitle,
+                    intro=intro,
+                    body=body,
+                    sources=sources,
+                )
         elif record.ki_response and record.scope != "document":
             md_content += f"\n\n## KI-Analyse\n\n{record.ki_response}\n"
         article_path = _write_text_no_overwrite(
