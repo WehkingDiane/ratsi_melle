@@ -203,6 +203,72 @@ def test_analysis_start_page_loads_for_session(client) -> None:
     assert "KI-Analyse starten" in response.content.decode("utf-8")
 
 
+def test_search_page_renders_document_results(client, monkeypatch) -> None:
+    from search import views
+
+    monkeypatch.setattr(
+        views.services,
+        "search_documents",
+        lambda _query: [
+            {
+                "session_id": "7123",
+                "display_date": "11.03.2026",
+                "date": "2026-03-11",
+                "committee": "Rat",
+                "meeting_name": "Ratssitzung",
+                "agenda_item": "Oe 7",
+                "title": "Windkraft in Riemsloh",
+                "document_type": "beschlussvorlage",
+                "display_type": "beschlussvorlage",
+            }
+        ],
+    )
+
+    response = client.get("/suche/?q=windkraft")
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "Dokumenttreffer" in content
+    assert "Windkraft in Riemsloh" in content
+    assert "/analyse/sitzungen/7123/" in content
+
+
+def test_session_detail_links_document_source_to_session_page(client, monkeypatch) -> None:
+    from analysis import views
+
+    monkeypatch.setattr(
+        views.services,
+        "get_session",
+        lambda _session_id: {
+            "session_id": "7123",
+            "date": "2026-03-11",
+            "display_date": "11.03.2026",
+            "committee": "Rat",
+            "meeting_name": "Ratssitzung",
+            "location": "Rathaus",
+            "detail_url": "https://example.test/si0057.asp",
+            "source_status": {"document_count": 1, "available_count": 1, "missing_count": 0},
+            "agenda_items": [],
+            "documents": [
+                {
+                    "agenda_item": "Oe 7",
+                    "title": "Windkraft in Riemsloh",
+                    "document_type": "beschlussvorlage",
+                    "display_type": "beschlussvorlage",
+                    "url": "https://example.test/do.asp",
+                }
+            ],
+        },
+    )
+
+    response = client.get("/analyse/sitzungen/7123/")
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert 'href="https://example.test/si0057.asp">Sitzung</a>' in content
+    assert "https://example.test/do.asp" not in content
+
+
 def test_analysis_start_explains_session_document_transfer(client, monkeypatch) -> None:
     from analysis import views
 

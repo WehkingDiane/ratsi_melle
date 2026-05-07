@@ -66,7 +66,7 @@ web/
     templates/settings_ui/
 ```
 
-`core` enthält das gemeinsame Layout, das Dashboard, zentrale CSS-Dateien und gemeinsam genutzte Helfer. `analysis` enthält die Analyse-Navigation, Views und Service-Fassade für Sitzungen, Analysejobs, Prompt-Vorlagen und den Analyse-Start. `data_tools` enthält die Views und Service-Fassade für technische Fetch-, Build- und Servicejob-Funktionen. `publishing`, `search` und `settings_ui` sind als eigene Bereiche angelegt und enthalten derzeit Platzhalterseiten.
+`core` enthält das gemeinsame Layout, das Dashboard, zentrale CSS-Dateien und gemeinsam genutzte Helfer. `analysis` enthält die Analyse-Navigation, Views und Service-Fassade für Sitzungen, Analysejobs, Prompt-Vorlagen und den Analyse-Start. `data_tools` enthält die Views und Service-Fassade für technische Fetch-, Build- und Servicejob-Funktionen. `search` enthält die Dokument-Metadatensuche im lokalen Index. `publishing` und `settings_ui` sind als eigene Bereiche angelegt und enthalten derzeit Platzhalterseiten.
 
 Analyse-Seitentemplates und fachliche Analyse-Partials liegen ausschließlich unter `web/analysis/templates/analysis/`. Daten-Templates liegen ausschließlich unter `web/data_tools/templates/data_tools/`. `web/core/templates/` bleibt auf `base.html`, das Dashboard und gemeinsam nutzbare Core-Partials beschränkt.
 
@@ -109,7 +109,7 @@ Der Header zeigt den Projektnamen "Ratsi Melle" und die Unterzeile "Lokale Arbei
 - `/daten/jobs/<job_id>/` zeigt Status und Ausgabe eines gestarteten Datenjobs.
 - `/daten/jobs/<job_id>/status/` liefert den aktuellen Datenjobstatus als JSON für die automatische Logaktualisierung.
 - `/veroeffentlichung/` ist ein Platzhalter für Publikations- und Reviewfunktionen.
-- `/suche/` ist ein Platzhalter für spätere Suche.
+- `/suche/` durchsucht Dokumente im lokalen Index nach Titel, Dokumenttyp, Kategorie, TOP, Sitzung, Gremium und Datum.
 - `/einstellungen/` ist ein Platzhalter für lokale Einstellungen.
 
 Alte Service-URLs unter `/analyse/service/` werden auf den Datenbereich umgeleitet, damit technische Datenpflege nicht mehr im Analysebereich hängt.
@@ -141,6 +141,7 @@ Mit Provider `none` wird nur die Analysegrundlage erzeugt. Ein echter KI-Aufruf 
 - Analyse starten mit bestehendem `AnalysisService`
 - private Prompt-Vorlagenverwaltung unter `/analyse/prompts/`
 - Sitzungsliste und Sitzungsdetails aus `data/db/local_index.sqlite`
+- Dokument-Metadatensuche unter `/suche/`
 - Analysejobliste und Analysejobdetails aus `data/analysis_outputs/`
 - Anzeige alter v1-Analyseoutputs
 - Fetch- und Build-Servicefunktionen unter `/daten/`
@@ -150,7 +151,7 @@ Mit Provider `none` wird nur die Analysegrundlage erzeugt. Ein echter KI-Aufruf 
 ## Platzhalter
 
 - Veröffentlichung und Review
-- Suche über Sitzungen, Dokumente und Analyseoutputs
+- Volltext- oder semantische Suche über Dokumentinhalte und Analyseoutputs
 - UI-Einstellungen
 - Produktives Deployment
 - Authentifizierung, Rollen und Benutzerverwaltung

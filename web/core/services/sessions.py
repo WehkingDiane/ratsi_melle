@@ -103,6 +103,12 @@ def _add_document_analysis_fields(document: dict[str, Any]) -> None:
     )
     document["resolved_local_path"] = str(resolved) if resolved else ""
     document["source_file_available"] = bool(resolved and Path(resolved).is_file())
+    document["display_type"] = (
+        document.get("document_type")
+        or document.get("content_type")
+        or document.get("category")
+        or "-"
+    )
 
 
 def _with_session_display_fields(session: dict[str, Any]) -> dict[str, Any]:

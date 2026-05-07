@@ -71,8 +71,8 @@
         <tr>
           <td>{{ document.agenda_item|default:"-" }}</td>
           <td>{{ document.title|default:"Dokument" }}</td>
-          <td>{{ document.document_type|default:document.content_type|default:"-" }}</td>
-          <td>{% if document.url %}<a href="{{ document.url }}">Link</a>{% else %}-{% endif %}</td>
+          <td>{{ document.display_type|default:"-" }}</td>
+          <td>{% if session.detail_url %}<a href="{{ session.detail_url }}">Sitzung</a>{% else %}-{% endif %}</td>
         </tr>
       {% endfor %}
       </tbody>

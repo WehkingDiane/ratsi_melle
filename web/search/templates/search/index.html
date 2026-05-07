@@ -6,11 +6,58 @@
 <section class="page-heading">
   <p class="eyebrow">Arbeitsbereich</p>
   <h1>Suche</h1>
-  <p>Platzhalter für spätere Suche über Sitzungen, Dokumente, Analyseoutputs und Indexdaten.</p>
+  <p>Dokumente aus dem lokalen SQLite-Index durchsuchen.</p>
 </section>
 
-<section class="panel placeholder-panel">
-  <h2>Noch nicht umgesetzt</h2>
-  <p class="muted">Die Seite ist als eigener Bereich vorhanden, damit Suchfunktionen später ohne Umbau der Navigation ergänzt werden können.</p>
+<section class="panel">
+  <form class="form-stack" method="get" action="{% url 'search:index' %}">
+    <label>
+      Suchbegriff
+      <input type="text" name="q" value="{{ query }}" placeholder="Titel, Dokumenttyp, TOP, Gremium oder Sitzung">
+    </label>
+    <div class="actions">
+      <button class="button primary" type="submit">Suchen</button>
+      {% if has_query %}<a class="button" href="{% url 'search:index' %}">Zuruecksetzen</a>{% endif %}
+    </div>
+  </form>
 </section>
+
+{% if has_query %}
+<section>
+  <div class="section-title">
+    <h2>Dokumenttreffer</h2>
+    <p>{{ results|length }} Treffer{% if results|length == max_results %} oder mehr{% endif %}</p>
+  </div>
+  {% if results %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Datum</th>
+          <th>Gremium</th>
+          <th>Sitzung</th>
+          <th>TOP</th>
+          <th>Dokument</th>
+          <th>Typ</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for document in results %}
+        <tr>
+          <td class="date-value">{{ document.display_date|default:document.date|default:"-" }}</td>
+          <td>{{ document.committee|default:"-" }}</td>
+          <td><a href="{% url 'analysis:session_detail' document.session_id %}">{{ document.meeting_name|default:document.session_id }}</a></td>
+          <td>{{ document.agenda_item|default:"-" }}</td>
+          <td>{{ document.title|default:"Dokument" }}</td>
+          <td>{{ document.display_type|default:"-" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-state">Keine Dokumente gefunden.</p>
+  {% endif %}
+</section>
+{% endif %}
 {% endblock %}
