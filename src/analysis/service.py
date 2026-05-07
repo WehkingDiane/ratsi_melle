@@ -343,9 +343,10 @@ class AnalysisService:
         folder = f"{date_src}-{record.session_id}" if record.session_id else date_src
         return ANALYSIS_OUTPUTS_DIR / date_src[:4] / date_src[5:7] / folder
 
-    def export_markdown(self, markdown: str, target: Path = DEFAULT_ANALYSIS_MARKDOWN) -> Path:
+    def export_markdown(self, markdown: str, target: Path | None = None) -> Path:
         """Export markdown to the standard analysis output location."""
 
+        target = target or DEFAULT_ANALYSIS_MARKDOWN
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(markdown.rstrip() + "\n", encoding="utf-8")
         return target
