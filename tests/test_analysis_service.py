@@ -4,8 +4,12 @@ import json
 import sqlite3
 from pathlib import Path
 
-from src.analysis.schemas import ANALYSIS_OUTPUT_SCHEMA_VERSION, ANALYSIS_OUTPUT_SCHEMA_VERSION_V2
-from src.analysis.service import AnalysisRequest, AnalysisService
+from src.analysis.schemas import (
+    ANALYSIS_OUTPUT_SCHEMA_VERSION,
+    ANALYSIS_OUTPUT_SCHEMA_VERSION_V2,
+    AnalysisOutputRecord,
+)
+from src.analysis.service import AnalysisRequest, AnalysisService, _parse_ki_json_response
 
 
 # ---------------------------------------------------------------------------
@@ -54,6 +58,116 @@ def test_export_markdown_uses_runtime_default_path(tmp_path: Path, monkeypatch) 
 
     assert exported == target
     assert target.read_text(encoding="utf-8") == "# Analyse\n"
+
+
+def test_parse_ki_json_response_accepts_plain_json() -> None:
+    assert _parse_ki_json_response('{"title": "Test"}') == {"title": "Test"}
+
+
+def test_parse_ki_json_response_accepts_markdown_fenced_json() -> None:
+    assert _parse_ki_json_response('```json\n{"title": "Test"}\n```') == {"title": "Test"}
+
+
+def test_parse_ki_json_response_returns_empty_dict_for_invalid_json() -> None:
+    assert _parse_ki_json_response("kein json") == {}
+
+
+def test_publication_draft_uses_ki_json_title_and_body() -> None:
+    record = AnalysisOutputRecord(
+        job_id=1,
+        created_at="2026-05-07T12:00:00Z",
+        session_id="123",
+        purpose="journalistic_publication",
+        ki_response=(
+            '{"title":"Titel","subtitle":"Untertitel","intro":"Intro",'
+            '"body":"Text","sources":[{"title":"Vorlage","document_type":"Beschluss"}]}'
+        ),
+        session_date="2026-05-07",
+    )
+
+    draft = AnalysisService()._build_publication_draft(record, "fallback", {})
+
+    assert draft.title == "Titel"
+    assert draft.summary_short == "Untertitel"
+    assert draft.summary_long == "Intro"
+    assert "# Titel" in draft.body_markdown
+    assert "Text" in draft.body_markdown
+    assert "Vorlage (Beschluss)" in draft.body_markdown
+
+
+def test_publication_draft_falls_back_to_markdown_for_invalid_json() -> None:
+    record = AnalysisOutputRecord(
+        job_id=1,
+        created_at="2026-05-07T12:00:00Z",
+        session_id="123",
+        purpose="journalistic_publication",
+        ki_response="kein json",
+        session_date="2026-05-07",
+    )
+
+    draft = AnalysisService()._build_publication_draft(
+        record, "fallback markdown", {"committee": "Rat"}
+    )
+
+    assert draft.title == "Rat"
+    assert draft.body_markdown == "fallback markdown"
+
+
+def test_structured_analysis_uses_ki_json_fields() -> None:
+    record = AnalysisOutputRecord(
+        job_id=1,
+        session_id="123",
+        purpose="journalistic_publication",
+        ki_response=(
+            '{"topic":"Thema","missing_information":["Zahl fehlt"],'
+            '"source_notes":["Quelle pruefen"]}'
+        ),
+    )
+
+    structured = AnalysisService()._build_structured_analysis(record, {"committee": "Rat"})
+
+    assert structured.topic.title == "Thema"
+    assert structured.open_questions == ["Zahl fehlt"]
+    assert structured.risks_or_uncertainties == ["Quelle pruefen"]
+
+
+def test_persist_analysis_artifacts_writes_valid_ki_json_artifact(
+    tmp_path: Path, monkeypatch
+) -> None:
+    outputs_dir = tmp_path / "data" / "analysis_outputs"
+    prompts_dir = tmp_path / "data" / "private" / "analysis_prompts"
+    latest_md = outputs_dir / "summaries" / "analysis_latest.md"
+    workflow_db = tmp_path / "data" / "db" / "analysis_workflow.sqlite"
+    snapshot_dir = tmp_path / "data" / "private" / "prompt_snapshots"
+    monkeypatch.setattr("src.analysis.service.ANALYSIS_OUTPUTS_DIR", outputs_dir)
+    monkeypatch.setattr("src.analysis.service.ANALYSIS_PROMPTS_DIR", prompts_dir)
+    monkeypatch.setattr("src.analysis.service.DEFAULT_ANALYSIS_MARKDOWN", latest_md)
+    monkeypatch.setattr("src.analysis.service.PROMPT_SNAPSHOTS_DIR", snapshot_dir)
+    monkeypatch.setattr("src.analysis.workflow_db.ANALYSIS_WORKFLOW_DB", workflow_db)
+
+    record = AnalysisOutputRecord(
+        job_id=77,
+        created_at="2026-05-07T12:00:00Z",
+        session_id="123",
+        purpose="journalistic_publication",
+        markdown="fallback markdown",
+        ki_response='{"title":"Titel","intro":"Intro","body":"Text"}',
+        source_db=str(tmp_path / "missing.sqlite"),
+        session_date="2026-05-07",
+    )
+
+    AnalysisService().persist_analysis_artifacts(record, session={"committee": "Rat"})
+
+    output_dir = outputs_dir / "2026" / "05" / "2026-05-07-123"
+    ki_json = output_dir / "job_77.ki_response.json"
+    article = output_dir / "job_77.article.md"
+    assert ki_json.exists()
+    assert json.loads(ki_json.read_text(encoding="utf-8")) == {
+        "title": "Titel",
+        "intro": "Intro",
+        "body": "Text",
+    }
+    assert "# Titel" in article.read_text(encoding="utf-8")
 
 
 def _build_db(tmp_path: Path) -> Path:
