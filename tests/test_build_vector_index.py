@@ -254,6 +254,27 @@ def test_validate_runtime_dependencies_fails_fast_for_missing_third_party_module
     assert "fastembed" in error_output
 
 
+@pytest.mark.parametrize("value", ["0", "-1"])
+def test_main_rejects_non_positive_limit(value: str, tmp_path: Path, capsys) -> None:
+    db_path = tmp_path / "local_index.sqlite"
+    db_path.write_text("", encoding="utf-8")
+
+    with pytest.raises(SystemExit) as excinfo:
+        build_vector_index.main(
+            [
+                "--db",
+                str(db_path),
+                "--qdrant-dir",
+                str(tmp_path / "qdrant"),
+                "--limit",
+                value,
+            ]
+        )
+
+    assert excinfo.value.code == 2
+    assert "must be greater than 0" in capsys.readouterr().err
+
+
 def test_main_reconciles_orphaned_vectors_even_when_nothing_is_new(
     monkeypatch,
     tmp_path: Path,
@@ -337,3 +358,89 @@ def test_main_skips_orphan_cleanup_for_limit_runs(
     output = capsys.readouterr().out
     assert "Nothing to index" in output
     assert "Skipping orphan cleanup because --limit is set." in output
+
+
+def test_limit_applies_to_missing_documents_not_first_sqlite_rows(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    first_doc = _doc("1", "https://example.org/doc-1.pdf")
+    second_doc = _doc("2", "https://example.org/doc-2.pdf")
+    third_doc = _doc("3", "https://example.org/doc-3.pdf")
+    first_id = build_vector_index._stable_qdrant_id(
+        first_doc["session_id"], first_doc["url"], first_doc["agenda_item"]
+    )
+    second_id = build_vector_index._stable_qdrant_id(
+        second_doc["session_id"], second_doc["url"], second_doc["agenda_item"]
+    )
+    third_id = build_vector_index._stable_qdrant_id(
+        third_doc["session_id"], third_doc["url"], third_doc["agenda_item"]
+    )
+    vector_store = _FakeVectorStore(indexed_ids={first_id}, count=1)
+
+    embeddings_module = ModuleType("src.analysis.embeddings")
+
+    class _FakeHarrierEmbedder:
+        pass
+
+    embeddings_module.HarrierEmbedder = _FakeHarrierEmbedder
+    embeddings_module._detect_device = lambda: "cpu"
+
+    vector_store_module = ModuleType("src.analysis.vector_store")
+    vector_store_module.DocumentVectorStore = lambda _path: vector_store
+
+    bm25_module = ModuleType("src.analysis.bm25_sparse")
+
+    class _FakeBM25Encoder:
+        def _get_model(self) -> None:
+            pass
+
+    bm25_module.BM25Encoder = _FakeBM25Encoder
+
+    class _FakeHybridVectorizer:
+        def __init__(self, _embedder, _bm25) -> None:
+            pass
+
+        def encode_documents(self, texts: list[str]) -> list[dict]:
+            return [
+                {
+                    "dense_vector": [0.0] * 1024,
+                    "sparse_vector": {"indices": [index], "values": [1.0]},
+                }
+                for index, _text in enumerate(texts)
+            ]
+
+    monkeypatch.setitem(sys.modules, "src.analysis.embeddings", embeddings_module)
+    monkeypatch.setitem(sys.modules, "src.analysis.vector_store", vector_store_module)
+    monkeypatch.setitem(sys.modules, "src.analysis.bm25_sparse", bm25_module)
+    monkeypatch.setattr(
+        build_vector_index,
+        "_validate_runtime_dependencies",
+        lambda: (_FakeHarrierEmbedder, vector_store_module.DocumentVectorStore),
+    )
+    monkeypatch.setattr(build_vector_index, "HybridVectorizer", _FakeHybridVectorizer)
+    monkeypatch.setattr(
+        build_vector_index,
+        "_load_documents",
+        lambda _db_path, limit=None: [first_doc, second_doc, third_doc],
+    )
+
+    db_path = tmp_path / "local_index.sqlite"
+    db_path.write_text("", encoding="utf-8")
+
+    build_vector_index.main(
+        [
+            "--db",
+            str(db_path),
+            "--qdrant-dir",
+            str(tmp_path / "qdrant"),
+            "--limit",
+            "1",
+        ]
+    )
+
+    assert [[point["id"] for point in batch] for batch in vector_store.upserted_batches] == [[second_id]]
+    assert third_id not in {point["id"] for batch in vector_store.upserted_batches for point in batch}
+    output = capsys.readouterr().out
+    assert "2 missing, indexing next 1" in output
