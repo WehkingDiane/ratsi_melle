@@ -18,7 +18,7 @@ _SERVICE = "ratsi_melle"
 _ENV_VARS: dict[str, tuple[str, ...]] = {
     "claude": ("ANTHROPIC_API_KEY",),
     "codex": ("OPENAI_API_KEY",),
-    "huggingface": ("HF_TOKEN", "HUGGINGFACE_HUB_TOKEN"),
+    "huggingface": ("HF_TOKEN", "HUGGING_FACE_HUB_TOKEN"),
 }
 
 
@@ -99,4 +99,4 @@ def configure_huggingface_token_env() -> None:
     if not token:
         return
     os.environ["HF_TOKEN"] = token
-    os.environ["HUGGINGFACE_HUB_TOKEN"] = token
+    os.environ["HUGGING_FACE_HUB_TOKEN"] = token

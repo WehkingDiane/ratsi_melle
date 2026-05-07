@@ -199,7 +199,7 @@ def test_settings_page_exposes_huggingface_token_form(client, monkeypatch) -> No
     assert "Hugging Face Token" in content
     assert 'name="provider_id" value="huggingface"' in content
     assert 'type="password" name="token"' in content
-    assert "HF_TOKEN oder HUGGINGFACE_HUB_TOKEN" in content
+    assert "HF_TOKEN oder HUGGING_FACE_HUB_TOKEN" in content
 
 
 def test_settings_page_saves_huggingface_token(client, monkeypatch) -> None:

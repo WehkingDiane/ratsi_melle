@@ -42,7 +42,7 @@ def test_get_api_key_falls_back_to_env(monkeypatch) -> None:
 def test_get_huggingface_token_falls_back_to_supported_env(monkeypatch) -> None:
     mock_kr = _make_keyring({})
     monkeypatch.delenv("HF_TOKEN", raising=False)
-    monkeypatch.setenv("HUGGINGFACE_HUB_TOKEN", "hf_env_token")
+    monkeypatch.setenv("HUGGING_FACE_HUB_TOKEN", "hf_env_token")
     with patch.dict("sys.modules", {"keyring": mock_kr}):
         assert get_api_key("huggingface") == "hf_env_token"
 
@@ -114,12 +114,12 @@ def test_key_source_env(monkeypatch) -> None:
 def test_configure_huggingface_token_env_sets_hub_env_vars(monkeypatch) -> None:
     mock_kr = _make_keyring({"huggingface": "hf_stored"})
     monkeypatch.setenv("HF_TOKEN", "hf_stale")
-    monkeypatch.setenv("HUGGINGFACE_HUB_TOKEN", "hf_stale")
+    monkeypatch.setenv("HUGGING_FACE_HUB_TOKEN", "hf_stale")
     with patch.dict("sys.modules", {"keyring": mock_kr}):
         configure_huggingface_token_env()
 
     assert os.environ["HF_TOKEN"] == "hf_stored"
-    assert os.environ["HUGGINGFACE_HUB_TOKEN"] == "hf_stored"
+    assert os.environ["HUGGING_FACE_HUB_TOKEN"] == "hf_stored"
 
 
 def test_key_source_not_set(monkeypatch) -> None:

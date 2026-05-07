@@ -12,7 +12,7 @@ from src.config.secrets import set_api_key
 _TOKEN_PROVIDERS = {
     "huggingface": {
         "label": "Hugging Face",
-        "env_hint": "HF_TOKEN oder HUGGINGFACE_HUB_TOKEN",
+        "env_hint": "HF_TOKEN oder HUGGING_FACE_HUB_TOKEN",
     },
 }
 
