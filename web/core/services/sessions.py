@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import datetime
+import re
 from pathlib import Path
 from typing import Any
 
@@ -28,12 +29,13 @@ def list_sessions() -> list[dict[str, Any]]:
             s.meeting_name,
             s.start_time,
             s.location,
+            s.session_path,
             COUNT(DISTINCT ai.id) AS agenda_count,
             COUNT(DISTINCT d.id) AS document_count
         FROM sessions s
         LEFT JOIN agenda_items ai ON ai.session_id = s.session_id
         LEFT JOIN documents d ON d.session_id = s.session_id
-        GROUP BY s.session_id, s.date, s.committee, s.meeting_name, s.start_time, s.location
+        GROUP BY s.session_id, s.date, s.committee, s.meeting_name, s.start_time, s.location, s.session_path
         ORDER BY s.date DESC, s.committee ASC
         """,
     )
@@ -114,7 +116,40 @@ def _add_document_analysis_fields(document: dict[str, Any]) -> None:
 def _with_session_display_fields(session: dict[str, Any]) -> dict[str, Any]:
     enriched = dict(session)
     enriched["display_date"] = _format_german_date(str(enriched.get("date") or ""))
+    raw_committee = str(enriched.get("committee") or "")
+    meeting_name = str(enriched.get("meeting_name") or "").strip()
+    committee = _humanize_committee_name(
+        raw_committee
+        or _committee_from_session_path(str(enriched.get("session_path") or ""))
+    )
+    if meeting_name and (not committee or _looks_like_storage_slug(raw_committee)):
+        committee = meeting_name
+    if committee:
+        enriched["committee"] = committee
+
+    if not meeting_name:
+        enriched["meeting_name"] = (
+            committee or f"Sitzung {enriched.get('session_id') or ''}".strip()
+        )
     return enriched
+
+
+def _committee_from_session_path(session_path: str) -> str:
+    folder_name = Path(session_path.replace("\\", "/")).name
+    match = re.match(r"^\d{4}-\d{2}-\d{2}[-_](?P<committee>.+)[-_]\d+$", folder_name)
+    return match.group("committee") if match else ""
+
+
+def _humanize_committee_name(value: str) -> str:
+    text = value.strip().replace("_", "-")
+    if not text:
+        return ""
+    text = re.sub(r"-+", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _looks_like_storage_slug(value: str) -> bool:
+    return "-" in value.strip()
 
 
 def _format_german_date(value: str) -> str:

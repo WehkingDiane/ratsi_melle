@@ -759,6 +759,148 @@ def test_session_detail_reads_agenda_and_documents(workspace_tmp: Path, monkeypa
     assert session["agenda_items"][0]["analysis_document_count"] == 1
 
 
+def test_session_display_fields_fall_back_to_humanized_committee(
+    workspace_tmp: Path, monkeypatch
+) -> None:
+    db_path = workspace_tmp / "local_index.sqlite"
+    session_path = (
+        workspace_tmp
+        / "data"
+        / "raw"
+        / "2026"
+        / "02"
+        / "2026-02-26-Ausschuss-für-Bildung-7121"
+    )
+    with sqlite3.connect(db_path) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE sessions (
+                session_id TEXT PRIMARY KEY,
+                date TEXT,
+                committee TEXT,
+                meeting_name TEXT,
+                start_time TEXT,
+                location TEXT,
+                detail_url TEXT,
+                session_path TEXT
+            );
+            CREATE TABLE agenda_items (
+                id INTEGER PRIMARY KEY,
+                session_id TEXT,
+                number TEXT,
+                title TEXT,
+                reporter TEXT,
+                status TEXT,
+                decision TEXT,
+                documents_present INTEGER
+            );
+            CREATE TABLE documents (
+                id INTEGER PRIMARY KEY,
+                session_id TEXT,
+                title TEXT,
+                category TEXT,
+                document_type TEXT,
+                agenda_item TEXT,
+                url TEXT,
+                local_path TEXT,
+                content_type TEXT,
+                content_length INTEGER
+            );
+            """
+        )
+        conn.execute(
+            "INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                "7121",
+                "2026-02-26",
+                "Ausschuss-für-Bildung",
+                None,
+                "",
+                "",
+                "",
+                str(session_path),
+            ),
+        )
+        conn.execute(
+            "INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                "9001",
+                "2026-02-27",
+                "",
+                None,
+                "",
+                "",
+                "",
+                str(
+                    workspace_tmp
+                    / "data"
+                    / "raw"
+                    / "2026"
+                    / "02"
+                    / "2026-02-27-Ortsrat-Oldendorf-9001"
+                ),
+            ),
+        )
+        conn.execute(
+            "INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                "9002",
+                "2026-02-28",
+                "Ausschuss-für-Umwelt-Klimaschutz-Straßen-und-Tiefbau",
+                "Ausschuss für Umwelt, Klimaschutz, Straßen und Tiefbau",
+                "",
+                "",
+                "",
+                "",
+            ),
+        )
+        conn.execute(
+            "INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                "9003",
+                "2026-02-24",
+                "",
+                None,
+                "",
+                "",
+                "",
+                str(
+                    workspace_tmp
+                    / "data"
+                    / "raw"
+                    / "2026"
+                    / "02"
+                    / "2026-02-24_Ortsrat_Gesmold_9003"
+                ),
+            ),
+        )
+
+    monkeypatch.setattr(analysis_services, "LOCAL_INDEX_DB", db_path)
+
+    sessions = {
+        session["session_id"]: session for session in analysis_services.list_sessions()
+    }
+    detail = analysis_services.get_session("7121")
+
+    assert sessions["7121"]["committee"] == "Ausschuss für Bildung"
+    assert sessions["7121"]["meeting_name"] == "Ausschuss für Bildung"
+    assert sessions["9001"]["committee"] == "Ortsrat Oldendorf"
+    assert sessions["9001"]["meeting_name"] == "Ortsrat Oldendorf"
+    assert sessions["9003"]["committee"] == "Ortsrat Gesmold"
+    assert sessions["9003"]["meeting_name"] == "Ortsrat Gesmold"
+    assert (
+        sessions["9002"]["committee"]
+        == "Ausschuss für Umwelt, Klimaschutz, Straßen und Tiefbau"
+    )
+    assert (
+        sessions["9002"]["meeting_name"]
+        == "Ausschuss für Umwelt, Klimaschutz, Straßen und Tiefbau"
+    )
+    assert detail is not None
+    assert detail["committee"] == "Ausschuss für Bildung"
+    assert detail["meeting_name"] == "Ausschuss für Bildung"
+
+
 def test_run_analysis_from_form_validates_missing_session(monkeypatch, workspace_tmp: Path) -> None:
     monkeypatch.setattr(analysis_services, "LOCAL_INDEX_DB", workspace_tmp / "missing.sqlite")
 
