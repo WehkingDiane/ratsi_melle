@@ -89,6 +89,7 @@ Dieser Einzelsitzungs-Abruf liest `session_id`, Datum, Gremium und `detail_url` 
 - Standardmaessig begrenzte Anfragefrequenz
 - exponentielle Retries bei Fehlern
 - Caching identischer Dokument-URLs innerhalb eines Laufs
+- Dokumentdownloads sind standardmaessig auf 100 MiB pro Dokument begrenzt
 
 ## 4. Rohdatenablage
 

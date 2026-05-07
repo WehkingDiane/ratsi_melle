@@ -34,7 +34,7 @@ REJECTED_DECISION_KEYWORDS = ("abgelehnt", "zurückgestellt", "vertagt", "ohne b
 DEFAULT_HEADERS = {
     "User-Agent": "ratsi-melle-fetcher/0.1 (+https://github.com/openai)"
 }
-_MAX_DOCUMENT_BYTES = 25 * 1024 * 1024
+_MAX_DOCUMENT_BYTES = 100 * 1024 * 1024
 
 
 class FetchingError(RuntimeError):

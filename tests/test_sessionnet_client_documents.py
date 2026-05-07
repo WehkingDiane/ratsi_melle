@@ -14,6 +14,12 @@ from src.fetching.models import DocumentReference
 from src.fetching.sessionnet_client import FetchingError, SessionNetClient
 
 
+def test_default_document_download_limit_is_100_mib(tmp_path: Path) -> None:
+    client = SessionNetClient(storage_root=tmp_path)
+
+    assert client.max_document_bytes == 100 * 1024 * 1024
+
+
 def test_detect_extension_uses_content_disposition_filename(tmp_path):
     client = SessionNetClient(storage_root=tmp_path)
     headers = {
