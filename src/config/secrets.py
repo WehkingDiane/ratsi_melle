@@ -93,10 +93,11 @@ def key_source(provider_id: str) -> str:
     return "nicht gesetzt"
 
 
-def configure_huggingface_token_env() -> None:
+def configure_huggingface_token_env() -> str | None:
     """Expose the configured Hugging Face token to libraries that read env vars."""
     token = get_api_key("huggingface")
     if not token:
-        return
+        return None
     os.environ["HF_TOKEN"] = token
     os.environ["HUGGING_FACE_HUB_TOKEN"] = token
+    return token

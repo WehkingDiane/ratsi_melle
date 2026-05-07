@@ -116,8 +116,9 @@ def test_configure_huggingface_token_env_sets_hub_env_vars(monkeypatch) -> None:
     monkeypatch.setenv("HF_TOKEN", "hf_stale")
     monkeypatch.setenv("HUGGING_FACE_HUB_TOKEN", "hf_stale")
     with patch.dict("sys.modules", {"keyring": mock_kr}):
-        configure_huggingface_token_env()
+        token = configure_huggingface_token_env()
 
+    assert token == "hf_stored"
     assert os.environ["HF_TOKEN"] == "hf_stored"
     assert os.environ["HUGGING_FACE_HUB_TOKEN"] == "hf_stored"
 

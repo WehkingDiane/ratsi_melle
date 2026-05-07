@@ -47,14 +47,16 @@ class HarrierEmbedder:
 
     def _get_model(self) -> "SentenceTransformer":
         if self._model is None:
-            configure_huggingface_token_env()
+            token = configure_huggingface_token_env()
             from sentence_transformers import SentenceTransformer
 
             device = _detect_device()
+            auth_kwargs = {"token": token} if token else {}
             self._model = SentenceTransformer(
                 _MODEL_NAME,
                 device=device,
                 model_kwargs={"torch_dtype": "auto"},
+                **auth_kwargs,
             )
         return self._model
 
