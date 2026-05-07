@@ -46,6 +46,16 @@ def test_ensure_analysis_tables_is_idempotent(tmp_path: Path) -> None:
         svc.ensure_analysis_tables(conn)  # second call must not raise
 
 
+def test_export_markdown_uses_runtime_default_path(tmp_path: Path, monkeypatch) -> None:
+    target = tmp_path / "exports" / "analysis_latest.md"
+    monkeypatch.setattr("src.analysis.service.DEFAULT_ANALYSIS_MARKDOWN", target)
+
+    exported = AnalysisService().export_markdown("# Analyse")
+
+    assert exported == target
+    assert target.read_text(encoding="utf-8") == "# Analyse\n"
+
+
 def _build_db(tmp_path: Path) -> Path:
     db_path = tmp_path / "data" / "db" / "local_index.sqlite"
     db_path.parent.mkdir(parents=True, exist_ok=True)
