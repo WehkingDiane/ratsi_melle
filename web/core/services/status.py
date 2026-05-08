@@ -23,7 +23,7 @@ def service_status() -> dict[str, Any]:
 
     return {
         "local_index_exists": paths.LOCAL_INDEX_DB.exists() and paths.LOCAL_INDEX_DB.stat().st_size > 0,
-        "online_index_exists": online_index_db.exists(),
+        "online_index_exists": online_session_count is not None,
         "qdrant_exists": qdrant_dir.exists(),
         "raw_data_exists": raw_data_root.exists(),
         "local_index_path": "data/db/local_index.sqlite",
