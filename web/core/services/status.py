@@ -78,11 +78,21 @@ def _raw_session_directory_count(raw_data_root) -> int | None:
     for year_dir in raw_data_root.iterdir():
         if not year_dir.is_dir():
             continue
-        for month_dir in year_dir.iterdir():
-            if not month_dir.is_dir():
+        for entry in year_dir.iterdir():
+            if not entry.is_dir():
                 continue
-            count += sum(1 for entry in month_dir.iterdir() if entry.is_dir())
+            if _looks_like_session_directory(entry):
+                count += 1
+            else:
+                count += sum(
+                    1 for session_dir in entry.iterdir()
+                    if session_dir.is_dir() and _looks_like_session_directory(session_dir)
+                )
     return count
+
+
+def _looks_like_session_directory(path) -> bool:
+    return (path / "manifest.json").is_file() or (path / "agenda").is_dir() or (path / "session-documents").is_dir()
 
 
 def _count_label(count: int | None, noun: str) -> str:
