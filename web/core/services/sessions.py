@@ -105,12 +105,51 @@ def _add_document_analysis_fields(document: dict[str, Any]) -> None:
     )
     document["resolved_local_path"] = str(resolved) if resolved else ""
     document["source_file_available"] = bool(resolved and Path(resolved).is_file())
+    document["pdf_view_available"] = _is_pdf_document(document, resolved)
     document["display_type"] = (
         document.get("document_type")
         or document.get("content_type")
         or document.get("category")
         or "-"
     )
+
+
+def get_local_pdf_document(session_id: str, document_id: int) -> dict[str, Any] | None:
+    """Return an existing local PDF document path for browser display."""
+
+    document = first_row(
+        paths.LOCAL_INDEX_DB,
+        """
+        SELECT d.id, d.session_id, d.title, d.local_path, d.content_type, s.session_path
+        FROM documents d
+        JOIN sessions s ON s.session_id = d.session_id
+        WHERE d.session_id = ? AND d.id = ?
+        """,
+        (session_id, document_id),
+    )
+    if not document:
+        return None
+
+    resolved = resolve_local_file_path(
+        session_path=str(document.get("session_path") or ""),
+        local_path=str(document.get("local_path") or ""),
+    )
+    if not _is_pdf_document(document, resolved):
+        return None
+
+    return {
+        "path": Path(resolved),
+        "title": document.get("title") or f"document-{document_id}.pdf",
+        "content_type": document.get("content_type") or "application/pdf",
+    }
+
+
+def _is_pdf_document(document: dict[str, Any], resolved: Path | None) -> bool:
+    if not resolved or not Path(resolved).is_file():
+        return False
+    content_type = str(document.get("content_type") or "").lower()
+    local_path = str(document.get("local_path") or "").lower()
+    return "pdf" in content_type or local_path.endswith(".pdf") or Path(resolved).suffix.lower() == ".pdf"
 
 
 def _with_session_display_fields(session: dict[str, Any]) -> dict[str, Any]:

@@ -119,6 +119,46 @@ def test_service_facades_keep_domain_exports_separate() -> None:
     assert not hasattr(core_services, "list_analysis_outputs")
 
 
+def test_service_status_summarizes_content_counts(workspace_tmp: Path, monkeypatch) -> None:
+    from core.services import status as status_service
+
+    raw_session_dir = workspace_tmp / "data" / "raw" / "2026" / "03" / "2026-03-11_Rat_7123"
+    raw_session_dir.mkdir(parents=True)
+    local_db = workspace_tmp / "data" / "db" / "local_index.sqlite"
+    local_db.parent.mkdir(parents=True)
+    online_db = workspace_tmp / "data" / "db" / "online_session_index.sqlite"
+    qdrant_dir = workspace_tmp / "data" / "db" / "qdrant"
+    qdrant_dir.mkdir()
+    with sqlite3.connect(local_db) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE sessions (session_id TEXT PRIMARY KEY);
+            CREATE TABLE documents (id INTEGER PRIMARY KEY, session_id TEXT);
+            INSERT INTO sessions VALUES ('7123');
+            INSERT INTO documents VALUES (1, '7123');
+            INSERT INTO documents VALUES (2, '7123');
+            """
+        )
+    with sqlite3.connect(online_db) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE sessions (session_id TEXT PRIMARY KEY);
+            INSERT INTO sessions VALUES ('7123');
+            INSERT INTO sessions VALUES ('7124');
+            """
+        )
+
+    monkeypatch.setattr(status_service.paths, "REPO_ROOT", workspace_tmp)
+    monkeypatch.setattr(status_service.paths, "LOCAL_INDEX_DB", local_db)
+
+    status = status_service.service_status()
+
+    assert status["raw_data_summary"] == "1 Sitzungsordner"
+    assert status["local_index_summary"] == "1 Sitzungen / 2 Dokumente"
+    assert status["online_index_summary"] == "2 Sitzungen"
+    assert status["qdrant_summary"] == "vorhanden"
+
+
 def test_legacy_analysis_output_file_is_displayed(workspace_tmp: Path, monkeypatch) -> None:
     tmp_path = workspace_tmp
     outputs = tmp_path / "analysis_outputs"
@@ -697,6 +737,7 @@ def test_session_detail_reads_agenda_and_documents(workspace_tmp: Path, monkeypa
     document_dir = session_dir / "agenda" / "oe7"
     document_dir.mkdir(parents=True)
     (document_dir / "vorlage.txt").write_text("Beschlussvorschlag", encoding="utf-8")
+    (document_dir / "anlage.pdf").write_bytes(b"%PDF-1.4\n%%EOF\n")
     with sqlite3.connect(db_path) as conn:
         conn.executescript(
             """
@@ -746,6 +787,10 @@ def test_session_detail_reads_agenda_and_documents(workspace_tmp: Path, monkeypa
             "INSERT INTO documents VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (1, "7123", "Vorlage", "", "Beschlussvorlage", "Oe 7", "", "agenda/oe7/vorlage.txt", "text/plain", 12),
         )
+        conn.execute(
+            "INSERT INTO documents VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (2, "7123", "Anlage", "", "Anlage", "Oe 7", "", "agenda/oe7/anlage.pdf", "application/pdf", 18),
+        )
 
     monkeypatch.setattr(analysis_services, "LOCAL_INDEX_DB", db_path)
 
@@ -754,9 +799,19 @@ def test_session_detail_reads_agenda_and_documents(workspace_tmp: Path, monkeypa
     assert session is not None
     assert session["meeting_name"] == "Ratssitzung"
     assert session["display_date"] == "11.03.2026"
-    assert session["agenda_items"][0]["documents"][0]["title"] == "Vorlage"
+    documents_by_title = {
+        document["title"]: document for document in session["agenda_items"][0]["documents"]
+    }
+    assert documents_by_title["Vorlage"]["source_file_available"] is True
+    assert documents_by_title["Anlage"]["pdf_view_available"] is True
     assert session["agenda_items"][0]["has_analysis_documents"] is True
-    assert session["agenda_items"][0]["analysis_document_count"] == 1
+    assert session["agenda_items"][0]["analysis_document_count"] == 2
+
+    pdf_document = analysis_services.get_local_pdf_document("7123", 2)
+
+    assert pdf_document is not None
+    assert pdf_document["path"] == document_dir / "anlage.pdf"
+    assert analysis_services.get_local_pdf_document("7123", 1) is None
 
 
 def test_session_display_fields_fall_back_to_humanized_committee(

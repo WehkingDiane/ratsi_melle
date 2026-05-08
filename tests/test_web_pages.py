@@ -47,6 +47,7 @@ def client():
         "/daten/",
         "/daten/fetch/",
         "/daten/build/",
+        "/daten/vektor/",
         "/daten/jobs/status/",
         "/veroeffentlichung/",
         "/suche/",
@@ -99,6 +100,7 @@ def test_templates_are_kept_in_their_feature_apps() -> None:
         "index.html",
         "service_build.html",
         "service_fetch.html",
+        "service_vector.html",
         "service_job_detail.html",
     }.issubset(data_templates)
 
@@ -133,6 +135,7 @@ def test_main_navigation_is_in_shared_layout(client) -> None:
     assert "Daten" in content
     assert "Fetch: Daten holen" in content
     assert "Build: Datenbank-Tools" in content
+    assert "Build: Vektorindex" in content
     assert "Veröffentlichung" in content
     assert "Veröffentlichung öffnen" in content
     assert "Suche" in content
@@ -156,7 +159,7 @@ def test_navigation_dropdowns_have_expected_links(client) -> None:
     assert labels == {
         "Dashboard": ["Dashboard öffnen"],
         "Analyse": ["Analyse-Übersicht", "Prompt-Vorlagen", "KI-Analyse starten", "Sitzungen", "Analysejobs"],
-        "Daten": ["Fetch: Daten holen", "Build: Datenbank-Tools"],
+        "Daten": ["Fetch: Daten holen", "Build: Datenbank-Tools", "Build: Vektorindex"],
         "Veröffentlichung": ["Veröffentlichung öffnen"],
         "Suche": ["Suche öffnen"],
         "Einstellungen": ["Einstellungen öffnen"],
@@ -310,11 +313,13 @@ def test_session_detail_links_document_source_to_session_page(client, monkeypatc
             "agenda_items": [],
             "documents": [
                 {
+                    "id": 4,
                     "agenda_item": "Oe 7",
                     "title": "Windkraft in Riemsloh",
                     "document_type": "beschlussvorlage",
                     "display_type": "beschlussvorlage",
                     "url": "https://example.test/do.asp",
+                    "pdf_view_available": True,
                 }
             ],
         },
@@ -325,7 +330,31 @@ def test_session_detail_links_document_source_to_session_page(client, monkeypatc
 
     assert response.status_code == 200
     assert 'href="https://example.test/si0057.asp">Sitzung</a>' in content
+    assert 'href="/analyse/sitzungen/7123/dokumente/4/pdf/" target="_blank"' in content
+    assert "PDF öffnen" in content
     assert "https://example.test/do.asp" not in content
+
+
+def test_document_pdf_view_streams_local_pdf(client, monkeypatch, tmp_path) -> None:
+    from analysis import views
+
+    pdf_path = tmp_path / "vorlage.pdf"
+    pdf_path.write_bytes(b"%PDF-1.4\n%%EOF\n")
+    monkeypatch.setattr(
+        views.services,
+        "get_local_pdf_document",
+        lambda _session_id, _document_id: {
+            "path": pdf_path,
+            "title": "Vorlage",
+            "content_type": "application/pdf",
+        },
+    )
+
+    response = client.get("/analyse/sitzungen/7123/dokumente/4/pdf/")
+
+    assert response.status_code == 200
+    assert response["Content-Type"] == "application/pdf"
+    assert response["Content-Disposition"] == 'inline; filename="vorlage.pdf"'
 
 
 def test_analysis_start_explains_session_document_transfer(client, monkeypatch) -> None:
@@ -758,7 +787,18 @@ def test_service_post_starts_background_job(client, monkeypatch) -> None:
     assert response.headers["Location"] == "/daten/jobs/abc123/"
 
 
-def test_service_build_page_renders_vector_status(client, monkeypatch) -> None:
+def test_service_build_page_excludes_vector_build(client) -> None:
+    response = client.get("/daten/build/")
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "Lokalen Index bauen" in content
+    assert "Online-Index bauen" in content
+    assert "Vektorindex bauen" not in content
+    assert "SQLite-Dokumente" not in content
+
+
+def test_service_vector_page_renders_vector_status(client, monkeypatch) -> None:
     from data_tools import views
 
     monkeypatch.setattr(
@@ -777,7 +817,7 @@ def test_service_build_page_renders_vector_status(client, monkeypatch) -> None:
         },
     )
 
-    response = client.get("/daten/build/")
+    response = client.get("/daten/vektor/")
     content = response.content.decode("utf-8")
 
     assert response.status_code == 200
@@ -811,7 +851,7 @@ def test_build_vector_index_form_starts_existing_service_job(client, monkeypatch
     monkeypatch.setattr(views.service_jobs, "start_service_job", fake_start_service_job)
 
     response = client.post(
-        "/daten/build/",
+        "/daten/vektor/",
         {"action": "build_vector_index", "limit": "25"},
     )
 

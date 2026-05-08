@@ -46,6 +46,9 @@
         <li>
           <span>{{ document.title|default:"Dokument" }}</span>
           <small>{{ document.document_type|default:document.content_type|default:"Typ unbekannt" }}</small>
+          {% if document.pdf_view_available %}
+          <a class="button secondary small" href="{% url 'analysis:document_pdf' session.session_id document.id %}" target="_blank" rel="noopener">PDF öffnen</a>
+          {% endif %}
         </li>
         {% endfor %}
       </ul>
@@ -65,7 +68,7 @@
   {% if session.documents %}
   <div class="table-wrap">
     <table>
-      <thead><tr><th>TOP</th><th>Titel</th><th>Typ</th><th>Quelle</th></tr></thead>
+      <thead><tr><th>TOP</th><th>Titel</th><th>Typ</th><th>Quelle</th><th>Ansicht</th></tr></thead>
       <tbody>
       {% for document in session.documents %}
         <tr>
@@ -73,6 +76,13 @@
           <td>{{ document.title|default:"Dokument" }}</td>
           <td>{{ document.display_type|default:"-" }}</td>
           <td>{% if session.detail_url %}<a href="{{ session.detail_url }}">Sitzung</a>{% else %}-{% endif %}</td>
+          <td>
+            {% if document.pdf_view_available %}
+            <a class="button secondary small" href="{% url 'analysis:document_pdf' session.session_id document.id %}" target="_blank" rel="noopener">PDF öffnen</a>
+            {% else %}
+            -
+            {% endif %}
+          </td>
         </tr>
       {% endfor %}
       </tbody>

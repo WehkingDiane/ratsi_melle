@@ -19,7 +19,7 @@
         <option value="document" {% if scope == "document" %}selected{% endif %}>Dokument</option>
       </select>
     </label>
-    <button class="button" type="submit">Filtern</button>
+    <button class="button utility" type="submit">Filtern</button>
     <a class="button primary" href="{% url 'analysis:prompt_template_new' %}">Neue Vorlage</a>
   </form>
 </section>
@@ -43,12 +43,12 @@
           <a href="{% url 'analysis:prompt_template_edit' template.id %}">Bearbeiten</a>
           <form method="post" action="{% url 'analysis:prompt_template_duplicate' template.id %}">
             {% csrf_token %}
-            <button class="link-button" type="submit">Duplizieren</button>
+            <button class="link-button secondary" type="submit">Duplizieren</button>
           </form>
           {% if template.is_active %}
           <form method="post" action="{% url 'analysis:prompt_template_deactivate' template.id %}">
             {% csrf_token %}
-            <button class="link-button" type="submit">Deaktivieren</button>
+            <button class="link-button danger" type="submit">Deaktivieren</button>
           </form>
           {% endif %}
         </td>

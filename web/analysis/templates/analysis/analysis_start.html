@@ -151,7 +151,7 @@
 
       <div class="actions">
         <button class="button primary" type="submit" name="form_action" value="run_analysis" id="analysis-start-submit">Analyse starten</button>
-        <a class="button" href="{% url 'analysis:session_detail' selected_session.session_id %}">Sitzung ansehen</a>
+        <a class="button secondary" href="{% url 'analysis:session_detail' selected_session.session_id %}">Sitzung ansehen</a>
       </div>
       <p class="status-ok" id="analysis-start-status" aria-live="polite" hidden>Analyse wurde gestartet. Bitte warte auf die Weiterleitung und starte nicht erneut.</p>
     </form>

@@ -49,6 +49,11 @@ def get_session(session_id: str) -> dict[str, Any] | None:
     return sessions.get_session(session_id)
 
 
+def get_local_pdf_document(session_id: str, document_id: int) -> dict[str, Any] | None:
+    _sync_paths()
+    return sessions.get_local_pdf_document(session_id, document_id)
+
+
 def check_sources(session_id: str) -> dict[str, Any]:
     _sync_paths()
     return source_check.check_sources(session_id)

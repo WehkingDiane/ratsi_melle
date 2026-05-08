@@ -65,9 +65,30 @@ def service_build(request):
         {
             "active_nav": "data",
             "status": services.service_status(),
-            "vector_status": services.vector_index_status(),
             "errors": errors,
             "current_year": current_year,
+        },
+    )
+
+
+def service_vector(request):
+    errors: list[str] = []
+    if request.method == "POST":
+        command, errors = services.build_service_command(
+            request.POST.get("action", ""),
+            request.POST,
+        )
+        if command:
+            job = service_jobs.start_service_job(request.POST.get("action", ""), command, services.REPO_ROOT)
+            return redirect("data_tools:service_job_detail", job_id=job.job_id)
+    return render(
+        request,
+        "data_tools/service_vector.html",
+        {
+            "active_nav": "data",
+            "status": services.service_status(),
+            "vector_status": services.vector_index_status(),
+            "errors": errors,
         },
     )
 

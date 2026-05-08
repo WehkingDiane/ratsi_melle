@@ -1,13 +1,17 @@
 :root {
   color-scheme: light;
-  --bg: #f7f8fa;
-  --surface: #ffffff;
-  --surface-muted: #f1f4f8;
+  --bg: #f8f5f0;
+  --surface: #f1ede6;
+  --surface-muted: #e9e2d8;
   --border: #d9dee7;
   --text: #18202b;
   --muted: #667085;
   --accent: #1f6feb;
   --accent-strong: #174ea6;
+  --action-secondary: #334155;
+  --action-secondary-strong: #1f2937;
+  --action-danger: #b42318;
+  --action-danger-strong: #912018;
 }
 
 * {

@@ -76,7 +76,7 @@ Das gemeinsame Layout in `web/core/templates/base.html` stellt Header, Hauptnavi
 
 - Dashboard
 - Analyse mit Unterpunkten für Übersicht, Analyse starten, Prompt-Vorlagen, Sitzungen und Analysejobs
-- Daten mit Unterpunkten für Fetch und Build
+- Daten mit Unterpunkten für Fetch, Build und Vektorindex
 - Veröffentlichung
 - Suche
 - Einstellungen
@@ -88,6 +88,8 @@ Der Header zeigt den Projektnamen "Ratsi Melle" und die Unterzeile "Lokale Arbei
 - `navigation.css` für Hauptnavigation und mobiles Menü
 - `components.css` für Panels, Buttons, Tabellen und Formulare
 - `status.css` für Status- und Hinweisfarben
+
+Buttons folgen einem funktionsbezogenen Farbschema: `primary` ist auslösenden Hauptaktionen wie Starten, Speichern, Suchen oder Bauen vorbehalten; `secondary` kennzeichnet Navigation und reine Ansicht; `utility` steht für Filter, Reset und Abbruch; `danger` kennzeichnet löschende oder deaktivierende Aktionen.
 
 ## URLs
 
@@ -101,11 +103,13 @@ Der Header zeigt den Projektnamen "Ratsi Melle" und die Unterzeile "Lokale Arbei
 - `/analyse/prompts/<template_id>/deaktivieren/` deaktiviert eine Vorlage per POST.
 - `/analyse/sitzungen/` listet Sitzungen aus dem lokalen Index.
 - `/analyse/sitzungen/<session_id>/` zeigt Sitzungsdetails.
+- `/analyse/sitzungen/<session_id>/dokumente/<document_id>/pdf/` liefert eine lokal vorhandene PDF inline fuer die Browseransicht.
 - `/analyse/jobs/` listet Analysejobs und Ausgabedateien.
 - `/analyse/jobs/<job_id>/` zeigt Analyseoutputs, einschließlich alter v1-Ausgaben.
-- `/daten/` zeigt den Daten- und Servicebereich.
+- `/daten/` zeigt links die Weiterleitungen zu Fetch, Build und Vektorindex; rechts stehen allgemeiner Status und letzte Datenjobs.
 - `/daten/fetch/` startet vorhandene Fetch-Skripte.
-- `/daten/build/` startet vorhandene Build-Skripte.
+- `/daten/build/` startet vorhandene SQLite-Build-Skripte.
+- `/daten/vektor/` zeigt Vektorstatus und startet den Vektorindex-Build.
 - `/daten/jobs/<job_id>/` zeigt Status und Ausgabe eines gestarteten Datenjobs.
 - `/daten/jobs/<job_id>/status/` liefert den aktuellen Datenjobstatus als JSON für die automatische Logaktualisierung.
 - `/veroeffentlichung/` ist ein Platzhalter für Publikations- und Reviewfunktionen.
@@ -141,11 +145,12 @@ Mit Provider `none` wird nur die Analysegrundlage erzeugt. Ein echter KI-Aufruf 
 - Analyse starten mit bestehendem `AnalysisService`
 - private Prompt-Vorlagenverwaltung unter `/analyse/prompts/`
 - Sitzungsliste und Sitzungsdetails aus `data/db/local_index.sqlite`
+- PDF-Ansicht aus den Sitzungsdetails in einem separaten Browser-Tab oder -Fenster, sofern die PDF lokal vorhanden ist
 - Dokument-Metadatensuche unter `/suche/`
 - Hugging-Face-Token-Verwaltung unter `/einstellungen/`
 - Analysejobliste und Analysejobdetails aus `data/analysis_outputs/`
 - Anzeige alter v1-Analyseoutputs
-- Fetch- und Build-Servicefunktionen unter `/daten/`
+- Fetch-, Build- und Vektorindex-Servicefunktionen unter `/daten/`
 - Statusanzeige für laufende Datenjobs im Header; ohne laufenden Job bleibt sie ausgeblendet
 - automatische Aktualisierung der Logausgabe auf Datenjob-Detailseiten
 

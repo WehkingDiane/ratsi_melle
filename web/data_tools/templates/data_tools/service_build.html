@@ -6,7 +6,7 @@
 <section class="page-heading">
   <p class="eyebrow">Daten</p>
   <h1>Build</h1>
-  <p>Indexe aus vorhandenen oder online gelesenen Daten aufbauen.</p>
+  <p>Lokale und online gelesene SQLite-Indexe aufbauen.</p>
 </section>
 
 {% include "core/partials/service_result.html" %}
@@ -36,34 +36,6 @@
     </form>
   </article>
 
-  <article class="panel">
-    <h2>Vektorindex bauen</h2>
-    {% if vector_status %}
-      <dl class="facts">
-        <div><dt>Status</dt><dd class="{% if vector_status.status == 'ok' %}status-ok{% elif vector_status.status == 'needs_update' or vector_status.status == 'missing_qdrant' or vector_status.status == 'missing_local_index' or vector_status.status == 'warning' %}status-warning{% else %}status-muted{% endif %}">{{ vector_status.status }}</dd></div>
-        <div><dt>SQLite-Dokumente</dt><dd>{{ vector_status.sqlite_document_count|default_if_none:"-" }}</dd></div>
-        <div><dt>Indexierbare Dokumente</dt><dd>{{ vector_status.indexable_document_count|default_if_none:"-" }}</dd></div>
-        <div><dt>Indexierte Vektoren</dt><dd>{{ vector_status.indexed_vector_count|default_if_none:"-" }}</dd></div>
-        <div><dt>Fehlende Vektoren</dt><dd>{{ vector_status.missing_vector_count|default_if_none:"-" }}</dd></div>
-        <div><dt>Verwaiste Vektoren</dt><dd>{{ vector_status.orphaned_vector_count|default_if_none:"-" }}</dd></div>
-        <div><dt>Abdeckung</dt><dd>{% if vector_status.coverage_percent is not None %}{{ vector_status.coverage_percent }} %{% else %}-{% endif %}</dd></div>
-        <div><dt>Neueste Sitzung</dt><dd>{{ vector_status.latest_session_date|default_if_none:"-" }}</dd></div>
-      </dl>
-      {% if vector_status.warnings %}
-        <ul class="plain-list status-warning">
-          {% for warning in vector_status.warnings %}
-            <li>{{ warning }}</li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-    {% endif %}
-    <form method="post" class="form-stack">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="build_vector_index">
-      <label>Limit <input type="text" name="limit" placeholder="Optional, z. B. 100"></label>
-      <button class="button primary" type="submit">Vektorindex bauen</button>
-    </form>
-  </article>
 </section>
 
 {% include "core/partials/service_status.html" %}
