@@ -789,7 +789,7 @@ def test_session_detail_reads_agenda_and_documents(workspace_tmp: Path, monkeypa
         )
         conn.execute(
             "INSERT INTO documents VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (2, "7123", "Anlage", "", "Anlage", "Oe 7", "", "agenda/oe7/anlage.pdf", "application/pdf", 18),
+            (2, "7123", "Anlage", "", "Anlage", "Oe 7", "", "agenda/oe7/anlage.pdf", "application/octet-stream", 18),
         )
 
     monkeypatch.setattr(analysis_services, "LOCAL_INDEX_DB", db_path)
@@ -811,6 +811,7 @@ def test_session_detail_reads_agenda_and_documents(workspace_tmp: Path, monkeypa
 
     assert pdf_document is not None
     assert pdf_document["path"] == document_dir / "anlage.pdf"
+    assert pdf_document["content_type"] == "application/pdf"
     assert analysis_services.get_local_pdf_document("7123", 1) is None
 
 

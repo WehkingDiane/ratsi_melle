@@ -140,7 +140,7 @@ def get_local_pdf_document(session_id: str, document_id: int) -> dict[str, Any] 
     return {
         "path": Path(resolved),
         "title": document.get("title") or f"document-{document_id}.pdf",
-        "content_type": document.get("content_type") or "application/pdf",
+        "content_type": "application/pdf",
     }
 
 
