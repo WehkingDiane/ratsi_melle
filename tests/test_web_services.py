@@ -181,6 +181,22 @@ def test_service_status_marks_unreadable_online_index_missing(workspace_tmp: Pat
     assert status["online_index_summary"] == "fehlt"
 
 
+def test_service_status_marks_unreadable_local_index_missing(workspace_tmp: Path, monkeypatch) -> None:
+    from core.services import status as status_service
+
+    local_db = workspace_tmp / "data" / "db" / "local_index.sqlite"
+    local_db.parent.mkdir(parents=True)
+    local_db.write_text("not sqlite", encoding="utf-8")
+
+    monkeypatch.setattr(status_service.paths, "REPO_ROOT", workspace_tmp)
+    monkeypatch.setattr(status_service.paths, "LOCAL_INDEX_DB", local_db)
+
+    status = status_service.service_status()
+
+    assert status["local_index_exists"] is False
+    assert status["local_index_summary"] == "fehlt"
+
+
 def test_legacy_analysis_output_file_is_displayed(workspace_tmp: Path, monkeypatch) -> None:
     tmp_path = workspace_tmp
     outputs = tmp_path / "analysis_outputs"

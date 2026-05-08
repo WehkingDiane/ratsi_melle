@@ -22,7 +22,7 @@ def service_status() -> dict[str, Any]:
     qdrant_dir = paths.REPO_ROOT / "data" / "db" / "qdrant"
 
     return {
-        "local_index_exists": paths.LOCAL_INDEX_DB.exists() and paths.LOCAL_INDEX_DB.stat().st_size > 0,
+        "local_index_exists": local_session_count is not None or local_document_count is not None,
         "online_index_exists": online_session_count is not None,
         "qdrant_exists": qdrant_dir.exists(),
         "raw_data_exists": raw_data_root.exists(),
