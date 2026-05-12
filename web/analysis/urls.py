@@ -22,6 +22,11 @@ urlpatterns = [
     path("starten/", views.analysis_start, name="analysis_start"),
     path("sitzungen/", views.session_list, name="session_list"),
     path("sitzungen/<str:session_id>/", views.session_detail, name="session_detail"),
+    path(
+        "sitzungen/<str:session_id>/dokumente/<int:document_id>/pdf/",
+        views.document_pdf,
+        name="document_pdf",
+    ),
     path("jobs/", views.job_list, name="job_list"),
     path("jobs/<str:job_id>/", views.job_detail, name="job_detail"),
     path("service/", RedirectView.as_view(pattern_name="data_tools:index", permanent=False)),

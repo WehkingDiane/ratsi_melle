@@ -28,9 +28,10 @@
 
 .button {
   align-items: center;
-  border: 1px solid var(--border);
+  background: var(--action-secondary);
+  border: 1px solid var(--action-secondary);
   border-radius: 6px;
-  color: var(--text);
+  color: #ffffff;
   display: inline-flex;
   font-weight: 700;
   min-height: 40px;
@@ -43,8 +44,73 @@
   color: #ffffff;
 }
 
-.button:hover {
+.button.secondary {
+  background: var(--action-secondary);
+  border-color: var(--action-secondary);
+  color: #ffffff;
+}
+
+.button.utility {
+  background: var(--surface-muted);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.button.danger {
+  background: var(--action-danger);
+  border-color: var(--action-danger);
+  color: #ffffff;
+}
+
+.button.small {
+  font-size: 13px;
+  min-height: 30px;
+  padding: 4px 8px;
+}
+
+.button:hover,
+.link-button:hover {
+  filter: brightness(0.95);
   text-decoration: none;
+}
+
+.button.primary:hover {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+}
+
+.button.secondary:hover,
+.button:hover {
+  background: var(--action-secondary-strong);
+  border-color: var(--action-secondary-strong);
+}
+
+.button.utility:hover {
+  background: #e5eaf1;
+  border-color: #c7d0dd;
+}
+
+.button.danger:hover {
+  background: var(--action-danger-strong);
+  border-color: var(--action-danger-strong);
+}
+
+.link-button {
+  background: transparent;
+  border: 0;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 0;
+}
+
+.link-button.danger {
+  color: var(--action-danger);
+}
+
+.link-button.secondary {
+  color: var(--action-secondary);
 }
 
 .muted {
@@ -59,6 +125,10 @@
 
 .facts.inline {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.data-overview .facts.inline {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .facts div {
@@ -108,7 +178,7 @@ td {
 }
 
 th {
-  background: #f1f4f8;
+  background: var(--surface-muted);
   color: #394150;
   font-size: 13px;
 }
@@ -177,7 +247,7 @@ tr:last-child td {
 }
 
 .text-block {
-  background: #f6f8fb;
+  background: #f6f2ec;
   border: 1px solid var(--border);
   border-radius: 6px;
   margin: 12px 0 0;
@@ -255,7 +325,7 @@ tr:last-child td {
 }
 
 .selected-context {
-  background: #f6f8fb;
+  background: #f6f2ec;
   border: 1px solid var(--border);
   border-radius: 8px;
   display: grid;
@@ -294,6 +364,10 @@ tr:last-child td {
 
 .service-status {
   margin-top: 24px;
+}
+
+.data-overview .service-status {
+  margin-top: 0;
 }
 
 .service-note {

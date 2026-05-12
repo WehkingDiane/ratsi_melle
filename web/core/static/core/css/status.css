@@ -7,6 +7,10 @@
   padding: 14px;
 }
 
+.empty-state.service-note {
+  margin: 0 0 22px;
+}
+
 .status-ok {
   color: #116329;
 }

@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from django.http import FileResponse
+from django.http import Http404
 from django.shortcuts import redirect
 from django.shortcuts import render
 from django.urls import reverse
+from django.utils.http import content_disposition_header
 
 from . import services
 
@@ -48,6 +51,17 @@ def session_detail(request, session_id: str):
             "session_id": session_id,
         },
     )
+
+
+def document_pdf(request, session_id: str, document_id: int):
+    document = services.get_local_pdf_document(session_id, document_id)
+    if document is None:
+        raise Http404("PDF-Dokument nicht gefunden.")
+
+    path = document["path"]
+    response = FileResponse(open(path, "rb"), content_type=document["content_type"])
+    response["Content-Disposition"] = content_disposition_header(False, path.name)
+    return response
 
 
 def analysis_start(request):
