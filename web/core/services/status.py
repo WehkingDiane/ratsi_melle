@@ -25,7 +25,7 @@ def service_status() -> dict[str, Any]:
         "local_index_exists": local_session_count is not None or local_document_count is not None,
         "online_index_exists": online_session_count is not None,
         "qdrant_exists": qdrant_dir.exists(),
-        "raw_data_exists": raw_data_root.exists(),
+        "raw_data_exists": raw_session_count is not None,
         "local_index_path": "data/db/local_index.sqlite",
         "online_index_path": "data/db/online_session_index.sqlite",
         "qdrant_path": "data/db/qdrant/",
@@ -72,23 +72,30 @@ def _table_count(db_path, table_name: str) -> int | None:
 
 
 def _raw_session_directory_count(raw_data_root) -> int | None:
-    if not raw_data_root.exists():
+    if not raw_data_root.is_dir():
+        return None
+    try:
+        year_dirs = [entry for entry in raw_data_root.iterdir() if entry.is_dir()]
+    except OSError:
         return None
     count = 0
-    for year_dir in raw_data_root.iterdir():
-        if not year_dir.is_dir():
-            continue
-        for entry in year_dir.iterdir():
-            if not entry.is_dir():
-                continue
+    for year_dir in year_dirs:
+        for entry in _iter_child_dirs(year_dir):
             if _looks_like_session_directory(entry):
                 count += 1
             else:
                 count += sum(
-                    1 for session_dir in entry.iterdir()
-                    if session_dir.is_dir() and _looks_like_session_directory(session_dir)
+                    1 for session_dir in _iter_child_dirs(entry)
+                    if _looks_like_session_directory(session_dir)
                 )
     return count
+
+
+def _iter_child_dirs(path):
+    try:
+        return [entry for entry in path.iterdir() if entry.is_dir()]
+    except OSError:
+        return []
 
 
 def _looks_like_session_directory(path) -> bool:

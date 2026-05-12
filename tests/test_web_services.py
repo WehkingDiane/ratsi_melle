@@ -164,6 +164,38 @@ def test_service_status_summarizes_content_counts(workspace_tmp: Path, monkeypat
     assert status["qdrant_summary"] == "vorhanden"
 
 
+def test_service_status_marks_raw_data_file_missing(workspace_tmp: Path, monkeypatch) -> None:
+    from core.services import status as status_service
+
+    raw_data_path = workspace_tmp / "data" / "raw"
+    raw_data_path.parent.mkdir(parents=True)
+    raw_data_path.write_text("not a directory", encoding="utf-8")
+    local_db = workspace_tmp / "data" / "db" / "local_index.sqlite"
+    local_db.parent.mkdir(parents=True)
+
+    monkeypatch.setattr(status_service.paths, "REPO_ROOT", workspace_tmp)
+    monkeypatch.setattr(status_service.paths, "LOCAL_INDEX_DB", local_db)
+
+    status = status_service.service_status()
+
+    assert status["raw_data_exists"] is False
+    assert status["raw_session_count"] is None
+    assert status["raw_data_summary"] == "fehlt"
+
+
+def test_raw_session_directory_count_handles_unreadable_root() -> None:
+    from core.services import status as status_service
+
+    class UnreadableRoot:
+        def is_dir(self) -> bool:
+            return True
+
+        def iterdir(self):
+            raise PermissionError("unreadable")
+
+    assert status_service._raw_session_directory_count(UnreadableRoot()) is None
+
+
 def test_service_status_marks_unreadable_online_index_missing(workspace_tmp: Path, monkeypatch) -> None:
     from core.services import status as status_service
 
