@@ -129,6 +129,12 @@ def test_service_status_summarizes_content_counts(workspace_tmp: Path, monkeypat
     legacy_raw_session_dir.mkdir(parents=True)
     (legacy_raw_session_dir / "agenda").mkdir()
     (legacy_raw_session_dir / "session-documents").mkdir()
+    partial_raw_session_dir = workspace_tmp / "data" / "raw" / "2026" / "03" / "2026-03-12_Rat_7124"
+    partial_raw_session_dir.mkdir(parents=True)
+    (partial_raw_session_dir / "session_detail.html").write_text("<html></html>", encoding="utf-8")
+    summary_only_session_dir = workspace_tmp / "data" / "raw" / "2025" / "2025-12-09_Rat_6695"
+    summary_only_session_dir.mkdir(parents=True)
+    (summary_only_session_dir / "agenda_summary.json").write_text('{"agenda_items": []}', encoding="utf-8")
     local_db = workspace_tmp / "data" / "db" / "local_index.sqlite"
     local_db.parent.mkdir(parents=True)
     online_db = workspace_tmp / "data" / "db" / "online_session_index.sqlite"
@@ -158,7 +164,7 @@ def test_service_status_summarizes_content_counts(workspace_tmp: Path, monkeypat
 
     status = status_service.service_status()
 
-    assert status["raw_data_summary"] == "2 Sitzungsordner"
+    assert status["raw_data_summary"] == "4 Sitzungsordner"
     assert status["local_index_summary"] == "1 Sitzungen / 2 Dokumente"
     assert status["online_index_summary"] == "2 Sitzungen"
     assert status["qdrant_summary"] == "vorhanden"

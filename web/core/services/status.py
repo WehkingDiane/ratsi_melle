@@ -10,6 +10,10 @@ from .outputs import list_analysis_outputs
 from .sessions import list_sessions
 
 
+SESSION_FILE_MARKERS = ("manifest.json", "session_detail.html", "agenda_summary.json")
+SESSION_DIR_MARKERS = ("agenda", "session-documents")
+
+
 def service_status() -> dict[str, Any]:
     """Return lightweight status for service pages."""
 
@@ -99,7 +103,9 @@ def _iter_child_dirs(path):
 
 
 def _looks_like_session_directory(path) -> bool:
-    return (path / "manifest.json").is_file() or (path / "agenda").is_dir() or (path / "session-documents").is_dir()
+    return any((path / name).is_file() for name in SESSION_FILE_MARKERS) or any(
+        (path / name).is_dir() for name in SESSION_DIR_MARKERS
+    )
 
 
 def _count_label(count: int | None, noun: str) -> str:
