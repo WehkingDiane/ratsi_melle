@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from datetime import datetime
+from functools import lru_cache
+from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
 
@@ -12,13 +14,22 @@ from core.services.db import rows
 
 REPO_ROOT = paths.REPO_ROOT
 LOCAL_INDEX_DB = paths.LOCAL_INDEX_DB
+QDRANT_DIR = paths.QDRANT_DIR
 
 MAX_SEARCH_RESULTS = 100
+MAX_SEMANTIC_SEARCH_RESULTS = 20
+
+_SEMANTIC_SEARCH_DEPENDENCIES = (
+    ("qdrant-client", "qdrant_client"),
+    ("sentence-transformers", "sentence_transformers"),
+    ("fastembed", "fastembed"),
+)
 
 
 def _sync_paths() -> None:
     paths.REPO_ROOT = Path(REPO_ROOT)
     paths.LOCAL_INDEX_DB = Path(LOCAL_INDEX_DB)
+    paths.QDRANT_DIR = Path(QDRANT_DIR)
 
 
 def search_documents(query: str, *, limit: int = MAX_SEARCH_RESULTS) -> list[dict[str, Any]]:
@@ -79,6 +90,72 @@ def search_documents(query: str, *, limit: int = MAX_SEARCH_RESULTS) -> list[dic
     return [_with_display_fields(result) for result in results]
 
 
+def search_semantic_documents(query: str, *, limit: int = MAX_SEMANTIC_SEARCH_RESULTS) -> dict[str, Any]:
+    """Search indexed document contents via the local Qdrant vector index."""
+
+    normalized_query = " ".join(query.split())
+    if not normalized_query:
+        return {"results": [], "error": "", "warning": ""}
+
+    _sync_paths()
+    dependency_error = _semantic_search_dependency_error()
+    if dependency_error:
+        return {"results": [], "error": dependency_error, "warning": ""}
+
+    qdrant_dir = Path(paths.QDRANT_DIR)
+    if not qdrant_dir.exists():
+        return {
+            "results": [],
+            "error": (
+                "Der Vektorindex fehlt. Bitte unter /daten/vektor/ den "
+                "Vektorindex bauen oder `python scripts/build_vector_index.py` ausfuehren."
+            ),
+            "warning": "",
+        }
+
+    try:
+        embedder, bm25, store = _get_semantic_resources(str(qdrant_dir))
+        results = store.search(
+            query_dense=embedder.embed_query(normalized_query),
+            query_sparse=bm25.encode_query(normalized_query),
+            limit=max(1, min(int(limit), MAX_SEMANTIC_SEARCH_RESULTS)),
+        )
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "results": [],
+            "error": f"Fehler bei der Vektorsuche: {exc}",
+            "warning": "",
+        }
+
+    return {
+        "results": [_with_semantic_display_fields(rank, result) for rank, result in enumerate(results, start=1)],
+        "error": "",
+        "warning": "Ergebnisse stammen aus der hybriden Vektorsuche (Harrier + BM25, RRF-Rangfusion).",
+    }
+
+
+@lru_cache(maxsize=1)
+def _get_semantic_resources(qdrant_dir: str):
+    """Load semantic search resources once per Django process."""
+
+    from src.analysis.bm25_sparse import BM25Encoder
+    from src.analysis.embeddings import HarrierEmbedder
+    from src.analysis.vector_store import DocumentVectorStore
+
+    return HarrierEmbedder(), BM25Encoder(), DocumentVectorStore(Path(qdrant_dir))
+
+
+def _semantic_search_dependency_error() -> str:
+    missing = [package for package, module in _SEMANTIC_SEARCH_DEPENDENCIES if find_spec(module) is None]
+    if not missing:
+        return ""
+    return (
+        "Die Vektorsuche ist nicht verfuegbar, weil Abhaengigkeiten fehlen: "
+        f"{', '.join(missing)}. Installieren mit: "
+        "pip install qdrant-client sentence-transformers fastembed"
+    )
+
+
 def _with_display_fields(result: dict[str, Any]) -> dict[str, Any]:
     enriched = dict(result)
     enriched["display_date"] = _format_german_date(str(enriched.get("date") or ""))
@@ -89,6 +166,20 @@ def _with_display_fields(result: dict[str, Any]) -> dict[str, Any]:
         or "-"
     )
     return enriched
+
+
+def _with_semantic_display_fields(rank: int, result: dict[str, Any]) -> dict[str, Any]:
+    enriched = _with_display_fields(result)
+    enriched["rank"] = rank
+    enriched["display_score"] = _format_rrf_score(enriched.get("score"))
+    return enriched
+
+
+def _format_rrf_score(value: Any) -> str:
+    try:
+        return f"{float(value):.4f}"
+    except (TypeError, ValueError):
+        return "-"
 
 
 def _format_german_date(value: str) -> str:

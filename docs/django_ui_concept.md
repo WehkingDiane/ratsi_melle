@@ -175,7 +175,7 @@ Das heißt:
 - Ergebnisansicht
 
 ### Phase 4: Suche
-- semantische Suche in eigene Django-Seite integrieren
+- semantische Suche in eigener Django-Seite integriert
 - Verlinkung zu Sitzung/TOP/Dokument
 
 ### Phase 5: Design und Nutzerführung

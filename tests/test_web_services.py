@@ -103,6 +103,75 @@ def test_search_documents_finds_document_metadata(workspace_tmp: Path, monkeypat
     assert results[0]["detail_url"] == "https://example.test/si0057.asp"
 
 
+def test_semantic_search_documents_uses_vector_store(workspace_tmp: Path, monkeypatch) -> None:
+    qdrant_dir = workspace_tmp / "data" / "db" / "qdrant"
+    qdrant_dir.mkdir(parents=True)
+    captured = {}
+
+    class FakeEmbedder:
+        def embed_query(self, query: str) -> list[float]:
+            captured["dense_query"] = query
+            return [0.1, 0.2]
+
+    class FakeBM25:
+        def encode_query(self, query: str) -> dict[str, list[float]]:
+            captured["sparse_query"] = query
+            return {"indices": [1], "values": [0.5]}
+
+    class FakeStore:
+        def search(self, *, query_dense, query_sparse, limit, session_id=None):
+            captured["query_dense"] = query_dense
+            captured["query_sparse"] = query_sparse
+            captured["limit"] = limit
+            captured["session_id"] = session_id
+            return [
+                {
+                    "doc_id": 123,
+                    "score": 0.032786,
+                    "title": "Windkraft in Riemsloh",
+                    "session_id": "7123",
+                    "agenda_item": "Oe 7",
+                    "date": "2026-03-11",
+                    "committee": "Rat",
+                    "document_type": "beschlussvorlage",
+                    "url": "https://example.test/do.asp",
+                    "local_path": "",
+                }
+            ]
+
+    monkeypatch.setattr(search_services, "QDRANT_DIR", qdrant_dir)
+    monkeypatch.setattr(search_services, "_semantic_search_dependency_error", lambda: "")
+    monkeypatch.setattr(
+        search_services,
+        "_get_semantic_resources",
+        lambda _qdrant_dir: (FakeEmbedder(), FakeBM25(), FakeStore()),
+    )
+
+    response = search_services.search_semantic_documents("  windkraft   rat  ", limit=50)
+
+    assert response["error"] == ""
+    assert response["warning"]
+    assert captured["dense_query"] == "windkraft rat"
+    assert captured["sparse_query"] == "windkraft rat"
+    assert captured["query_dense"] == [0.1, 0.2]
+    assert captured["query_sparse"] == {"indices": [1], "values": [0.5]}
+    assert captured["limit"] == search_services.MAX_SEMANTIC_SEARCH_RESULTS
+    assert captured["session_id"] is None
+    assert response["results"][0]["rank"] == 1
+    assert response["results"][0]["display_date"] == "11.03.2026"
+    assert response["results"][0]["display_score"] == "0.0328"
+
+
+def test_semantic_search_documents_reports_missing_vector_index(workspace_tmp: Path, monkeypatch) -> None:
+    monkeypatch.setattr(search_services, "QDRANT_DIR", workspace_tmp / "missing_qdrant")
+    monkeypatch.setattr(search_services, "_semantic_search_dependency_error", lambda: "")
+
+    response = search_services.search_semantic_documents("windkraft")
+
+    assert response["results"] == []
+    assert "Vektorindex fehlt" in response["error"]
+
+
 def test_service_facades_keep_domain_exports_separate() -> None:
     core_functions = {
         name

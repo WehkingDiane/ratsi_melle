@@ -67,6 +67,7 @@ Die Streamlit-Abhaengigkeit liegt deshalb in `requirements-legacy-ui.txt`, nicht
 - Lokaler SQLite-Index: `data/db/local_index.sqlite`
 - Online-Index: `data/db/online_session_index.sqlite`
 - Lokaler Vektorindex: `data/db/qdrant/`
+- Django-Suche unter `/suche/`: semantische Dokumentensuche ueber den lokalen Qdrant-Vektorindex; bei fehlendem Index zuerst `python scripts/build_vector_index.py` oder `/daten/vektor/` nutzen
 - Analyse-Workflow und v2-Ausgaben: [docs/analysis_outputs.md](/mnt/c/users/diane/git/ratsi_melle/docs/analysis_outputs.md:1)
 - Private Prompt-Vorlagen: `data/private/prompt_templates.json`
 - Private Prompt-Artefakte und gerenderte Snapshots: `data/private/analysis_prompts/` und `data/private/prompt_snapshots/`

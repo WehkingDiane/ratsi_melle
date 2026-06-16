@@ -66,7 +66,7 @@ web/
     templates/settings_ui/
 ```
 
-`core` enthält das gemeinsame Layout, das Dashboard, zentrale CSS-Dateien und gemeinsam genutzte Helfer. `analysis` enthält die Analyse-Navigation, Views und Service-Fassade für Sitzungen, Analysejobs, Prompt-Vorlagen und den Analyse-Start. `data_tools` enthält die Views und Service-Fassade für technische Fetch-, Build- und Servicejob-Funktionen. `search` enthält die Dokument-Metadatensuche im lokalen Index. `publishing` und `settings_ui` sind als eigene Bereiche angelegt und enthalten derzeit Platzhalterseiten.
+`core` enthält das gemeinsame Layout, das Dashboard, zentrale CSS-Dateien und gemeinsam genutzte Helfer. `analysis` enthält die Analyse-Navigation, Views und Service-Fassade für Sitzungen, Analysejobs, Prompt-Vorlagen und den Analyse-Start. `data_tools` enthält die Views und Service-Fassade für technische Fetch-, Build- und Servicejob-Funktionen. `search` enthält die semantische Dokumentensuche über den lokalen Qdrant-Vektorindex. `publishing` und `settings_ui` sind als eigene Bereiche angelegt und enthalten derzeit Platzhalterseiten.
 
 Analyse-Seitentemplates und fachliche Analyse-Partials liegen ausschließlich unter `web/analysis/templates/analysis/`. Daten-Templates liegen ausschließlich unter `web/data_tools/templates/data_tools/`. `web/core/templates/` bleibt auf `base.html`, das Dashboard und gemeinsam nutzbare Core-Partials beschränkt.
 
@@ -113,7 +113,7 @@ Buttons folgen einem funktionsbezogenen Farbschema: `primary` ist auslösenden H
 - `/daten/jobs/<job_id>/` zeigt Status und Ausgabe eines gestarteten Datenjobs.
 - `/daten/jobs/<job_id>/status/` liefert den aktuellen Datenjobstatus als JSON für die automatische Logaktualisierung.
 - `/veroeffentlichung/` ist ein Platzhalter für Publikations- und Reviewfunktionen.
-- `/suche/` durchsucht Dokumente im lokalen Index nach Titel, Dokumenttyp, Kategorie, TOP, Sitzung, Gremium und Datum.
+- `/suche/` durchsucht lokal indexierte Dokumentinhalte semantisch über den Qdrant-Vektorindex. Die Suche nutzt Harrier-Dense-Embeddings, BM25-Sparse-Vektoren und RRF-Rangfusion.
 - `/einstellungen/` verwaltet lokale Einstellungen, darunter die sichere Ablage eines Hugging-Face-Tokens im OS-Schlüsselring.
 
 Alte Service-URLs unter `/analyse/service/` werden auf den Datenbereich umgeleitet, damit technische Datenpflege nicht mehr im Analysebereich hängt.
@@ -146,7 +146,7 @@ Mit Provider `none` wird nur die Analysegrundlage erzeugt. Ein echter KI-Aufruf 
 - private Prompt-Vorlagenverwaltung unter `/analyse/prompts/`
 - Sitzungsliste und Sitzungsdetails aus `data/db/local_index.sqlite`
 - PDF-Ansicht aus den Sitzungsdetails in einem separaten Browser-Tab oder -Fenster, sofern die PDF lokal vorhanden ist
-- Dokument-Metadatensuche unter `/suche/`
+- semantische Dokumentensuche unter `/suche/`
 - Hugging-Face-Token-Verwaltung unter `/einstellungen/`
 - Analysejobliste und Analysejobdetails aus `data/analysis_outputs/`
 - Anzeige alter v1-Analyseoutputs
@@ -157,7 +157,7 @@ Mit Provider `none` wird nur die Analysegrundlage erzeugt. Ein echter KI-Aufruf 
 ## Platzhalter
 
 - Veröffentlichung und Review
-- Volltext- oder semantische Suche über Dokumentinhalte und Analyseoutputs
+- Suche über Analyseoutputs
 - weitere UI-Einstellungen
 - Produktives Deployment
 - Authentifizierung, Rollen und Benutzerverwaltung
