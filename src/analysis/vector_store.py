@@ -40,6 +40,13 @@ class DocumentVectorStore:
             self._client = QdrantClient(path=str(self._path))
         return self._client
 
+    def close(self) -> None:
+        """Close the embedded Qdrant client and release its storage lock."""
+        client = self._client
+        self._client = None
+        if client is not None:
+            client.close()
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------

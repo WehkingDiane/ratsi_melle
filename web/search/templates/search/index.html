@@ -6,14 +6,14 @@
 <section class="page-heading">
   <p class="eyebrow">Arbeitsbereich</p>
   <h1>Suche</h1>
-  <p>Dokumente aus dem lokalen SQLite-Index durchsuchen.</p>
+  <p>Dokumentinhalte semantisch ueber den lokalen Vektorindex durchsuchen.</p>
 </section>
 
 <section class="panel">
   <form class="form-stack" method="get" action="{% url 'search:index' %}">
     <label>
       Suchbegriff
-      <input type="text" name="q" value="{{ query }}" placeholder="Titel, Dokumenttyp, TOP, Gremium oder Sitzung">
+      <input type="text" name="q" value="{{ query }}" placeholder="z. B. Windkraft Flaechennutzungsplan Abwaegung">
     </label>
     <div class="actions">
       <button class="button primary" type="submit">Suchen</button>
@@ -23,9 +23,19 @@
 </section>
 
 {% if has_query %}
+{% if search_error %}
+<section class="panel">
+  <p class="status-warning">{{ search_error }}</p>
+</section>
+{% elif search_warning %}
+<section class="panel">
+  <p class="status-muted">{{ search_warning }}</p>
+</section>
+{% endif %}
+
 <section>
   <div class="section-title">
-    <h2>Dokumenttreffer</h2>
+    <h2>Vektortreffer</h2>
     <p>{{ results|length }} Treffer{% if results|length == max_results %} oder mehr{% endif %}</p>
   </div>
   {% if results %}
@@ -33,6 +43,8 @@
     <table>
       <thead>
         <tr>
+          <th>Rang</th>
+          <th>Score</th>
           <th>Datum</th>
           <th>Gremium</th>
           <th>Sitzung</th>
@@ -44,6 +56,8 @@
       <tbody>
         {% for document in results %}
         <tr>
+          <td>{{ document.rank|default:"-" }}</td>
+          <td>{{ document.display_score|default:"-" }}</td>
           <td class="date-value">{{ document.display_date|default:document.date|default:"-" }}</td>
           <td>{{ document.committee|default:"-" }}</td>
           <td><a href="{% url 'analysis:session_detail' document.session_id %}">{{ document.meeting_name|default:document.session_id }}</a></td>
@@ -56,7 +70,7 @@
     </table>
   </div>
   {% else %}
-  <p class="empty-state">Keine Dokumente gefunden.</p>
+  <p class="empty-state">Keine Vektortreffer gefunden.</p>
   {% endif %}
 </section>
 {% endif %}

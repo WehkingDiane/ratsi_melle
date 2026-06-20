@@ -270,27 +270,34 @@ def test_search_page_renders_document_results(client, monkeypatch) -> None:
 
     monkeypatch.setattr(
         views.services,
-        "search_documents",
-        lambda _query: [
-            {
-                "session_id": "7123",
-                "display_date": "11.03.2026",
-                "date": "2026-03-11",
-                "committee": "Rat",
-                "meeting_name": "Ratssitzung",
-                "agenda_item": "Oe 7",
-                "title": "Windkraft in Riemsloh",
-                "document_type": "beschlussvorlage",
-                "display_type": "beschlussvorlage",
-            }
-        ],
+        "search_semantic_documents",
+        lambda _query: {
+            "results": [
+                {
+                    "rank": 1,
+                    "display_score": "0.0328",
+                    "session_id": "7123",
+                    "display_date": "11.03.2026",
+                    "date": "2026-03-11",
+                    "committee": "Rat",
+                    "meeting_name": "Ratssitzung",
+                    "agenda_item": "Oe 7",
+                    "title": "Windkraft in Riemsloh",
+                    "document_type": "beschlussvorlage",
+                    "display_type": "beschlussvorlage",
+                }
+            ],
+            "error": "",
+            "warning": "Ergebnisse stammen aus der hybriden Vektorsuche.",
+        },
     )
 
     response = client.get("/suche/?q=windkraft")
     content = response.content.decode("utf-8")
 
     assert response.status_code == 200
-    assert "Dokumenttreffer" in content
+    assert "Vektortreffer" in content
+    assert "0.0328" in content
     assert "Windkraft in Riemsloh" in content
     assert "/analyse/sitzungen/7123/" in content
 
