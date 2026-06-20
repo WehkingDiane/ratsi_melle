@@ -119,6 +119,9 @@ def test_semantic_search_documents_uses_vector_store(workspace_tmp: Path, monkey
             return {"indices": [1], "values": [0.5]}
 
     class FakeStore:
+        def close(self):
+            captured["store_closed"] = True
+
         def search(self, *, query_dense, query_sparse, limit, session_id=None):
             captured["query_dense"] = query_dense
             captured["query_sparse"] = query_sparse
@@ -144,8 +147,9 @@ def test_semantic_search_documents_uses_vector_store(workspace_tmp: Path, monkey
     monkeypatch.setattr(
         search_services,
         "_get_semantic_resources",
-        lambda _qdrant_dir: (FakeEmbedder(), FakeBM25(), FakeStore()),
+        lambda: (FakeEmbedder(), FakeBM25()),
     )
+    monkeypatch.setattr(search_services, "_create_vector_store", lambda _qdrant_dir: FakeStore())
 
     response = search_services.search_semantic_documents("  windkraft   rat  ", limit=50)
 
@@ -157,6 +161,7 @@ def test_semantic_search_documents_uses_vector_store(workspace_tmp: Path, monkey
     assert captured["query_sparse"] == {"indices": [1], "values": [0.5]}
     assert captured["limit"] == search_services.MAX_SEMANTIC_SEARCH_RESULTS
     assert captured["session_id"] is None
+    assert captured["store_closed"] is True
     assert response["results"][0]["rank"] == 1
     assert response["results"][0]["display_date"] == "11.03.2026"
     assert response["results"][0]["display_score"] == "0.0328"
@@ -170,6 +175,40 @@ def test_semantic_search_documents_reports_missing_vector_index(workspace_tmp: P
 
     assert response["results"] == []
     assert "Vektorindex fehlt" in response["error"]
+
+
+def test_semantic_search_documents_closes_vector_store_after_search_error(
+    workspace_tmp: Path,
+    monkeypatch,
+) -> None:
+    qdrant_dir = workspace_tmp / "qdrant"
+    qdrant_dir.mkdir()
+    captured = {}
+
+    class FakeEmbedder:
+        def embed_query(self, _query: str) -> list[float]:
+            return [0.1]
+
+    class FakeBM25:
+        def encode_query(self, _query: str) -> dict[str, list[float]]:
+            return {"indices": [1], "values": [0.5]}
+
+    class FailingStore:
+        def search(self, **_kwargs):
+            raise RuntimeError("search failed")
+
+        def close(self):
+            captured["store_closed"] = True
+
+    monkeypatch.setattr(search_services, "QDRANT_DIR", qdrant_dir)
+    monkeypatch.setattr(search_services, "_semantic_search_dependency_error", lambda: "")
+    monkeypatch.setattr(search_services, "_get_semantic_resources", lambda: (FakeEmbedder(), FakeBM25()))
+    monkeypatch.setattr(search_services, "_create_vector_store", lambda _qdrant_dir: FailingStore())
+
+    response = search_services.search_semantic_documents("windkraft")
+
+    assert "search failed" in response["error"]
+    assert captured["store_closed"] is True
 
 
 def test_service_facades_keep_domain_exports_separate() -> None:

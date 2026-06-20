@@ -137,6 +137,7 @@ def _read_qdrant_ids(
         status["status"] = "warning"
         return None
 
+    client = None
     try:
         client = QdrantClient(path=str(qdrant_dir))
         collections = [collection.name for collection in client.get_collections().collections]
@@ -166,3 +167,10 @@ def _read_qdrant_ids(
         warnings.append(f"Qdrant/Vektorindex konnte nicht gelesen werden: {exc}")
         status["status"] = "warning"
         return None
+    finally:
+        if client is not None:
+            try:
+                client.close()
+            except Exception as exc:  # noqa: BLE001 - Report cleanup failures in the status.
+                warnings.append(f"Qdrant-Verbindung konnte nicht geschlossen werden: {exc}")
+                status["status"] = "warning"

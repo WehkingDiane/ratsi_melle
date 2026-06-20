@@ -113,8 +113,10 @@ def search_semantic_documents(query: str, *, limit: int = MAX_SEMANTIC_SEARCH_RE
             "warning": "",
         }
 
+    store = None
     try:
-        embedder, bm25, store = _get_semantic_resources(str(qdrant_dir))
+        embedder, bm25 = _get_semantic_resources()
+        store = _create_vector_store(qdrant_dir)
         results = store.search(
             query_dense=embedder.embed_query(normalized_query),
             query_sparse=bm25.encode_query(normalized_query),
@@ -126,6 +128,12 @@ def search_semantic_documents(query: str, *, limit: int = MAX_SEMANTIC_SEARCH_RE
             "error": f"Fehler bei der Vektorsuche: {exc}",
             "warning": "",
         }
+    finally:
+        if store is not None:
+            try:
+                store.close()
+            except Exception:  # noqa: BLE001 - Search results should survive cleanup errors.
+                pass
 
     return {
         "results": [_with_semantic_display_fields(rank, result) for rank, result in enumerate(results, start=1)],
@@ -135,14 +143,21 @@ def search_semantic_documents(query: str, *, limit: int = MAX_SEMANTIC_SEARCH_RE
 
 
 @lru_cache(maxsize=1)
-def _get_semantic_resources(qdrant_dir: str):
-    """Load semantic search resources once per Django process."""
+def _get_semantic_resources():
+    """Load the reusable semantic encoders once per Django process."""
 
     from src.analysis.bm25_sparse import BM25Encoder
     from src.analysis.embeddings import HarrierEmbedder
+
+    return HarrierEmbedder(), BM25Encoder()
+
+
+def _create_vector_store(qdrant_dir: Path):
+    """Create a request-local vector store so Qdrant locks are not cached."""
+
     from src.analysis.vector_store import DocumentVectorStore
 
-    return HarrierEmbedder(), BM25Encoder(), DocumentVectorStore(Path(qdrant_dir))
+    return DocumentVectorStore(qdrant_dir)
 
 
 def _semantic_search_dependency_error() -> str:
