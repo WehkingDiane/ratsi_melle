@@ -21,7 +21,6 @@ Diese Datei buendelt die offene Arbeitsliste des Projekts. Sie ersetzt die frueh
 
 - Django-Hauptoberflaeche unter `web/` modular nach dem Grundkonzept ausbauen
 - `scripts/run_web.py` als primaeren UI-Startpunkt stabil halten
-- Streamlit und Legacy-Desktop-GUI nur noch als deprecated Kompatibilitaet mitfuehren
 
 ### Betrieb und Qualitaet
 
@@ -145,6 +144,5 @@ Zusätzlich benoetigt der Analysepfad:
 ## 3. Naechste sinnvolle Schritte
 
 - Django-Oberflaeche in einzelne Seiten und Apps aufteilen
-- Restliche aktive Dokumentation von deprecated UI-Pfaden bereinigen
 - TOP-basierte KI-Analyse als ersten belastbaren End-to-End-Pfad fertigstellen
 - Aufgabenliste regelmaessig bereinigen und erledigte Punkte streichen oder verschieben

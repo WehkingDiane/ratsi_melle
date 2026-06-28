@@ -44,6 +44,7 @@ def test_analysis_services_return_empty_lists_without_data(workspace_tmp: Path, 
     monkeypatch.setattr(analysis_services, "LOCAL_INDEX_DB", tmp_path / "missing.sqlite")
     monkeypatch.setattr(analysis_services, "ANALYSIS_WORKFLOW_DB", tmp_path / "missing_workflow.sqlite")
     monkeypatch.setattr(analysis_services, "ANALYSIS_OUTPUTS_DIR", tmp_path / "missing_outputs")
+    monkeypatch.setattr(analysis_services, "ANALYSIS_PROMPTS_DIR", tmp_path / "missing_prompts")
 
     assert analysis_services.list_sessions() == []
     assert analysis_services.get_session("7123") is None

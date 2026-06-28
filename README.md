@@ -12,15 +12,12 @@ Dieses Projekt sammelt öffentliche Sitzungs- und Dokumentdaten aus dem Ratsinfo
 ## Oberflächen
 
 - **Django-Weboberflaeche** unter `web/` ist der aktive und primaere UI-Pfad fuer Recherche, Analyse, Prompt-Vorlagen und Datenpflege.
-- **Streamlit-Weboberflaeche (deprecated)** bleibt nur als Legacy-Kompatibilitaet im Repository und wird nicht mehr als Hauptpfad dokumentiert.
-- **Desktop-GUI (deprecated)** bleibt vorerst im Repository, ist aber kein aktiver Navigations- oder Entwicklungs-Pfad mehr.
 
 ## Voraussetzungen
 
 - Python 3.11+
 - `pip`
 - `git`
-- optional fuer deprecated Legacy-Pfade: `customtkinter`, `CTkMenuBar`, unter WSL zusaetzlich `python3-tk`
 
 ## Installation
 
@@ -29,12 +26,6 @@ pip install -r requirements.txt
 ```
 
 `torch` wird weiterhin separat installiert, passend zur Zielumgebung.
-
-Deprecated UI-Pfade sind nicht Teil der Kernabhaengigkeiten. Fuer Wartung oder lokalen Betrieb von Streamlit/Desktop-Legacy-UI:
-
-```bash
-pip install -r requirements-legacy-ui.txt
-```
 
 ## Wichtige Befehle
 
@@ -58,9 +49,6 @@ python scripts/run_web.py
 ```
 
 Sie ist danach standardmäßig unter `http://127.0.0.1:8000/` erreichbar. Details stehen in [docs/web_ui.md](/mnt/c/users/diane/git/ratsi_melle/docs/web_ui.md:1).
-
-`scripts/run_web.py` ist der primaere UI-Startpunkt. `src/interfaces/web/streamlit_app.py` ist deprecated und nur noch fuer Legacy-Kompatibilitaet vorgesehen.
-Die Streamlit-Abhaengigkeit liegt deshalb in `requirements-legacy-ui.txt`, nicht in `requirements.txt`.
 
 ## Daten und Suche
 
