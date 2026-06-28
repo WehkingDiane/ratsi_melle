@@ -76,6 +76,7 @@ Die gemeinsame Grundlagen-Doku für Zielsystem, Fetching, Datenhaltung, Vektorin
 
 - Projekt- und Arbeitsregeln: [AGENTS.md](/mnt/c/users/diane/git/ratsi_melle/AGENTS.md:1)
 - Repository-Regeln: [docs/repository_guidelines.md](/mnt/c/users/diane/git/ratsi_melle/docs/repository_guidelines.md:1)
+- Architekturdiagramm: [docs/architecture_overview.puml](/mnt/c/users/diane/git/ratsi_melle/docs/architecture_overview.puml:1)
 - Aktueller Stand der Django-Weboberfläche: [docs/web_ui.md](/mnt/c/users/diane/git/ratsi_melle/docs/web_ui.md:1)
 - Django-Zielkonzept: [docs/django_ui_concept.md](/mnt/c/users/diane/git/ratsi_melle/docs/django_ui_concept.md:1)
 - Offene Aufgaben und Ausbaupfade: [docs/project_tasks.md](/mnt/c/users/diane/git/ratsi_melle/docs/project_tasks.md:1)
