@@ -74,13 +74,13 @@ Hinweis: Diese Datei dokumentiert den aktuellen Implementierungsstand inklusive 
   - Offen bleibt ein vollwertiger OCR-Workflow fuer gescannte/problematische PDFs.
 
 7. Metadaten-Mapping fuer Suche/Filterung + Export fuer Analyse-Batches
-- Status: **erledigt (fuer aktuellen GUI-/Export-Scope)**
+- Status: **erledigt (fuer aktuellen Analyse-/Export-Scope)**
 - Nachweis:
   - Indexe fuer Zeit/Gremium vorhanden.
   - `document_type` als zusaetzliches Filterfeld vorhanden.
   - Reproduzierbarer Batch-Export implementiert: `scripts/export_analysis_batch.py`.
-  - GUI-Analyse-Workflow nutzt strukturierte Dokumentfelder als Kontext: `src/interfaces/gui/app.py`, `src/analysis/analysis_context.py`
-  - GUI unterstuetzt jetzt Zeitraum-Presets, Sitzungsstatus (`vergangen`, `heute`, `kommend`) und Gremienfilter fuer die Analyseauswahl.
+  - Analyse-Workflow nutzt strukturierte Dokumentfelder als Kontext: `src/analysis/analysis_context.py`
+  - Die Analyseauswahl unterstuetzt Zeitraum-Presets, Sitzungsstatus (`vergangen`, `heute`, `kommend`) und Gremienfilter.
   - Analyse-Markdown kann erkannte PDF-Abschnittsanker als Kontext ausgeben.
 
 ## Priorisierte naechste Schritte

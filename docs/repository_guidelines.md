@@ -19,7 +19,7 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 │   ├── fetching/          # Module für Datenerfassung aus Zielsystemen
 │   ├── parsing/           # Normalisierung, Parser und Metadaten-Anreicherung
 │   ├── analysis/          # Auswertungs- und Scoring-Komponenten
-│   └── interfaces/        # Legacy-UI- und Integrationsschichten
+│   └── interfaces/        # gemeinsam genutzte Integrationsschichten
 ├── web/                   # Aktive Django-Weboberflaeche
 └── tests/                 # Unit-, Integrations- und End-to-End-Tests
 ```
@@ -45,7 +45,7 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 - Ein Modul pro Verantwortlichkeit; umfangreiche Komponenten werden in Unterpakete zerlegt.
 - Öffentliche Funktionen dokumentieren Eingabeparameter, Rückgabewerte und Ausnahmen mittels Docstrings oder vergleichbarer Mechanismen.
 - Logging verwendet spätere zentrale Logger-Hilfen unter `src/` und schreibt ausschließlich in `logs/`.
-- UI-spezifisch: Neue Oberflaechenarbeit erfolgt unter `web/`. `src/interfaces/web/streamlit_app.py` und `src/interfaces/gui/` sind deprecated Legacy-Pfade und sollen nicht als aktive Hauptpfade erweitert werden.
+- UI-spezifisch: Oberflaechenarbeit erfolgt unter `web/`. Gemeinsam genutzte Integrationslogik bleibt in klar abgegrenzten Modulen unter `src/`.
 
 ## Datenhaltung
 

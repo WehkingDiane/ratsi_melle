@@ -5,21 +5,15 @@ Hinweis: Dieses Dokument beschreibt das Ziel- und Konzeptbild der Django-Oberfl�
 Ziel:
 - Die produktartige Oberflaeche wird als Django-Anwendung unter `web/` weiterentwickelt.
 - Aktive UI-Entwicklung konzentriert sich ausschliesslich auf diesen Django-Pfad.
-- Streamlit und die Desktop-GUI sind deprecated Legacy-Pfade und werden nicht mehr als aktive Hauptpfade geplant.
 - Die Django-Oberflaeche soll in klar getrennte Seiten aufgeteilt werden, damit jede Seite einzeln gestaltet, gebaut und iteriert werden kann.
 
-## 1. Rollenverteilung der Oberflächen
+## 1. Rollenverteilung der Oberfläche
 
 ### Django
 - primäre Nutzeroberfläche
 - produktartige Recherche- und Analyseoberfläche
 - saubere Seitenstruktur mit festen URLs
 - langfristig bessere Basis für Layout, Rechte, gespeicherte Ansichten und stabile Navigation
-
-### Deprecated Legacy-Pfade
-- `src/interfaces/web/streamlit_app.py` bleibt nur fuer Legacy-Kompatibilitaet erhalten.
-- `src/interfaces/gui/` bleibt nur fuer bestehende lokale Alt-Workflows erhalten.
-- Neue UI-Funktionen, Navigation und Dokumentation entstehen unter `web/`.
 
 ## 2. Leitprinzipien für die Django-Oberfläche
 
@@ -189,7 +183,7 @@ Das heißt:
 - technische Diagnosepfade für Entwickler
 - alte Export-Workflows als primäre Nutzerfunktion
 
-Diese Dinge gehoeren, falls weiter benoetigt, in klar abgegrenzte Django-Admin-/Operations-Seiten statt in Streamlit.
+Diese Dinge gehoeren, falls weiter benoetigt, in klar abgegrenzte Django-Admin-/Operations-Seiten.
 
 ## 10. Ergebnis dieses Grundkonzepts
 
@@ -197,8 +191,4 @@ Die Django-Oberfläche wird:
 - nutzerzentriert
 - seitenbasiert
 - layoutstabil
-- gestalterisch flexibler als Streamlit
-
-Deprecated Legacy-Pfade bleiben nur als Kompatibilitaet erhalten:
-- `src/interfaces/web/streamlit_app.py`
-- `src/interfaces/gui/`
+- gestalterisch flexibel
