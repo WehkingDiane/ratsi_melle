@@ -13,9 +13,11 @@ Das Projekt arbeitet gegen eine oeffentliche **SessionNet**-Installation der Sta
 
 - `https://session.melle.info/bi/`
 
-Wichtige angrenzende Quelle:
+Wichtige angrenzende Quellen:
 
 - Stadtportal Melle unter `https://www.melle.de/`
+- Landkreis Osnabrueck unter `https://www.landkreis-osnabrueck.de/verwaltung/veroeffentlichungen/bekanntmachungen`
+- Landkreis-Amtsblaetter unter `https://www.landkreis-osnabrueck.de/verwaltung/veroeffentlichungen/amtsblaetter`
 
 ### Dauerhafte Arbeitsannahmen
 
@@ -43,6 +45,20 @@ build_vector_index.py
 Qdrant-Vektorindex unter data/db/qdrant/
     ↓
 Recherche, Analyse und semantische Suche in den Oberflächen
+```
+
+Landkreis-Veröffentlichungen laufen als getrennte Pipeline:
+
+```text
+Landkreis Osnabrueck Bekanntmachungen / Amtsblaetter
+    ↓
+fetch_landkreis_publications.py
+    ↓
+data/raw/landkreis/ oder RATSI_LANDKREIS_DATA_DIR
+    ↓
+data/db/landkreis_publications.sqlite
+    ↓
+search_landkreis_publications.py
 ```
 
 ## 3. Datenerfassung aus SessionNet
@@ -139,6 +155,15 @@ Es gibt zwei gleich strukturierte Indexdatenbanken:
 - schnelle UI- und Analysezugriffe
 - Sitzungen, TOPs und Dokumentmetadaten strukturiert abfragen
 - Grundlage fuer Filter, Gremienlisten und Synchronisationslogik
+
+### Landkreis-Veröffentlichungen
+
+- Skript: `scripts/fetch_landkreis_publications.py`
+- Suchskript: `scripts/search_landkreis_publications.py`
+- Ziel: `data/db/landkreis_publications.sqlite`
+- Rohdaten: standardmaessig `data/raw/landkreis/`, alternativ `RATSI_LANDKREIS_DATA_DIR` oder `--data-dir`
+
+Diese Datenbank ist absichtlich vom SessionNet-Index getrennt. Sie enthaelt `publications`, `documents`, `extracted_texts`, `crawl_runs` und eine SQLite-FTS-Tabelle fuer Begriffe wie `Melle`, `Genehmigung`, `UVP` oder `BImSchG`. Lokale Dokumentpfade werden relativ zur Landkreis-Datenwurzel gespeichert, damit grosse Downloads ausserhalb des Projektverzeichnisses abgelegt werden koennen.
 
 ### Wichtige Metadaten
 

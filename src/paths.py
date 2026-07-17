@@ -28,5 +28,11 @@ LOCAL_INDEX_DB = DB_DIR / "local_index.sqlite"
 ANALYSIS_WORKFLOW_DB = DB_DIR / "analysis_workflow.sqlite"
 QDRANT_DIR = DB_DIR / "qdrant"
 ONLINE_INDEX_DB = DB_DIR / "online_session_index.sqlite"
+LANDKREIS_PUBLICATIONS_DB = Path(
+    os.environ.get("RATSI_LANDKREIS_DB", DB_DIR / "landkreis_publications.sqlite")
+).expanduser()
+LANDKREIS_DATA_DIR = Path(
+    os.environ.get("RATSI_LANDKREIS_DATA_DIR", RAW_DATA_DIR / "landkreis")
+).expanduser()
 DEFAULT_ANALYSIS_BATCH = ANALYSIS_REQUESTS_DIR / "analysis_batch.json"
 DEFAULT_ANALYSIS_MARKDOWN = ANALYSIS_SUMMARIES_DIR / "analysis_latest.md"
