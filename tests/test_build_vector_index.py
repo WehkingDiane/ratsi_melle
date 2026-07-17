@@ -162,6 +162,15 @@ def test_landkreis_load_documents_uses_only_local_documents_and_extracted_text(t
     assert build_landkreis_vector_index._document_text(rows[0]) == "Extrahierter Landkreis-Text"
 
 
+def test_landkreis_document_text_is_truncated_for_embedding() -> None:
+    text = build_landkreis_vector_index._document_text(
+        {"extracted_text": "eins zwei drei vier"},
+        max_chars=11,
+    )
+
+    assert text == "eins zwei"
+
+
 def test_landkreis_main_indexes_missing_documents_and_payload(
     monkeypatch,
     tmp_path: Path,
@@ -224,10 +233,19 @@ def test_landkreis_main_indexes_missing_documents_and_payload(
     db_path = tmp_path / "landkreis.sqlite"
     db_path.write_text("", encoding="utf-8")
 
-    build_landkreis_vector_index.main(["--db", str(db_path), "--qdrant-dir", str(tmp_path / "qdrant")])
+    build_landkreis_vector_index.main(
+        [
+            "--db",
+            str(db_path),
+            "--qdrant-dir",
+            str(tmp_path / "qdrant"),
+            "--max-text-chars",
+            "12",
+        ]
+    )
 
     assert captured["collection_name"] == build_landkreis_vector_index.COLLECTION_NAME
-    assert captured["texts"] == ["Extrahierter Landkreis-Text"]
+    assert captured["texts"] == ["Extrahierter"]
     assert len(vector_store.upserted_batches) == 1
     point = vector_store.upserted_batches[0][0]
     assert point["id"] == build_landkreis_vector_index._stable_landkreis_qdrant_id("pub-1", "https://example.org/a.pdf")

@@ -28,6 +28,7 @@
       {% csrf_token %}
       <input type="hidden" name="action" value="build_landkreis_vector_index">
       <label>Limit <input type="text" name="limit" placeholder="Optional, z. B. 100"></label>
+      <label>Maximale Textzeichen <input type="text" name="max_text_chars" placeholder="Standard: 6000"></label>
       <button class="button primary" type="submit">Landkreis-Vektorindex bauen</button>
     </form>
   </article>

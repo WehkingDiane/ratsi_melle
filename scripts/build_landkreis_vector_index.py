@@ -23,6 +23,7 @@ from src.indexing.vectorizer import HybridVectorizer
 from src.paths import LANDKREIS_DATA_DIR, LANDKREIS_PUBLICATIONS_DB, QDRANT_DIR
 
 COLLECTION_NAME = "landkreis_publications"
+DEFAULT_MAX_TEXT_CHARS = 6_000
 
 
 def _stable_landkreis_qdrant_id(publication_id: str, document_url: str) -> int:
@@ -61,13 +62,21 @@ def _load_documents(db_path: Path) -> list[dict]:
         conn.close()
 
 
-def _document_text(row: dict) -> str:
+def _document_text(row: dict, *, max_chars: int = DEFAULT_MAX_TEXT_CHARS) -> str:
     """Return extracted text with a metadata fallback."""
 
     extracted = str(row.get("extracted_text") or "").strip()
     if extracted:
-        return extracted
-    return f"{row.get('title') or ''} {row.get('document_title') or ''}".strip()
+        return _truncate_text(extracted, max_chars)
+    fallback = f"{row.get('title') or ''} {row.get('document_title') or ''}".strip()
+    return _truncate_text(fallback, max_chars)
+
+
+def _truncate_text(text: str, max_chars: int) -> str:
+    normalized = text.strip()
+    if len(normalized) <= max_chars:
+        return normalized
+    return normalized[:max_chars].rsplit(" ", 1)[0].strip() or normalized[:max_chars].strip()
 
 
 def _resolve_local_path(local_path: str, data_root: Path | None = None) -> str:
@@ -146,6 +155,20 @@ def _positive_int(value: str) -> int:
     return parsed
 
 
+def _clear_torch_cache(device: str) -> None:
+    try:
+        import torch
+
+        if device == "xpu" and torch.xpu.is_available():
+            torch.xpu.empty_cache()
+    except Exception:
+        pass
+
+
+def _is_torch_oom(exc: Exception) -> bool:
+    return exc.__class__.__name__ == "OutOfMemoryError" or "out of memory" in str(exc).lower()
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         description="Build or update the Landkreis Qdrant semantic vector index."
@@ -168,6 +191,15 @@ def main(argv: list[str] | None = None) -> None:
         type=_positive_int,
         default=None,
         help="Index at most N missing Landkreis documents.",
+    )
+    parser.add_argument(
+        "--max-text-chars",
+        type=_positive_int,
+        default=DEFAULT_MAX_TEXT_CHARS,
+        help=(
+            "Maximum text characters per document passed to the embedding model "
+            "(default: %(default)s)."
+        ),
     )
     args = parser.parse_args(argv)
 
@@ -218,21 +250,40 @@ def main(argv: list[str] | None = None) -> None:
         bm25 = BM25Encoder()
         bm25._get_model()
         device = _detect_device()
-        batch_size = 4 if device == "xpu" else 32
-        print(f"  Device: {device.upper()}, batch size: {batch_size}")
+        batch_size = 1 if device == "xpu" else 32
+        print(
+            f"  Device: {device.upper()}, batch size: {batch_size}, "
+            f"max text chars: {args.max_text_chars}"
+        )
 
         vectorizer = HybridVectorizer(embedder, bm25)
         n = len(docs_to_index)
-        for batch_start in range(0, n, batch_size):
-            batch = docs_to_index[batch_start : batch_start + batch_size]
+        batch_start = 0
+        while batch_start < n:
+            current_batch_size = min(batch_size, n - batch_start)
+            batch = docs_to_index[batch_start : batch_start + current_batch_size]
             texts: list[str] = []
             for doc in batch:
                 global_index = batch_start + len(texts) + 1
                 title_preview = (doc.get("document_title") or doc.get("title") or "(kein Titel)")[:60]
                 print(f"  [{global_index}/{n}] {title_preview} ...")
-                texts.append(_document_text(doc))
+                texts.append(_document_text(doc, max_chars=args.max_text_chars))
 
-            vector_results = vectorizer.encode_documents(texts)
+            try:
+                vector_results = vectorizer.encode_documents(texts)
+            except Exception as exc:
+                _clear_torch_cache(device)
+                if _is_torch_oom(exc) and current_batch_size > 1:
+                    batch_size = max(1, current_batch_size // 2)
+                    print(f"  XPU/torch out of memory; retrying with batch size {batch_size}.")
+                    continue
+                if _is_torch_oom(exc):
+                    print(
+                        "ERROR: Embedding ran out of XPU/GPU memory. "
+                        "Retry with a lower --max-text-chars value, for example 3000.",
+                        file=sys.stderr,
+                    )
+                raise
             points = [
                 {
                     "id": doc["_qdrant_id"],
@@ -244,14 +295,8 @@ def main(argv: list[str] | None = None) -> None:
             ]
             vector_store.upsert_batch(points)
             indexed_count += len(batch)
-
-            try:
-                import torch
-
-                if device == "xpu" and torch.xpu.is_available():
-                    torch.xpu.empty_cache()
-            except Exception:
-                pass
+            batch_start += current_batch_size
+            _clear_torch_cache(device)
 
     _reconcile_orphaned_vectors(
         vector_store,

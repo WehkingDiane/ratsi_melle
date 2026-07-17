@@ -1846,12 +1846,18 @@ def test_service_action_builds_landkreis_database_command() -> None:
 def test_service_action_builds_landkreis_vector_command() -> None:
     command, errors = data_services.build_service_command(
         "build_landkreis_vector_index",
-        {"limit": "25"},
+        {"limit": "25", "max_text_chars": "3000"},
     )
 
     assert errors == []
     assert command is not None
-    assert command[1:] == ["scripts/build_landkreis_vector_index.py", "--limit", "25"]
+    assert command[1:] == [
+        "scripts/build_landkreis_vector_index.py",
+        "--limit",
+        "25",
+        "--max-text-chars",
+        "3000",
+    ]
 
 
 def test_service_action_validates_landkreis_fetch_date() -> None:

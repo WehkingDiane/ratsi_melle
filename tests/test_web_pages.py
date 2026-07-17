@@ -935,7 +935,18 @@ def test_landkreis_vector_index_form_starts_service_job(client, monkeypatch) -> 
     def fake_build_service_command(action, data):
         captured["action"] = action
         captured["limit"] = data.get("limit")
-        return (["python", "scripts/build_landkreis_vector_index.py", "--limit", "10"], [])
+        captured["max_text_chars"] = data.get("max_text_chars")
+        return (
+            [
+                "python",
+                "scripts/build_landkreis_vector_index.py",
+                "--limit",
+                "10",
+                "--max-text-chars",
+                "3000",
+            ],
+            [],
+        )
 
     def fake_start_service_job(action, command, cwd):
         captured["job_action"] = action
@@ -947,15 +958,23 @@ def test_landkreis_vector_index_form_starts_service_job(client, monkeypatch) -> 
 
     response = client.post(
         "/daten/vektor/",
-        {"action": "build_landkreis_vector_index", "limit": "10"},
+        {"action": "build_landkreis_vector_index", "limit": "10", "max_text_chars": "3000"},
     )
 
     assert response.status_code == 302
     assert response.headers["Location"] == "/daten/jobs/landkreis-vector123/"
     assert captured["action"] == "build_landkreis_vector_index"
     assert captured["limit"] == "10"
+    assert captured["max_text_chars"] == "3000"
     assert captured["job_action"] == "build_landkreis_vector_index"
-    assert captured["command"] == ["python", "scripts/build_landkreis_vector_index.py", "--limit", "10"]
+    assert captured["command"] == [
+        "python",
+        "scripts/build_landkreis_vector_index.py",
+        "--limit",
+        "10",
+        "--max-text-chars",
+        "3000",
+    ]
 
 
 def test_service_post_requires_csrf_when_enforced(monkeypatch) -> None:

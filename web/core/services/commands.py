@@ -91,6 +91,9 @@ def _service_command(action: str, data: dict[str, Any]) -> list[str]:
         parsed_limit = _optional_positive_int(data.get("limit"), "Limit")
         if parsed_limit is not None:
             command.extend(["--limit", str(parsed_limit)])
+        max_text_chars = _optional_positive_int(data.get("max_text_chars"), "Maximale Textzeichen")
+        if max_text_chars is not None:
+            command.extend(["--max-text-chars", str(max_text_chars)])
         return command
 
     raise ValueError("Unbekannte Service-Aktion.")
