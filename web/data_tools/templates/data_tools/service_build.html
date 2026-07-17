@@ -41,6 +41,7 @@
     <form method="post" class="form-stack">
       {% csrf_token %}
       <input type="hidden" name="action" value="build_landkreis_publications_db">
+      <label>Datenwurzel <input type="text" name="data_dir" placeholder="Optional, z. B. /mnt/d/landkreis_osnabrueck"></label>
       <label>Maximale Textzeichen <input type="text" name="max_text_chars" placeholder="Standard: 200000"></label>
       <button class="button primary" type="submit">Landkreis-Datenbank bauen</button>
     </form>

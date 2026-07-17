@@ -199,9 +199,9 @@ RATSI_LANDKREIS_DATA_DIR=/mnt/d/landkreis_osnabrueck \
 python scripts/build_landkreis_publications_db.py
 ```
 
-Alternativ akzeptieren Fetch- und Build-Skript `--data-dir`. Die Datenbank kann separat mit `RATSI_LANDKREIS_DB` oder `--db` gesetzt werden.
+Alternativ akzeptieren Fetch-, DB-Build- und Vektor-Build-Skript `--data-dir`; alle drei sollten dieselbe Landkreis-Datenwurzel verwenden, weil `local_path` relativ dazu gespeichert wird. Die Datenbank kann separat mit `RATSI_LANDKREIS_DB` oder `--db` gesetzt werden.
 
-Der Landkreis-Vektorindex bleibt von `ratsi_documents` getrennt. `build_landkreis_vector_index.py` liest `data/db/landkreis_publications.sqlite`, verwendet `extracted_texts.extracted_text` als Primaertext und faellt bei fehlendem Text auf Veroeffentlichungs- und Dokumenttitel zurueck. Indexiert werden nur Dokumentzeilen mit lokalem Pfad. Stabile Qdrant-IDs entstehen aus `landkreis`, `publication_id` und Dokument-URL. Vollstaendige Laeufe entfernen verwaiste Punkte; bei `--limit` ist diese Bereinigung deaktiviert. Fuer den Embedding-Schritt werden standardmaessig hoechstens 6000 Zeichen pro Dokument verwendet; bei knappem XPU/GPU-Speicher kann `--max-text-chars` niedriger gesetzt werden.
+Der Landkreis-Vektorindex bleibt von `ratsi_documents` getrennt. `build_landkreis_vector_index.py` liest `data/db/landkreis_publications.sqlite`, verwendet `extracted_texts.extracted_text` als Primaertext und faellt bei fehlendem Text auf Veroeffentlichungs- und Dokumenttitel zurueck. Indexiert werden nur Dokumentzeilen mit lokalem Pfad. Stabile Qdrant-IDs entstehen aus `landkreis`, `publication_id` und Dokument-URL. Vollstaendige Laeufe entfernen verwaiste Punkte; bei `--limit` ist diese Bereinigung deaktiviert. Lokale Payload-Pfade werden gegen `RATSI_LANDKREIS_DATA_DIR` oder `--data-dir` aufgeloest. Fuer den Embedding-Schritt werden standardmaessig hoechstens 6000 Zeichen pro Dokument verwendet; bei knappem XPU/GPU-Speicher kann `--max-text-chars` niedriger gesetzt werden.
 
 ### Wichtige Metadaten
 

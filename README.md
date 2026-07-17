@@ -86,7 +86,7 @@ python scripts/fetch_landkreis_publications.py --source bekanntmachungen --query
 python scripts/search_landkreis_publications.py "Melle Genehmigung"
 ```
 
-`fetch_landkreis_publications.py` speichert nur Rohdaten aus dem Online-Angebot. Bereits vorhandene Landkreis-Veröffentlichungen mit lokalem `manifest.json` werden bei spaeteren Laeufen uebersprungen. Fuer neue Bekanntmachungen werden Detailseiten und Dokument-Metadaten erfasst, aber keine PDF-Dateien heruntergeladen. Neue Amtsblaetter werden vollstaendig geladen. Die SQLite-Datenbank wird danach mit `build_landkreis_publications_db.py` aus den gespeicherten Manifests und lokalen Dateien aufgebaut. `build_landkreis_vector_index.py` indexiert lokal vorhandene Landkreis-Dokumente in die getrennte Qdrant-Collection `landkreis_publications` und begrenzt den Embedding-Text standardmaessig auf 6000 Zeichen pro Dokument; bei knappem XPU/GPU-Speicher kann `--max-text-chars` weiter reduziert werden.
+`fetch_landkreis_publications.py` speichert nur Rohdaten aus dem Online-Angebot. Bereits vorhandene Landkreis-Veröffentlichungen mit lokalem `manifest.json` werden bei spaeteren Laeufen uebersprungen. Fuer neue Bekanntmachungen werden Detailseiten und Dokument-Metadaten erfasst, aber keine PDF-Dateien heruntergeladen. Neue Amtsblaetter werden vollstaendig geladen. Die SQLite-Datenbank wird danach mit `build_landkreis_publications_db.py` aus den gespeicherten Manifests und lokalen Dateien aufgebaut. `build_landkreis_vector_index.py` indexiert lokal vorhandene Landkreis-Dokumente in die getrennte Qdrant-Collection `landkreis_publications`, loest lokale Pfade gegen dieselbe Landkreis-Datenwurzel (`RATSI_LANDKREIS_DATA_DIR` oder `--data-dir`) auf und begrenzt den Embedding-Text standardmaessig auf 6000 Zeichen pro Dokument; bei knappem XPU/GPU-Speicher kann `--max-text-chars` weiter reduziert werden.
 
 Fuer grosse Downloads kann die Rohdatenablage ausserhalb des Projekts liegen:
 
@@ -97,7 +97,7 @@ RATSI_LANDKREIS_DATA_DIR=/mnt/d/landkreis_osnabrueck \
 python scripts/build_landkreis_publications_db.py
 ```
 
-Alternativ kann der Speicherort pro Lauf mit `--data-dir` gesetzt werden. Die Datenbank bleibt standardmaessig unter `data/db/landkreis_publications.sqlite`; mit `RATSI_LANDKREIS_DB` oder `--db` kann auch dieser Pfad ueberschrieben werden.
+Alternativ kann der Speicherort pro Lauf mit `--data-dir` gesetzt werden; Fetch, DB-Build und Vektor-Build sollten dabei dieselbe Datenwurzel verwenden. Die Datenbank bleibt standardmaessig unter `data/db/landkreis_publications.sqlite`; mit `RATSI_LANDKREIS_DB` oder `--db` kann auch dieser Pfad ueberschrieben werden.
 
 Echte Prompt-Vorlagen und gerenderte Prompt-Snapshots gehören nicht ins Repository. Die privaten Pfade unter `data/private/` sind durch `.gitignore` geschützt.
 

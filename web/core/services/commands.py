@@ -36,6 +36,9 @@ def _service_command(action: str, data: dict[str, Any]) -> list[str]:
             "--source",
             _validated_landkreis_source(data.get("source")),
         ]
+        data_dir = _optional_path_text(data.get("data_dir"), "Datenwurzel")
+        if data_dir:
+            command.extend(["--data-dir", data_dir])
         query = str(data.get("query") or "").strip()
         if query:
             command.extend(["--query", query])
@@ -74,6 +77,9 @@ def _service_command(action: str, data: dict[str, Any]) -> list[str]:
 
     if action == "build_landkreis_publications_db":
         command = [sys.executable, "scripts/build_landkreis_publications_db.py"]
+        data_dir = _optional_path_text(data.get("data_dir"), "Datenwurzel")
+        if data_dir:
+            command.extend(["--data-dir", data_dir])
         max_text_chars = _optional_positive_int(data.get("max_text_chars"), "Maximale Textzeichen")
         if max_text_chars is not None:
             command.extend(["--max-text-chars", str(max_text_chars)])
@@ -88,6 +94,9 @@ def _service_command(action: str, data: dict[str, Any]) -> list[str]:
 
     if action == "build_landkreis_vector_index":
         command = [sys.executable, "scripts/build_landkreis_vector_index.py"]
+        data_dir = _optional_path_text(data.get("data_dir"), "Datenwurzel")
+        if data_dir:
+            command.extend(["--data-dir", data_dir])
         parsed_limit = _optional_positive_int(data.get("limit"), "Limit")
         if parsed_limit is not None:
             command.extend(["--limit", str(parsed_limit)])
@@ -153,4 +162,13 @@ def _optional_iso_date(value: Any, field_name: str) -> str:
         date.fromisoformat(raw)
     except ValueError as exc:
         raise ValueError(f"{field_name} muss im Format YYYY-MM-DD angegeben werden.") from exc
+    return raw
+
+
+def _optional_path_text(value: Any, field_name: str) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    if "\x00" in raw:
+        raise ValueError(f"{field_name} enthält ein ungültiges Zeichen.")
     return raw

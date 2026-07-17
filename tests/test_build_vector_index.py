@@ -233,12 +233,15 @@ def test_landkreis_main_indexes_missing_documents_and_payload(
     db_path = tmp_path / "landkreis.sqlite"
     db_path.write_text("", encoding="utf-8")
 
+    data_root = tmp_path / "external-landkreis"
     build_landkreis_vector_index.main(
         [
             "--db",
             str(db_path),
             "--qdrant-dir",
             str(tmp_path / "qdrant"),
+            "--data-dir",
+            str(data_root),
             "--max-text-chars",
             "12",
         ]
@@ -253,7 +256,7 @@ def test_landkreis_main_indexes_missing_documents_and_payload(
     assert point["payload"]["publication_id"] == "pub-1"
     assert point["payload"]["source"] == "amtsblaetter"
     assert point["payload"]["document_title"] == "PDF Anlage"
-    assert point["payload"]["local_path"].endswith("raw-landkreis/amtsblaetter/2026/a.pdf")
+    assert point["payload"]["local_path"] == str((data_root / "amtsblaetter/2026/a.pdf").resolve())
 
 
 def test_landkreis_main_skips_indexed_and_deletes_orphans_only_without_limit(

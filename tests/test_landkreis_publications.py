@@ -82,7 +82,33 @@ def test_storage_can_use_external_root_and_keeps_relative_paths(tmp_path):
 
     assert not relative.startswith("/")
     assert storage.resolve_relative_path(relative) == html_path.resolve()
-    assert "bekanntmachungen/2026/2026-04-15_bekanntmachung-melle/detail.html" in relative
+    assert "bekanntmachungen/2026/2026-04-15_bekanntmachung-melle_abc/detail.html" in relative
+
+
+def test_storage_distinguishes_same_titled_publications_by_id(tmp_path):
+    storage = LandkreisStorage(tmp_path / "raw-landkreis")
+    first = LandkreisPublication(
+        source="bekanntmachungen",
+        publication_id="111111111111aaaa",
+        date=date(2026, 4, 15),
+        title="Bekanntmachung Melle",
+        detail_url="https://www.landkreis-osnabrueck.de/node/123",
+        list_url="https://www.landkreis-osnabrueck.de/verwaltung/veroeffentlichungen/bekanntmachungen",
+    )
+    second = replace(
+        first,
+        publication_id="222222222222bbbb",
+        detail_url="https://www.landkreis-osnabrueck.de/node/456",
+    )
+
+    first_manifest = storage.write_manifest(first)
+    second_manifest = storage.write_manifest(second)
+
+    assert first_manifest != second_manifest
+    assert first_manifest.is_file()
+    assert second_manifest.is_file()
+    assert first_manifest.parent.name.endswith("_111111111111")
+    assert second_manifest.parent.name.endswith("_222222222222")
 
 
 def test_store_search_uses_separated_database_and_extracted_text(tmp_path):

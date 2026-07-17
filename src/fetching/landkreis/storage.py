@@ -26,7 +26,8 @@ class LandkreisStorage:
         year = str(publication.year or "unknown")
         date_part = publication.date.isoformat() if publication.date else "unknown-date"
         slug = _slugify(publication.title)[:80] or publication.publication_id[:12]
-        return self.data_root / publication.source / year / f"{date_part}_{slug}"
+        id_part = _slugify(publication.publication_id)[:12] or "unknown-id"
+        return self.data_root / publication.source / year / f"{date_part}_{slug}_{id_part}"
 
     def relative_path(self, path: Path) -> str:
         """Return a POSIX path relative to the configured data root."""

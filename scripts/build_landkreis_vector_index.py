@@ -2,7 +2,7 @@
 
 Usage
 -----
-    python scripts/build_landkreis_vector_index.py [--db PATH] [--qdrant-dir PATH] [--limit N]
+    python scripts/build_landkreis_vector_index.py [--db PATH] [--qdrant-dir PATH] [--data-dir PATH] [--limit N]
 """
 
 from __future__ import annotations
@@ -86,7 +86,7 @@ def _resolve_local_path(local_path: str, data_root: Path | None = None) -> str:
     return str(path.resolve())
 
 
-def _build_payload(row: dict) -> dict:
+def _build_payload(row: dict, *, data_root: Path = LANDKREIS_DATA_DIR) -> dict:
     return {
         "source_system": "landkreis",
         "publication_id": str(row.get("publication_id") or ""),
@@ -95,7 +95,7 @@ def _build_payload(row: dict) -> dict:
         "document_title": str(row.get("document_title") or ""),
         "date": str(row.get("date") or ""),
         "url": str(row.get("url") or ""),
-        "local_path": _resolve_local_path(str(row.get("local_path") or "")),
+        "local_path": _resolve_local_path(str(row.get("local_path") or ""), data_root=data_root),
     }
 
 
@@ -187,6 +187,13 @@ def main(argv: list[str] | None = None) -> None:
         help="Directory for Qdrant local storage (default: %(default)s)",
     )
     parser.add_argument(
+        "--data-dir",
+        type=Path,
+        default=LANDKREIS_DATA_DIR,
+        dest="data_dir",
+        help="Raw file storage root for resolving local_path payloads (default: %(default)s)",
+    )
+    parser.add_argument(
         "--limit",
         type=_positive_int,
         default=None,
@@ -205,6 +212,7 @@ def main(argv: list[str] | None = None) -> None:
 
     db_path: Path = args.db
     qdrant_dir: Path = args.qdrant_dir
+    data_dir: Path = args.data_dir
 
     if not db_path.exists():
         print(f"ERROR: Database not found: {db_path}", file=sys.stderr)
@@ -289,7 +297,7 @@ def main(argv: list[str] | None = None) -> None:
                     "id": doc["_qdrant_id"],
                     "dense_vector": vectors["dense_vector"],
                     "sparse_vector": vectors["sparse_vector"],
-                    "payload": _build_payload(doc),
+                    "payload": _build_payload(doc, data_root=data_dir),
                 }
                 for doc, vectors in zip(batch, vector_results)
             ]

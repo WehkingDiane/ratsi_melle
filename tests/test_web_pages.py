@@ -856,6 +856,7 @@ def test_service_fetch_page_includes_landkreis_fetch(client) -> None:
     assert 'name="action" value="fetch_landkreis_publications"' in content
     assert "Bekanntmachungen" in content
     assert "Amtsblaetter" in content
+    assert "Datenwurzel" in content
 
 
 def test_service_vector_page_renders_vector_status(client, monkeypatch) -> None:
@@ -953,12 +954,15 @@ def test_landkreis_vector_index_form_starts_service_job(client, monkeypatch) -> 
 
     def fake_build_service_command(action, data):
         captured["action"] = action
+        captured["data_dir"] = data.get("data_dir")
         captured["limit"] = data.get("limit")
         captured["max_text_chars"] = data.get("max_text_chars")
         return (
             [
                 "python",
                 "scripts/build_landkreis_vector_index.py",
+                "--data-dir",
+                "/mnt/d/landkreis_osnabrueck",
                 "--limit",
                 "10",
                 "--max-text-chars",
@@ -977,18 +981,26 @@ def test_landkreis_vector_index_form_starts_service_job(client, monkeypatch) -> 
 
     response = client.post(
         "/daten/vektor/",
-        {"action": "build_landkreis_vector_index", "limit": "10", "max_text_chars": "3000"},
+        {
+            "action": "build_landkreis_vector_index",
+            "data_dir": "/mnt/d/landkreis_osnabrueck",
+            "limit": "10",
+            "max_text_chars": "3000",
+        },
     )
 
     assert response.status_code == 302
     assert response.headers["Location"] == "/daten/jobs/landkreis-vector123/"
     assert captured["action"] == "build_landkreis_vector_index"
+    assert captured["data_dir"] == "/mnt/d/landkreis_osnabrueck"
     assert captured["limit"] == "10"
     assert captured["max_text_chars"] == "3000"
     assert captured["job_action"] == "build_landkreis_vector_index"
     assert captured["command"] == [
         "python",
         "scripts/build_landkreis_vector_index.py",
+        "--data-dir",
+        "/mnt/d/landkreis_osnabrueck",
         "--limit",
         "10",
         "--max-text-chars",

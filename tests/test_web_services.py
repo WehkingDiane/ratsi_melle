@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import importlib
 import shutil
 import sqlite3
 import sys
@@ -1804,6 +1805,7 @@ def test_service_action_builds_landkreis_fetch_command() -> None:
         "fetch_landkreis_publications",
         {
             "source": "bekanntmachungen",
+            "data_dir": "/mnt/d/landkreis_osnabrueck",
             "query": "Melle",
             "from_date": "2026-01-01",
             "to_date": "2026-12-31",
@@ -1819,6 +1821,8 @@ def test_service_action_builds_landkreis_fetch_command() -> None:
         "scripts/fetch_landkreis_publications.py",
         "--source",
         "bekanntmachungen",
+        "--data-dir",
+        "/mnt/d/landkreis_osnabrueck",
         "--query",
         "Melle",
         "--from-date",
@@ -1835,29 +1839,56 @@ def test_service_action_builds_landkreis_fetch_command() -> None:
 def test_service_action_builds_landkreis_database_command() -> None:
     command, errors = data_services.build_service_command(
         "build_landkreis_publications_db",
-        {"max_text_chars": "50000"},
+        {"data_dir": "/mnt/d/landkreis_osnabrueck", "max_text_chars": "50000"},
     )
 
     assert errors == []
     assert command is not None
-    assert command[1:] == ["scripts/build_landkreis_publications_db.py", "--max-text-chars", "50000"]
+    assert command[1:] == [
+        "scripts/build_landkreis_publications_db.py",
+        "--data-dir",
+        "/mnt/d/landkreis_osnabrueck",
+        "--max-text-chars",
+        "50000",
+    ]
 
 
 def test_service_action_builds_landkreis_vector_command() -> None:
     command, errors = data_services.build_service_command(
         "build_landkreis_vector_index",
-        {"limit": "25", "max_text_chars": "3000"},
+        {
+            "data_dir": "/mnt/d/landkreis_osnabrueck",
+            "limit": "25",
+            "max_text_chars": "3000",
+        },
     )
 
     assert errors == []
     assert command is not None
     assert command[1:] == [
         "scripts/build_landkreis_vector_index.py",
+        "--data-dir",
+        "/mnt/d/landkreis_osnabrueck",
         "--limit",
         "25",
         "--max-text-chars",
         "3000",
     ]
+
+
+def test_web_paths_honor_landkreis_db_env(monkeypatch, tmp_path: Path) -> None:
+    from core.services import paths as path_service
+
+    original = path_service.LANDKREIS_PUBLICATIONS_DB
+    custom_db = tmp_path / "external" / "landkreis.sqlite"
+    monkeypatch.setenv("RATSI_LANDKREIS_DB", str(custom_db))
+    reloaded = importlib.reload(path_service)
+    try:
+        assert reloaded.LANDKREIS_PUBLICATIONS_DB == custom_db
+    finally:
+        monkeypatch.delenv("RATSI_LANDKREIS_DB", raising=False)
+        importlib.reload(path_service)
+        path_service.LANDKREIS_PUBLICATIONS_DB = original
 
 
 def test_service_action_validates_landkreis_fetch_date() -> None:
