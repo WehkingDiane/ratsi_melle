@@ -42,7 +42,7 @@ class LandkreisClient:
         self,
         *,
         storage: LandkreisStorage,
-        store: LandkreisPublicationStore,
+        store: LandkreisPublicationStore | None = None,
         base_url: str = BASE_URL,
         timeout: int = 30,
         min_request_interval: float = 1.0,
@@ -83,6 +83,9 @@ class LandkreisClient:
                     continue
                 if limit is not None and len(publications) >= limit:
                     return publications
+                if source_name == "amtsblaetter" and self.storage.has_manifest(reference) and not refresh_existing:
+                    LOGGER.info("Skipping already fetched Amtsblatt %s", reference.title)
+                    continue
                 if dry_run:
                     publications.append(reference)
                     continue
@@ -107,14 +110,23 @@ class LandkreisClient:
         *,
         refresh_existing: bool = False,
     ) -> LandkreisPublication:
-        """Fetch detail HTML, download documents, extract text and persist rows."""
+        """Fetch detail HTML and store raw publication data.
+
+        Bekanntmachungen keep only online metadata and detail HTML. Amtsblaetter
+        additionally download linked documents, but existing local files are
+        reused because public Amtsblatt PDFs are not expected to change.
+        """
 
         response = self._get(publication.detail_url)
         html = response.text
         page_text = _extract_page_text(html)
         html_path = self.storage.write_publication_html(publication, html)
         documents = self._parse_document_links(html, publication.detail_url)
-        stored_documents = self._download_documents(publication, documents, refresh_existing=refresh_existing)
+        stored_documents = (
+            self._download_documents(publication, documents, refresh_existing=refresh_existing)
+            if publication.source == "amtsblaetter"
+            else documents
+        )
         now = _utc_now()
         stored = replace(
             publication,
@@ -124,8 +136,9 @@ class LandkreisClient:
             documents=stored_documents,
         )
         self.storage.write_manifest(stored)
-        self.store.upsert_publication(stored)
-        self._extract_document_texts(stored_documents)
+        if self.store is not None:
+            self.store.upsert_publication(stored)
+            self._extract_document_texts(stored_documents)
         return stored
 
     def parse_list(self, source: str, html: str, list_url: str) -> list[LandkreisPublication]:
@@ -238,7 +251,7 @@ class LandkreisClient:
         stored: list[LandkreisDocument] = []
         for index, document in enumerate(documents, start=1):
             target = self.storage.document_path(publication, document.url, index)
-            if target.exists() and not refresh_existing:
+            if target.exists():
                 stored.append(
                     replace(
                         document,
@@ -267,6 +280,8 @@ class LandkreisClient:
         return stored
 
     def _extract_document_texts(self, documents: list[LandkreisDocument]) -> None:
+        if self.store is None:
+            return
         rows_by_path = {row.get("local_path"): row for row in self.store.document_rows()}
         for document in documents:
             row = rows_by_path.get(document.local_path)

@@ -37,6 +37,7 @@ python scripts/build_local_index.py
 python scripts/build_online_index_db.py 2024 --months 5 6
 python scripts/build_vector_index.py
 python scripts/fetch_landkreis_publications.py --source all
+python scripts/build_landkreis_publications_db.py
 python scripts/search_landkreis_publications.py "Melle Genehmigung"
 python scripts/run_web.py
 python -m pytest
@@ -77,15 +78,20 @@ Typische Nutzung:
 
 ```bash
 python scripts/fetch_landkreis_publications.py --source all
+python scripts/build_landkreis_publications_db.py
 python scripts/fetch_landkreis_publications.py --source bekanntmachungen --query Melle
 python scripts/search_landkreis_publications.py "Melle Genehmigung"
 ```
+
+`fetch_landkreis_publications.py` speichert nur Rohdaten aus dem Online-Angebot. Fuer Bekanntmachungen werden Detailseiten und Dokument-Metadaten erfasst, aber keine PDF-Dateien heruntergeladen. Amtsblaetter werden vollstaendig geladen; bereits vorhandene Amtsblaetter mit lokalem `manifest.json` werden bei spaeteren Laeufen uebersprungen. Die SQLite-Datenbank wird danach mit `build_landkreis_publications_db.py` aus den gespeicherten Manifests und lokalen Dateien aufgebaut.
 
 Fuer grosse Downloads kann die Rohdatenablage ausserhalb des Projekts liegen:
 
 ```bash
 RATSI_LANDKREIS_DATA_DIR=/mnt/d/landkreis_osnabrueck \
 python scripts/fetch_landkreis_publications.py --source all
+RATSI_LANDKREIS_DATA_DIR=/mnt/d/landkreis_osnabrueck \
+python scripts/build_landkreis_publications_db.py
 ```
 
 Alternativ kann der Speicherort pro Lauf mit `--data-dir` gesetzt werden. Die Datenbank bleibt standardmaessig unter `data/db/landkreis_publications.sqlite`; mit `RATSI_LANDKREIS_DB` oder `--db` kann auch dieser Pfad ueberschrieben werden.

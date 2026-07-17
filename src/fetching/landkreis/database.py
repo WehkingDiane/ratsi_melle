@@ -81,6 +81,21 @@ class LandkreisPublicationStore:
             )
             self._create_fts(conn)
 
+    def reset(self) -> None:
+        """Clear all indexed Landkreis rows while keeping the schema."""
+
+        self.initialize()
+        with sqlite3.connect(self.db_path) as conn:
+            conn.executescript(
+                """
+                DELETE FROM publications_fts;
+                DELETE FROM extracted_texts;
+                DELETE FROM documents;
+                DELETE FROM publications;
+                DELETE FROM crawl_runs;
+                """
+            )
+
     def upsert_publication(self, publication: LandkreisPublication) -> None:
         """Insert or update one publication and its document rows."""
 

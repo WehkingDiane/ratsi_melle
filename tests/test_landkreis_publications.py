@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from datetime import date
+from dataclasses import replace
 
 from src.fetching.landkreis import LandkreisClient, LandkreisPublicationStore, LandkreisStorage
+from src.fetching.landkreis.builder import build_landkreis_publications_db
 from src.fetching.landkreis.database import LandkreisPublicationStore as Store
 from src.fetching.landkreis.models import LandkreisDocument, LandkreisPublication
 
@@ -123,3 +125,137 @@ def test_store_search_uses_separated_database_and_extracted_text(tmp_path):
 
     assert len(rows) == 1
     assert rows[0]["publication_id"] == "pub-1"
+
+
+def test_fetch_bekanntmachung_stores_document_metadata_without_downloading(tmp_path, monkeypatch):
+    client = _client(tmp_path)
+    publication = LandkreisPublication(
+        source="bekanntmachungen",
+        publication_id="pub-2",
+        date=date(2026, 4, 15),
+        title="Bekanntmachung Melle",
+        detail_url="https://www.landkreis-osnabrueck.de/node/123",
+        list_url="https://www.landkreis-osnabrueck.de/verwaltung/veroeffentlichungen/bekanntmachungen",
+    )
+
+    class Response:
+        text = """
+        <main>
+          <p>Bekanntmachung fuer Melle.</p>
+          <a href="/system/files?file=bekanntmachung.pdf">PDF Bekanntmachung</a>
+        </main>
+        """
+
+    monkeypatch.setattr(client, "_get", lambda url: Response())
+
+    def fail_download(url):
+        raise AssertionError("Bekanntmachungs-PDFs must not be downloaded")
+
+    monkeypatch.setattr(client, "_download_document", fail_download)
+
+    stored = client.fetch_publication(publication)
+
+    assert stored.documents == [
+        LandkreisDocument(
+            title="PDF Bekanntmachung",
+            url="https://www.landkreis-osnabrueck.de/system/files?file=bekanntmachung.pdf",
+        )
+    ]
+    assert not (client.storage.publication_dir(publication) / "documents").exists()
+
+
+def test_fetch_amtsblatt_reuses_existing_document_without_redownload(tmp_path, monkeypatch):
+    client = _client(tmp_path)
+    publication = LandkreisPublication(
+        source="amtsblaetter",
+        publication_id="pub-3",
+        date=date(2026, 7, 15),
+        title="Amtsblatt 13 / 2026",
+        detail_url="https://www.landkreis-osnabrueck.de/node/700",
+        list_url="https://www.landkreis-osnabrueck.de/verwaltung/veroeffentlichungen/amtsblaetter",
+    )
+    document_url = "https://www.landkreis-osnabrueck.de/system/files?file=amtsblatt-13-2026.pdf"
+    existing_path = client.storage.document_path(publication, document_url, 1)
+    existing_path.parent.mkdir(parents=True)
+    existing_path.write_bytes(b"existing")
+
+    class Response:
+        text = f"""
+        <main>
+          <a href="{document_url}">Amtsblatt 13 / 2026 PDF</a>
+        </main>
+        """
+
+    monkeypatch.setattr(client, "_get", lambda url: Response())
+
+    def fail_download(url):
+        raise AssertionError("Existing Amtsblatt PDFs must not be downloaded again")
+
+    monkeypatch.setattr(client, "_download_document", fail_download)
+
+    stored = client.fetch_publication(publication, refresh_existing=True)
+
+    assert stored.documents[0].local_path == client.storage.relative_path(existing_path)
+    assert existing_path.read_bytes() == b"existing"
+
+
+def test_crawl_amtsblaetter_skips_existing_manifests(tmp_path, monkeypatch):
+    client = _client(tmp_path)
+    publication = LandkreisPublication(
+        source="amtsblaetter",
+        publication_id="pub-5",
+        date=date(2026, 7, 15),
+        title="Amtsblatt 13 / 2026",
+        detail_url="https://www.landkreis-osnabrueck.de/node/700",
+        list_url="https://www.landkreis-osnabrueck.de/verwaltung/veroeffentlichungen/amtsblaetter",
+    )
+    client.storage.write_manifest(publication)
+    monkeypatch.setattr(client, "iter_publication_references", lambda source: iter([publication]))
+
+    def fail_fetch(publication, *, refresh_existing=False):
+        raise AssertionError("Existing Amtsblatt publications must be skipped")
+
+    monkeypatch.setattr(client, "fetch_publication", fail_fetch)
+
+    publications = client.crawl(source="amtsblaetter")
+
+    assert publications == []
+
+
+def test_build_landkreis_db_from_raw_manifests(tmp_path):
+    storage = LandkreisStorage(tmp_path / "raw-landkreis")
+    publication = LandkreisPublication(
+        source="amtsblaetter",
+        publication_id="pub-4",
+        date=date(2026, 7, 15),
+        title="Amtsblatt 13 / 2026",
+        detail_url="https://www.landkreis-osnabrueck.de/node/700",
+        list_url="https://www.landkreis-osnabrueck.de/verwaltung/veroeffentlichungen/amtsblaetter",
+        page_text="Amtsblatt mit Genehmigung in Melle.",
+    )
+    document_path = storage.publication_dir(publication) / "documents" / "001_amtsblatt.txt"
+    document_path.parent.mkdir(parents=True)
+    document_path.write_text("Genehmigung fuer Melle im Amtsblatt.", encoding="utf-8")
+    stored = replace(
+        publication,
+        local_dir=storage.relative_path(document_path.parent.parent),
+        documents=[
+            LandkreisDocument(
+                title="Amtsblatt Text",
+                url="https://www.landkreis-osnabrueck.de/system/files?file=amtsblatt.txt",
+                local_path=storage.relative_path(document_path),
+                content_type="text/plain",
+                content_length=document_path.stat().st_size,
+            )
+        ],
+    )
+    storage.write_manifest(stored)
+
+    counts = build_landkreis_publications_db(
+        data_root=storage.data_root,
+        db_path=tmp_path / "landkreis.sqlite",
+    )
+    rows = Store(tmp_path / "landkreis.sqlite").search("Melle Genehmigung")
+
+    assert counts == (1, 1, 1)
+    assert [row["publication_id"] for row in rows] == ["pub-4"]

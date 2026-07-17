@@ -1,4 +1,4 @@
-"""Fetch Landkreis Osnabrueck publications into a separated SQLite database."""
+"""Fetch Landkreis Osnabrueck raw publication data."""
 
 from __future__ import annotations
 
@@ -12,8 +12,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:  # pragma: no branch - direct CLI execution
     sys.path.insert(0, str(REPO_ROOT))
 
-from src.fetching.landkreis import LandkreisClient, LandkreisPublicationStore, LandkreisStorage
-from src.paths import LANDKREIS_DATA_DIR, LANDKREIS_PUBLICATIONS_DB
+from src.fetching.landkreis import LandkreisClient, LandkreisStorage
+from src.paths import LANDKREIS_DATA_DIR
 
 
 def parse_args() -> argparse.Namespace:
@@ -28,19 +28,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--to-date", type=_parse_date, default=None, help="Latest publication date YYYY-MM-DD.")
     parser.add_argument("--query", default=None, help="Only fetch list entries whose title contains this text.")
     parser.add_argument("--limit", type=_positive_int, default=None, help="Maximum number of matching entries.")
-    parser.add_argument("--dry-run", action="store_true", help="Parse list pages without downloading detail documents.")
-    parser.add_argument("--refresh-existing", action="store_true", help="Redownload existing local documents.")
+    parser.add_argument("--dry-run", action="store_true", help="Parse list pages without downloading detail pages or documents.")
+    parser.add_argument(
+        "--refresh-existing",
+        action="store_true",
+        help="Refetch detail HTML. Amtsblatt PDFs that already exist locally are still reused.",
+    )
     parser.add_argument(
         "--data-dir",
         type=Path,
         default=LANDKREIS_DATA_DIR,
         help="Raw file storage root (default: RATSI_LANDKREIS_DATA_DIR or %(default)s).",
-    )
-    parser.add_argument(
-        "--db",
-        type=Path,
-        default=LANDKREIS_PUBLICATIONS_DB,
-        help="SQLite database path (default: RATSI_LANDKREIS_DB or %(default)s).",
     )
     return parser.parse_args()
 
@@ -48,8 +46,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     storage = LandkreisStorage(args.data_dir)
-    store = LandkreisPublicationStore(args.db)
-    client = LandkreisClient(storage=storage, store=store)
+    client = LandkreisClient(storage=storage)
     publications = client.crawl(
         source=args.source,
         from_date=args.from_date,
@@ -59,7 +56,7 @@ def main() -> None:
         dry_run=args.dry_run,
         refresh_existing=args.refresh_existing,
     )
-    action = "Matched" if args.dry_run else "Fetched"
+    action = "Matched" if args.dry_run else "Fetched raw data for"
     print(f"{action} {len(publications)} Landkreis publication(s).")
     if args.dry_run:
         for publication in publications:
