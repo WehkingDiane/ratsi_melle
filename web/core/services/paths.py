@@ -9,6 +9,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PRIVATE_DATA_DIR = Path(os.environ.get("RATSI_PRIVATE_DATA_DIR", REPO_ROOT / "data" / "private")).expanduser()
 LOCAL_INDEX_DB = REPO_ROOT / "data" / "db" / "local_index.sqlite"
+LANDKREIS_PUBLICATIONS_DB = REPO_ROOT / "data" / "db" / "landkreis_publications.sqlite"
 ANALYSIS_WORKFLOW_DB = REPO_ROOT / "data" / "db" / "analysis_workflow.sqlite"
 QDRANT_DIR = REPO_ROOT / "data" / "db" / "qdrant"
 ANALYSIS_OUTPUTS_DIR = REPO_ROOT / "data" / "analysis_outputs"

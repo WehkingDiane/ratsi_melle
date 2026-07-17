@@ -60,7 +60,7 @@ Sie ist danach standardmäßig unter `http://127.0.0.1:8000/` erreichbar. Detail
 - Online-Index: `data/db/online_session_index.sqlite`
 - Landkreis-Veröffentlichungen: `data/db/landkreis_publications.sqlite`
 - Lokaler Vektorindex: `data/db/qdrant/` mit getrennten Collections fuer Ratsinfo (`ratsi_documents`) und Landkreis (`landkreis_publications`)
-- Django-Datenpflege unter `/daten/`: SessionNet- und Landkreis-Fetch-, SQLite-Build- und Vektorindex-Jobs starten
+- Django-Datenpflege unter `/daten/`: SessionNet- und Landkreis-Fetch-, SQLite-Build- und Vektorindex-Jobs starten; die Vektorseite zeigt Status fuer Ratsinfo und Landkreis
 - Django-Suche unter `/suche/`: semantische Dokumentensuche ueber den lokalen Qdrant-Vektorindex; Standard ist Ratsinfo. Fuer Landkreis-Treffer zuerst `python scripts/build_landkreis_vector_index.py` oder `/daten/vektor/` nutzen; fuer Ratsinfo `python scripts/build_vector_index.py` oder `/daten/vektor/`
 - Analyse-Workflow und v2-Ausgaben: [docs/analysis_outputs.md](/mnt/c/users/diane/git/ratsi_melle/docs/analysis_outputs.md:1)
 - Private Prompt-Vorlagen: `data/private/prompt_templates.json`

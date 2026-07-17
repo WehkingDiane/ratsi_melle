@@ -8,11 +8,13 @@ from typing import Any
 from core.services import paths
 from core.services import status
 from core.services.commands import build_service_command as _build_service_command
+from src.indexing.vector_status import landkreis_vector_index_status as _landkreis_vector_index_status
 from src.indexing.vector_status import vector_index_status as _vector_index_status
 
 
 REPO_ROOT = paths.REPO_ROOT
 LOCAL_INDEX_DB = paths.LOCAL_INDEX_DB
+LANDKREIS_PUBLICATIONS_DB = paths.LANDKREIS_PUBLICATIONS_DB
 QDRANT_DIR = paths.QDRANT_DIR
 DEFAULT_SCRIPT_TIMEOUT_SECONDS = paths.DEFAULT_SCRIPT_TIMEOUT_SECONDS
 
@@ -20,6 +22,7 @@ DEFAULT_SCRIPT_TIMEOUT_SECONDS = paths.DEFAULT_SCRIPT_TIMEOUT_SECONDS
 def _sync_paths() -> None:
     paths.REPO_ROOT = Path(REPO_ROOT)
     paths.LOCAL_INDEX_DB = Path(LOCAL_INDEX_DB)
+    paths.LANDKREIS_PUBLICATIONS_DB = Path(LANDKREIS_PUBLICATIONS_DB)
     paths.QDRANT_DIR = Path(QDRANT_DIR)
     paths.DEFAULT_SCRIPT_TIMEOUT_SECONDS = int(DEFAULT_SCRIPT_TIMEOUT_SECONDS)
 
@@ -38,5 +41,13 @@ def vector_index_status() -> dict[str, Any]:
     _sync_paths()
     return _vector_index_status(
         local_index_db=paths.LOCAL_INDEX_DB,
+        qdrant_dir=paths.QDRANT_DIR,
+    )
+
+
+def landkreis_vector_index_status() -> dict[str, Any]:
+    _sync_paths()
+    return _landkreis_vector_index_status(
+        landkreis_db=paths.LANDKREIS_PUBLICATIONS_DB,
         qdrant_dir=paths.QDRANT_DIR,
     )

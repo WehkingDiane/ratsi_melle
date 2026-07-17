@@ -7,9 +7,10 @@ from pathlib import Path
 from typing import Any
 
 from src.indexing.id_strategy import stable_document_id
-from src.paths import LOCAL_INDEX_DB, QDRANT_DIR
+from src.paths import LANDKREIS_PUBLICATIONS_DB, LOCAL_INDEX_DB, QDRANT_DIR
 
 COLLECTION_NAME = "ratsi_documents"
+LANDKREIS_COLLECTION_NAME = "landkreis_publications"
 
 
 def vector_index_status(
@@ -50,7 +51,74 @@ def vector_index_status(
         if status["status"] == "unknown":
             status["status"] = "missing_qdrant"
     else:
-        indexed_ids = _read_qdrant_ids(qdrant_path, status, warnings)
+        indexed_ids = _read_qdrant_ids(qdrant_path, status, warnings, collection_name=COLLECTION_NAME)
+
+    if current_ids is not None and indexed_ids is not None:
+        missing_ids = current_ids - indexed_ids
+        orphaned_ids = indexed_ids - current_ids
+        indexed_current_ids = current_ids & indexed_ids
+        status["missing_vector_count"] = len(missing_ids)
+        status["orphaned_vector_count"] = len(orphaned_ids)
+        indexable_count = status["indexable_document_count"] or 0
+        if indexable_count:
+            status["coverage_percent"] = round(len(indexed_current_ids) * 100 / indexable_count, 1)
+        else:
+            status["coverage_percent"] = 100.0
+
+    if status["status"] == "unknown":
+        if warnings:
+            status["status"] = "warning"
+        elif status["missing_vector_count"] == 0 and status["orphaned_vector_count"] == 0:
+            status["status"] = "ok"
+        else:
+            status["status"] = "needs_update"
+    return status
+
+
+def landkreis_vector_index_status(
+    landkreis_db: Path = LANDKREIS_PUBLICATIONS_DB,
+    qdrant_dir: Path = QDRANT_DIR,
+) -> dict[str, Any]:
+    """Return a status snapshot for the Landkreis publications vector index."""
+
+    db_path = Path(landkreis_db)
+    qdrant_path = Path(qdrant_dir)
+    warnings: list[str] = []
+    status: dict[str, Any] = {
+        "local_index_exists": db_path.is_file(),
+        "qdrant_exists": qdrant_path.exists(),
+        "sqlite_document_count": None,
+        "indexable_document_count": None,
+        "indexed_vector_count": None,
+        "missing_vector_count": None,
+        "orphaned_vector_count": None,
+        "coverage_percent": None,
+        "latest_session_date": None,
+        "latest_document_date": None,
+        "warnings": warnings,
+        "status": "unknown",
+    }
+
+    current_ids: set[int] | None = None
+    if not status["local_index_exists"]:
+        warnings.append(f"Landkreis-SQLite-Index fehlt: {db_path}")
+        status["status"] = "missing_local_index"
+    else:
+        current_ids = _read_landkreis_document_ids(db_path, status, warnings)
+
+    indexed_ids: set[int] | None = None
+    if not status["qdrant_exists"]:
+        warnings.append(f"Qdrant/Vektorindex fehlt: {qdrant_path}")
+        status["indexed_vector_count"] = 0
+        if status["status"] == "unknown":
+            status["status"] = "missing_qdrant"
+    else:
+        indexed_ids = _read_qdrant_ids(
+            qdrant_path,
+            status,
+            warnings,
+            collection_name=LANDKREIS_COLLECTION_NAME,
+        )
 
     if current_ids is not None and indexed_ids is not None:
         missing_ids = current_ids - indexed_ids
@@ -125,10 +193,63 @@ def _read_sqlite_document_ids(
     return current_ids
 
 
+def _read_landkreis_document_ids(
+    db_path: Path,
+    status: dict[str, Any],
+    warnings: list[str],
+) -> set[int] | None:
+    try:
+        with sqlite3.connect(db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            document_count = conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
+            latest_document_date = conn.execute(
+                """
+                SELECT MAX(p.date)
+                FROM documents d
+                JOIN publications p ON p.publication_id = d.publication_id
+                WHERE COALESCE(d.local_path, '') != ''
+                  AND p.date IS NOT NULL
+                  AND p.date != ''
+                """
+            ).fetchone()[0]
+            rows = conn.execute(
+                """
+                SELECT d.publication_id, d.url
+                FROM documents d
+                WHERE COALESCE(d.local_path, '') != ''
+                ORDER BY d.id
+                """
+            ).fetchall()
+    except (sqlite3.Error, OSError) as exc:
+        warnings.append(f"Landkreis-SQLite-Index konnte nicht gelesen werden: {exc}")
+        status["status"] = "warning"
+        return None
+
+    current_ids = {
+        stable_document_id(
+            "landkreis",
+            str(row["publication_id"] or ""),
+            str(row["url"] or ""),
+        )
+        for row in rows
+    }
+    status["sqlite_document_count"] = int(document_count or 0)
+    status["indexable_document_count"] = len(current_ids)
+    status["latest_document_date"] = latest_document_date or None
+    if len(current_ids) != len(rows):
+        warnings.append(
+            "Einige Landkreis-Dokumente teilen sich dieselbe stabile Vektor-ID; "
+            "Coverage wird anhand eindeutiger IDs berechnet."
+        )
+    return current_ids
+
+
 def _read_qdrant_ids(
     qdrant_dir: Path,
     status: dict[str, Any],
     warnings: list[str],
+    *,
+    collection_name: str,
 ) -> set[int] | None:
     try:
         from qdrant_client import QdrantClient
@@ -141,18 +262,18 @@ def _read_qdrant_ids(
     try:
         client = QdrantClient(path=str(qdrant_dir))
         collections = [collection.name for collection in client.get_collections().collections]
-        if COLLECTION_NAME not in collections:
-            warnings.append(f"Qdrant-Collection fehlt: {COLLECTION_NAME}")
+        if collection_name not in collections:
+            warnings.append(f"Qdrant-Collection fehlt: {collection_name}")
             status["indexed_vector_count"] = 0
             return set()
 
-        info = client.get_collection(collection_name=COLLECTION_NAME)
+        info = client.get_collection(collection_name=collection_name)
         status["indexed_vector_count"] = int(info.points_count or 0)
         indexed_ids: set[int] = set()
         offset: int | None = None
         while True:
             records, next_offset = client.scroll(
-                collection_name=COLLECTION_NAME,
+                collection_name=collection_name,
                 with_payload=False,
                 with_vectors=False,
                 limit=1000,

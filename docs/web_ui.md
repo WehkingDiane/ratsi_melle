@@ -109,7 +109,7 @@ Buttons folgen einem funktionsbezogenen Farbschema: `primary` ist auslösenden H
 - `/daten/` zeigt links die Weiterleitungen zu Fetch, Build und Vektorindex; rechts stehen allgemeiner Status und letzte Datenjobs.
 - `/daten/fetch/` startet vorhandene Fetch-Skripte für SessionNet-Sitzungen und Landkreis-Veröffentlichungen.
 - `/daten/build/` startet vorhandene SQLite-Build-Skripte für Ratsinfo- und Landkreis-Indizes.
-- `/daten/vektor/` zeigt den Ratsinfo-Vektorstatus und startet Ratsinfo- oder Landkreis-Vektorindex-Builds. Beim Landkreis-Build kann die maximale Textlaenge pro Dokument fuer knappen XPU/GPU-Speicher reduziert werden.
+- `/daten/vektor/` zeigt Ratsinfo- und Landkreis-Vektorstatus und startet Ratsinfo- oder Landkreis-Vektorindex-Builds. Beim Landkreis-Build kann die maximale Textlaenge pro Dokument fuer knappen XPU/GPU-Speicher reduziert werden.
 - `/daten/jobs/<job_id>/` zeigt Status und Ausgabe eines gestarteten Datenjobs.
 - `/daten/jobs/<job_id>/status/` liefert den aktuellen Datenjobstatus als JSON für die automatische Logaktualisierung.
 - `/veroeffentlichung/` ist ein Platzhalter für Publikations- und Reviewfunktionen.

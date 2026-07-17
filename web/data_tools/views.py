@@ -88,6 +88,7 @@ def service_vector(request):
             "active_nav": "data",
             "status": services.service_status(),
             "vector_status": services.vector_index_status(),
+            "landkreis_vector_status": services.landkreis_vector_index_status(),
             "errors": errors,
         },
     )

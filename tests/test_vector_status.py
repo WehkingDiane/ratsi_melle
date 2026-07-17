@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
+from src.indexing.vector_status import landkreis_vector_index_status
 from src.indexing.vector_status import vector_index_status
 
 
@@ -71,6 +72,37 @@ def test_vector_index_status_warns_on_sqlite_error(tmp_path: Path) -> None:
     assert any("SQLite" in warning for warning in status["warnings"])
 
 
+def test_landkreis_vector_index_status_reports_sqlite_without_qdrant(tmp_path: Path) -> None:
+    db_path = tmp_path / "landkreis_publications.sqlite"
+    _write_landkreis_index(db_path)
+
+    status = landkreis_vector_index_status(
+        landkreis_db=db_path,
+        qdrant_dir=tmp_path / "missing_qdrant",
+    )
+
+    assert status["local_index_exists"] is True
+    assert status["qdrant_exists"] is False
+    assert status["sqlite_document_count"] == 3
+    assert status["indexable_document_count"] == 2
+    assert status["indexed_vector_count"] == 0
+    assert status["latest_session_date"] is None
+    assert status["latest_document_date"] == "2026-03-11"
+    assert status["status"] == "missing_qdrant"
+    assert any("Qdrant" in warning for warning in status["warnings"])
+
+
+def test_landkreis_vector_index_status_reports_missing_database(tmp_path: Path) -> None:
+    status = landkreis_vector_index_status(
+        landkreis_db=tmp_path / "missing_landkreis.sqlite",
+        qdrant_dir=tmp_path / "qdrant",
+    )
+
+    assert status["local_index_exists"] is False
+    assert status["status"] == "missing_local_index"
+    assert any("Landkreis-SQLite-Index fehlt" in warning for warning in status["warnings"])
+
+
 def _write_local_index(db_path: Path) -> None:
     with sqlite3.connect(db_path) as conn:
         conn.executescript(
@@ -110,4 +142,30 @@ def _write_local_index(db_path: Path) -> None:
         conn.execute(
             "INSERT INTO documents VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (2, "7123", "Anlage", "", "Anlage", "Oe 8", "https://example.test/2", "", "text/plain", 12),
+        )
+
+
+def _write_landkreis_index(db_path: Path) -> None:
+    with sqlite3.connect(db_path) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE publications (
+                publication_id TEXT PRIMARY KEY,
+                source TEXT NOT NULL,
+                date TEXT,
+                title TEXT NOT NULL
+            );
+            CREATE TABLE documents (
+                id INTEGER PRIMARY KEY,
+                publication_id TEXT NOT NULL,
+                title TEXT,
+                url TEXT NOT NULL,
+                local_path TEXT
+            );
+            INSERT INTO publications VALUES ('pub-1', 'amtsblaetter', '2026-03-11', 'Amtsblatt 10');
+            INSERT INTO publications VALUES ('pub-2', 'bekanntmachungen', '2026-04-01', 'Bekanntmachung');
+            INSERT INTO documents VALUES (1, 'pub-1', 'Anlage 1', 'https://example.test/1.pdf', 'pub-1/1.pdf');
+            INSERT INTO documents VALUES (2, 'pub-1', 'Anlage 2', 'https://example.test/2.pdf', 'pub-1/2.pdf');
+            INSERT INTO documents VALUES (3, 'pub-2', 'Nur online', 'https://example.test/3.pdf', '');
+            """
         )

@@ -876,6 +876,21 @@ def test_service_vector_page_renders_vector_status(client, monkeypatch) -> None:
             "warnings": ["Vektorindex ist nicht vollstaendig."],
         },
     )
+    monkeypatch.setattr(
+        views.services,
+        "landkreis_vector_index_status",
+        lambda: {
+            "status": "missing_qdrant",
+            "sqlite_document_count": 5,
+            "indexable_document_count": 4,
+            "indexed_vector_count": 0,
+            "missing_vector_count": None,
+            "orphaned_vector_count": None,
+            "coverage_percent": None,
+            "latest_document_date": "2026-04-01",
+            "warnings": ["Qdrant-Collection fehlt: landkreis_publications"],
+        },
+    )
 
     response = client.get("/daten/vektor/")
     content = response.content.decode("utf-8")
@@ -883,10 +898,14 @@ def test_service_vector_page_renders_vector_status(client, monkeypatch) -> None:
     assert response.status_code == 200
     assert "Ratsinfo-Vektorindex bauen" in content
     assert "Landkreis-Vektorindex bauen" in content
+    assert "Ratsinfo-Vektorstatus" in content
+    assert "Landkreis-Vektorstatus" in content
     assert "SQLite-Dokumente" in content
     assert "10" in content
+    assert "5" in content
     assert "77,8 %" in content
     assert "Vektorindex ist nicht vollstaendig." in content
+    assert "Qdrant-Collection fehlt: landkreis_publications" in content
 
 
 def test_build_vector_index_form_starts_existing_service_job(client, monkeypatch) -> None:
