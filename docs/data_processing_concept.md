@@ -165,6 +165,32 @@ Es gibt zwei gleich strukturierte Indexdatenbanken:
 
 Diese Datenbank ist absichtlich vom SessionNet-Index getrennt. Sie enthaelt `publications`, `documents`, `extracted_texts`, `crawl_runs` und eine SQLite-FTS-Tabelle fuer Begriffe wie `Melle`, `Genehmigung`, `UVP` oder `BImSchG`. Lokale Dokumentpfade werden relativ zur Landkreis-Datenwurzel gespeichert, damit grosse Downloads ausserhalb des Projektverzeichnisses abgelegt werden koennen.
 
+Der Import arbeitet quellenorientiert:
+
+1. Listen-HTML fuer Bekanntmachungen oder Amtsblaetter abrufen und unter der Landkreis-Datenwurzel archivieren.
+2. Listeneintraege mit Datum, Titel, Detail-URL und stabiler `publication_id` extrahieren.
+3. Detailseite laden, Original-HTML speichern und PDF-/Dateilinks erfassen.
+4. Dokumente herunterladen, SHA1 und HTTP-Metadaten speichern.
+5. Text mit der bestehenden Extraktionspipeline ableiten und in `extracted_texts` sowie der FTS-Tabelle auffindbar machen.
+
+Wichtige CLI-Optionen:
+
+```bash
+python scripts/fetch_landkreis_publications.py --source all
+python scripts/fetch_landkreis_publications.py --source bekanntmachungen --query Melle
+python scripts/fetch_landkreis_publications.py --source amtsblaetter --from-date 2026-01-01
+python scripts/search_landkreis_publications.py "Melle Genehmigung"
+```
+
+Externe Ablage grosser Rohdaten:
+
+```bash
+RATSI_LANDKREIS_DATA_DIR=/mnt/d/landkreis_osnabrueck \
+python scripts/fetch_landkreis_publications.py --source all
+```
+
+Alternativ akzeptiert das Fetch-Skript `--data-dir`. Die Datenbank kann separat mit `RATSI_LANDKREIS_DB` oder `--db` gesetzt werden.
+
 ### Wichtige Metadaten
 
 - `session_id`

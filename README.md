@@ -66,6 +66,30 @@ Sie ist danach standardmäßig unter `http://127.0.0.1:8000/` erreichbar. Detail
 
 Landkreis-Veröffentlichungen aus Bekanntmachungen und Amtsblättern werden bewusst getrennt vom SessionNet-Index verarbeitet. Rohdateien liegen standardmaessig unter `data/raw/landkreis/`; alternativ kann ein externer Speicherort per `RATSI_LANDKREIS_DATA_DIR` oder `--data-dir` gesetzt werden. Die interne Ordnerstruktur bleibt dabei gleich, und die SQLite-DB speichert relative Pfade innerhalb dieser Landkreis-Datenwurzel.
 
+### Landkreis-Veröffentlichungen
+
+Der Landkreis-Import ist als eigenstaendige Datenquelle umgesetzt und veraendert weder `data/db/local_index.sqlite` noch die SessionNet-Rohdaten. Er verarbeitet derzeit:
+
+- Bekanntmachungen: `https://www.landkreis-osnabrueck.de/verwaltung/veroeffentlichungen/bekanntmachungen`
+- Amtsblaetter: `https://www.landkreis-osnabrueck.de/verwaltung/veroeffentlichungen/amtsblaetter`
+
+Typische Nutzung:
+
+```bash
+python scripts/fetch_landkreis_publications.py --source all
+python scripts/fetch_landkreis_publications.py --source bekanntmachungen --query Melle
+python scripts/search_landkreis_publications.py "Melle Genehmigung"
+```
+
+Fuer grosse Downloads kann die Rohdatenablage ausserhalb des Projekts liegen:
+
+```bash
+RATSI_LANDKREIS_DATA_DIR=/mnt/d/landkreis_osnabrueck \
+python scripts/fetch_landkreis_publications.py --source all
+```
+
+Alternativ kann der Speicherort pro Lauf mit `--data-dir` gesetzt werden. Die Datenbank bleibt standardmaessig unter `data/db/landkreis_publications.sqlite`; mit `RATSI_LANDKREIS_DB` oder `--db` kann auch dieser Pfad ueberschrieben werden.
+
 Echte Prompt-Vorlagen und gerenderte Prompt-Snapshots gehören nicht ins Repository. Die privaten Pfade unter `data/private/` sind durch `.gitignore` geschützt.
 
 ## Sicherheitsgrenzen
