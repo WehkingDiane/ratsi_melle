@@ -8,6 +8,8 @@ from typing import Any, Iterable
 
 from src.fetching.landkreis.models import LandkreisDocument, LandkreisPublication
 
+MAX_FTS_BODY_CHARS = 80_000
+
 
 class LandkreisPublicationStore:
     """Owns the separated Landkreis publications SQLite database."""
@@ -158,7 +160,13 @@ class LandkreisPublicationStore:
                 )
             self._refresh_fts(conn, [publication.publication_id])
 
-    def upsert_extraction(self, document_id: int, result: dict[str, object]) -> None:
+    def upsert_extraction(
+        self,
+        document_id: int,
+        result: dict[str, object],
+        *,
+        refresh_fts: bool = True,
+    ) -> str | None:
         """Store text extraction metadata for one document and refresh FTS."""
 
         self.initialize()
@@ -211,7 +219,17 @@ class LandkreisPublicationStore:
                 """,
                 (document_id,),
             ).fetchall()
-            self._refresh_fts(conn, [row[0] for row in rows if row and row[0]])
+            publication_ids = [row[0] for row in rows if row and row[0]]
+            if refresh_fts:
+                self._refresh_fts(conn, publication_ids)
+            return publication_ids[0] if publication_ids else None
+
+    def refresh_publication_fts(self, publication_ids: Iterable[str]) -> None:
+        """Refresh FTS rows for selected publications."""
+
+        self.initialize()
+        with sqlite3.connect(self.db_path) as conn:
+            self._refresh_fts(conn, publication_ids)
 
     def document_rows(self) -> list[dict[str, Any]]:
         """Return document rows with publication metadata."""
@@ -311,6 +329,8 @@ class LandkreisPublicationStore:
                 (publication_id,),
             ).fetchone()
             body = "\n\n".join(part for part in (row[4] or "", extracted[0] if extracted else "") if part)
+            if len(body) > MAX_FTS_BODY_CHARS:
+                body = body[:MAX_FTS_BODY_CHARS]
             conn.execute(
                 """
                 INSERT INTO publications_fts

@@ -199,6 +199,31 @@ def test_fetch_amtsblatt_reuses_existing_document_without_redownload(tmp_path, m
     assert existing_path.read_bytes() == b"existing"
 
 
+def test_fetch_amtsblatt_downloads_direct_pdf_url(tmp_path, monkeypatch):
+    client = _client(tmp_path)
+    publication = LandkreisPublication(
+        source="amtsblaetter",
+        publication_id="pub-direct",
+        date=date(2026, 7, 15),
+        title="Amtsblatt 13 / 2026",
+        detail_url="https://www.landkreis-osnabrueck.de/system/files?file=2026-07/nr-13.pdf",
+        list_url="https://www.landkreis-osnabrueck.de/verwaltung/veroeffentlichungen/amtsblaetter",
+    )
+
+    def fail_get(url):
+        raise AssertionError("Direct Amtsblatt PDFs must not be fetched as HTML detail pages")
+
+    monkeypatch.setattr(client, "_get", fail_get)
+    monkeypatch.setattr(client, "_download_document", lambda url: (b"%PDF-test", {"Content-Type": "application/pdf"}))
+
+    stored = client.fetch_publication(publication)
+    document_path = client.storage.resolve_relative_path(stored.documents[0].local_path)
+
+    assert stored.documents[0].url == publication.detail_url
+    assert document_path is not None
+    assert document_path.read_bytes() == b"%PDF-test"
+
+
 def test_crawl_skips_existing_manifests_for_all_sources(tmp_path, monkeypatch):
     client = _client(tmp_path)
     amtsblatt = LandkreisPublication(

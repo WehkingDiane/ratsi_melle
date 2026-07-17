@@ -118,11 +118,18 @@ class LandkreisClient:
         but existing local files are reused.
         """
 
-        response = self._get(publication.detail_url)
-        html = response.text
-        page_text = _extract_page_text(html)
-        html_path = self.storage.write_publication_html(publication, html)
-        documents = self._parse_document_links(html, publication.detail_url)
+        documents: list[LandkreisDocument]
+        page_text = ""
+        local_dir = self.storage.relative_path(self.storage.publication_dir(publication))
+        if publication.source == "amtsblaetter" and _looks_like_document_link(publication.detail_url, publication.title):
+            documents = [LandkreisDocument(title=publication.title, url=publication.detail_url)]
+        else:
+            response = self._get(publication.detail_url)
+            html = response.text
+            page_text = _extract_page_text(html)
+            html_path = self.storage.write_publication_html(publication, html)
+            local_dir = self.storage.relative_path(html_path.parent)
+            documents = self._parse_document_links(html, publication.detail_url)
         stored_documents = (
             self._download_documents(publication, documents, refresh_existing=refresh_existing)
             if publication.source == "amtsblaetter"
@@ -131,7 +138,7 @@ class LandkreisClient:
         now = _utc_now()
         stored = replace(
             publication,
-            local_dir=self.storage.relative_path(html_path.parent),
+            local_dir=local_dir,
             page_text=page_text,
             retrieved_at=now,
             documents=stored_documents,

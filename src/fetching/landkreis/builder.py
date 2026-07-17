@@ -18,8 +18,9 @@ def build_landkreis_publications_db(
     """Rebuild the separated Landkreis DB from stored raw manifests."""
 
     storage = LandkreisStorage(data_root)
+    _remove_existing_database(db_path)
     store = LandkreisPublicationStore(db_path)
-    store.reset()
+    store.initialize()
 
     publication_count = 0
     document_count = 0
@@ -33,6 +34,7 @@ def build_landkreis_publications_db(
         document_count += len(publication.documents)
 
     rows = store.document_rows()
+    extracted_publication_ids: set[str] = set()
     for row in rows:
         local_path = row.get("local_path")
         if not local_path:
@@ -45,7 +47,22 @@ def build_landkreis_publications_db(
             content_type=str(row.get("content_type") or ""),
             max_text_chars=max_text_chars,
         )
-        store.upsert_extraction(int(row["id"]), result.to_dict())
+        publication_id = store.upsert_extraction(
+            int(row["id"]),
+            result.to_dict(),
+            refresh_fts=False,
+        )
+        if publication_id:
+            extracted_publication_ids.add(publication_id)
         extracted_count += 1
 
+    store.refresh_publication_fts(extracted_publication_ids)
     return publication_count, document_count, extracted_count
+
+
+def _remove_existing_database(db_path: Path) -> None:
+    """Remove an existing generated SQLite DB and sidecars before rebuilding."""
+
+    for path in (db_path, db_path.with_name(f"{db_path.name}-wal"), db_path.with_name(f"{db_path.name}-shm")):
+        if path.exists():
+            path.unlink()
