@@ -15,6 +15,13 @@
       Suchbegriff
       <input type="text" name="q" value="{{ query }}" placeholder="z. B. Windkraft Flaechennutzungsplan Abwaegung">
     </label>
+    <label>
+      Quelle
+      <select name="source">
+        <option value="ratsinfo"{% if selected_source == "ratsinfo" %} selected{% endif %}>Ratsinfo</option>
+        <option value="landkreis"{% if selected_source == "landkreis" %} selected{% endif %}>Landkreis</option>
+      </select>
+    </label>
     <div class="actions">
       <button class="button primary" type="submit">Suchen</button>
       {% if has_query %}<a class="button utility" href="{% url 'search:index' %}">Zuruecksetzen</a>{% endif %}
@@ -38,7 +45,39 @@
     <h2>Vektortreffer</h2>
     <p>{{ results|length }} Treffer{% if results|length == max_results %} oder mehr{% endif %}</p>
   </div>
-  {% if results %}
+  {% if results and selected_source == "landkreis" %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Rang</th>
+          <th>Score</th>
+          <th>Datum</th>
+          <th>Quelle</th>
+          <th>Veroeffentlichung</th>
+          <th>Dokument</th>
+          <th>Link/Pfad</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for document in results %}
+        <tr>
+          <td>{{ document.rank|default:"-" }}</td>
+          <td>{{ document.display_score|default:"-" }}</td>
+          <td class="date-value">{{ document.display_date|default:document.date|default:"-" }}</td>
+          <td>{{ document.source|default:"-" }}</td>
+          <td>{{ document.title|default:"-" }}</td>
+          <td>{{ document.document_title|default:"Dokument" }}</td>
+          <td>
+            {% if document.url %}<a href="{{ document.url }}" target="_blank" rel="noopener">Quelle</a>{% endif %}
+            {% if document.local_path %}<span>{{ document.local_path }}</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% elif results %}
   <div class="table-wrap">
     <table>
       <thead>

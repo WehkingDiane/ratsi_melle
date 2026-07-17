@@ -150,7 +150,7 @@ def test_semantic_search_documents_uses_vector_store(workspace_tmp: Path, monkey
         "_get_semantic_resources",
         lambda: (FakeEmbedder(), FakeBM25()),
     )
-    monkeypatch.setattr(search_services, "_create_vector_store", lambda _qdrant_dir: FakeStore())
+    monkeypatch.setattr(search_services, "_create_vector_store", lambda _qdrant_dir, _collection_name="": FakeStore())
 
     response = search_services.search_semantic_documents("  windkraft   rat  ", limit=50)
 
@@ -166,6 +166,71 @@ def test_semantic_search_documents_uses_vector_store(workspace_tmp: Path, monkey
     assert response["results"][0]["rank"] == 1
     assert response["results"][0]["display_date"] == "11.03.2026"
     assert response["results"][0]["display_score"] == "0.0328"
+    assert response["results"][0]["search_source"] == "ratsinfo"
+
+
+def test_semantic_search_documents_uses_landkreis_collection(workspace_tmp: Path, monkeypatch) -> None:
+    qdrant_dir = workspace_tmp / "data" / "db" / "qdrant"
+    qdrant_dir.mkdir(parents=True)
+    captured = {}
+
+    class FakeEmbedder:
+        def embed_query(self, query: str) -> list[float]:
+            captured["dense_query"] = query
+            return [0.1]
+
+    class FakeBM25:
+        def encode_query(self, query: str) -> dict[str, list[float]]:
+            captured["sparse_query"] = query
+            return {"indices": [1], "values": [0.5]}
+
+    class FakeStore:
+        def close(self):
+            captured["store_closed"] = True
+
+        def search(self, *, query_dense, query_sparse, limit, session_id=None):
+            captured["collection_name"] = captured["created_collection_name"]
+            return [
+                {
+                    "doc_id": 456,
+                    "score": 0.04,
+                    "title": "Amtsblatt 10",
+                    "document_title": "PDF Anlage",
+                    "source": "amtsblaetter",
+                    "date": "2026-03-11",
+                    "url": "https://example.test/a.pdf",
+                    "local_path": "/tmp/a.pdf",
+                }
+            ]
+
+    def create_store(_qdrant_dir, collection_name=""):
+        captured["created_collection_name"] = collection_name
+        return FakeStore()
+
+    monkeypatch.setattr(search_services, "QDRANT_DIR", qdrant_dir)
+    monkeypatch.setattr(search_services, "_semantic_search_dependency_error", lambda: "")
+    monkeypatch.setattr(search_services, "_get_semantic_resources", lambda: (FakeEmbedder(), FakeBM25()))
+    monkeypatch.setattr(search_services, "_create_vector_store", create_store)
+
+    response = search_services.search_semantic_documents("Melle Genehmigung", source="landkreis")
+
+    assert response["error"] == ""
+    assert captured["created_collection_name"] == "landkreis_publications"
+    assert response["results"][0]["search_source"] == "landkreis"
+    assert response["results"][0]["source"] == "amtsblaetter"
+    assert response["results"][0]["document_title"] == "PDF Anlage"
+    assert "Landkreis" in response["warning"]
+
+
+def test_semantic_search_documents_reports_missing_landkreis_vector_index(workspace_tmp: Path, monkeypatch) -> None:
+    monkeypatch.setattr(search_services, "QDRANT_DIR", workspace_tmp / "missing_qdrant")
+    monkeypatch.setattr(search_services, "_semantic_search_dependency_error", lambda: "")
+
+    response = search_services.search_semantic_documents("Melle", source="landkreis")
+
+    assert response["results"] == []
+    assert "Landkreis-Vektorindex fehlt" in response["error"]
+    assert "build_landkreis_vector_index.py" in response["error"]
 
 
 def test_semantic_search_documents_reports_missing_vector_index(workspace_tmp: Path, monkeypatch) -> None:
@@ -204,7 +269,7 @@ def test_semantic_search_documents_closes_vector_store_after_search_error(
     monkeypatch.setattr(search_services, "QDRANT_DIR", qdrant_dir)
     monkeypatch.setattr(search_services, "_semantic_search_dependency_error", lambda: "")
     monkeypatch.setattr(search_services, "_get_semantic_resources", lambda: (FakeEmbedder(), FakeBM25()))
-    monkeypatch.setattr(search_services, "_create_vector_store", lambda _qdrant_dir: FailingStore())
+    monkeypatch.setattr(search_services, "_create_vector_store", lambda _qdrant_dir, _collection_name="": FailingStore())
 
     response = search_services.search_semantic_documents("windkraft")
 

@@ -162,6 +162,7 @@ Es gibt zwei gleich strukturierte Indexdatenbanken:
 
 - Skript: `scripts/fetch_landkreis_publications.py`
 - Build-Skript: `scripts/build_landkreis_publications_db.py`
+- Vektor-Build-Skript: `scripts/build_landkreis_vector_index.py`
 - Suchskript: `scripts/search_landkreis_publications.py`
 - Ziel: `data/db/landkreis_publications.sqlite`
 - Rohdaten: standardmaessig `data/raw/landkreis/`, alternativ `RATSI_LANDKREIS_DATA_DIR` oder `--data-dir`
@@ -176,12 +177,14 @@ Der Import arbeitet quellenorientiert:
 4. Vorhandene Landkreis-Veröffentlichungen mit lokalem `manifest.json` bei spaeteren Laeufen ueberspringen; neue Bekanntmachungs-PDFs nicht herunterladen; neue Amtsblaetter vollstaendig herunterladen.
 5. Mit `build_landkreis_publications_db.py` die SQLite-DB aus Manifests und lokalen Amtsblatt-Dateien neu aufbauen.
 6. Text mit der bestehenden Extraktionspipeline ableiten und in `extracted_texts` sowie der FTS-Tabelle auffindbar machen.
+7. Optional mit `build_landkreis_vector_index.py` lokal vorhandene Dokumente in die Qdrant-Collection `landkreis_publications` schreiben.
 
 Wichtige CLI-Optionen:
 
 ```bash
 python scripts/fetch_landkreis_publications.py --source all
 python scripts/build_landkreis_publications_db.py
+python scripts/build_landkreis_vector_index.py
 python scripts/fetch_landkreis_publications.py --source bekanntmachungen --query Melle
 python scripts/fetch_landkreis_publications.py --source amtsblaetter --from-date 2026-01-01
 python scripts/search_landkreis_publications.py "Melle Genehmigung"
@@ -197,6 +200,8 @@ python scripts/build_landkreis_publications_db.py
 ```
 
 Alternativ akzeptieren Fetch- und Build-Skript `--data-dir`. Die Datenbank kann separat mit `RATSI_LANDKREIS_DB` oder `--db` gesetzt werden.
+
+Der Landkreis-Vektorindex bleibt von `ratsi_documents` getrennt. `build_landkreis_vector_index.py` liest `data/db/landkreis_publications.sqlite`, verwendet `extracted_texts.extracted_text` als Primaertext und faellt bei fehlendem Text auf Veroeffentlichungs- und Dokumenttitel zurueck. Indexiert werden nur Dokumentzeilen mit lokalem Pfad. Stabile Qdrant-IDs entstehen aus `landkreis`, `publication_id` und Dokument-URL. Vollstaendige Laeufe entfernen verwaiste Punkte; bei `--limit` ist diese Bereinigung deaktiviert.
 
 ### Wichtige Metadaten
 
@@ -270,7 +275,7 @@ Die fachlichen Indexing-Schritte fuer stabile IDs, Payload-Aufbau, Hybrid-Vektor
 ### Speicherort
 
 - Qdrant lokal unter `data/db/qdrant/`
-- Collection: `ratsi_documents`
+- Collections: `ratsi_documents` fuer Ratsinfo, `landkreis_publications` fuer Landkreis-Veröffentlichungen
 
 ### Stabile IDs und Reconciliation
 

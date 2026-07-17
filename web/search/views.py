@@ -9,13 +9,15 @@ from . import services
 
 def index(request):
     query = request.GET.get("q", "")
-    semantic_search = services.search_semantic_documents(query)
+    source = request.GET.get("source", "ratsinfo")
+    semantic_search = services.search_semantic_documents(query, source=source)
     return render(
         request,
         "search/index.html",
         {
             "active_nav": "search",
             "query": query,
+            "selected_source": source if source == "landkreis" else "ratsinfo",
             "results": semantic_search["results"],
             "search_error": semantic_search["error"],
             "search_warning": semantic_search["warning"],

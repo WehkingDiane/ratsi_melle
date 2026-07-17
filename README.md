@@ -38,6 +38,7 @@ python scripts/build_online_index_db.py 2024 --months 5 6
 python scripts/build_vector_index.py
 python scripts/fetch_landkreis_publications.py --source all
 python scripts/build_landkreis_publications_db.py
+python scripts/build_landkreis_vector_index.py
 python scripts/search_landkreis_publications.py "Melle Genehmigung"
 python scripts/run_web.py
 python -m pytest
@@ -58,8 +59,8 @@ Sie ist danach standardmäßig unter `http://127.0.0.1:8000/` erreichbar. Detail
 - Lokaler SQLite-Index: `data/db/local_index.sqlite`
 - Online-Index: `data/db/online_session_index.sqlite`
 - Landkreis-Veröffentlichungen: `data/db/landkreis_publications.sqlite`
-- Lokaler Vektorindex: `data/db/qdrant/`
-- Django-Suche unter `/suche/`: semantische Dokumentensuche ueber den lokalen Qdrant-Vektorindex; bei fehlendem Index zuerst `python scripts/build_vector_index.py` oder `/daten/vektor/` nutzen
+- Lokaler Vektorindex: `data/db/qdrant/` mit getrennten Collections fuer Ratsinfo (`ratsi_documents`) und Landkreis (`landkreis_publications`)
+- Django-Suche unter `/suche/`: semantische Dokumentensuche ueber den lokalen Qdrant-Vektorindex; Standard ist Ratsinfo. Fuer Landkreis-Treffer zuerst `python scripts/build_landkreis_vector_index.py` ausfuehren; fuer Ratsinfo `python scripts/build_vector_index.py` oder `/daten/vektor/` nutzen
 - Analyse-Workflow und v2-Ausgaben: [docs/analysis_outputs.md](/mnt/c/users/diane/git/ratsi_melle/docs/analysis_outputs.md:1)
 - Private Prompt-Vorlagen: `data/private/prompt_templates.json`
 - Private Prompt-Artefakte und gerenderte Snapshots: `data/private/analysis_prompts/` und `data/private/prompt_snapshots/`
@@ -79,11 +80,12 @@ Typische Nutzung:
 ```bash
 python scripts/fetch_landkreis_publications.py --source all
 python scripts/build_landkreis_publications_db.py
+python scripts/build_landkreis_vector_index.py
 python scripts/fetch_landkreis_publications.py --source bekanntmachungen --query Melle
 python scripts/search_landkreis_publications.py "Melle Genehmigung"
 ```
 
-`fetch_landkreis_publications.py` speichert nur Rohdaten aus dem Online-Angebot. Bereits vorhandene Landkreis-Veröffentlichungen mit lokalem `manifest.json` werden bei spaeteren Laeufen uebersprungen. Fuer neue Bekanntmachungen werden Detailseiten und Dokument-Metadaten erfasst, aber keine PDF-Dateien heruntergeladen. Neue Amtsblaetter werden vollstaendig geladen. Die SQLite-Datenbank wird danach mit `build_landkreis_publications_db.py` aus den gespeicherten Manifests und lokalen Dateien aufgebaut.
+`fetch_landkreis_publications.py` speichert nur Rohdaten aus dem Online-Angebot. Bereits vorhandene Landkreis-Veröffentlichungen mit lokalem `manifest.json` werden bei spaeteren Laeufen uebersprungen. Fuer neue Bekanntmachungen werden Detailseiten und Dokument-Metadaten erfasst, aber keine PDF-Dateien heruntergeladen. Neue Amtsblaetter werden vollstaendig geladen. Die SQLite-Datenbank wird danach mit `build_landkreis_publications_db.py` aus den gespeicherten Manifests und lokalen Dateien aufgebaut. `build_landkreis_vector_index.py` indexiert lokal vorhandene Landkreis-Dokumente in die getrennte Qdrant-Collection `landkreis_publications`.
 
 Fuer grosse Downloads kann die Rohdatenablage ausserhalb des Projekts liegen:
 

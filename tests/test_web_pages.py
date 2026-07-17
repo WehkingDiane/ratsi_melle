@@ -271,7 +271,7 @@ def test_search_page_renders_document_results(client, monkeypatch) -> None:
     monkeypatch.setattr(
         views.services,
         "search_semantic_documents",
-        lambda _query: {
+        lambda _query, source="ratsinfo": {
             "results": [
                 {
                     "rank": 1,
@@ -300,6 +300,47 @@ def test_search_page_renders_document_results(client, monkeypatch) -> None:
     assert "0.0328" in content
     assert "Windkraft in Riemsloh" in content
     assert "/analyse/sitzungen/7123/" in content
+    assert '<option value="ratsinfo" selected>Ratsinfo</option>' in content
+
+
+def test_search_page_renders_landkreis_results_without_session_links(client, monkeypatch) -> None:
+    from search import views
+
+    captured = {}
+
+    def fake_search(query, source="ratsinfo"):
+        captured["query"] = query
+        captured["source"] = source
+        return {
+            "results": [
+                {
+                    "rank": 1,
+                    "display_score": "0.0400",
+                    "display_date": "11.03.2026",
+                    "date": "2026-03-11",
+                    "source": "amtsblaetter",
+                    "title": "Amtsblatt 10",
+                    "document_title": "PDF Anlage",
+                    "url": "https://example.test/a.pdf",
+                    "local_path": "/tmp/a.pdf",
+                }
+            ],
+            "error": "",
+            "warning": "Ergebnisse stammen aus der hybriden Landkreis-Vektorsuche.",
+        }
+
+    monkeypatch.setattr(views.services, "search_semantic_documents", fake_search)
+
+    response = client.get("/suche/?q=Melle&source=landkreis")
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert captured == {"query": "Melle", "source": "landkreis"}
+    assert '<option value="landkreis" selected>Landkreis</option>' in content
+    assert "amtsblaetter" in content
+    assert "Amtsblatt 10" in content
+    assert "PDF Anlage" in content
+    assert "/analyse/sitzungen/7123/" not in content
 
 
 def test_session_detail_links_document_source_to_session_page(client, monkeypatch) -> None:
