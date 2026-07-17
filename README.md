@@ -83,7 +83,7 @@ python scripts/fetch_landkreis_publications.py --source bekanntmachungen --query
 python scripts/search_landkreis_publications.py "Melle Genehmigung"
 ```
 
-`fetch_landkreis_publications.py` speichert nur Rohdaten aus dem Online-Angebot. Fuer Bekanntmachungen werden Detailseiten und Dokument-Metadaten erfasst, aber keine PDF-Dateien heruntergeladen. Amtsblaetter werden vollstaendig geladen; bereits vorhandene Amtsblaetter mit lokalem `manifest.json` werden bei spaeteren Laeufen uebersprungen. Die SQLite-Datenbank wird danach mit `build_landkreis_publications_db.py` aus den gespeicherten Manifests und lokalen Dateien aufgebaut.
+`fetch_landkreis_publications.py` speichert nur Rohdaten aus dem Online-Angebot. Bereits vorhandene Landkreis-Veröffentlichungen mit lokalem `manifest.json` werden bei spaeteren Laeufen uebersprungen. Fuer neue Bekanntmachungen werden Detailseiten und Dokument-Metadaten erfasst, aber keine PDF-Dateien heruntergeladen. Neue Amtsblaetter werden vollstaendig geladen. Die SQLite-Datenbank wird danach mit `build_landkreis_publications_db.py` aus den gespeicherten Manifests und lokalen Dateien aufgebaut.
 
 Fuer grosse Downloads kann die Rohdatenablage ausserhalb des Projekts liegen:
 

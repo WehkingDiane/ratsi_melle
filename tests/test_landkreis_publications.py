@@ -199,9 +199,9 @@ def test_fetch_amtsblatt_reuses_existing_document_without_redownload(tmp_path, m
     assert existing_path.read_bytes() == b"existing"
 
 
-def test_crawl_amtsblaetter_skips_existing_manifests(tmp_path, monkeypatch):
+def test_crawl_skips_existing_manifests_for_all_sources(tmp_path, monkeypatch):
     client = _client(tmp_path)
-    publication = LandkreisPublication(
+    amtsblatt = LandkreisPublication(
         source="amtsblaetter",
         publication_id="pub-5",
         date=date(2026, 7, 15),
@@ -209,15 +209,30 @@ def test_crawl_amtsblaetter_skips_existing_manifests(tmp_path, monkeypatch):
         detail_url="https://www.landkreis-osnabrueck.de/node/700",
         list_url="https://www.landkreis-osnabrueck.de/verwaltung/veroeffentlichungen/amtsblaetter",
     )
-    client.storage.write_manifest(publication)
-    monkeypatch.setattr(client, "iter_publication_references", lambda source: iter([publication]))
+    bekanntmachung = LandkreisPublication(
+        source="bekanntmachungen",
+        publication_id="pub-6",
+        date=date(2026, 4, 15),
+        title="Bekanntmachung Melle",
+        detail_url="https://www.landkreis-osnabrueck.de/node/123",
+        list_url="https://www.landkreis-osnabrueck.de/verwaltung/veroeffentlichungen/bekanntmachungen",
+    )
+    client.storage.write_manifest(amtsblatt)
+    client.storage.write_manifest(bekanntmachung)
+
+    def references(source):
+        if source == "amtsblaetter":
+            return iter([amtsblatt])
+        return iter([bekanntmachung])
+
+    monkeypatch.setattr(client, "iter_publication_references", references)
 
     def fail_fetch(publication, *, refresh_existing=False):
-        raise AssertionError("Existing Amtsblatt publications must be skipped")
+        raise AssertionError("Existing Landkreis publications must be skipped")
 
     monkeypatch.setattr(client, "fetch_publication", fail_fetch)
 
-    publications = client.crawl(source="amtsblaetter")
+    publications = client.crawl(source="all")
 
     assert publications == []
 

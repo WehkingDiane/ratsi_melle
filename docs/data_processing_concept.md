@@ -173,7 +173,7 @@ Der Import arbeitet quellenorientiert:
 1. Listen-HTML fuer Bekanntmachungen oder Amtsblaetter abrufen und unter der Landkreis-Datenwurzel archivieren.
 2. Listeneintraege mit Datum, Titel, Detail-URL und stabiler `publication_id` extrahieren.
 3. Detailseite laden, Original-HTML speichern und PDF-/Dateilinks erfassen.
-4. Bekanntmachungs-PDFs nicht herunterladen; Amtsblaetter vollstaendig herunterladen, aber bei spaeteren Laeufen vorhandene Amtsblaetter mit lokalem `manifest.json` ueberspringen.
+4. Vorhandene Landkreis-Veröffentlichungen mit lokalem `manifest.json` bei spaeteren Laeufen ueberspringen; neue Bekanntmachungs-PDFs nicht herunterladen; neue Amtsblaetter vollstaendig herunterladen.
 5. Mit `build_landkreis_publications_db.py` die SQLite-DB aus Manifests und lokalen Amtsblatt-Dateien neu aufbauen.
 6. Text mit der bestehenden Extraktionspipeline ableiten und in `extracted_texts` sowie der FTS-Tabelle auffindbar machen.
 

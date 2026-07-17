@@ -83,8 +83,8 @@ class LandkreisClient:
                     continue
                 if limit is not None and len(publications) >= limit:
                     return publications
-                if source_name == "amtsblaetter" and self.storage.has_manifest(reference) and not refresh_existing:
-                    LOGGER.info("Skipping already fetched Amtsblatt %s", reference.title)
+                if self.storage.has_manifest(reference) and not refresh_existing:
+                    LOGGER.info("Skipping already fetched Landkreis publication %s", reference.title)
                     continue
                 if dry_run:
                     publications.append(reference)
@@ -112,9 +112,10 @@ class LandkreisClient:
     ) -> LandkreisPublication:
         """Fetch detail HTML and store raw publication data.
 
-        Bekanntmachungen keep only online metadata and detail HTML. Amtsblaetter
-        additionally download linked documents, but existing local files are
-        reused because public Amtsblatt PDFs are not expected to change.
+        Existing publications are skipped at crawl level unless
+        ``refresh_existing`` is set. Bekanntmachungen keep only online metadata
+        and detail HTML. Amtsblaetter additionally download linked documents,
+        but existing local files are reused.
         """
 
         response = self._get(publication.detail_url)

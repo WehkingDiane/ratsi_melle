@@ -32,7 +32,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--refresh-existing",
         action="store_true",
-        help="Refetch detail HTML. Amtsblatt PDFs that already exist locally are still reused.",
+        help="Refetch detail HTML for existing publications. Amtsblatt PDFs that already exist locally are still reused.",
     )
     parser.add_argument(
         "--data-dir",
