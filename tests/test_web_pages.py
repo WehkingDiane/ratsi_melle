@@ -271,7 +271,7 @@ def test_search_page_renders_document_results(client, monkeypatch) -> None:
     monkeypatch.setattr(
         views.services,
         "search_semantic_documents",
-        lambda _query: {
+        lambda _query, source="ratsinfo": {
             "results": [
                 {
                     "rank": 1,
@@ -300,6 +300,47 @@ def test_search_page_renders_document_results(client, monkeypatch) -> None:
     assert "0.0328" in content
     assert "Windkraft in Riemsloh" in content
     assert "/analyse/sitzungen/7123/" in content
+    assert '<option value="ratsinfo" selected>Ratsinfo</option>' in content
+
+
+def test_search_page_renders_landkreis_results_without_session_links(client, monkeypatch) -> None:
+    from search import views
+
+    captured = {}
+
+    def fake_search(query, source="ratsinfo"):
+        captured["query"] = query
+        captured["source"] = source
+        return {
+            "results": [
+                {
+                    "rank": 1,
+                    "display_score": "0.0400",
+                    "display_date": "11.03.2026",
+                    "date": "2026-03-11",
+                    "source": "amtsblaetter",
+                    "title": "Amtsblatt 10",
+                    "document_title": "PDF Anlage",
+                    "url": "https://example.test/a.pdf",
+                    "local_path": "/tmp/a.pdf",
+                }
+            ],
+            "error": "",
+            "warning": "Ergebnisse stammen aus der hybriden Landkreis-Vektorsuche.",
+        }
+
+    monkeypatch.setattr(views.services, "search_semantic_documents", fake_search)
+
+    response = client.get("/suche/?q=Melle&source=landkreis")
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert captured == {"query": "Melle", "source": "landkreis"}
+    assert '<option value="landkreis" selected>Landkreis</option>' in content
+    assert "amtsblaetter" in content
+    assert "Amtsblatt 10" in content
+    assert "PDF Anlage" in content
+    assert "/analyse/sitzungen/7123/" not in content
 
 
 def test_session_detail_links_document_source_to_session_page(client, monkeypatch) -> None:
@@ -801,8 +842,21 @@ def test_service_build_page_excludes_vector_build(client) -> None:
     assert response.status_code == 200
     assert "Lokalen Index bauen" in content
     assert "Online-Index bauen" in content
+    assert "Landkreis-Datenbank bauen" in content
     assert "Vektorindex bauen" not in content
     assert "SQLite-Dokumente" not in content
+
+
+def test_service_fetch_page_includes_landkreis_fetch(client) -> None:
+    response = client.get("/daten/fetch/")
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "Landkreis-Veröffentlichungen laden" in content
+    assert 'name="action" value="fetch_landkreis_publications"' in content
+    assert "Bekanntmachungen" in content
+    assert "Amtsblaetter" in content
+    assert "Datenwurzel" in content
 
 
 def test_service_vector_page_renders_vector_status(client, monkeypatch) -> None:
@@ -823,16 +877,36 @@ def test_service_vector_page_renders_vector_status(client, monkeypatch) -> None:
             "warnings": ["Vektorindex ist nicht vollstaendig."],
         },
     )
+    monkeypatch.setattr(
+        views.services,
+        "landkreis_vector_index_status",
+        lambda: {
+            "status": "missing_qdrant",
+            "sqlite_document_count": 5,
+            "indexable_document_count": 4,
+            "indexed_vector_count": 0,
+            "missing_vector_count": None,
+            "orphaned_vector_count": None,
+            "coverage_percent": None,
+            "latest_document_date": "2026-04-01",
+            "warnings": ["Qdrant-Collection fehlt: landkreis_publications"],
+        },
+    )
 
     response = client.get("/daten/vektor/")
     content = response.content.decode("utf-8")
 
     assert response.status_code == 200
-    assert "Vektorindex bauen" in content
+    assert "Ratsinfo-Vektorindex bauen" in content
+    assert "Landkreis-Vektorindex bauen" in content
+    assert "Ratsinfo-Vektorstatus" in content
+    assert "Landkreis-Vektorstatus" in content
     assert "SQLite-Dokumente" in content
     assert "10" in content
+    assert "5" in content
     assert "77,8 %" in content
     assert "Vektorindex ist nicht vollstaendig." in content
+    assert "Qdrant-Collection fehlt: landkreis_publications" in content
 
 
 def test_build_vector_index_form_starts_existing_service_job(client, monkeypatch) -> None:
@@ -868,6 +942,70 @@ def test_build_vector_index_form_starts_existing_service_job(client, monkeypatch
     assert captured["limit"] == "25"
     assert captured["job_action"] == "build_vector_index"
     assert captured["command"] == ["python", "scripts/build_vector_index.py", "--limit", "25"]
+
+
+def test_landkreis_vector_index_form_starts_service_job(client, monkeypatch) -> None:
+    from data_tools import views
+
+    captured = {}
+
+    class Job:
+        job_id = "landkreis-vector123"
+
+    def fake_build_service_command(action, data):
+        captured["action"] = action
+        captured["data_dir"] = data.get("data_dir")
+        captured["limit"] = data.get("limit")
+        captured["max_text_chars"] = data.get("max_text_chars")
+        return (
+            [
+                "python",
+                "scripts/build_landkreis_vector_index.py",
+                "--data-dir",
+                "/mnt/d/landkreis_osnabrueck",
+                "--limit",
+                "10",
+                "--max-text-chars",
+                "3000",
+            ],
+            [],
+        )
+
+    def fake_start_service_job(action, command, cwd):
+        captured["job_action"] = action
+        captured["command"] = command
+        return Job()
+
+    monkeypatch.setattr(views.services, "build_service_command", fake_build_service_command)
+    monkeypatch.setattr(views.service_jobs, "start_service_job", fake_start_service_job)
+
+    response = client.post(
+        "/daten/vektor/",
+        {
+            "action": "build_landkreis_vector_index",
+            "data_dir": "/mnt/d/landkreis_osnabrueck",
+            "limit": "10",
+            "max_text_chars": "3000",
+        },
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/daten/jobs/landkreis-vector123/"
+    assert captured["action"] == "build_landkreis_vector_index"
+    assert captured["data_dir"] == "/mnt/d/landkreis_osnabrueck"
+    assert captured["limit"] == "10"
+    assert captured["max_text_chars"] == "3000"
+    assert captured["job_action"] == "build_landkreis_vector_index"
+    assert captured["command"] == [
+        "python",
+        "scripts/build_landkreis_vector_index.py",
+        "--data-dir",
+        "/mnt/d/landkreis_osnabrueck",
+        "--limit",
+        "10",
+        "--max-text-chars",
+        "3000",
+    ]
 
 
 def test_service_post_requires_csrf_when_enforced(monkeypatch) -> None:

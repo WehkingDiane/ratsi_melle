@@ -18,6 +18,8 @@ QDRANT_DIR = paths.QDRANT_DIR
 
 MAX_SEARCH_RESULTS = 100
 MAX_SEMANTIC_SEARCH_RESULTS = 20
+LANDKREIS_COLLECTION_NAME = "landkreis_publications"
+RATSINFO_COLLECTION_NAME = "ratsi_documents"
 
 _SEMANTIC_SEARCH_DEPENDENCIES = (
     ("qdrant-client", "qdrant_client"),
@@ -90,12 +92,18 @@ def search_documents(query: str, *, limit: int = MAX_SEARCH_RESULTS) -> list[dic
     return [_with_display_fields(result) for result in results]
 
 
-def search_semantic_documents(query: str, *, limit: int = MAX_SEMANTIC_SEARCH_RESULTS) -> dict[str, Any]:
+def search_semantic_documents(
+    query: str,
+    *,
+    limit: int = MAX_SEMANTIC_SEARCH_RESULTS,
+    source: str = "ratsinfo",
+) -> dict[str, Any]:
     """Search indexed document contents via the local Qdrant vector index."""
 
     normalized_query = " ".join(query.split())
     if not normalized_query:
         return {"results": [], "error": "", "warning": ""}
+    source_config = _semantic_source_config(source)
 
     _sync_paths()
     dependency_error = _semantic_search_dependency_error()
@@ -107,8 +115,8 @@ def search_semantic_documents(query: str, *, limit: int = MAX_SEMANTIC_SEARCH_RE
         return {
             "results": [],
             "error": (
-                "Der Vektorindex fehlt. Bitte unter /daten/vektor/ den "
-                "Vektorindex bauen oder `python scripts/build_vector_index.py` ausfuehren."
+                f"Der {source_config['label']}-Vektorindex fehlt. Bitte "
+                f"`{source_config['build_command']}` ausfuehren."
             ),
             "warning": "",
         }
@@ -116,13 +124,16 @@ def search_semantic_documents(query: str, *, limit: int = MAX_SEMANTIC_SEARCH_RE
     store = None
     try:
         embedder, bm25 = _get_semantic_resources()
-        store = _create_vector_store(qdrant_dir)
+        store = _create_vector_store(qdrant_dir, source_config["collection_name"])
         results = store.search(
             query_dense=embedder.embed_query(normalized_query),
             query_sparse=bm25.encode_query(normalized_query),
             limit=max(1, min(int(limit), MAX_SEMANTIC_SEARCH_RESULTS)),
         )
     except Exception as exc:  # noqa: BLE001
+        missing_collection_text = source_config["missing_collection_text"]
+        if "doesn't exist" in str(exc) or "not found" in str(exc).lower():
+            return {"results": [], "error": missing_collection_text, "warning": ""}
         return {
             "results": [],
             "error": f"Fehler bei der Vektorsuche: {exc}",
@@ -136,9 +147,15 @@ def search_semantic_documents(query: str, *, limit: int = MAX_SEMANTIC_SEARCH_RE
                 pass
 
     return {
-        "results": [_with_semantic_display_fields(rank, result) for rank, result in enumerate(results, start=1)],
+        "results": [
+            _with_semantic_display_fields(rank, result, source_config["source"])
+            for rank, result in enumerate(results, start=1)
+        ],
         "error": "",
-        "warning": "Ergebnisse stammen aus der hybriden Vektorsuche (Harrier + BM25, RRF-Rangfusion).",
+        "warning": (
+            f"Ergebnisse stammen aus der hybriden {source_config['label']}-Vektorsuche "
+            "(Harrier + BM25, RRF-Rangfusion)."
+        ),
     }
 
 
@@ -152,12 +169,37 @@ def _get_semantic_resources():
     return HarrierEmbedder(), BM25Encoder()
 
 
-def _create_vector_store(qdrant_dir: Path):
+def _create_vector_store(qdrant_dir: Path, collection_name: str = RATSINFO_COLLECTION_NAME):
     """Create a request-local vector store so Qdrant locks are not cached."""
 
     from src.analysis.vector_store import DocumentVectorStore
 
-    return DocumentVectorStore(qdrant_dir)
+    return DocumentVectorStore(qdrant_dir, collection_name=collection_name)
+
+
+def _semantic_source_config(source: str) -> dict[str, str]:
+    normalized = (source or "ratsinfo").strip().lower()
+    if normalized == "landkreis":
+        return {
+            "source": "landkreis",
+            "label": "Landkreis",
+            "collection_name": LANDKREIS_COLLECTION_NAME,
+            "build_command": "python scripts/build_landkreis_vector_index.py",
+            "missing_collection_text": (
+                "Der Landkreis-Vektorindex fehlt. Bitte "
+                "`python scripts/build_landkreis_vector_index.py` ausfuehren."
+            ),
+        }
+    return {
+        "source": "ratsinfo",
+        "label": "Ratsinfo",
+        "collection_name": RATSINFO_COLLECTION_NAME,
+        "build_command": "python scripts/build_vector_index.py",
+        "missing_collection_text": (
+            "Der Ratsinfo-Vektorindex fehlt. Bitte unter /daten/vektor/ den "
+            "Vektorindex bauen oder `python scripts/build_vector_index.py` ausfuehren."
+        ),
+    }
 
 
 def _semantic_search_dependency_error() -> str:
@@ -183,10 +225,11 @@ def _with_display_fields(result: dict[str, Any]) -> dict[str, Any]:
     return enriched
 
 
-def _with_semantic_display_fields(rank: int, result: dict[str, Any]) -> dict[str, Any]:
+def _with_semantic_display_fields(rank: int, result: dict[str, Any], source: str = "ratsinfo") -> dict[str, Any]:
     enriched = _with_display_fields(result)
     enriched["rank"] = rank
     enriched["display_score"] = _format_rrf_score(enriched.get("score"))
+    enriched["search_source"] = source
     return enriched
 
 

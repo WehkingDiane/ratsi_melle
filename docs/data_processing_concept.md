@@ -13,9 +13,11 @@ Das Projekt arbeitet gegen eine oeffentliche **SessionNet**-Installation der Sta
 
 - `https://session.melle.info/bi/`
 
-Wichtige angrenzende Quelle:
+Wichtige angrenzende Quellen:
 
 - Stadtportal Melle unter `https://www.melle.de/`
+- Landkreis Osnabrueck unter `https://www.landkreis-osnabrueck.de/verwaltung/veroeffentlichungen/bekanntmachungen`
+- Landkreis-Amtsblaetter unter `https://www.landkreis-osnabrueck.de/verwaltung/veroeffentlichungen/amtsblaetter`
 
 ### Dauerhafte Arbeitsannahmen
 
@@ -43,6 +45,22 @@ build_vector_index.py
 Qdrant-Vektorindex unter data/db/qdrant/
     ↓
 Recherche, Analyse und semantische Suche in den Oberflächen
+```
+
+Landkreis-Veröffentlichungen laufen als getrennte Pipeline:
+
+```text
+Landkreis Osnabrueck Bekanntmachungen / Amtsblaetter
+    ↓
+fetch_landkreis_publications.py
+    ↓
+data/raw/landkreis/ oder RATSI_LANDKREIS_DATA_DIR
+    ↓
+build_landkreis_publications_db.py
+    ↓
+data/db/landkreis_publications.sqlite
+    ↓
+search_landkreis_publications.py
 ```
 
 ## 3. Datenerfassung aus SessionNet
@@ -140,6 +158,51 @@ Es gibt zwei gleich strukturierte Indexdatenbanken:
 - Sitzungen, TOPs und Dokumentmetadaten strukturiert abfragen
 - Grundlage fuer Filter, Gremienlisten und Synchronisationslogik
 
+### Landkreis-Veröffentlichungen
+
+- Skript: `scripts/fetch_landkreis_publications.py`
+- Build-Skript: `scripts/build_landkreis_publications_db.py`
+- Vektor-Build-Skript: `scripts/build_landkreis_vector_index.py`
+- Suchskript: `scripts/search_landkreis_publications.py`
+- Ziel: `data/db/landkreis_publications.sqlite`
+- Rohdaten: standardmaessig `data/raw/landkreis/`, alternativ `RATSI_LANDKREIS_DATA_DIR` oder `--data-dir`
+
+Diese Datenbank ist absichtlich vom SessionNet-Index getrennt. Sie enthaelt `publications`, `documents`, `extracted_texts`, `crawl_runs` und eine SQLite-FTS-Tabelle fuer Begriffe wie `Melle`, `Genehmigung`, `UVP` oder `BImSchG`. Lokale Dokumentpfade werden relativ zur Landkreis-Datenwurzel gespeichert, damit grosse Downloads ausserhalb des Projektverzeichnisses abgelegt werden koennen.
+
+Der Import arbeitet quellenorientiert:
+
+1. Listen-HTML fuer Bekanntmachungen oder Amtsblaetter abrufen und unter der Landkreis-Datenwurzel archivieren.
+2. Listeneintraege mit Datum, Titel, Detail-URL und stabiler `publication_id` extrahieren.
+3. Detailseite laden, Original-HTML speichern und PDF-/Dateilinks erfassen.
+4. Vorhandene Landkreis-Veröffentlichungen mit lokalem `manifest.json` bei spaeteren Laeufen ueberspringen; neue Bekanntmachungs-PDFs nicht herunterladen; neue Amtsblaetter vollstaendig herunterladen.
+5. Mit `build_landkreis_publications_db.py` die SQLite-DB aus Manifests und lokalen Amtsblatt-Dateien neu aufbauen.
+6. Text mit der bestehenden Extraktionspipeline ableiten und in `extracted_texts` sowie der FTS-Tabelle auffindbar machen.
+7. Optional mit `build_landkreis_vector_index.py` lokal vorhandene Dokumente in die Qdrant-Collection `landkreis_publications` schreiben.
+
+Wichtige CLI-Optionen:
+
+```bash
+python scripts/fetch_landkreis_publications.py --source all
+python scripts/build_landkreis_publications_db.py
+python scripts/build_landkreis_vector_index.py
+python scripts/fetch_landkreis_publications.py --source bekanntmachungen --query Melle
+python scripts/fetch_landkreis_publications.py --source amtsblaetter --from-date 2026-01-01
+python scripts/search_landkreis_publications.py "Melle Genehmigung"
+```
+
+Externe Ablage grosser Rohdaten:
+
+```bash
+RATSI_LANDKREIS_DATA_DIR=/mnt/d/landkreis_osnabrueck \
+python scripts/fetch_landkreis_publications.py --source all
+RATSI_LANDKREIS_DATA_DIR=/mnt/d/landkreis_osnabrueck \
+python scripts/build_landkreis_publications_db.py
+```
+
+Alternativ akzeptieren Fetch-, DB-Build- und Vektor-Build-Skript `--data-dir`; alle drei sollten dieselbe Landkreis-Datenwurzel verwenden, weil `local_path` relativ dazu gespeichert wird. Die Datenbank kann separat mit `RATSI_LANDKREIS_DB` oder `--db` gesetzt werden.
+
+Der Landkreis-Vektorindex bleibt von `ratsi_documents` getrennt. `build_landkreis_vector_index.py` liest `data/db/landkreis_publications.sqlite`, verwendet `extracted_texts.extracted_text` als Primaertext und faellt bei fehlendem Text auf Veroeffentlichungs- und Dokumenttitel zurueck. Indexiert werden nur Dokumentzeilen mit lokalem Pfad. Stabile Qdrant-IDs entstehen aus `landkreis`, `publication_id` und Dokument-URL. Vollstaendige Laeufe entfernen verwaiste Punkte; bei `--limit` ist diese Bereinigung deaktiviert. Lokale Payload-Pfade werden gegen `RATSI_LANDKREIS_DATA_DIR` oder `--data-dir` aufgeloest. Fuer den Embedding-Schritt werden standardmaessig hoechstens 6000 Zeichen pro Dokument verwendet; bei knappem XPU/GPU-Speicher kann `--max-text-chars` niedriger gesetzt werden.
+
 ### Wichtige Metadaten
 
 - `session_id`
@@ -212,7 +275,7 @@ Die fachlichen Indexing-Schritte fuer stabile IDs, Payload-Aufbau, Hybrid-Vektor
 ### Speicherort
 
 - Qdrant lokal unter `data/db/qdrant/`
-- Collection: `ratsi_documents`
+- Collections: `ratsi_documents` fuer Ratsinfo, `landkreis_publications` fuer Landkreis-Veröffentlichungen
 
 ### Stabile IDs und Reconciliation
 

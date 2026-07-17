@@ -52,6 +52,7 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 - Rohdaten bleiben unverändert in `data/raw/`. Eine Reproduzierbarkeit der Verarbeitungsschritte ist sicherzustellen.
 - Verarbeitete Daten in `data/processed/` enthalten nur interne Normalisierungen/Ableitungen ohne SQLite-Infrastruktur.
 - SQLite-Datenbanken liegen unter `data/db/`.
+- Landkreis-Veröffentlichungen nutzen eine getrennte Datenbank `data/db/landkreis_publications.sqlite` und eine eigene Rohdatenwurzel. Standard ist `data/raw/landkreis/`; fuer grosse lokale Datenbestaende kann `RATSI_LANDKREIS_DATA_DIR` oder `--data-dir` auf einen externen Speicherort zeigen. Gespeichert werden relative Pfade innerhalb dieser Wurzel.
 - Analyse-Eingaben liegen unter `data/analysis_requests/`, Analyse-Ausgaben unter `data/analysis_outputs/`.
 - Sensible Inhalte (personenbezogene Daten, API-Schlüssel) werden nicht eingecheckt. Für Beispiele wird auf `*.template`-Dateien zurückgegriffen.
 - Lokale Dokumentreferenzen aus SQLite, Exporten oder Suchindizes dürfen nur auf Dateien unter einer zulaessigen `data/raw/`-Wurzel zeigen; absolute Fremdpfade gelten als ungueltig.
@@ -80,7 +81,8 @@ Diese Regeln bilden das Fundament für den weiteren Projektverlauf und können b
 
 - `scripts/build_local_index.py` erzeugt einen lokalen Index aus bereits heruntergeladenen Rohdaten (`data/raw/`) und schreibt standardmäßig nach `data/db/local_index.sqlite`.
 - `scripts/build_online_index_db.py` erzeugt einen Online-Index ohne Dokumentdownloads und schreibt standardmäßig nach `data/db/online_session_index.sqlite`. Mit `--refresh-existing` werden vorhandene Sitzungen neu eingelesen; `--only-refresh` aktualisiert ausschließlich bestehende Sitzungen.
-- Beide Indexe enthalten in `documents` ein normalisiertes Feld `document_type` (`vorlage`, `beschlussvorlage`, `protokoll`, `bekanntmachung`, `sonstiges`) sowie Metadatenfelder `sha1` und `retrieved_at`.
+- `scripts/fetch_landkreis_publications.py` erfasst Landkreis-Bekanntmachungen und Amtsblätter als Rohdaten. `scripts/build_landkreis_publications_db.py` baut daraus die getrennte SQLite-DB. `scripts/search_landkreis_publications.py` durchsucht diese DB per SQLite-FTS, z. B. nach `Melle Genehmigung`.
+- Die beiden SessionNet-Indexe enthalten in `documents` ein normalisiertes Feld `document_type` (`vorlage`, `beschlussvorlage`, `protokoll`, `bekanntmachung`, `sonstiges`) sowie Metadatenfelder `sha1` und `retrieved_at`.
 - Der fruehere Export-CLI-Pfad wurde archiviert und liegt unter `old/scripts/export_analysis_batch.py`.
 
 ## WSL-Setup (kurz)

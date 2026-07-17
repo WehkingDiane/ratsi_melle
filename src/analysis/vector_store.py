@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 _COLLECTION_NAME = "ratsi_documents"
+LANDKREIS_COLLECTION_NAME = "landkreis_publications"
 _DENSE_VECTOR = "harrier"
 _SPARSE_VECTOR = "bm25"
 _EMBEDDING_DIM = 1024
@@ -24,8 +25,9 @@ class DocumentVectorStore:
         qdrant_path: Directory where the Qdrant storage files will be kept.
     """
 
-    def __init__(self, qdrant_path: Path) -> None:
+    def __init__(self, qdrant_path: Path, collection_name: str = _COLLECTION_NAME) -> None:
         self._path = qdrant_path
+        self.collection_name = collection_name
         self._client: Any = None
 
     # ------------------------------------------------------------------
@@ -67,9 +69,9 @@ class DocumentVectorStore:
 
         client = self._get_client()
         existing = [col.name for col in client.get_collections().collections]
-        if _COLLECTION_NAME not in existing:
+        if self.collection_name not in existing:
             client.create_collection(
-                collection_name=_COLLECTION_NAME,
+                collection_name=self.collection_name,
                 vectors_config={
                     _DENSE_VECTOR: VectorParams(
                         size=_EMBEDDING_DIM,
@@ -110,7 +112,7 @@ class DocumentVectorStore:
             )
             for p in points
         ]
-        client.upsert(collection_name=_COLLECTION_NAME, points=qdrant_points)
+        client.upsert(collection_name=self.collection_name, points=qdrant_points)
 
     def search(
         self,
@@ -161,7 +163,7 @@ class DocumentVectorStore:
 
         # Prefetch candidates from both retrieval methods, then fuse
         response = client.query_points(
-            collection_name=_COLLECTION_NAME,
+            collection_name=self.collection_name,
             prefetch=[
                 Prefetch(
                     query=query_dense,
@@ -199,6 +201,10 @@ class DocumentVectorStore:
                     "document_type": payload.get("document_type", ""),
                     "url": payload.get("url", ""),
                     "local_path": payload.get("local_path", ""),
+                    "source_system": payload.get("source_system", ""),
+                    "publication_id": payload.get("publication_id", ""),
+                    "source": payload.get("source", ""),
+                    "document_title": payload.get("document_title", ""),
                 }
             )
         return results
@@ -207,7 +213,7 @@ class DocumentVectorStore:
         """Return the total number of indexed document vectors."""
         client = self._get_client()
         try:
-            info = client.get_collection(collection_name=_COLLECTION_NAME)
+            info = client.get_collection(collection_name=self.collection_name)
             return info.points_count or 0
         except Exception:
             return 0
@@ -220,7 +226,7 @@ class DocumentVectorStore:
             offset: int | None = None
             while True:
                 records, next_offset = client.scroll(
-                    collection_name=_COLLECTION_NAME,
+                    collection_name=self.collection_name,
                     with_payload=False,
                     with_vectors=False,
                     limit=1000,
@@ -244,6 +250,6 @@ class DocumentVectorStore:
 
         client = self._get_client()
         client.delete(
-            collection_name=_COLLECTION_NAME,
+            collection_name=self.collection_name,
             points_selector=PointIdsList(points=list(ids)),
         )

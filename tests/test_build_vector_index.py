@@ -1,17 +1,20 @@
 from __future__ import annotations
 
 import importlib
+import sqlite3
 import sys
 from pathlib import Path
 from types import ModuleType
 
 import pytest
 
+from scripts import build_landkreis_vector_index
 from scripts import build_vector_index
 from src.indexing.id_strategy import stable_document_id
 from src.indexing.payload_builder import build_document_payload, resolve_local_path
 from src.indexing.reconciliation import find_orphaned_ids
 from src.indexing.vectorizer import HybridVectorizer
+from src.analysis.vector_store import DocumentVectorStore
 
 
 class _FakeVectorStore:
@@ -91,12 +94,223 @@ def test_stable_qdrant_id_distinguishes_duplicate_urls_by_agenda_item() -> None:
     assert session_doc == session_doc_none
 
 
+def test_document_vector_store_defaults_to_ratsinfo_collection(tmp_path: Path) -> None:
+    store = DocumentVectorStore(tmp_path / "qdrant")
+
+    assert store.collection_name == "ratsi_documents"
+
+
+def test_document_vector_store_accepts_custom_collection(tmp_path: Path) -> None:
+    store = DocumentVectorStore(tmp_path / "qdrant", collection_name="landkreis_publications")
+
+    assert store.collection_name == "landkreis_publications"
+
+
 def test_stable_document_id_is_deterministic_and_sensitive_to_inputs() -> None:
     base = stable_document_id("901", "https://example.org/doc.pdf", "Oe 1")
 
     assert stable_document_id("901", "https://example.org/doc.pdf", "Oe 1") == base
     assert stable_document_id("902", "https://example.org/doc.pdf", "Oe 1") != base
     assert stable_document_id("901", "https://example.org/other.pdf", "Oe 1") != base
+
+
+def test_landkreis_stable_qdrant_id_uses_publication_and_document_url() -> None:
+    base = build_landkreis_vector_index._stable_landkreis_qdrant_id(
+        "pub-1",
+        "https://example.org/doc.pdf",
+    )
+
+    assert build_landkreis_vector_index._stable_landkreis_qdrant_id("pub-1", "https://example.org/doc.pdf") == base
+    assert build_landkreis_vector_index._stable_landkreis_qdrant_id("pub-2", "https://example.org/doc.pdf") != base
+    assert build_landkreis_vector_index._stable_landkreis_qdrant_id("pub-1", "https://example.org/other.pdf") != base
+
+
+def test_landkreis_load_documents_uses_only_local_documents_and_extracted_text(tmp_path: Path) -> None:
+    db_path = tmp_path / "landkreis.sqlite"
+    with sqlite3.connect(db_path) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE publications (
+                publication_id TEXT PRIMARY KEY,
+                source TEXT NOT NULL,
+                date TEXT,
+                title TEXT NOT NULL
+            );
+            CREATE TABLE documents (
+                id INTEGER PRIMARY KEY,
+                publication_id TEXT NOT NULL,
+                title TEXT,
+                url TEXT NOT NULL,
+                local_path TEXT
+            );
+            CREATE TABLE extracted_texts (
+                document_id INTEGER PRIMARY KEY,
+                extracted_text TEXT
+            );
+            INSERT INTO publications VALUES ('pub-1', 'amtsblaetter', '2026-03-11', 'Amtsblatt 10');
+            INSERT INTO documents VALUES (1, 'pub-1', 'PDF Anlage', 'https://example.org/a.pdf', 'amtsblatt/a.pdf');
+            INSERT INTO documents VALUES (2, 'pub-1', 'Nur Link', 'https://example.org/b.pdf', '');
+            INSERT INTO extracted_texts VALUES (1, 'Extrahierter Landkreis-Text');
+            """
+        )
+
+    rows = build_landkreis_vector_index._load_documents(db_path)
+
+    assert len(rows) == 1
+    assert rows[0]["publication_id"] == "pub-1"
+    assert rows[0]["document_title"] == "PDF Anlage"
+    assert build_landkreis_vector_index._document_text(rows[0]) == "Extrahierter Landkreis-Text"
+
+
+def test_landkreis_document_text_is_truncated_for_embedding() -> None:
+    text = build_landkreis_vector_index._document_text(
+        {"extracted_text": "eins zwei drei vier"},
+        max_chars=11,
+    )
+
+    assert text == "eins zwei"
+
+
+def test_landkreis_main_indexes_missing_documents_and_payload(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    doc = {
+        "publication_id": "pub-1",
+        "source": "amtsblaetter",
+        "title": "Amtsblatt 10",
+        "document_title": "PDF Anlage",
+        "date": "2026-03-11",
+        "url": "https://example.org/a.pdf",
+        "local_path": "amtsblaetter/2026/a.pdf",
+        "extracted_text": "Extrahierter Landkreis-Text",
+    }
+    vector_store = _FakeVectorStore(indexed_ids=set(), count=1)
+    captured: dict[str, object] = {}
+
+    class _FakeHarrierEmbedder:
+        pass
+
+    class _FakeDocumentVectorStore:
+        def __new__(cls, path, collection_name=""):
+            captured["qdrant_path"] = path
+            captured["collection_name"] = collection_name
+            return vector_store
+
+    class _FakeBM25Encoder:
+        def _get_model(self) -> None:
+            pass
+
+    class _FakeHybridVectorizer:
+        def __init__(self, _embedder, _bm25) -> None:
+            pass
+
+        def encode_documents(self, texts: list[str]) -> list[dict]:
+            captured["texts"] = texts
+            return [
+                {
+                    "dense_vector": [0.0] * 1024,
+                    "sparse_vector": {"indices": [index], "values": [1.0]},
+                }
+                for index, _text in enumerate(texts)
+            ]
+
+    embeddings_module = ModuleType("src.analysis.embeddings")
+    embeddings_module._detect_device = lambda: "cpu"
+    bm25_module = ModuleType("src.analysis.bm25_sparse")
+    bm25_module.BM25Encoder = _FakeBM25Encoder
+    monkeypatch.setitem(sys.modules, "src.analysis.embeddings", embeddings_module)
+    monkeypatch.setitem(sys.modules, "src.analysis.bm25_sparse", bm25_module)
+    monkeypatch.setattr(
+        build_landkreis_vector_index,
+        "_validate_runtime_dependencies",
+        lambda: (_FakeHarrierEmbedder, _FakeDocumentVectorStore),
+    )
+    monkeypatch.setattr(build_landkreis_vector_index, "HybridVectorizer", _FakeHybridVectorizer)
+    monkeypatch.setattr(build_landkreis_vector_index, "_load_documents", lambda _db_path: [doc])
+    monkeypatch.setattr(build_landkreis_vector_index, "LANDKREIS_DATA_DIR", tmp_path / "raw-landkreis")
+
+    db_path = tmp_path / "landkreis.sqlite"
+    db_path.write_text("", encoding="utf-8")
+
+    data_root = tmp_path / "external-landkreis"
+    build_landkreis_vector_index.main(
+        [
+            "--db",
+            str(db_path),
+            "--qdrant-dir",
+            str(tmp_path / "qdrant"),
+            "--data-dir",
+            str(data_root),
+            "--max-text-chars",
+            "12",
+        ]
+    )
+
+    assert captured["collection_name"] == build_landkreis_vector_index.COLLECTION_NAME
+    assert captured["texts"] == ["Extrahierter"]
+    assert len(vector_store.upserted_batches) == 1
+    point = vector_store.upserted_batches[0][0]
+    assert point["id"] == build_landkreis_vector_index._stable_landkreis_qdrant_id("pub-1", "https://example.org/a.pdf")
+    assert point["payload"]["source_system"] == "landkreis"
+    assert point["payload"]["publication_id"] == "pub-1"
+    assert point["payload"]["source"] == "amtsblaetter"
+    assert point["payload"]["document_title"] == "PDF Anlage"
+    assert point["payload"]["local_path"] == str((data_root / "amtsblaetter/2026/a.pdf").resolve())
+
+
+def test_landkreis_main_skips_indexed_and_deletes_orphans_only_without_limit(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    doc = {
+        "publication_id": "pub-1",
+        "source": "amtsblaetter",
+        "title": "Amtsblatt 10",
+        "document_title": "PDF Anlage",
+        "date": "2026-03-11",
+        "url": "https://example.org/a.pdf",
+        "local_path": "a.pdf",
+        "extracted_text": "",
+    }
+    current_id = build_landkreis_vector_index._stable_landkreis_qdrant_id("pub-1", "https://example.org/a.pdf")
+    orphan_id = 123456
+    vector_store = _FakeVectorStore(indexed_ids={current_id, orphan_id}, count=2)
+
+    class _FakeDocumentVectorStore:
+        def __new__(cls, _path, collection_name=""):
+            return vector_store
+
+    monkeypatch.setattr(
+        build_landkreis_vector_index,
+        "_validate_runtime_dependencies",
+        lambda: (object, _FakeDocumentVectorStore),
+    )
+    monkeypatch.setattr(build_landkreis_vector_index, "_load_documents", lambda _db_path: [doc])
+    db_path = tmp_path / "landkreis.sqlite"
+    db_path.write_text("", encoding="utf-8")
+
+    build_landkreis_vector_index.main(["--db", str(db_path), "--qdrant-dir", str(tmp_path / "qdrant")])
+
+    assert vector_store.upserted_batches == []
+    assert vector_store.deleted_ids == [{orphan_id}]
+    assert "Nothing to index" in capsys.readouterr().out
+
+    vector_store.deleted_ids.clear()
+    build_landkreis_vector_index.main(
+        [
+            "--db",
+            str(db_path),
+            "--qdrant-dir",
+            str(tmp_path / "qdrant"),
+            "--limit",
+            "1",
+        ]
+    )
+
+    assert vector_store.deleted_ids == []
+    assert "Skipping orphan cleanup because --limit is set." in capsys.readouterr().out
 
 
 def test_get_document_text_resolves_legacy_session_paths(tmp_path: Path, monkeypatch) -> None:

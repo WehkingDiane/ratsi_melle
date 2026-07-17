@@ -1,0 +1,141 @@
+@startuml RatsiMelleArchitectureOverview
+title Ratsi Melle - aktuelle Grundarchitektur
+
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultFontName Arial
+skinparam ArrowColor #334155
+skinparam BorderColor #334155
+skinparam BackgroundColor #ffffff
+skinparam component {
+  BackgroundColor #f8fafc
+  BorderColor #334155
+}
+skinparam database {
+  BackgroundColor #eef2ff
+  BorderColor #4338ca
+}
+skinparam folder {
+  BackgroundColor #ecfeff
+  BorderColor #0f766e
+}
+
+actor "Lokale Nutzerin" as User
+cloud "SessionNet Melle\nhttps://session.melle.info/bi/" as SessionNet
+cloud "KI-Provider\nCodex / Claude / Ollama / none" as KiProviders
+cloud "Hugging Face\nEmbedding-Modell" as HuggingFace
+
+package "Einstiegspunkte" as Entrypoints {
+  component "CLI-Skripte\nscripts/" as Scripts
+  component "Django-Weboberflaeche\nweb/" as Web
+  component "Tests\ntests/" as Tests
+}
+
+package "Fachmodule\nsrc/" as Src {
+  component "fetching\nSessionNetClient,\nModelle, Storage-Layout" as Fetching
+  component "parsing\nDokumentinhalt" as Parsing
+  component "indexing\nIDs, Payloads,\nVectorizer, Reconciliation" as Indexing
+  component "analysis\nKontext, Service,\nPrompts, Provider,\nWorkflow-DB" as Analysis
+  component "config\nSecrets / Tokens" as Config
+  component "interfaces.shared\ngeteilte Integrationslogik" as SharedInterfaces
+  component "paths / data_layout\nzentrale Pfade und DB-Layout" as Paths
+}
+
+package "Web-Bereiche\nweb/" as WebApps {
+  component "core\nDashboard, Layout,\nService-Fassaden" as WebCore
+  component "analysis\nAnalyse starten,\nJobs, Sitzungen,\nPrompt-Vorlagen" as WebAnalysis
+  component "data_tools\nFetch-, Build-,\nVektorindex-Jobs" as WebDataTools
+  component "search\nsemantische Suche" as WebSearch
+  component "settings_ui\nlokale Einstellungen,\nToken-Ablage" as WebSettings
+  component "publishing\nPlatzhalter fuer Review\nund Veroeffentlichung" as WebPublishing
+}
+
+package "Lokale Daten" as Data {
+  folder "data/raw/\nSitzungspakete,\nHTML, PDFs,\nmanifest.json" as RawData
+  database "data/db/local_index.sqlite\nlokaler Sitzungs- und\nDokumentindex" as LocalIndex
+  database "data/db/online_session_index.sqlite\nOnline-Auswahlindex" as OnlineIndex
+  database "data/db/analysis_workflow.sqlite\nAnalysejobs und\nOutput-Verweise" as WorkflowDb
+  database "data/db/qdrant/\nlokaler Vektorindex" as Qdrant
+  folder "data/analysis_outputs/\nJSON- und Markdown-Artefakte" as AnalysisOutputs
+  folder "data/private/\nPrompt-Vorlagen,\nPrompt-Snapshots" as PrivateData
+  folder "configs/\nBeispielkonfigurationen" as Configs
+  folder "logs/\nLaufzeitlogs" as Logs
+}
+
+User --> Web : lokale Bedienung\npython scripts/run_web.py
+User --> Scripts : Wartung / Batch-Jobs
+
+Scripts --> Fetching : fetch_sessions.py\nfetch_session_from_index.py\nbuild_online_index_db.py
+Scripts --> Indexing : build_vector_index.py
+Scripts --> Paths : zentrale Pfade
+Scripts --> RawData : schreibt / liest
+Scripts --> LocalIndex : build_local_index.py
+Scripts --> OnlineIndex : build_online_index_db.py
+Scripts --> Qdrant : build_vector_index.py
+
+Fetching --> SessionNet : Monatsuebersichten,\nSitzungsdetails,\nDokumentdownloads
+Fetching --> RawData : Sitzungspakete speichern
+Fetching --> OnlineIndex : Online-Index aufbauen
+Fetching --> Paths
+
+Parsing --> RawData : Dokumentinhalt lesen
+Indexing --> LocalIndex : Dokumentmetadaten lesen
+Indexing --> RawData : lokale Dokumentpfade aufloesen
+Indexing --> Analysis : Dense / Sparse Vektoren nutzen
+Indexing --> Qdrant : Punkte upserten,\nverwaiste IDs bereinigen
+
+Analysis --> LocalIndex : Sitzungen, TOPs,\nDokumente lesen
+Analysis --> RawData : Dokumente fuer Analyse\nund PDF-Anhaenge
+Analysis --> WorkflowDb : Jobs und Status
+Analysis --> AnalysisOutputs : Analyseartefakte
+Analysis --> PrivateData : Prompts und Snapshots
+Analysis --> KiProviders : Analyseaufrufe
+Analysis --> Config : API-Keys / Tokens
+Analysis --> Paths
+
+Analysis --> HuggingFace : Embedding-Modell laden
+Config --> PrivateData : lokale private Dateien
+
+Web --> WebCore
+Web --> WebAnalysis
+Web --> WebDataTools
+Web --> WebSearch
+Web --> WebSettings
+Web --> WebPublishing
+
+WebCore --> SharedInterfaces
+WebCore --> LocalIndex
+WebCore --> WorkflowDb
+WebCore --> AnalysisOutputs
+WebCore --> PrivateData
+
+WebAnalysis --> Analysis : AnalysisService,\nPrompts, Workflow
+WebAnalysis --> WebCore : gemeinsame Services
+WebDataTools --> Scripts : startet Fetch-, Build-\nund Vektorjobs
+WebDataTools --> Indexing : Vektorstatus
+WebSearch --> Analysis : Embeddings,\nVector Store, BM25
+WebSearch --> Qdrant : Hybrid-Suche
+WebSearch --> LocalIndex : Ergebnis-Metadaten
+WebSettings --> Config : Secrets verwalten
+
+Tests ..> Scripts : CLI-Verhalten
+Tests ..> Src : Fachmodule
+Tests ..> Web : Web-Services und Views
+
+Configs ..> Analysis : Beispiel-Prompts
+Logs <- WebDataTools : Job-Ausgaben
+
+note right of Web
+  Aktiver UI-Pfad.
+  Fuer lokalen Entwicklungsbetrieb,
+  ohne Mehrbenutzerbetrieb.
+end note
+
+note bottom of Data
+  Rohdaten bleiben unter data/raw/ unveraendert.
+  Abgeleitete Indizes und Artefakte liegen getrennt
+  unter data/db/, data/analysis_outputs/ und data/private/.
+end note
+
+@enduml
