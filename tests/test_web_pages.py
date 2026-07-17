@@ -842,8 +842,20 @@ def test_service_build_page_excludes_vector_build(client) -> None:
     assert response.status_code == 200
     assert "Lokalen Index bauen" in content
     assert "Online-Index bauen" in content
+    assert "Landkreis-Datenbank bauen" in content
     assert "Vektorindex bauen" not in content
     assert "SQLite-Dokumente" not in content
+
+
+def test_service_fetch_page_includes_landkreis_fetch(client) -> None:
+    response = client.get("/daten/fetch/")
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "Landkreis-Veröffentlichungen laden" in content
+    assert 'name="action" value="fetch_landkreis_publications"' in content
+    assert "Bekanntmachungen" in content
+    assert "Amtsblaetter" in content
 
 
 def test_service_vector_page_renders_vector_status(client, monkeypatch) -> None:
@@ -869,7 +881,8 @@ def test_service_vector_page_renders_vector_status(client, monkeypatch) -> None:
     content = response.content.decode("utf-8")
 
     assert response.status_code == 200
-    assert "Vektorindex bauen" in content
+    assert "Ratsinfo-Vektorindex bauen" in content
+    assert "Landkreis-Vektorindex bauen" in content
     assert "SQLite-Dokumente" in content
     assert "10" in content
     assert "77,8 %" in content
@@ -909,6 +922,40 @@ def test_build_vector_index_form_starts_existing_service_job(client, monkeypatch
     assert captured["limit"] == "25"
     assert captured["job_action"] == "build_vector_index"
     assert captured["command"] == ["python", "scripts/build_vector_index.py", "--limit", "25"]
+
+
+def test_landkreis_vector_index_form_starts_service_job(client, monkeypatch) -> None:
+    from data_tools import views
+
+    captured = {}
+
+    class Job:
+        job_id = "landkreis-vector123"
+
+    def fake_build_service_command(action, data):
+        captured["action"] = action
+        captured["limit"] = data.get("limit")
+        return (["python", "scripts/build_landkreis_vector_index.py", "--limit", "10"], [])
+
+    def fake_start_service_job(action, command, cwd):
+        captured["job_action"] = action
+        captured["command"] = command
+        return Job()
+
+    monkeypatch.setattr(views.services, "build_service_command", fake_build_service_command)
+    monkeypatch.setattr(views.service_jobs, "start_service_job", fake_start_service_job)
+
+    response = client.post(
+        "/daten/vektor/",
+        {"action": "build_landkreis_vector_index", "limit": "10"},
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/daten/jobs/landkreis-vector123/"
+    assert captured["action"] == "build_landkreis_vector_index"
+    assert captured["limit"] == "10"
+    assert captured["job_action"] == "build_landkreis_vector_index"
+    assert captured["command"] == ["python", "scripts/build_landkreis_vector_index.py", "--limit", "10"]
 
 
 def test_service_post_requires_csrf_when_enforced(monkeypatch) -> None:

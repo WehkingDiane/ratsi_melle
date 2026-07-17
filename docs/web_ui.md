@@ -107,9 +107,9 @@ Buttons folgen einem funktionsbezogenen Farbschema: `primary` ist auslösenden H
 - `/analyse/jobs/` listet Analysejobs und Ausgabedateien.
 - `/analyse/jobs/<job_id>/` zeigt Analyseoutputs, einschließlich alter v1-Ausgaben.
 - `/daten/` zeigt links die Weiterleitungen zu Fetch, Build und Vektorindex; rechts stehen allgemeiner Status und letzte Datenjobs.
-- `/daten/fetch/` startet vorhandene Fetch-Skripte.
-- `/daten/build/` startet vorhandene SQLite-Build-Skripte.
-- `/daten/vektor/` zeigt Vektorstatus und startet den Vektorindex-Build.
+- `/daten/fetch/` startet vorhandene Fetch-Skripte für SessionNet-Sitzungen und Landkreis-Veröffentlichungen.
+- `/daten/build/` startet vorhandene SQLite-Build-Skripte für Ratsinfo- und Landkreis-Indizes.
+- `/daten/vektor/` zeigt den Ratsinfo-Vektorstatus und startet Ratsinfo- oder Landkreis-Vektorindex-Builds.
 - `/daten/jobs/<job_id>/` zeigt Status und Ausgabe eines gestarteten Datenjobs.
 - `/daten/jobs/<job_id>/status/` liefert den aktuellen Datenjobstatus als JSON für die automatische Logaktualisierung.
 - `/veroeffentlichung/` ist ein Platzhalter für Publikations- und Reviewfunktionen.
@@ -150,7 +150,7 @@ Mit Provider `none` wird nur die Analysegrundlage erzeugt. Ein echter KI-Aufruf 
 - Hugging-Face-Token-Verwaltung unter `/einstellungen/`
 - Analysejobliste und Analysejobdetails aus `data/analysis_outputs/`
 - Anzeige alter v1-Analyseoutputs
-- Fetch-, Build- und Vektorindex-Servicefunktionen unter `/daten/`
+- Fetch-, Build- und Vektorindex-Servicefunktionen für Ratsinfo und Landkreis unter `/daten/`
 - Statusanzeige für laufende Datenjobs im Header; ohne laufenden Job bleibt sie ausgeblendet
 - automatische Aktualisierung der Logausgabe auf Datenjob-Detailseiten
 

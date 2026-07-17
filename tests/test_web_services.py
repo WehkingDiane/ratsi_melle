@@ -1799,6 +1799,71 @@ def test_service_action_builds_local_index_command() -> None:
     assert command[1:] == ["scripts/build_local_index.py", "--refresh-existing"]
 
 
+def test_service_action_builds_landkreis_fetch_command() -> None:
+    command, errors = data_services.build_service_command(
+        "fetch_landkreis_publications",
+        {
+            "source": "bekanntmachungen",
+            "query": "Melle",
+            "from_date": "2026-01-01",
+            "to_date": "2026-12-31",
+            "limit": "5",
+            "dry_run": "1",
+            "refresh_existing": "1",
+        },
+    )
+
+    assert errors == []
+    assert command is not None
+    assert command[1:] == [
+        "scripts/fetch_landkreis_publications.py",
+        "--source",
+        "bekanntmachungen",
+        "--query",
+        "Melle",
+        "--from-date",
+        "2026-01-01",
+        "--to-date",
+        "2026-12-31",
+        "--limit",
+        "5",
+        "--dry-run",
+        "--refresh-existing",
+    ]
+
+
+def test_service_action_builds_landkreis_database_command() -> None:
+    command, errors = data_services.build_service_command(
+        "build_landkreis_publications_db",
+        {"max_text_chars": "50000"},
+    )
+
+    assert errors == []
+    assert command is not None
+    assert command[1:] == ["scripts/build_landkreis_publications_db.py", "--max-text-chars", "50000"]
+
+
+def test_service_action_builds_landkreis_vector_command() -> None:
+    command, errors = data_services.build_service_command(
+        "build_landkreis_vector_index",
+        {"limit": "25"},
+    )
+
+    assert errors == []
+    assert command is not None
+    assert command[1:] == ["scripts/build_landkreis_vector_index.py", "--limit", "25"]
+
+
+def test_service_action_validates_landkreis_fetch_date() -> None:
+    command, errors = data_services.build_service_command(
+        "fetch_landkreis_publications",
+        {"source": "all", "from_date": "01.01.2026"},
+    )
+
+    assert command is None
+    assert errors == ["Von-Datum muss im Format YYYY-MM-DD angegeben werden."]
+
+
 def test_service_action_validates_months() -> None:
     command, errors = data_services.build_service_command(
         "fetch_sessions",
