@@ -175,7 +175,7 @@ Der Pfad kann über Environment-Variablen angepasst werden:
 - `RATSI_PRIVATE_DATA_DIR` für den privaten Datenbereich
 - `RATSI_PROMPT_TEMPLATES_PATH` für die konkrete JSON-Datei
 
-Beim ersten Zugriff kann die private Datei aus `configs/prompt_templates.example.json` initialisiert werden. Diese Beispiel-Datei enthält nur harmlose Demo-Prompts. Echte Vorlagen werden über die Django-Seite `/analyse/prompts/` erstellt und bleiben durch `.gitignore` außerhalb des Repository-Inhalts geschützt.
+Beim ersten Zugriff kann die private Datei aus `docs/examples/prompt_templates.example.json` initialisiert werden. Diese Beispiel-Datei enthält nur harmlose Demo-Prompts. Echte Vorlagen werden über die Django-Seite `/analyse/prompts/` erstellt und bleiben durch `.gitignore` außerhalb des Repository-Inhalts geschützt.
 
 Prompt-Vorlagen haben einen primären Scope (`session`, `tops` oder `document`). Intern können geladene Legacy-Vorlagen mehrere Scopes behalten, damit bestehende private JSON-Dateien weiter in allen vorgesehenen Analysekontexten auswählbar bleiben.
 

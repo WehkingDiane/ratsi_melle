@@ -16,7 +16,7 @@ ANALYSIS_WORKFLOW_DB = REPO_ROOT / "data" / "db" / "analysis_workflow.sqlite"
 QDRANT_DIR = REPO_ROOT / "data" / "db" / "qdrant"
 ANALYSIS_OUTPUTS_DIR = REPO_ROOT / "data" / "analysis_outputs"
 ANALYSIS_PROMPTS_DIR = PRIVATE_DATA_DIR / "analysis_prompts"
-PROMPT_TEMPLATES_EXAMPLE = REPO_ROOT / "configs" / "prompt_templates.example.json"
+PROMPT_TEMPLATES_EXAMPLE = REPO_ROOT / "docs" / "examples" / "prompt_templates.example.json"
 PROMPT_TEMPLATES_PATH = Path(
     os.environ.get("RATSI_PROMPT_TEMPLATES_PATH", PRIVATE_DATA_DIR / "prompt_templates.json")
 ).expanduser()

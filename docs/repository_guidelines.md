@@ -5,7 +5,6 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 ## Verzeichnisstruktur
 
 ```.
-├── configs/                # Konfigurationsdateien (JSON, YAML, ENV-Beispiele)
 ├── data/
 │   ├── raw/               # Unveränderte Quelldaten aus Zielsystemen
 │   ├── db/                # SQLite-Infrastrukturdatenbanken
@@ -13,6 +12,7 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 │   ├── analysis_outputs/  # Analyse-Ergebnisse (Markdown/JSON/Prompts)
 │   └── processed/         # Interne Normalisierungen/Ableitungen (ohne DBs)
 ├── docs/                  # Projektweite Dokumentation und Recherchen
+│   └── examples/          # Versionierte Beispielkonfigurationen
 ├── logs/                  # Laufzeit- und Zugriffprotokolle
 ├── scripts/               # CLI-Werkzeuge für Betrieb, Wartung und Automatisierung
 ├── src/

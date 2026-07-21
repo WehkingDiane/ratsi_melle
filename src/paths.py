@@ -18,7 +18,7 @@ ANALYSIS_OUTPUTS_DIR = DATA_ROOT / "analysis_outputs"
 ANALYSIS_SUMMARIES_DIR = ANALYSIS_OUTPUTS_DIR / "summaries"
 ANALYSIS_PROMPTS_DIR = PRIVATE_DATA_DIR / "analysis_prompts"
 MODELS_DIR = DATA_ROOT / "models"
-PROMPT_TEMPLATES_EXAMPLE = REPO_ROOT / "configs" / "prompt_templates.example.json"
+PROMPT_TEMPLATES_EXAMPLE = REPO_ROOT / "docs" / "examples" / "prompt_templates.example.json"
 PROMPT_TEMPLATES_PATH = Path(
     os.environ.get("RATSI_PROMPT_TEMPLATES_PATH", PRIVATE_DATA_DIR / "prompt_templates.json")
 ).expanduser()
