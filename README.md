@@ -47,6 +47,12 @@ python scripts/run_web.py
 python -m pytest
 ```
 
+Repository-Hooks werden lokal mit folgendem Befehl aktiviert:
+
+```bash
+git config core.hooksPath .githooks
+```
+
 `fetch_session_from_index.py` nutzt `data/db/online_session_index.sqlite` als Auswahlquelle. Damit kann eine einzelne Sitzung anhand ihrer `session_id` nach `data/raw/` geladen werden, ohne die Monatsübersicht erneut komplett abzuarbeiten.
 
 Die Django-Weboberfläche startet lokal mit:

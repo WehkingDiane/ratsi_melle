@@ -94,6 +94,14 @@ Diese Regeln bilden das Fundament für den weiteren Projektverlauf und können b
 - Abhängigkeiten mit `python -m pip install -r requirements.txt` installieren.
 - Tests unter WSL entweder nach Aktivierung mit `python -m pytest` oder direkt mit `.venv-wsl/bin/python -m pytest` starten.
 
+## Repository-Hooks
+
+- Versionierte Git-Hooks liegen unter `.githooks/` und nutzen `scripts/hooks/repo_policy.py`.
+- Lokale Aktivierung: `git config core.hooksPath .githooks`.
+- Der Pre-Commit-Hook blockiert Commits auf `main`, geloeschte Python-Dateien und Aenderungen an bestehenden Dateien unter `old/`; neue Dateien unter `old/` erzeugen einen Hinweis fuer bewusste Archivierung.
+- Der Pre-Push-Hook blockiert Pushes von `main`.
+- Versionierte Codex-Hooks liegen unter `.codex/hooks.json` und geben dem Agenten fruehe Hinweise zu Branch-Regeln, destruktiven Befehlen, Python-Loeschungen und Aenderungen unter `old/`. Neue oder geaenderte Codex-Hooks muessen in Codex ueber `/hooks` geprueft und vertraut werden.
+
 ## Versionspflege
 
 - Das Projekt verwendet `Major.Minor.Patch`; die kanonische Versionsnummer liegt in `VERSION`.

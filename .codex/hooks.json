@@ -1,0 +1,18 @@
+{
+  "description": "Ratsi Melle Codex guardrails for repository-specific rules.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|apply_patch|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 \"$(git rev-parse --show-toplevel)/scripts/hooks/repo_policy.py\" codex-pre-tool-use",
+            "timeout": 10,
+            "statusMessage": "Checking repository policy"
+          }
+        ]
+      }
+    ]
+  }
+}
