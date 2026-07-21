@@ -157,6 +157,25 @@ def test_git_pre_commit_blocks_moving_existing_old_file_out(tmp_path: Path) -> N
     assert "old/legacy.py -> src/legacy.py" in result.stderr
 
 
+def test_git_pre_push_blocks_remote_main_ref_from_stdin(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path)
+    stdin = "refs/heads/codex/chore/hooks abc123 refs/heads/main def456\n"
+
+    result = run_policy("git-pre-push", cwd=repo, stdin=stdin)
+
+    assert result.returncode == 1
+    assert "refs/heads/main" in result.stderr
+
+
+def test_git_pre_push_allows_non_main_remote_ref_from_stdin(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path)
+    stdin = "refs/heads/codex/chore/hooks abc123 refs/heads/codex/chore/hooks def456\n"
+
+    result = run_policy("git-pre-push", cwd=repo, stdin=stdin)
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+
 def test_codex_pre_tool_use_warns_about_destructive_python_delete(tmp_path: Path) -> None:
     repo = init_repo(tmp_path)
     payload = {

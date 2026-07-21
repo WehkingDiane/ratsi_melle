@@ -73,8 +73,10 @@ def git_pre_commit() -> int:
 
 def git_pre_push() -> int:
     errors: list[str] = []
-    branch = current_branch()
-    if branch == "main":
+    pushed_main_refs = [ref for ref in pushed_remote_refs(sys.stdin.read()) if _is_main_ref(ref)]
+    if pushed_main_refs:
+        errors.append("Push nach main ist nicht erlaubt: " + ", ".join(pushed_main_refs))
+    elif current_branch() == "main":
         errors.append("Push von main ist nicht erlaubt.")
     return report("pre-push", errors, [])
 
@@ -173,6 +175,18 @@ def staged_changes() -> list[StagedChange]:
         changes.append(StagedChange(status, paths))
     return changes
 
+
+def pushed_remote_refs(stdin_text: str) -> list[str]:
+    refs: list[str] = []
+    for line in stdin_text.splitlines():
+        parts = line.split()
+        if len(parts) >= 3:
+            refs.append(parts[2])
+    return refs
+
+
+def _is_main_ref(ref: str) -> bool:
+    return ref in {"main", "refs/heads/main"}
 
 def _is_old_path(path: str) -> bool:
     return path == "old" or path.startswith("old/")
