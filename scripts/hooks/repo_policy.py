@@ -162,7 +162,7 @@ class StagedChange:
 
 
 def staged_changes() -> list[StagedChange]:
-    result = run_git(["diff", "--cached", "--name-status", "--diff-filter=ACDMRTUXB"])
+    result = run_git(["diff", "--cached", "--name-status", "-M", "--diff-filter=ACDMRTUXB"])
     if result.returncode != 0:
         return []
     changes: list[StagedChange] = []

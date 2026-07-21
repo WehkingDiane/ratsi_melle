@@ -99,6 +99,7 @@ def test_git_pre_commit_blocks_existing_old_file_changes(tmp_path: Path) -> None
 
 def test_git_pre_commit_allows_python_archive_move(tmp_path: Path) -> None:
     repo = init_repo(tmp_path)
+    git(repo, "config", "diff.renames", "false")
     (repo / "src").mkdir()
     (repo / "src" / "module.py").write_text("print('x')\n", encoding="utf-8")
     git(repo, "add", "src/module.py")
@@ -175,6 +176,7 @@ def test_git_pre_push_allows_non_main_remote_ref_from_stdin(tmp_path: Path) -> N
 
     assert result.returncode == 0
     assert result.stderr == ""
+
 
 def test_codex_pre_tool_use_warns_about_destructive_python_delete(tmp_path: Path) -> None:
     repo = init_repo(tmp_path)
