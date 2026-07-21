@@ -446,7 +446,8 @@ def _private_prompt_artifact_root_keys() -> tuple[str, ...]:
 
 
 def _normalized_path_key(value: str | Path) -> str:
-    return Path(value).expanduser().as_posix().rstrip("/")
+    normalized = str(value).replace("\\", "/")
+    return Path(normalized).expanduser().as_posix().rstrip("/")
 
 
 def _key_is_relative_to(candidate_key: str, root_key: str) -> bool:

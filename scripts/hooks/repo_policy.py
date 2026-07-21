@@ -42,17 +42,9 @@ def git_pre_commit() -> int:
         )
 
     staged = staged_changes()
-    deleted_py = [path for status, path in staged if "D" in status and path.endswith(".py")]
-    old_blocked = [
-        path
-        for status, path in staged
-        if (path == "old" or path.startswith("old/")) and not status.startswith(("A", "R"))
-    ]
-    old_added = [
-        path
-        for status, path in staged
-        if (path == "old" or path.startswith("old/")) and status.startswith(("A", "R"))
-    ]
+    deleted_py = [change.display_path for change in staged if change.removes_python_file]
+    old_blocked = [change.display_path for change in staged if change.touches_existing_old_path]
+    old_added = [change.display_path for change in staged if change.adds_old_path]
     if deleted_py:
         errors.append(
             "Python-Dateien duerfen nicht geloescht werden; nach old/ verschieben: "
@@ -69,7 +61,7 @@ def git_pre_commit() -> int:
             + ", ".join(old_added)
         )
 
-    touched = [path for _status, path in staged]
+    touched = [path for change in staged for path in change.paths]
     if any(DOC_TOUCH_RE.search(path) for path in touched) and not any(DOC_PATH_RE.search(path) for path in touched):
         warnings.append(
             "Code-/Workflow-Dateien geaendert, aber keine README.md/docs-Datei gestaged. "
@@ -119,20 +111,53 @@ def current_branch(cwd: Path | None = None) -> str:
     return result.stdout.strip() if result.returncode == 0 else ""
 
 
-def staged_changes() -> list[tuple[str, str]]:
+class StagedChange:
+    def __init__(self, status: str, paths: list[str]) -> None:
+        self.status = status
+        self.paths = paths
+
+    @property
+    def display_path(self) -> str:
+        return " -> ".join(self.paths)
+
+    @property
+    def removes_python_file(self) -> bool:
+        return self.status.startswith(("D", "R")) and self.paths[0].endswith(".py")
+
+    @property
+    def touches_existing_old_path(self) -> bool:
+        return any(_is_old_path(path) for path in self.existing_paths)
+
+    @property
+    def adds_old_path(self) -> bool:
+        return self.status.startswith(("A", "R")) and _is_old_path(self.paths[-1])
+
+    @property
+    def existing_paths(self) -> list[str]:
+        if self.status.startswith("A"):
+            return []
+        if self.status.startswith("R"):
+            return [self.paths[0]]
+        return self.paths
+
+
+def staged_changes() -> list[StagedChange]:
     result = run_git(["diff", "--cached", "--name-status", "--diff-filter=ACDMRTUXB"])
     if result.returncode != 0:
         return []
-    changes: list[tuple[str, str]] = []
+    changes: list[StagedChange] = []
     for line in result.stdout.splitlines():
         parts = line.split("\t")
         if len(parts) < 2:
             continue
         status = parts[0]
-        path = parts[-1]
-        changes.append((status, path))
+        paths = parts[1:]
+        changes.append(StagedChange(status, paths))
     return changes
 
+
+def _is_old_path(path: str) -> bool:
+    return path == "old" or path.startswith("old/")
 
 def run_git(args: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["git", *args], cwd=str(cwd) if cwd else None, text=True, capture_output=True, check=False)

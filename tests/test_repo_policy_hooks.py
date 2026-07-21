@@ -97,6 +97,35 @@ def test_git_pre_commit_blocks_existing_old_file_changes(tmp_path: Path) -> None
     assert "Bestehende Dateien unter old/" in result.stderr
 
 
+def test_git_pre_commit_blocks_python_rename_to_non_python(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path)
+    (repo / "module.py").write_text("print('x')\n", encoding="utf-8")
+    git(repo, "add", "module.py")
+    git(repo, "commit", "-m", "Add module")
+    git(repo, "mv", "module.py", "module.txt")
+
+    result = run_policy("git-pre-commit", cwd=repo)
+
+    assert result.returncode == 1
+    assert "module.py -> module.txt" in result.stderr
+
+
+def test_git_pre_commit_blocks_moving_existing_old_file_out(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path)
+    old_file = repo / "old" / "legacy.py"
+    old_file.parent.mkdir()
+    old_file.write_text("print('legacy')\n", encoding="utf-8")
+    git(repo, "add", "old/legacy.py")
+    git(repo, "commit", "-m", "Archive legacy file")
+    (repo / "src").mkdir()
+    git(repo, "mv", "old/legacy.py", "src/legacy.py")
+
+    result = run_policy("git-pre-commit", cwd=repo)
+
+    assert result.returncode == 1
+    assert "old/legacy.py -> src/legacy.py" in result.stderr
+
+
 def test_codex_pre_tool_use_warns_about_destructive_python_delete(tmp_path: Path) -> None:
     repo = init_repo(tmp_path)
     payload = {

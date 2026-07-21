@@ -1828,6 +1828,31 @@ def test_public_job_filters_private_paths_without_resolving(monkeypatch, workspa
     assert job["files"] == [public_path]
 
 
+def test_public_job_filters_private_paths_with_windows_separators(monkeypatch, workspace_tmp: Path) -> None:
+    from core.services import outputs
+    from core.services import paths
+
+    private_dir = workspace_tmp / "data" / "private"
+    public_path = "data/analysis_outputs/job_1.raw.json"
+
+    monkeypatch.setattr(paths, "REPO_ROOT", workspace_tmp)
+    monkeypatch.setattr(paths, "PRIVATE_DATA_DIR", private_dir)
+    monkeypatch.setattr(paths, "PROMPT_SNAPSHOTS_DIR", private_dir / "prompt_snapshots")
+    monkeypatch.setattr(paths, "ANALYSIS_PROMPTS_DIR", private_dir / "analysis_prompts")
+    monkeypatch.setattr(paths, "PROMPT_TEMPLATES_PATH", private_dir / "prompt_templates.json")
+
+    job = outputs._public_job(
+        {
+            "job_id": "local:1",
+            "sources": {"data\\private\\analysis_prompts\\job_1.txt", public_path},
+            "files": ["data\\private\\analysis_prompts\\job_1.txt", public_path],
+        }
+    )
+
+    assert job["sources"] == [public_path]
+    assert job["files"] == [public_path]
+
+
 def test_service_action_builds_local_index_command() -> None:
     command, errors = data_services.build_service_command(
         "build_local_index",
