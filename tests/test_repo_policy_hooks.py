@@ -97,6 +97,37 @@ def test_git_pre_commit_blocks_existing_old_file_changes(tmp_path: Path) -> None
     assert "Bestehende Dateien unter old/" in result.stderr
 
 
+def test_git_pre_commit_allows_python_archive_move(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path)
+    (repo / "src").mkdir()
+    (repo / "src" / "module.py").write_text("print('x')\n", encoding="utf-8")
+    git(repo, "add", "src/module.py")
+    git(repo, "commit", "-m", "Add module")
+    (repo / "old").mkdir()
+    git(repo, "mv", "src/module.py", "old/module.py")
+
+    result = run_policy("git-pre-commit", cwd=repo)
+
+    assert result.returncode == 0
+    assert "Python-Dateien" not in result.stderr
+    assert "Neue Dateien unter old/" in result.stderr
+
+
+def test_git_pre_commit_blocks_python_archive_move_with_renamed_file(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path)
+    (repo / "src").mkdir()
+    (repo / "src" / "module.py").write_text("print('x')\n", encoding="utf-8")
+    git(repo, "add", "src/module.py")
+    git(repo, "commit", "-m", "Add module")
+    (repo / "old").mkdir()
+    git(repo, "mv", "src/module.py", "old/renamed.py")
+
+    result = run_policy("git-pre-commit", cwd=repo)
+
+    assert result.returncode == 1
+    assert "src/module.py -> old/renamed.py" in result.stderr
+
+
 def test_git_pre_commit_blocks_python_rename_to_non_python(tmp_path: Path) -> None:
     repo = init_repo(tmp_path)
     (repo / "module.py").write_text("print('x')\n", encoding="utf-8")

@@ -122,7 +122,25 @@ class StagedChange:
 
     @property
     def removes_python_file(self) -> bool:
-        return self.status.startswith(("D", "R")) and self.paths[0].endswith(".py")
+        if not self.paths or not self.paths[0].endswith(".py"):
+            return False
+        if self.status.startswith("D"):
+            return True
+        if self.status.startswith("R"):
+            return not self.is_python_archive_move
+        return False
+
+    @property
+    def is_python_archive_move(self) -> bool:
+        if not self.status.startswith("R") or len(self.paths) < 2:
+            return False
+        source, destination = self.paths[0], self.paths[-1]
+        return (
+            source.endswith(".py")
+            and _is_old_path(destination)
+            and destination.endswith(".py")
+            and Path(source).name == Path(destination).name
+        )
 
     @property
     def touches_existing_old_path(self) -> bool:
