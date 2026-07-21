@@ -262,7 +262,7 @@ def test_analysis_start_page_loads_for_session(client) -> None:
     response = client.get("/analyse/starten/?session_id=does-not-exist")
 
     assert response.status_code == 200
-    assert "KI-Analyse starten" in response.content.decode("utf-8")
+    assert "Sitzung vorbereiten" in response.content.decode("utf-8")
 
 
 def test_search_page_renders_document_results(client, monkeypatch) -> None:
@@ -439,8 +439,8 @@ def test_analysis_start_explains_session_document_transfer(client, monkeypatch) 
     content = response.content.decode("utf-8")
 
     assert response.status_code == 200
-    assert "KI-Dokumentübergabe" in content
-    assert "Bei „Ganze Sitzung“ werden alle lokal verfügbaren Dokumente" in content
+    assert "Quellen und Nutzung" in content
+    assert "Die Analysegrundlage enthält Sitzungsdaten" in content
     assert "2 von 3 lokalen Dokumenten verfügbar" in content
     assert "0 analysierbare Dokumente" in content
     assert "nicht auswählbar" in content
@@ -450,6 +450,11 @@ def test_analysis_start_explains_session_document_transfer(client, monkeypatch) 
     assert "Analyse wurde gestartet" in content
     assert 'aria-live="polite"' in content
     assert "submitButton.disabled = true" in content
+    assert "TOP analysieren" in content
+    assert "ChatGPT Plus kann nicht direkt über die API genutzt werden" in content
+    assert 'value="meeting_briefing" selected' in content
+    assert 'value="none" selected' in content
+    assert 'placeholder="gpt-5.6-terra"' in content
 
 
 def test_analysis_start_scope_switch_filters_prompt_templates(client, monkeypatch) -> None:
@@ -510,6 +515,7 @@ def test_analysis_start_scope_switch_filters_prompt_templates(client, monkeypatc
     assert response.status_code == 200
     assert "Session Vorlage" in content
     assert "TOP Vorlage" not in content
+    assert 'value="meeting_briefing" selected' in content
     assert 'href="/analyse/starten/?session_id=7123&amp;scope=session"' in content
     assert 'url.searchParams.delete("template_id")' in content
 
@@ -519,6 +525,7 @@ def test_analysis_start_scope_switch_filters_prompt_templates(client, monkeypatc
     assert response.status_code == 200
     assert "TOP Vorlage" in content
     assert "Session Vorlage" not in content
+    assert 'value="top_deep_dive" selected' in content
     assert 'href="/analyse/starten/?session_id=7123&amp;scope=tops"' in content
     assert 'value="session_tpl" selected' not in content
 
@@ -1148,9 +1155,9 @@ def test_analysis_job_detail_renders_result_sections(client, monkeypatch) -> Non
 
     assert response.status_code == 200
     assert "Metadaten" in headings
-    assert "Markdown" in headings
-    assert "KI-Antwort" in headings
-    assert "Prompt" in headings
+    assert "KI-Analyse" in headings
+    assert "Analysegrundlage und Quellenkontext" in headings
+    assert soup.find("summary", string="Verwendeter Prompt") is not None
     assert "Strukturierte Daten" in headings
     assert "Quellen" in headings
     assert "data/analysis_outputs/job_7.raw.json" in soup.get_text()

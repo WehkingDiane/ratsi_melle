@@ -68,7 +68,14 @@ def analysis_start(request):
     selected_session_id = request.GET.get("session_id", "")
     selected_session = services.get_session(selected_session_id) if selected_session_id else None
     scope = request.POST.get("scope", request.GET.get("scope", "session"))
+    if scope not in {"session", "tops"}:
+        scope = "session"
+    purpose = request.POST.get("purpose", request.GET.get("purpose", services.default_purpose_for_scope(scope)))
+    provider_id = request.POST.get("provider_id", request.GET.get("provider_id", services.default_provider_id()))
+    model_name = request.POST.get("model_name", request.GET.get("model_name", ""))
     template_id = request.POST.get("template_id", request.GET.get("template_id", ""))
+    if not template_id:
+        template_id = services.default_template_id(scope, purpose)
     selected_template = services.get_prompt_template(template_id) if template_id else None
     prompt_text = str(selected_template.get("prompt_text") or "") if selected_template else ""
     errors: list[str] = []
@@ -79,9 +86,9 @@ def analysis_start(request):
             "session_id": request.POST.get("session_id", ""),
             "scope": request.POST.get("scope", "session"),
             "top_numbers": request.POST.getlist("top_numbers"),
-            "purpose": request.POST.get("purpose", "content_analysis"),
+            "purpose": request.POST.get("purpose", services.default_purpose_for_scope(scope)),
             "template_id": request.POST.get("template_id", ""),
-            "provider_id": request.POST.get("provider_id", "none"),
+            "provider_id": request.POST.get("provider_id", services.default_provider_id()),
             "model_name": request.POST.get("model_name", ""),
         }
         result, errors = services.run_analysis_from_form(post_data)
@@ -90,7 +97,10 @@ def analysis_start(request):
         selected_session_id = post_data["session_id"]
         selected_session = services.get_session(selected_session_id) if selected_session_id else None
         scope = post_data["scope"]
-        template_id = template_id or post_data["template_id"]
+        purpose = post_data["purpose"]
+        provider_id = post_data["provider_id"]
+        model_name = post_data["model_name"]
+        template_id = post_data["template_id"] or services.default_template_id(scope, purpose)
         selected_template = services.get_prompt_template(template_id) if template_id else None
         prompt_text = str(selected_template.get("prompt_text") or "") if selected_template else ""
 
@@ -108,6 +118,10 @@ def analysis_start(request):
             "selected_template": selected_template,
             "selected_template_id": template_id,
             "prompt_text": prompt_text,
+            "selected_purpose": purpose,
+            "selected_provider_id": provider_id,
+            "model_name": model_name,
+            "default_model_name": "gpt-5.6-terra",
             "purpose_options": services.analysis_purpose_options(),
             "provider_options": services.provider_options(),
             "errors": errors,

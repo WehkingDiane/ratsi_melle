@@ -1,17 +1,36 @@
 {
   "templates": [
     {
-      "id": "demo_session_summary",
-      "label": "Demo: Sitzungszusammenfassung",
+      "id": "meeting_briefing",
+      "label": "Sitzung vorbereiten: TOP-Überblick",
       "scope": "session",
-      "description": "Harmloses Beispiel fuer eine lokale Sitzungsanalyse.",
-      "prompt_text": "Fasse die Sitzung {{session_title}} vom {{session_date}} fuer einen internen Demo-Test zusammen. Nutze nur die bereitgestellten Kontextdaten.",
+      "description": "Erzeugt einen verständlichen Vorbereitungsüberblick über alle Tagesordnungspunkte einer Sitzung.",
+      "prompt_text": "Du bist eine kommunalpolitische Arbeitsassistenz. Erstelle für die Sitzung {{session_title}} am {{session_date}} im Gremium {{committee}} einen belastbaren Vorbereitungsüberblick. Nutze ausschließlich die bereitgestellte Analysegrundlage und kennzeichne Unsicherheiten klar.\n\nErzeuge diese Abschnitte:\n1. Kurzüberblick in 5 bis 8 Sätzen: Worum geht es insgesamt?\n2. TOP-Übersicht als Tabelle: TOP, Thema, erwartete Entscheidung oder Beratungsstand, betroffene Gruppen/Orte, wichtigste Unterlagen.\n3. Wichtige Entscheidungen: Welche Beschlüsse, Aufträge oder Weichenstellungen könnten entstehen?\n4. Relevanz für Bürgerinnen und Bürger: konkrete Auswirkungen, Chancen, Belastungen.\n5. Finanzielle und organisatorische Punkte: Beträge, Zuständigkeiten, Folgekosten oder fehlende Angaben.\n6. Kritische Rückfragen: mindestens 8 präzise Fragen, die in der Sitzung gestellt werden sollten.\n7. Offene Punkte und Unsicherheiten: Was ist aus den Quellen nicht belegbar?\n8. Quellenhinweise: Nenne die verwendeten TOPs und Dokumenttypen.\n\nSchreibe ausführlich genug, damit ich mich ohne Öffnen jedes Dokuments orientieren kann. Wenn Informationen fehlen, erfinde nichts, sondern schreibe, welche Unterlage oder Angabe fehlt.\n\nKontext der TOPs:\n{{source_list}}",
       "variables": [
         "session_title",
         "session_date",
         "committee",
-        "source_list",
-        "analysis_goal"
+        "source_list"
+      ],
+      "is_active": true,
+      "owner_id": "",
+      "visibility": "private",
+      "revision": 1,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "top_critical_analysis",
+      "label": "TOP analysieren: Erklärung und kritische Fragen",
+      "scope": "tops",
+      "description": "Analysiert ausgewählte Tagesordnungspunkte detailliert mit Sachverhalt, Auswirkungen, Beschlusslage und kritischen Rückfragen.",
+      "prompt_text": "Du bist eine kommunalpolitische Arbeitsassistenz. Analysiere den oder die ausgewählten Tagesordnungspunkte {{agenda_item}} der Sitzung {{session_title}} am {{session_date}} im Gremium {{committee}}. Nutze ausschließlich die bereitgestellte Analysegrundlage und kennzeichne Unsicherheiten klar.\n\nErzeuge diese Abschnitte je TOP:\n1. Worum geht es? Erkläre den Sachverhalt verständlich für eine Person ohne Vorwissen.\n2. Welche Unterlagen liegen vor? Fasse die relevanten Dokumente und Textauszüge zusammen.\n3. Beschlusslage: Was soll entschieden, beraten oder zur Kenntnis genommen werden?\n4. Auswirkungen: Wer oder was ist betroffen, räumlich, finanziell, organisatorisch und politisch?\n5. Kritische Prüfung: Welche Annahmen, Lücken, Abhängigkeiten, Risiken oder Interessenkonflikte fallen auf?\n6. Rückfragen für die Sitzung: mindestens 6 konkrete, sachliche Fragen.\n7. Kurzfazit: Was muss ich vor der Sitzung unbedingt verstanden haben?\n8. Quellenhinweise: Verweise auf TOP, Dokumenttitel und Dokumenttyp aus der Analysegrundlage.\n\nAntworte ausführlich und strukturiert. Wenn die Quellen nur Metadaten enthalten oder PDF-Text fehlt, sage das offen und leite keine unbelegten Fakten ab.\n\nKontext der ausgewählten TOPs:\n{{source_list}}",
+      "variables": [
+        "session_title",
+        "session_date",
+        "committee",
+        "agenda_item",
+        "source_list"
       ],
       "is_active": true,
       "owner_id": "",

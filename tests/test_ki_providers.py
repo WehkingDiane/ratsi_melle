@@ -109,9 +109,13 @@ def test_codex_provider_analyze() -> None:
         result = provider.analyze(prompt="Analysiere.", context="Sitzung 2026")
 
     assert result.provider_id == PROVIDER_CODEX
+    assert result.model_name == "gpt-5.6-terra"
     assert result.response_text == "OpenAI-Ergebnis"
     assert result.input_tokens == 15
     assert result.output_tokens == 25
+    kwargs = mock_openai.OpenAI.return_value.chat.completions.create.call_args.kwargs
+    assert kwargs["model"] == "gpt-5.6-terra"
+    assert kwargs["max_tokens"] == 6000
 
 
 # ---------------------------------------------------------------------------

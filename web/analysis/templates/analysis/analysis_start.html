@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}KI-Analyse starten - Ratsi Melle{% endblock %}
+{% block title %}Sitzung vorbereiten - Ratsi Melle{% endblock %}
 
 {% block content %}
 <section class="page-heading">
   <p class="eyebrow">Analyse</p>
-  <h1>KI-Analyse starten</h1>
-  <p>Erzeuge eine Analysegrundlage oder starte einen KI-Lauf mit den strukturierten Ausgabeformaten.</p>
+  <h1>Sitzung vorbereiten</h1>
+  <p>Erstelle einen Tagesordnungsüberblick oder analysiere einzelne TOPs mit Quellen, offenen Fragen und kritischen Prüfpunkten.</p>
 </section>
 
 {% if errors %}
@@ -48,7 +48,7 @@
   </article>
 
   <article class="panel">
-    <h2>Analyse konfigurieren</h2>
+    <h2>Arbeitsauftrag</h2>
     {% if selected_session %}
     <form method="post" class="form-stack" id="analysis-start-form">
       {% csrf_token %}
@@ -60,16 +60,27 @@
         <span>{{ selected_session.source_status.available_count }} von {{ selected_session.source_status.document_count }} lokalen Dokumenten verfügbar.</span>
       </div>
 
+      <section class="analysis-actions" aria-label="Schnellauswahl">
+        <a class="analysis-action {% if scope != "tops" %}active{% endif %}" href="{% url 'analysis:analysis_start' %}?session_id={{ selected_session.session_id|urlencode }}&amp;scope=session&amp;purpose=meeting_briefing">
+          <strong>Sitzung vorbereiten</strong>
+          <span>Überblick über alle TOPs, Entscheidungen, Relevanz und offene Fragen.</span>
+        </a>
+        <a class="analysis-action {% if scope == "tops" %}active{% endif %}" href="{% url 'analysis:analysis_start' %}?session_id={{ selected_session.session_id|urlencode }}&amp;scope=tops&amp;purpose=top_deep_dive">
+          <strong>TOP analysieren</strong>
+          <span>Einzelnen Tagesordnungspunkt erklären und kritisch hinterfragen.</span>
+        </a>
+      </section>
+
       <section class="info-panel">
-        <h3>KI-Dokumentübergabe</h3>
-        <p>Bei „Ganze Sitzung“ werden alle lokal verfügbaren Dokumente dieser Sitzung in die Analysegrundlage aufgenommen und an den KI-Provider übergeben. Textdateien werden als Textauszug genutzt, PDFs als PDF-Anhang oder per PDF-Textextraktion.</p>
-        <p>Bei „Ausgewählte TOPs“ werden nur Dokumente der gewählten TOPs übergeben. TOPs ohne lokal vorhandene Dokumente sind unten deaktiviert.</p>
+        <h3>Quellen und Nutzung</h3>
+        <p>Die Analysegrundlage enthält Sitzungsdaten, TOPs, lokale Dokumentpfade und verfügbare Textauszüge. PDF-Dateien werden an Provider übergeben, die PDF-Anhänge oder Textextraktion unterstützen.</p>
+        <p>ChatGPT Plus kann nicht direkt über die API genutzt werden. Für manuelle Nutzung wähle „Manuell / ChatGPT“ und verwende Grundlage und Prompt aus dem Ergebnis.</p>
       </section>
 
       <fieldset>
-        <legend>Scope</legend>
-        <label><input type="radio" name="scope" value="session" {% if scope != "tops" %}checked{% endif %}> Ganze Sitzung</label>
-        <label><input type="radio" name="scope" value="tops" {% if scope == "tops" %}checked{% endif %}> Ausgewählte TOPs</label>
+        <legend>Arbeitsbereich</legend>
+        <label><input type="radio" name="scope" value="session" {% if scope != "tops" %}checked{% endif %}> Ganze Sitzung vorbereiten</label>
+        <label><input type="radio" name="scope" value="tops" {% if scope == "tops" %}checked{% endif %}> Einzelne TOPs analysieren</label>
       </fieldset>
 
       <fieldset>
@@ -99,7 +110,7 @@
         Analysezweck
         <select name="purpose">
           {% for option in purpose_options %}
-          <option value="{{ option.value }}">{{ option.label }}</option>
+          <option value="{{ option.value }}" {% if option.value == selected_purpose %}selected{% endif %}>{{ option.label }}</option>
           {% endfor %}
         </select>
       </label>
@@ -122,7 +133,7 @@
 
       {% if selected_template_id and prompt_text %}
       <details class="info-panel">
-        <summary>Prompt-Vorschau</summary>
+        <summary>Prompt-Vorschau für manuelle ChatGPT-Nutzung</summary>
         <pre class="text-block compact">{{ prompt_text }}</pre>
       </details>
       {% endif %}
@@ -139,13 +150,13 @@
           KI-Provider
           <select name="provider_id">
             {% for option in provider_options %}
-            <option value="{{ option.value }}">{{ option.label }}</option>
+            <option value="{{ option.value }}" {% if option.value == selected_provider_id %}selected{% endif %}>{{ option.label }}</option>
             {% endfor %}
           </select>
         </label>
         <label>
           Modell
-          <input type="text" name="model_name" placeholder="Provider-Standard">
+          <input type="text" name="model_name" value="{{ model_name }}" placeholder="{{ default_model_name }}">
         </label>
       </div>
 

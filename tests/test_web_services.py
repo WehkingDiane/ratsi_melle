@@ -1226,6 +1226,59 @@ def test_run_analysis_from_form_validates_missing_session(monkeypatch, workspace
     assert errors
 
 
+def test_default_template_id_prefers_meeting_briefing(monkeypatch, workspace_tmp: Path) -> None:
+    template_path = workspace_tmp / "prompt_templates.json"
+    example_path = workspace_tmp / "prompt_templates.example.json"
+    example_path.write_text(
+        json.dumps(
+            {
+                "templates": [
+                    {
+                        "id": "other_session",
+                        "label": "Andere Sitzung",
+                        "scope": "session",
+                        "description": "",
+                        "prompt_text": "Analysiere {{session_title}}.",
+                        "variables": ["session_title"],
+                        "is_active": True,
+                        "visibility": "private",
+                        "revision": 1,
+                    },
+                    {
+                        "id": "meeting_briefing",
+                        "label": "Sitzung vorbereiten",
+                        "scope": "session",
+                        "description": "",
+                        "prompt_text": "Bereite {{session_title}} vor.",
+                        "variables": ["session_title"],
+                        "is_active": True,
+                        "visibility": "private",
+                        "revision": 1,
+                    },
+                    {
+                        "id": "top_critical_analysis",
+                        "label": "TOP kritisch",
+                        "scope": "tops",
+                        "description": "",
+                        "prompt_text": "Analysiere {{agenda_item}}.",
+                        "variables": ["agenda_item"],
+                        "is_active": True,
+                        "visibility": "private",
+                        "revision": 1,
+                    },
+                ]
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    assert analysis_services.default_template_id("session", "meeting_briefing") == "meeting_briefing"
+    assert analysis_services.default_template_id("tops", "top_deep_dive") == "top_critical_analysis"
+
+
 def test_run_analysis_from_form_rejects_top_without_analysis_documents(monkeypatch, workspace_tmp: Path) -> None:
     db_path = workspace_tmp / "local_index.sqlite"
     with sqlite3.connect(db_path) as conn:

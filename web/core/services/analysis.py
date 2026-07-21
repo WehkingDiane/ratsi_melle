@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.analysis.prompts.models import PromptTemplate
 from src.analysis.prompts.validation import render_prompt
 from src.analysis.service import AnalysisRequest
 from src.analysis.service import AnalysisService
@@ -16,21 +17,33 @@ from .sessions import get_session
 def analysis_purpose_options() -> list[dict[str, str]]:
     """Return supported analysis purposes for the web form."""
     return [
+        {"value": "meeting_briefing", "label": "Sitzung vorbereiten: Überblick über alle TOPs"},
+        {"value": "top_deep_dive", "label": "TOP analysieren: erklären und kritisch prüfen"},
+        {"value": "session_preparation", "label": "Sitzungsvorbereitung"},
         {"value": "content_analysis", "label": "Inhaltsanalyse"},
         {"value": "fact_extraction", "label": "Strukturierte Faktenerfassung"},
-        {"value": "session_preparation", "label": "Sitzungsvorbereitung"},
         {"value": "journalistic_publication", "label": "Journalistischer Publikationsentwurf"},
     ]
+
+
+def default_purpose_for_scope(scope: str) -> str:
+    """Return the user-oriented default analysis purpose for a scope."""
+    return "top_deep_dive" if scope == "tops" else "meeting_briefing"
 
 
 def provider_options() -> list[dict[str, str]]:
     """Return provider options known to the existing analysis service."""
     return [
-        {"value": "none", "label": "Kein Provider (nur Grundlage)"},
-        {"value": "claude", "label": "Claude (Anthropic)"},
-        {"value": "codex", "label": "Codex (OpenAI)"},
-        {"value": "ollama", "label": "Ollama (lokal)"},
+        {"value": "none", "label": "Manuell / ChatGPT: Grundlage und Prompt erzeugen"},
+        {"value": "codex", "label": "OpenAI API: Analyse automatisch erstellen"},
+        {"value": "claude", "label": "Claude API (Anthropic)"},
+        {"value": "ollama", "label": "Ollama lokal"},
     ]
+
+
+def default_provider_id() -> str:
+    """Return the safe default provider for the local web form."""
+    return "none"
 
 
 def run_analysis_from_form(data: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
@@ -42,7 +55,7 @@ def run_analysis_from_form(data: dict[str, Any]) -> tuple[dict[str, Any] | None,
     provider_id = str(data.get("provider_id") or "none").strip()
     model_name = str(data.get("model_name") or "").strip()
     template_id = str(data.get("template_id") or "").strip()
-    purpose = str(data.get("purpose") or "content_analysis").strip()
+    purpose = str(data.get("purpose") or default_purpose_for_scope(scope)).strip()
 
     session = get_session(session_id) if session_id else None
     if not session:
@@ -69,6 +82,8 @@ def run_analysis_from_form(data: dict[str, Any]) -> tuple[dict[str, Any] | None,
         errors.append("Der Analysezweck ist ungültig.")
 
     selected_tops_for_scope = selected_tops if scope == "tops" else []
+    if not template_id:
+        template_id = default_template_id(scope, purpose)
     template, template_errors = get_active_prompt_template(template_id, scope)
     errors.extend(template_errors)
     prompt = ""
@@ -94,6 +109,37 @@ def run_analysis_from_form(data: dict[str, Any]) -> tuple[dict[str, Any] | None,
     )
     record = AnalysisService().run_journalistic_analysis(request)
     return record.to_dict(), []
+
+
+def default_template_id(scope: str, purpose: str = "") -> str:
+    """Return the best active template id for a requested analysis mode."""
+    purpose = purpose or default_purpose_for_scope(scope)
+    templates = _templates_for_scope(scope)
+    if not templates:
+        return ""
+    preferred_ids = {
+        ("session", "meeting_briefing"): ["meeting_briefing", "session_preparation_briefing"],
+        ("session", "session_preparation"): ["meeting_briefing", "session_preparation_briefing"],
+        ("tops", "top_deep_dive"): ["top_critical_analysis", "top_deep_dive"],
+        ("tops", "content_analysis"): ["top_critical_analysis", "top_deep_dive"],
+    }.get((scope, purpose), [])
+    for template_id in preferred_ids:
+        if any(template.id == template_id for template in templates):
+            return template_id
+    return templates[0].id
+
+
+def _templates_for_scope(scope: str) -> list[PromptTemplate]:
+    try:
+        return [template for template in _read_active_prompt_templates(scope) if template.is_active]
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def _read_active_prompt_templates(scope: str) -> list[PromptTemplate]:
+    from .prompts import prompt_repository
+
+    return prompt_repository().list_templates(scope)
 
 
 def _prompt_context(

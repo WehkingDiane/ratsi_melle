@@ -24,25 +24,25 @@
 </section>
 
 <section class="content-stack">
-  {% if job.markdown %}
-  <article class="panel">
-    <h2>Markdown</h2>
-    <pre class="text-block">{{ job.markdown }}</pre>
-  </article>
-  {% endif %}
-
   {% if job.ki_response %}
   <article class="panel">
-    <h2>KI-Antwort</h2>
+    <h2>KI-Analyse</h2>
     <pre class="text-block">{{ job.ki_response }}</pre>
   </article>
   {% endif %}
 
-  {% if job.prompt_text %}
+  {% if job.markdown %}
   <article class="panel">
-    <h2>Prompt</h2>
-    <pre class="text-block">{{ job.prompt_text }}</pre>
+    <h2>Analysegrundlage und Quellenkontext</h2>
+    <pre class="text-block">{{ job.markdown }}</pre>
   </article>
+  {% endif %}
+
+  {% if job.prompt_text %}
+  <details class="panel">
+    <summary>Verwendeter Prompt</summary>
+    <pre class="text-block">{{ job.prompt_text }}</pre>
+  </details>
   {% endif %}
 
   {% if job.structured_outputs %}

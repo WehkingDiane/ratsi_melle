@@ -11,6 +11,8 @@ ANALYSIS_OUTPUT_SCHEMA_VERSION_V2 = "2.0"
 DEFAULT_ANALYSIS_PURPOSE = "content_analysis"
 
 AnalysisPurpose = Literal[
+    "meeting_briefing",
+    "top_deep_dive",
     "journalistic_publication",
     "session_preparation",
     "content_analysis",

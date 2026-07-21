@@ -25,12 +25,14 @@ content_analysis
 
 Unterstützte Werte:
 
+- `meeting_briefing`: nutzerorientierter Überblick über alle TOPs einer Sitzung.
+- `top_deep_dive`: Detailanalyse einzelner Tagesordnungspunkte mit kritischen Rückfragen.
 - `journalistic_publication`
 - `session_preparation`
 - `content_analysis`
 - `fact_extraction`
 
-Journalistische Entwürfe sollen explizit `journalistic_publication` verwenden. Dadurch können spätere Workflows Review, Freigabe und Veröffentlichung separat behandeln.
+Für die Vorbereitung eines Termins ist `meeting_briefing` der UI-Default bei ganzen Sitzungen. Für einzelne Tagesordnungspunkte ist `top_deep_dive` der UI-Default. Journalistische Entwürfe sollen explizit `journalistic_publication` verwenden. Dadurch können spätere Workflows Review, Freigabe und Veröffentlichung separat behandeln.
 
 ## Dateistruktur
 

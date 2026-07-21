@@ -118,9 +118,9 @@ Buttons folgen einem funktionsbezogenen Farbschema: `primary` ist auslösenden H
 
 Alte Service-URLs unter `/analyse/service/` werden auf den Datenbereich umgeleitet, damit technische Datenpflege nicht mehr im Analysebereich hängt.
 
-## Analyse Starten
+## Sitzung vorbereiten und Analyse starten
 
-Der Startfluss unter `/analyse/starten/` nutzt den bestehenden `AnalysisService` aus `src.analysis.service`.
+Der Startfluss unter `/analyse/starten/` nutzt den bestehenden `AnalysisService` aus `src.analysis.service`. Die Seite ist als Arbeitsassistenz aufgebaut: Nutzer wählen zuerst eine Sitzung und danach entweder `Sitzung vorbereiten` für einen Überblick über alle Tagesordnungspunkte oder `TOP analysieren` für eine kritischere Detailanalyse einzelner Tagesordnungspunkte.
 
 Bei einer Analyse der ganzen Sitzung werden alle lokal verfügbaren Dokumente dieser Sitzung in die Analysegrundlage aufgenommen und an den KI-Provider übergeben. Die Analyse-Startseite weist darauf ausdrücklich hin und zeigt, wie viele lokale Dokumente verfügbar sind.
 
@@ -136,12 +136,12 @@ Die Analysegrundlage enthält zusätzlich:
 
 Textdateien wie `.txt`, `.md` und `.html` werden als Auszug in die Analysegrundlage aufgenommen. PDF-Dateien werden als PDF-Pfade an Provider weitergegeben, die PDF-Anhänge oder PDF-Textextraktion unterstützen.
 
-Mit Provider `none` wird nur die Analysegrundlage erzeugt. Ein echter KI-Aufruf erfolgt erst bei Auswahl eines KI-Providers. Prompt-Vorlagen werden unter `/analyse/prompts/` verwaltet und privat gespeichert. Das Analyseformular bietet nur aktive Vorlagen an, die zum gewählten Scope passen.
+Mit Provider `none` wird nur die Analysegrundlage samt gerendertem Prompt erzeugt. Das ist der sichere Standard und eignet sich für manuelle ChatGPT-Nutzung. Ein echter automatisierter KI-Aufruf erfolgt erst bei Auswahl eines API-Providers. Ein ChatGPT-Plus-Konto ist kein API-Zugang; für die Automatisierung über OpenAI wird ein API-Key benötigt. Der OpenAI-Provider nutzt standardmäßig `gpt-5.6-terra` und ist auf längere strukturierte Antworten ausgelegt. Prompt-Vorlagen werden unter `/analyse/prompts/` verwaltet und privat gespeichert. Das Analyseformular bietet nur aktive Vorlagen an, die zum gewählten Scope passen, und wählt für Sitzungsbriefings beziehungsweise TOP-Analysen passende Vorlagen voraus, wenn sie vorhanden sind.
 
 ## Bereits funktionsfähig
 
 - Dashboard mit Datenstatus und Schnelleinstiegen
-- Analyse-Startseite
+- Analyse-Startseite mit Schnellauswahl für Sitzungsbriefing und TOP-Detailanalyse
 - Analyse starten mit bestehendem `AnalysisService`
 - private Prompt-Vorlagenverwaltung unter `/analyse/prompts/`
 - Sitzungsliste und Sitzungsdetails aus `data/db/local_index.sqlite`
