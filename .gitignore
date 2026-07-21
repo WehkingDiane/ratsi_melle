@@ -1,8 +1,9 @@
 .venv/
 .venv-wsl/
 .vscode/
-.codex
-.codex/
+.agents/
+.codex/*
+!.codex/hooks.json
 __pycache__/
 .pytest_cache/
 pytest_tmp*/
@@ -41,7 +42,6 @@ data/analysis_outputs/prompts/*
 data/models/*
 !data/models/.gitkeep
 
-configs/gui_settings.json
 
 # Claude Code worktrees
 .claude/

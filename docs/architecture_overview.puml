@@ -59,7 +59,7 @@ package "Lokale Daten" as Data {
   database "data/db/qdrant/\nlokaler Vektorindex" as Qdrant
   folder "data/analysis_outputs/\nJSON- und Markdown-Artefakte" as AnalysisOutputs
   folder "data/private/\nPrompt-Vorlagen,\nPrompt-Snapshots" as PrivateData
-  folder "configs/\nBeispielkonfigurationen" as Configs
+  folder "docs/examples/\nBeispielkonfigurationen" as Configs
   folder "logs/\nLaufzeitlogs" as Logs
 }
 

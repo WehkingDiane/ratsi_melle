@@ -5,7 +5,6 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 ## Verzeichnisstruktur
 
 ```.
-├── configs/                # Konfigurationsdateien (JSON, YAML, ENV-Beispiele)
 ├── data/
 │   ├── raw/               # Unveränderte Quelldaten aus Zielsystemen
 │   ├── db/                # SQLite-Infrastrukturdatenbanken
@@ -13,6 +12,7 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 │   ├── analysis_outputs/  # Analyse-Ergebnisse (Markdown/JSON/Prompts)
 │   └── processed/         # Interne Normalisierungen/Ableitungen (ohne DBs)
 ├── docs/                  # Projektweite Dokumentation und Recherchen
+│   └── examples/          # Versionierte Beispielkonfigurationen
 ├── logs/                  # Laufzeit- und Zugriffprotokolle
 ├── scripts/               # CLI-Werkzeuge für Betrieb, Wartung und Automatisierung
 ├── src/
@@ -92,6 +92,15 @@ Diese Regeln bilden das Fundament für den weiteren Projektverlauf und können b
 - Unter Windows die virtuelle Umgebung `.venv` verwenden.
 - Empfehlung unter WSL: `python3 -m venv .venv-wsl` und `source .venv-wsl/bin/activate`.
 - Abhängigkeiten mit `python -m pip install -r requirements.txt` installieren.
+- Tests unter WSL entweder nach Aktivierung mit `python -m pytest` oder direkt mit `.venv-wsl/bin/python -m pytest` starten.
+
+## Repository-Hooks
+
+- Versionierte Git-Hooks liegen unter `.githooks/` und nutzen `scripts/hooks/repo_policy.py`.
+- Lokale Aktivierung: `git config core.hooksPath .githooks`.
+- Der Pre-Commit-Hook blockiert Commits auf `main`, geloeschte Python-Dateien und Aenderungen an bestehenden Dateien unter `old/`; neue Dateien unter `old/` erzeugen einen Hinweis fuer bewusste Archivierung.
+- Der Pre-Push-Hook blockiert Pushes von `main`.
+- Versionierte Codex-Hooks liegen unter `.codex/hooks.json` und geben dem Agenten fruehe Hinweise zu Branch-Regeln, destruktiven Befehlen, Python-Loeschungen und Aenderungen unter `old/`. Neue oder geaenderte Codex-Hooks muessen in Codex ueber `/hooks` geprueft und vertraut werden.
 
 ## Versionspflege
 
@@ -103,5 +112,5 @@ Diese Regeln bilden das Fundament für den weiteren Projektverlauf und können b
 
 ## .gitignore & lokale Daten
 
-- Lokale venvs, Caches und Logs werden ueber `.gitignore` ausgeschlossen.
+- Lokale venvs, Agent-Konfigurationen, Caches und Logs werden ueber `.gitignore` ausgeschlossen.
 - Rohdaten verbleiben unter `data/raw/`; DBs, Analyse-Requests und Analyse-Outputs liegen unter `data/db/`, `data/analysis_requests/` und `data/analysis_outputs/` und werden nicht committet.

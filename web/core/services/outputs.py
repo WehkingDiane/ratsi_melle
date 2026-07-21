@@ -413,45 +413,42 @@ def _is_private_prompt_artifact_source(value: Any, job: dict[str, Any]) -> bool:
     snapshot_normalized = snapshot.replace("\\", "/")
     if snapshot_normalized and raw_normalized == snapshot_normalized:
         return True
-    if snapshot and Path(snapshot).is_absolute():
-        try:
-            if Path(raw).resolve() == Path(snapshot).resolve():
-                return True
-        except OSError:
-            pass
+    if snapshot_normalized and _normalized_path_key(raw) == _normalized_path_key(snapshot):
+        return True
     return _path_points_to_private_prompt_artifact(raw)
 
 
 def _path_points_to_private_prompt_artifact(value: str) -> bool:
+    candidate_keys = {_normalized_path_key(value)}
     candidate = Path(value)
-    candidates = [candidate]
     if not candidate.is_absolute():
-        candidates.append(paths.REPO_ROOT / candidate)
+        candidate_keys.add(_normalized_path_key(paths.REPO_ROOT / candidate))
 
-    private_roots = (
+    for root_key in _private_prompt_artifact_root_keys():
+        if any(_key_is_relative_to(candidate_key, root_key) for candidate_key in candidate_keys):
+            return True
+    return False
+
+
+def _private_prompt_artifact_root_keys() -> tuple[str, ...]:
+    roots = (
         paths.PRIVATE_DATA_DIR,
         paths.PROMPT_SNAPSHOTS_DIR,
         paths.ANALYSIS_PROMPTS_DIR,
         paths.PROMPT_TEMPLATES_PATH.parent,
     )
-    for candidate_path in candidates:
-        if any(_path_is_relative_to(candidate_path, root) for root in private_roots):
-            return True
-
-    normalized = value.replace("\\", "/")
-    for root in private_roots:
-        try:
-            relative_root = root.relative_to(paths.REPO_ROOT).as_posix()
-        except ValueError:
-            continue
-        if normalized == relative_root or normalized.startswith(f"{relative_root}/"):
-            return True
-    return False
+    root_keys: list[str] = []
+    for root in roots:
+        key = _normalized_path_key(root)
+        if key not in root_keys:
+            root_keys.append(key)
+    return tuple(root_keys)
 
 
-def _path_is_relative_to(candidate: Path, root: Path) -> bool:
-    try:
-        candidate.resolve(strict=False).relative_to(root.resolve(strict=False))
-    except (OSError, ValueError):
-        return False
-    return True
+def _normalized_path_key(value: str | Path) -> str:
+    normalized = str(value).replace("\\", "/")
+    return Path(normalized).expanduser().as_posix().rstrip("/")
+
+
+def _key_is_relative_to(candidate_key: str, root_key: str) -> bool:
+    return candidate_key == root_key or candidate_key.startswith(f"{root_key}/")

@@ -1,0 +1,2 @@
+#!/bin/sh
+exec python3 scripts/hooks/repo_policy.py git-pre-push

@@ -26,6 +26,9 @@ pip install -r requirements.txt
 ```
 
 `torch` wird weiterhin separat installiert, passend zur Zielumgebung.
+Unter WSL sollte die virtuelle Umgebung `.venv-wsl` verwendet werden; wenn `python`
+in der Shell fehlt, funktionieren die Projektbefehle nach Aktivierung oder direkt
+mit `.venv-wsl/bin/python`.
 
 ## Wichtige Befehle
 
@@ -42,6 +45,12 @@ python scripts/build_landkreis_vector_index.py
 python scripts/search_landkreis_publications.py "Melle Genehmigung"
 python scripts/run_web.py
 python -m pytest
+```
+
+Repository-Hooks werden lokal mit folgendem Befehl aktiviert:
+
+```bash
+git config core.hooksPath .githooks
 ```
 
 `fetch_session_from_index.py` nutzt `data/db/online_session_index.sqlite` als Auswahlquelle. Damit kann eine einzelne Sitzung anhand ihrer `session_id` nach `data/raw/` geladen werden, ohne die Monatsübersicht erneut komplett abzuarbeiten.
