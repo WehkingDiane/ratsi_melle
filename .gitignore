@@ -1,6 +1,7 @@
 .venv/
 .venv-wsl/
 .vscode/
+.agents/
 .codex
 .codex/
 __pycache__/

@@ -92,6 +92,7 @@ Diese Regeln bilden das Fundament für den weiteren Projektverlauf und können b
 - Unter Windows die virtuelle Umgebung `.venv` verwenden.
 - Empfehlung unter WSL: `python3 -m venv .venv-wsl` und `source .venv-wsl/bin/activate`.
 - Abhängigkeiten mit `python -m pip install -r requirements.txt` installieren.
+- Tests unter WSL entweder nach Aktivierung mit `python -m pytest` oder direkt mit `.venv-wsl/bin/python -m pytest` starten.
 
 ## Versionspflege
 
@@ -103,5 +104,5 @@ Diese Regeln bilden das Fundament für den weiteren Projektverlauf und können b
 
 ## .gitignore & lokale Daten
 
-- Lokale venvs, Caches und Logs werden ueber `.gitignore` ausgeschlossen.
+- Lokale venvs, Agent-Konfigurationen, Caches und Logs werden ueber `.gitignore` ausgeschlossen.
 - Rohdaten verbleiben unter `data/raw/`; DBs, Analyse-Requests und Analyse-Outputs liegen unter `data/db/`, `data/analysis_requests/` und `data/analysis_outputs/` und werden nicht committet.

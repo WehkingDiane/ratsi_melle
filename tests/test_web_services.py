@@ -1789,6 +1789,45 @@ def test_public_job_filters_configured_private_prompt_paths(monkeypatch, workspa
     assert job["files"] == [public_path]
 
 
+def test_public_job_filters_private_paths_without_resolving(monkeypatch, workspace_tmp: Path) -> None:
+    from core.services import outputs
+    from core.services import paths
+
+    private_dir = workspace_tmp / "custom_private"
+    public_path = "data/analysis_outputs/job_1.raw.json"
+
+    monkeypatch.setattr(paths, "REPO_ROOT", workspace_tmp)
+    monkeypatch.setattr(paths, "PRIVATE_DATA_DIR", private_dir)
+    monkeypatch.setattr(paths, "PROMPT_SNAPSHOTS_DIR", private_dir / "prompt_snapshots")
+    monkeypatch.setattr(paths, "ANALYSIS_PROMPTS_DIR", private_dir / "analysis_prompts")
+    monkeypatch.setattr(paths, "PROMPT_TEMPLATES_PATH", private_dir / "prompt_templates.json")
+
+    def fail_resolve(self, strict=False):  # noqa: ANN001, ARG001
+        raise AssertionError("Path.resolve should not be needed for public job filtering")
+
+    monkeypatch.setattr(outputs.Path, "resolve", fail_resolve)
+
+    job = outputs._public_job(
+        {
+            "job_id": "local:1",
+            "sources": {
+                "custom_private/prompt_snapshots/job_1.txt",
+                "custom_private/analysis_prompts/job_1.txt",
+                public_path,
+            },
+            "files": [
+                "custom_private/prompt_snapshots/job_1.txt",
+                "custom_private/analysis_prompts/job_1.txt",
+                public_path,
+            ],
+            "rendered_prompt_snapshot_path": str(private_dir / "prompt_snapshots" / "job_1.txt"),
+        }
+    )
+
+    assert job["sources"] == [public_path]
+    assert job["files"] == [public_path]
+
+
 def test_service_action_builds_local_index_command() -> None:
     command, errors = data_services.build_service_command(
         "build_local_index",

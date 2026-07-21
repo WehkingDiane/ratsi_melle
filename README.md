@@ -26,6 +26,9 @@ pip install -r requirements.txt
 ```
 
 `torch` wird weiterhin separat installiert, passend zur Zielumgebung.
+Unter WSL sollte die virtuelle Umgebung `.venv-wsl` verwendet werden; wenn `python`
+in der Shell fehlt, funktionieren die Projektbefehle nach Aktivierung oder direkt
+mit `.venv-wsl/bin/python`.
 
 ## Wichtige Befehle
 
