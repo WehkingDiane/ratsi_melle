@@ -207,7 +207,7 @@ def _semantic_search_dependency_error() -> str:
     if not missing:
         return ""
     return (
-        "Die Vektorsuche ist nicht verfuegbar, weil Abhaengigkeiten fehlen: "
+        "Die Vektorsuche ist nicht verfügbar, weil Abhängigkeiten fehlen: "
         f"{', '.join(missing)}. Installieren mit: "
         "pip install qdrant-client sentence-transformers fastembed"
     )

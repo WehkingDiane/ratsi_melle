@@ -295,6 +295,9 @@ tr:last-child td {
 
 .form-stack input[type="text"],
 .form-stack input[type="password"],
+.form-stack input[type="search"],
+.form-stack input[type="number"],
+.form-stack input[type="date"],
 .form-stack select,
 .form-stack textarea {
   border: 1px solid var(--border);
@@ -470,6 +473,12 @@ tr:last-child td {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .job-spinner {
+    animation: none;
   }
 }
 

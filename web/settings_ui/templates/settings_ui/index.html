@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Einstellungen - Ratsi Melle{% endblock %}
 
@@ -22,7 +23,7 @@
 
 <section class="panel">
   <h2>Hugging Face Token</h2>
-  <p class="muted">Token werden im OS-Schluesselring gespeichert. Umgebungsvariablen bleiben als Fallback moeglich.</p>
+  <p class="muted">Token werden im OS-Schlüsselring gespeichert. Umgebungsvariablen bleiben als Fallback möglich.</p>
 
   {% for token in token_sources %}
   <form class="form-stack" method="post">
@@ -38,9 +39,10 @@
     </label>
     <div class="actions">
       <button class="button primary" type="submit" name="action" value="save_token">Speichern</button>
-      <button class="button danger" type="submit" name="action" value="delete_token">Loeschen</button>
+      <button class="button danger" type="submit" name="action" value="delete_token" data-confirm-delete-token>Token löschen</button>
     </div>
   </form>
   {% endfor %}
 </section>
+<script src="{% static 'core/js/settings.js' %}"></script>
 {% endblock %}

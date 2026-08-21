@@ -65,7 +65,6 @@
   display: block;
 }
 
-.nav-checkbox,
 .nav-toggle {
   display: none;
 }
@@ -106,7 +105,7 @@
     top: 70px;
   }
 
-  .nav-checkbox:checked ~ .main-nav {
+  .main-nav.is-open {
     display: flex;
   }
 

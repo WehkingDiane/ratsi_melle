@@ -6,14 +6,14 @@
 <section class="page-heading">
   <p class="eyebrow">Arbeitsbereich</p>
   <h1>Suche</h1>
-  <p>Dokumentinhalte semantisch ueber den lokalen Vektorindex durchsuchen.</p>
+  <p>Dokumentinhalte semantisch über den lokalen Vektorindex durchsuchen.</p>
 </section>
 
 <section class="panel">
   <form class="form-stack" method="get" action="{% url 'search:index' %}">
     <label>
       Suchbegriff
-      <input type="text" name="q" value="{{ query }}" placeholder="z. B. Windkraft Flaechennutzungsplan Abwaegung">
+      <input type="search" name="q" value="{{ query }}" placeholder="z. B. Windkraft Flächennutzungsplan Abwägung">
     </label>
     <label>
       Quelle
@@ -24,7 +24,7 @@
     </label>
     <div class="actions">
       <button class="button primary" type="submit">Suchen</button>
-      {% if has_query %}<a class="button utility" href="{% url 'search:index' %}">Zuruecksetzen</a>{% endif %}
+      {% if has_query %}<a class="button utility" href="{% url 'search:index' %}">Zurücksetzen</a>{% endif %}
     </div>
   </form>
 </section>
@@ -54,7 +54,7 @@
           <th>Score</th>
           <th>Datum</th>
           <th>Quelle</th>
-          <th>Veroeffentlichung</th>
+          <th>Veröffentlichung</th>
           <th>Dokument</th>
           <th>Link/Pfad</th>
         </tr>

@@ -81,6 +81,8 @@ Das gemeinsame Layout in `web/core/templates/base.html` stellt Header, Hauptnavi
 - Suche
 - Einstellungen
 
+Die Navigation ist per Tastatur bedienbar, besitzt sichtbare Fokusmarkierungen und lässt sich auf kleinen Bildschirmen mit einem semantischen Menübutton öffnen. Ein Sprunglink führt direkt zum Hauptinhalt. Lange Formulare verwenden passende Zahlen-, Datums- und Suchfelder; sicherheitsrelevante Löschaktionen verlangen eine Bestätigung.
+
 Der Header zeigt den Projektnamen "Ratsi Melle" und die Unterzeile "Lokale Arbeitsoberfläche". Der Footer markiert die Anwendung als lokale Entwicklungsoberfläche. Die CSS-Dateien liegen zentral unter `web/core/static/core/css/`:
 
 - `base.css` für Grundvariablen und Basiselemente

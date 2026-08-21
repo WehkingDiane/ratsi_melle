@@ -67,6 +67,7 @@ def test_nested_pages_use_absolute_static_urls(client) -> None:
 
     assert 'href="/static/core/css/base.css"' in content
     assert 'src="/static/core/js/service_status.js"' in content
+    assert 'src="/static/core/js/navigation.js"' in content
     assert 'href="static/' not in content
     assert 'src="static/' not in content
 
@@ -144,6 +145,9 @@ def test_main_navigation_is_in_shared_layout(client) -> None:
     assert "Einstellungen" in content
     assert "Einstellungen öffnen" in content
     assert "Lokale Entwicklungsoberfläche" in content
+    assert 'class="skip-link" href="#main-content"' in content
+    assert 'class="nav-toggle" type="button"' in content
+    assert 'aria-controls="main-navigation"' in content
 
 
 def test_navigation_dropdowns_have_expected_links(client) -> None:
@@ -189,6 +193,7 @@ def test_active_navigation_matches_section(path: str, active_label: str, client)
 
     assert response.status_code == 200
     assert active_items == [active_label]
+    assert soup.select_one('.nav-menu-label[aria-current="page"]').get_text(strip=True) == active_label
 
 
 def test_settings_page_exposes_huggingface_token_form(client, monkeypatch) -> None:
@@ -247,7 +252,7 @@ def test_settings_page_deletes_huggingface_token(client, monkeypatch) -> None:
 
     assert response.status_code == 200
     assert deleted == ["huggingface"]
-    assert "Hugging Face-Token geloescht" in content
+    assert "Hugging Face-Token gelöscht" in content
 
 
 def test_job_indicator_is_hidden_without_active_job(client) -> None:
@@ -450,7 +455,7 @@ def test_analysis_start_explains_session_document_transfer(client, monkeypatch) 
     assert 'id="analysis-start-submit"' in content
     assert "Analyse wurde gestartet" in content
     assert 'aria-live="polite"' in content
-    assert "submitButton.disabled = true" in content
+    assert 'src="/static/core/js/analysis_start.js"' in content
     assert "TOP analysieren" in content
     assert "ChatGPT Plus kann nicht direkt über die API genutzt werden" in content
     assert 'value="meeting_briefing" selected' in content
@@ -518,7 +523,7 @@ def test_analysis_start_scope_switch_filters_prompt_templates(client, monkeypatc
     assert "TOP Vorlage" not in content
     assert 'value="meeting_briefing" selected' in content
     assert 'href="/analyse/starten/?session_id=7123&amp;scope=session"' in content
-    assert 'url.searchParams.delete("template_id")' in content
+    assert 'src="/static/core/js/analysis_start.js"' in content
 
     response = client.get("/analyse/starten/?session_id=7123&scope=tops")
     content = response.content.decode("utf-8")
@@ -863,7 +868,7 @@ def test_service_fetch_page_includes_landkreis_fetch(client) -> None:
     assert "Landkreis-Veröffentlichungen laden" in content
     assert 'name="action" value="fetch_landkreis_publications"' in content
     assert "Bekanntmachungen" in content
-    assert "Amtsblaetter" in content
+    assert "Amtsblätter" in content
     assert "Datenwurzel" in content
 
 
