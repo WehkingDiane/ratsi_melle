@@ -348,6 +348,7 @@ def test_search_page_renders_document_results(client, monkeypatch) -> None:
                     "title": "Windkraft in Riemsloh",
                     "document_type": "beschlussvorlage",
                     "display_type": "beschlussvorlage",
+                    "snippet": "Windkraft wird in Riemsloh beraten.",
                 }
             ],
             "error": "",
@@ -363,6 +364,9 @@ def test_search_page_renders_document_results(client, monkeypatch) -> None:
     assert "0.0328" in content
     assert "Windkraft in Riemsloh" in content
     assert "/analyse/sitzungen/7123/" in content
+    assert "Windkraft wird in Riemsloh beraten." in content
+    assert 'name="date_from"' in content
+    assert 'name="committee"' in content
     assert '<option value="ratsinfo" selected>Ratsinfo</option>' in content
 
 

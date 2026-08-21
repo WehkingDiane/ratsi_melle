@@ -141,6 +141,7 @@ def test_semantic_search_documents_uses_vector_store(workspace_tmp: Path, monkey
                     "document_type": "beschlussvorlage",
                     "url": "https://example.test/do.asp",
                     "local_path": "",
+                    "snippet": "Windkraft wird in Riemsloh beraten.",
                 }
             ]
 
@@ -168,6 +169,26 @@ def test_semantic_search_documents_uses_vector_store(workspace_tmp: Path, monkey
     assert response["results"][0]["display_date"] == "11.03.2026"
     assert response["results"][0]["display_score"] == "0.0328"
     assert response["results"][0]["search_source"] == "ratsinfo"
+    assert response["results"][0]["snippet"] == "Windkraft wird in Riemsloh beraten."
+
+
+def test_semantic_result_filters_preserve_relevance_order() -> None:
+    results = [
+        {"rank": 1, "date": "2026-03-11", "committee": "Rat", "document_type": "vorlage"},
+        {"rank": 2, "date": "2025-03-11", "committee": "Rat", "document_type": "protokoll"},
+        {"rank": 3, "date": "2026-04-01", "committee": "Ortsrat", "document_type": "vorlage"},
+    ]
+
+    filtered = search_services.filter_semantic_results(
+        results,
+        date_from="2026-01-01",
+        date_to="2026-12-31",
+        committee="Rat",
+        document_type="vorlage",
+    )
+
+    assert [result["rank"] for result in filtered] == [1]
+    assert search_services.result_filter_options(results, "committee") == ["Ortsrat", "Rat"]
 
 
 def test_semantic_search_documents_uses_landkreis_collection(workspace_tmp: Path, monkeypatch) -> None:

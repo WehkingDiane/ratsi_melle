@@ -205,6 +205,7 @@ class DocumentVectorStore:
                     "publication_id": payload.get("publication_id", ""),
                     "source": payload.get("source", ""),
                     "document_title": payload.get("document_title", ""),
+                    "snippet": payload.get("snippet", ""),
                 }
             )
         return results

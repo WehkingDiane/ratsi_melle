@@ -159,6 +159,37 @@ def search_semantic_documents(
     }
 
 
+def filter_semantic_results(
+    results: list[dict[str, Any]],
+    *,
+    date_from: str = "",
+    date_to: str = "",
+    committee: str = "",
+    document_type: str = "",
+) -> list[dict[str, Any]]:
+    """Filter semantic hits without changing their relevance order."""
+
+    return [
+        result
+        for result in results
+        if (not date_from or str(result.get("date") or "")[:10] >= date_from)
+        and (not date_to or str(result.get("date") or "")[:10] <= date_to)
+        and (not committee or str(result.get("committee") or "") == committee)
+        and (not document_type or str(result.get("document_type") or "") == document_type)
+    ]
+
+
+def result_filter_options(results: list[dict[str, Any]], field: str) -> list[str]:
+    """Return sorted non-empty values for a supported result filter."""
+
+    if field not in {"committee", "document_type"}:
+        return []
+    return sorted(
+        {str(result.get(field) or "").strip() for result in results if result.get(field)},
+        key=str.casefold,
+    )
+
+
 @lru_cache(maxsize=1)
 def _get_semantic_resources():
     """Load the reusable semantic encoders once per Django process."""
@@ -230,7 +261,16 @@ def _with_semantic_display_fields(rank: int, result: dict[str, Any], source: str
     enriched["rank"] = rank
     enriched["display_score"] = _format_rrf_score(enriched.get("score"))
     enriched["search_source"] = source
+    enriched["snippet"] = _compact_snippet(str(enriched.get("snippet") or ""))
     return enriched
+
+
+def _compact_snippet(value: str, *, max_chars: int = 280) -> str:
+    normalized = " ".join(value.split())
+    if len(normalized) <= max_chars:
+        return normalized
+    shortened = normalized[: max_chars + 1].rsplit(" ", 1)[0].strip()
+    return f"{shortened or normalized[:max_chars].strip()} …"
 
 
 def _format_rrf_score(value: Any) -> str:

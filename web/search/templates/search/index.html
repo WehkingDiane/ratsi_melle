@@ -9,19 +9,40 @@
   <p>Dokumentinhalte semantisch über den lokalen Vektorindex durchsuchen.</p>
 </section>
 
-<section class="panel">
+<section class="panel filter-panel">
   <form class="form-stack" method="get" action="{% url 'search:index' %}">
-    <label>
-      Suchbegriff
-      <input type="search" name="q" value="{{ query }}" placeholder="z. B. Windkraft Flächennutzungsplan Abwägung">
-    </label>
-    <label>
-      Quelle
-      <select name="source">
-        <option value="ratsinfo"{% if selected_source == "ratsinfo" %} selected{% endif %}>Ratsinfo</option>
-        <option value="landkreis"{% if selected_source == "landkreis" %} selected{% endif %}>Landkreis</option>
-      </select>
-    </label>
+    <div class="grid two-columns tight">
+      <label>Suchbegriff <input type="search" name="q" value="{{ query }}" placeholder="z. B. Windkraft Flächennutzungsplan Abwägung"></label>
+      <label>
+        Quelle
+        <select name="source">
+          <option value="ratsinfo"{% if selected_source == "ratsinfo" %} selected{% endif %}>Ratsinfo</option>
+          <option value="landkreis"{% if selected_source == "landkreis" %} selected{% endif %}>Landkreis</option>
+        </select>
+      </label>
+    </div>
+    {% if has_query and not search_error %}
+    <div class="grid {% if selected_source == 'ratsinfo' %}four-columns{% else %}two-columns{% endif %} tight">
+      <label>Von <input type="date" name="date_from" value="{{ date_from }}"></label>
+      <label>Bis <input type="date" name="date_to" value="{{ date_to }}"></label>
+      {% if selected_source == "ratsinfo" %}
+      <label>
+        Gremium
+        <select name="committee">
+          <option value="">Alle Gremien</option>
+          {% for value in committees %}<option value="{{ value }}"{% if value == selected_committee %} selected{% endif %}>{{ value }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>
+        Dokumenttyp
+        <select name="document_type">
+          <option value="">Alle Typen</option>
+          {% for value in document_types %}<option value="{{ value }}"{% if value == selected_document_type %} selected{% endif %}>{{ value }}</option>{% endfor %}
+        </select>
+      </label>
+      {% endif %}
+    </div>
+    {% endif %}
     <div class="actions">
       <button class="button primary" type="submit">Suchen</button>
       {% if has_query %}<a class="button utility" href="{% url 'search:index' %}">Zurücksetzen</a>{% endif %}
@@ -31,85 +52,44 @@
 
 {% if has_query %}
 {% if search_error %}
-<section class="panel">
-  <p class="status-warning">{{ search_error }}</p>
-</section>
+<section class="panel"><p class="status-warning">{{ search_error }}</p></section>
 {% elif search_warning %}
-<section class="panel">
-  <p class="status-muted">{{ search_warning }}</p>
-</section>
+<section class="panel"><p class="status-muted">{{ search_warning }}</p></section>
 {% endif %}
 
 <section>
   <div class="section-title">
     <h2>Vektortreffer</h2>
-    <p>{{ results|length }} Treffer{% if results|length == max_results %} oder mehr{% endif %}</p>
+    <p>{{ results|length }} von {{ unfiltered_result_count }} Treffern</p>
   </div>
-  {% if results and selected_source == "landkreis" %}
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Rang</th>
-          <th>Score</th>
-          <th>Datum</th>
-          <th>Quelle</th>
-          <th>Veröffentlichung</th>
-          <th>Dokument</th>
-          <th>Link/Pfad</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for document in results %}
-        <tr>
-          <td>{{ document.rank|default:"-" }}</td>
-          <td>{{ document.display_score|default:"-" }}</td>
-          <td class="date-value">{{ document.display_date|default:document.date|default:"-" }}</td>
-          <td>{{ document.source|default:"-" }}</td>
-          <td>{{ document.title|default:"-" }}</td>
-          <td>{{ document.document_title|default:"Dokument" }}</td>
-          <td>
-            {% if document.url %}<a href="{{ document.url }}" target="_blank" rel="noopener">Quelle</a>{% endif %}
-            {% if document.local_path %}<span>{{ document.local_path }}</span>{% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% elif results %}
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Rang</th>
-          <th>Score</th>
-          <th>Datum</th>
-          <th>Gremium</th>
-          <th>Sitzung</th>
-          <th>TOP</th>
-          <th>Dokument</th>
-          <th>Typ</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for document in results %}
-        <tr>
-          <td>{{ document.rank|default:"-" }}</td>
-          <td>{{ document.display_score|default:"-" }}</td>
-          <td class="date-value">{{ document.display_date|default:document.date|default:"-" }}</td>
-          <td>{{ document.committee|default:"-" }}</td>
-          <td><a href="{% url 'analysis:session_detail' document.session_id %}">{{ document.meeting_name|default:document.session_id }}</a></td>
-          <td>{{ document.agenda_item|default:"-" }}</td>
-          <td>{{ document.title|default:"Dokument" }}</td>
-          <td>{{ document.display_type|default:"-" }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  {% if results %}
+  <div class="search-result-list">
+    {% for document in results %}
+    <article class="panel search-result-card">
+      <header>
+        <p class="search-result-meta">Rang {{ document.rank|default:"-" }} · Score {{ document.display_score|default:"-" }} · <span class="date-value">{{ document.display_date|default:document.date|default:"Ohne Datum" }}</span></p>
+        <h3>
+          {% if selected_source == "landkreis" %}{{ document.document_title|default:document.title|default:"Dokument" }}
+          {% else %}<a href="{% url 'analysis:session_detail' document.session_id %}">{{ document.title|default:"Dokument" }}</a>{% endif %}
+        </h3>
+      </header>
+      {% if document.snippet %}<p class="search-snippet">{{ document.snippet }}</p>{% endif %}
+      <dl class="search-result-facts">
+        {% if selected_source == "landkreis" %}
+        <div><dt>Veröffentlichung</dt><dd>{{ document.title|default:"-" }}</dd></div>
+        <div><dt>Quelle</dt><dd>{{ document.source|default:"-" }}</dd></div>
+        {% else %}
+        <div><dt>Gremium</dt><dd>{{ document.committee|default:"-" }}</dd></div>
+        <div><dt>Sitzung / TOP</dt><dd>{{ document.meeting_name|default:document.session_id }} · {{ document.agenda_item|default:"-" }}</dd></div>
+        <div><dt>Typ</dt><dd>{{ document.display_type|default:"-" }}</dd></div>
+        {% endif %}
+      </dl>
+      {% if selected_source == "landkreis" and document.url %}<div class="actions"><a class="button secondary small" href="{{ document.url }}" target="_blank" rel="noopener">Quelle öffnen</a></div>{% endif %}
+    </article>
+    {% endfor %}
   </div>
   {% else %}
-  <p class="empty-state">Keine Vektortreffer gefunden.</p>
+  <p class="empty-state">Keine Vektortreffer für die gewählten Filter gefunden.</p>
   {% endif %}
 </section>
 {% endif %}

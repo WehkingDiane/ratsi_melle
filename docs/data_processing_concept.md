@@ -305,7 +305,8 @@ Die semantische Suche:
 
 - arbeitet derzeit auf dem lokalen Index
 - nutzt Hybrid-Retrieval
-- zeigt Treffer mit Metadaten, TOP-Bezug und Dokumentlink
+- zeigt Treffer mit Metadaten, TOP-Bezug, Dokumentlink und einem beim Indexaufbau gespeicherten kurzen Textausschnitt
+- filtert die aktuelle Trefferliste nach Datum sowie bei Ratsinfo nach Gremium und Dokumenttyp
 - verwendet **RRF-Rangfusion**
 
 Der angezeigte Score ist:
@@ -352,6 +353,7 @@ Der angezeigte Score ist:
 
 - Bei Änderungen an Fetch-/Parsinglogik Rohdaten- und Indexpfade mitdenken
 - Bei Änderungen an Textextraktion, Embedding-Modell oder Stable-ID-Schema den Vektorindex vollständig neu aufbauen
+- Nach Einführung oder Änderung von Treffertext-Payloads den Vektorindex vollständig neu aufbauen, damit bestehende Punkte die neuen Ausschnitte erhalten
 - Zielsystem regelmäßig auf Änderungen an HTML, Parametern und Dokumenttypen prüfen
 - Aktive Oberflächen sollen diese Pipeline nutzen, nicht neu erfinden
 

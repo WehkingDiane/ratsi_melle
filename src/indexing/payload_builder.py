@@ -16,7 +16,7 @@ def resolve_local_path(doc: dict) -> str:
     return str(resolved.resolve())
 
 
-def build_document_payload(doc: dict) -> dict:
+def build_document_payload(doc: dict, *, search_text: str = "") -> dict:
     """Build the Qdrant payload for a document row."""
     return {
         "session_id": doc.get("session_id"),
@@ -27,4 +27,13 @@ def build_document_payload(doc: dict) -> dict:
         "local_path": resolve_local_path(doc),
         "date": doc.get("date") or "",
         "committee": doc.get("committee") or "",
+        "snippet": _snippet(search_text),
     }
+
+
+def _snippet(value: str, *, max_chars: int = 500) -> str:
+    normalized = " ".join(value.split())
+    if len(normalized) <= max_chars:
+        return normalized
+    shortened = normalized[: max_chars + 1].rsplit(" ", 1)[0].strip()
+    return f"{shortened or normalized[:max_chars].strip()} …"

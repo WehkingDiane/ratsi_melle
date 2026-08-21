@@ -116,7 +116,7 @@ Buttons folgen einem funktionsbezogenen Farbschema: `primary` ist auslösenden H
 - `/daten/jobs/<job_id>/status/` liefert den aktuellen Datenjobstatus als JSON für die automatische Logaktualisierung.
 - `/daten/status/` liefert den frisch berechneten Rohdaten-, Datenbank- und Vektorindexstatus als JSON für die manuelle Aktualisierung.
 - `/veroeffentlichung/` ist ein Platzhalter für Publikations- und Reviewfunktionen.
-- `/suche/` durchsucht lokal indexierte Dokumentinhalte semantisch über den Qdrant-Vektorindex. Die Suche nutzt Harrier-Dense-Embeddings, BM25-Sparse-Vektoren und RRF-Rangfusion. Die Quellen-Auswahl bietet Ratsinfo als Standard und Landkreis als getrennte Collection `landkreis_publications`.
+- `/suche/` durchsucht lokal indexierte Dokumentinhalte semantisch über den Qdrant-Vektorindex. Die Suche nutzt Harrier-Dense-Embeddings, BM25-Sparse-Vektoren und RRF-Rangfusion. Treffer lassen sich nach Datum sowie bei Ratsinfo zusätzlich nach Gremium und Dokumenttyp filtern und werden als responsive Karten angezeigt. Neu aufgebaute Vektorindizes liefern außerdem kurze Textausschnitte. Die Quellen-Auswahl bietet Ratsinfo als Standard und Landkreis als getrennte Collection `landkreis_publications`.
 - `/einstellungen/` verwaltet lokale Einstellungen, darunter die sichere Ablage eines Hugging-Face-Tokens im OS-Schlüsselring.
 
 Alte Service-URLs unter `/analyse/service/` werden auf den Datenbereich umgeleitet, damit technische Datenpflege nicht mehr im Analysebereich hängt.
