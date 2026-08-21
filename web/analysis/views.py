@@ -11,6 +11,7 @@ from django.urls import reverse
 from django.utils.http import content_disposition_header
 
 from . import services
+from .markdown_preview import render_markdown_preview
 
 
 LIST_PAGE_SIZE = 20
@@ -250,6 +251,7 @@ def job_detail(request, job_id: str):
             "active_nav": "analysis",
             "job": job,
             "job_id": job_id,
+            "markdown_preview": render_markdown_preview(str(job.get("markdown") or "")) if job else "",
         },
     )
 

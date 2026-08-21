@@ -1281,8 +1281,37 @@ def test_analysis_job_detail_renders_result_sections(client, monkeypatch) -> Non
     assert response.status_code == 200
     assert "Metadaten" in headings
     assert "KI-Analyse" in headings
-    assert "Analysegrundlage und Quellenkontext" in headings
+    assert "Markdown-Vorschau" in headings
     assert soup.find("summary", string="Verwendeter Prompt") is not None
     assert "Strukturierte Daten" in headings
     assert "Quellen" in headings
     assert "data/analysis_outputs/job_7.raw.json" in soup.get_text()
+
+
+def test_analysis_job_detail_renders_safe_markdown_preview(client, monkeypatch) -> None:
+    from analysis import views
+
+    monkeypatch.setattr(
+        views.services,
+        "get_analysis_output",
+        lambda _job_id: {
+            "job_id": "workflow:1",
+            "display_job_id": "1",
+            "session_id": "8188",
+            "status": "done",
+            "markdown": "# Überschrift\n\n**Text** <script>alert(1)</script> [Böse](javascript:alert(1))",
+            "sources": [],
+            "structured_outputs": [],
+            "has_content": True,
+        },
+    )
+
+    content = client.get("/analyse/jobs/workflow:1/").content.decode("utf-8")
+    soup = BeautifulSoup(content, "html.parser")
+    preview = str(soup.select_one(".markdown-preview"))
+
+    assert '<div class="markdown-preview"><h1>Überschrift</h1>' in content
+    assert "<strong>Text</strong>" in content
+    assert "<script>" not in content
+    assert "javascript:" not in preview
+    assert "Markdown-Quelltext anzeigen" in content

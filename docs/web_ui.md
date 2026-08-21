@@ -108,6 +108,7 @@ Buttons folgen einem funktionsbezogenen Farbschema: `primary` ist auslösenden H
 - `/analyse/sitzungen/<session_id>/dokumente/<document_id>/pdf/` liefert eine lokal vorhandene PDF inline fuer die Browseransicht.
 - `/analyse/jobs/` listet Analysejobs und Ausgabedateien mit Suche, Statusfilter und Paginierung. Ein lokaler Quelljob und sein Workflow-Index werden als eine kanonische Analyse angezeigt.
 - `/analyse/jobs/<job_id>/` zeigt Analyseoutputs, einschließlich alter v1-Ausgaben, sowie Provider, Tokenverbrauch und Antwortstatus. Manuell erzeugte Analysegrundlagen tragen den Status `prepared` statt `done`.
+- Markdown-Ausgaben werden auf der Jobdetailseite serverseitig formatiert dargestellt; der unveränderte Quelltext bleibt aufklappbar. Die Vorschau entfernt nicht freigegebenes HTML, Attribute und unsichere URL-Schemata.
 - `/daten/` zeigt links die Weiterleitungen zu Fetch, Build und Vektorindex; rechts stehen der aktuelle Status mit manueller Aktualisierung und die letzten Datenjobs.
 - `/daten/fetch/` startet vorhandene Fetch-Skripte für SessionNet-Sitzungen und Landkreis-Veröffentlichungen.
 - `/daten/build/` startet vorhandene SQLite-Build-Skripte für Ratsinfo- und Landkreis-Indizes.

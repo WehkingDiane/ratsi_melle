@@ -36,8 +36,12 @@
 
   {% if job.markdown %}
   <article class="panel">
-    <h2>Analysegrundlage und Quellenkontext</h2>
-    <pre class="text-block">{{ job.markdown }}</pre>
+    <h2>Markdown-Vorschau</h2>
+    <div class="markdown-preview">{{ markdown_preview }}</div>
+    <details class="raw-markdown">
+      <summary>Markdown-Quelltext anzeigen</summary>
+      <pre class="text-block">{{ job.markdown }}</pre>
+    </details>
   </article>
   {% endif %}
 
