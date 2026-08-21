@@ -16,6 +16,7 @@ def isolate_analysis_runtime_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     prompts_dir = private_dir / "analysis_prompts"
     snapshots_dir = private_dir / "prompt_snapshots"
     latest_md = outputs_dir / "summaries" / "analysis_latest.md"
+    service_jobs_db = data_dir / "db" / "service_jobs.sqlite"
 
     monkeypatch.setattr("src.paths.ANALYSIS_WORKFLOW_DB", workflow_db)
     monkeypatch.setattr("src.paths.ANALYSIS_OUTPUTS_DIR", outputs_dir)
@@ -27,3 +28,4 @@ def isolate_analysis_runtime_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr("src.analysis.service.ANALYSIS_PROMPTS_DIR", prompts_dir)
     monkeypatch.setattr("src.analysis.service.PROMPT_SNAPSHOTS_DIR", snapshots_dir)
     monkeypatch.setattr("src.analysis.service.DEFAULT_ANALYSIS_MARKDOWN", latest_md)
+    monkeypatch.setattr("core.service_jobs.SERVICE_JOBS_DB", service_jobs_db)

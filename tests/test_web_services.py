@@ -2133,3 +2133,58 @@ def test_terminal_service_jobs_are_pruned_but_active_jobs_remain() -> None:
         finally:
             service_jobs._jobs.clear()
             service_jobs._jobs.update(old_jobs)
+
+
+def test_service_jobs_survive_memory_reload(monkeypatch, workspace_tmp: Path) -> None:
+    db_path = workspace_tmp / "data" / "db" / "service_jobs.sqlite"
+    monkeypatch.setattr(service_jobs, "SERVICE_JOBS_DB", db_path)
+    with service_jobs._lock:
+        service_jobs._loaded_db_path = None
+        service_jobs._jobs.clear()
+        service_jobs._ensure_loaded_locked()
+        service_jobs._jobs["persisted"] = service_jobs.ServiceJob(
+            job_id="persisted",
+            action="build_local_index",
+            command=["python", "scripts/build_local_index.py"],
+            status="ok",
+            exit_code=0,
+            output="Index erstellt",
+            finished_at="21.08.2026 12:00:00",
+            created_at="2026-08-21T09:59:00Z",
+        )
+        service_jobs._persist_snapshot_locked()
+        service_jobs._jobs.clear()
+        service_jobs._loaded_db_path = None
+
+    reloaded = service_jobs.get_service_job("persisted")
+
+    assert reloaded is not None
+    assert reloaded.status == "ok"
+    assert reloaded.output == "Index erstellt"
+    assert reloaded.command == ["python", "scripts/build_local_index.py"]
+
+
+def test_running_service_job_is_marked_interrupted_after_reload(monkeypatch, workspace_tmp: Path) -> None:
+    db_path = workspace_tmp / "data" / "db" / "service_jobs.sqlite"
+    monkeypatch.setattr(service_jobs, "SERVICE_JOBS_DB", db_path)
+    with service_jobs._lock:
+        service_jobs._loaded_db_path = None
+        service_jobs._jobs.clear()
+        service_jobs._ensure_loaded_locked()
+        service_jobs._jobs["interrupted"] = service_jobs.ServiceJob(
+            job_id="interrupted",
+            action="fetch_sessions",
+            command=["python", "scripts/fetch_sessions.py"],
+            status="running",
+            created_at="2026-08-21T09:59:00Z",
+        )
+        service_jobs._persist_snapshot_locked()
+        service_jobs._jobs.clear()
+        service_jobs._loaded_db_path = None
+
+    reloaded = service_jobs.get_service_job("interrupted")
+
+    assert reloaded is not None
+    assert reloaded.status == "error"
+    assert "Serverneustart unterbrochen" in reloaded.summary
+    assert reloaded.finished_at

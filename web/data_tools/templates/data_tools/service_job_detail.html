@@ -32,7 +32,7 @@
   <pre class="text-block" id="job-output">{{ job.output|default:"Noch keine Ausgabe." }}</pre>
 </section>
 {% else %}
-<p class="empty-state">Dieser Datenjob ist nicht mehr im lokalen Prozessspeicher vorhanden.</p>
+<p class="empty-state">Dieser Datenjob wurde nicht gefunden.</p>
 {% endif %}
 
 {% include "core/partials/service_status.html" %}
