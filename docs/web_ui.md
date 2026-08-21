@@ -154,7 +154,7 @@ Mit Provider `none` wird nur die Analysegrundlage samt gerendertem Prompt erzeug
 - Fetch-, Build- und Vektorindex-Servicefunktionen für Ratsinfo und Landkreis unter `/daten/`
 - Statusanzeige für laufende Datenjobs im Header; ohne laufenden Job bleibt sie ausgeblendet
 - manuelle Aktualisierung des aktuellen Datenstatus auf den Service-Seiten ohne vollständigen Seitenwechsel
-- automatische Aktualisierung der Logausgabe auf Datenjob-Detailseiten
+- automatische Aktualisierung der Logausgabe auf Datenjob-Detailseiten; nach Abschluss werden der verständliche Endstatus und der aktuelle Datenstatus automatisch nachgeladen
 
 ## Platzhalter
 

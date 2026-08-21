@@ -1131,6 +1131,7 @@ def test_service_job_detail_exposes_live_update_hooks(client, monkeypatch) -> No
         finished_at = ""
         command_text = "python scripts/build_local_index.py"
         output = "Zeile 1"
+        status_label = "läuft"
 
     monkeypatch.setattr(views.service_jobs, "get_service_job", lambda _job_id: Job())
 
@@ -1139,9 +1140,10 @@ def test_service_job_detail_exposes_live_update_hooks(client, monkeypatch) -> No
 
     assert response.status_code == 200
     assert soup.select_one("[data-service-job-id]")["data-service-job-id"] == "abc123"
-    assert soup.select_one("#job-status").get_text(strip=True) == "running"
+    assert soup.select_one("#job-status").get_text(strip=True) == "läuft"
     assert soup.select_one("#job-output").get_text(strip=True) == "Zeile 1"
     assert soup.select_one("#job-running-banner") is not None
+    assert soup.select_one("#job-completion-message").has_attr("hidden")
     assert soup.select_one('script[src="/static/core/js/service_job_detail.js"]') is not None
 
 

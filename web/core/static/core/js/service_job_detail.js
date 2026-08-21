@@ -11,6 +11,8 @@
   const finishedAtNode = document.getElementById("job-finished-at");
   const outputNode = document.getElementById("job-output");
   const runningBanner = document.getElementById("job-running-banner");
+  const completionMessage = document.getElementById("job-completion-message");
+  let wasRunning = container.getAttribute("data-service-job-running") === "true";
 
   function setStatusClass(status) {
     if (!statusNode) {
@@ -37,9 +39,10 @@
       const payload = await response.json();
       const job = payload.job || {};
       const status = job.status || "";
+      const statusLabel = job.status_label || status;
 
       if (statusNode) {
-        statusNode.textContent = status || "-";
+        statusNode.textContent = statusLabel || "-";
         setStatusClass(status);
       }
       if (exitCodeNode) {
@@ -56,6 +59,20 @@
       }
       if (runningBanner && status !== "queued" && status !== "running") {
         runningBanner.hidden = true;
+      }
+      if (completionMessage && status !== "queued" && status !== "running") {
+        completionMessage.textContent = status === "ok"
+          ? "Datenjob wurde erfolgreich abgeschlossen."
+          : "Datenjob ist fehlgeschlagen.";
+        completionMessage.classList.toggle("status-ok", status === "ok");
+        completionMessage.classList.toggle("status-error", status !== "ok");
+        completionMessage.hidden = false;
+      }
+      if (wasRunning && status !== "queued" && status !== "running") {
+        wasRunning = false;
+        document.dispatchEvent(new CustomEvent("servicejob:finished", {
+          detail: { jobId: jobId, status: status },
+        }));
       }
       return status === "queued" || status === "running";
     } catch (_error) {

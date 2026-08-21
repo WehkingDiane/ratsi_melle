@@ -2047,6 +2047,7 @@ def test_service_job_launch_failure_is_marked_error(monkeypatch, workspace_tmp: 
     assert current is not None
     assert current.status == "error"
     assert current.to_dict()["running"] is False
+    assert current.to_dict()["status_label"] == "fehlgeschlagen"
     assert "Service konnte nicht gestartet werden" in current.summary
     assert "missing executable" in current.output
 
@@ -2074,6 +2075,7 @@ def test_service_job_output_keeps_only_bounded_tail(monkeypatch, workspace_tmp: 
     assert current is not None
     lines = current.output.splitlines()
     assert current.status == "ok"
+    assert current.status_label == "erfolgreich"
     assert len(lines) == 500
     assert lines[0] == "line-100"
     assert lines[-1] == "line-599"

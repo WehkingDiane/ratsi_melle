@@ -83,6 +83,12 @@
     }
   });
 
+  document.addEventListener("servicejob:finished", function () {
+    document.querySelectorAll("[data-service-status]").forEach(function (container) {
+      refreshOverallStatus(container);
+    });
+  });
+
   if (indicator && text) {
     refreshServiceStatus();
     window.setInterval(refreshServiceStatus, 2000);

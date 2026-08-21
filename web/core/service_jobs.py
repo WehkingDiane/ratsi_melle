@@ -13,6 +13,12 @@ from pathlib import Path
 
 MAX_OUTPUT_LINES = 500
 MAX_RETAINED_JOBS = 50
+STATUS_LABELS = {
+    "queued": "wartet",
+    "running": "läuft",
+    "ok": "erfolgreich",
+    "error": "fehlgeschlagen",
+}
 
 
 @dataclass
@@ -31,6 +37,12 @@ class ServiceJob:
     def command_text(self) -> str:
         return " ".join(self.command)
 
+    @property
+    def status_label(self) -> str:
+        """Return a user-facing German status label."""
+
+        return STATUS_LABELS.get(self.status, self.status)
+
     def to_dict(self) -> dict[str, object]:
         return {
             "job_id": self.job_id,
@@ -38,6 +50,7 @@ class ServiceJob:
             "command": self.command,
             "command_text": self.command_text,
             "status": self.status,
+            "status_label": self.status_label,
             "exit_code": self.exit_code,
             "output": self.output,
             "started_at": self.started_at,
