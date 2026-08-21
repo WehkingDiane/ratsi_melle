@@ -271,6 +271,63 @@ def test_analysis_start_page_loads_for_session(client) -> None:
     assert "Sitzung vorbereiten" in response.content.decode("utf-8")
 
 
+def test_session_list_filters_and_paginates(client, monkeypatch) -> None:
+    from analysis import views
+
+    sessions = [
+        {
+            "session_id": str(index),
+            "date": "2026-03-11" if index < 25 else "2025-03-11",
+            "display_date": "11.03.2026",
+            "committee": "Rat" if index % 2 == 0 else "Ausschuss",
+            "meeting_name": f"Sitzung {index}",
+            "location": "Melle",
+        }
+        for index in range(30)
+    ]
+    monkeypatch.setattr(views.services, "list_sessions", lambda: sessions)
+
+    filtered = client.get("/analyse/sitzungen/?q=Sitzung&committee=Rat&year=2026")
+    second_page = client.get("/analyse/sitzungen/?q=Sitzung&page=2")
+    filtered_content = filtered.content.decode("utf-8")
+    second_page_content = second_page.content.decode("utf-8")
+
+    assert filtered.status_code == 200
+    assert "13 Sitzungen gefunden" in filtered_content
+    assert 'value="Rat" selected' in filtered_content
+    assert 'value="2026" selected' in filtered_content
+    assert second_page.status_code == 200
+    assert "Seite 2 von 2" in second_page_content
+    assert "?q=Sitzung&amp;page=1" in second_page_content
+
+
+def test_job_list_filters_status_and_uses_display_labels(client, monkeypatch) -> None:
+    from analysis import views
+
+    jobs = [
+        {
+            "job_id": f"job-{index}",
+            "session_id": "7123",
+            "purpose": "Sitzung vorbereiten",
+            "model_name": "demo",
+            "status": "done" if index % 2 == 0 else "error",
+            "display_status": "abgeschlossen" if index % 2 == 0 else "fehlgeschlagen",
+            "sources": [],
+        }
+        for index in range(6)
+    ]
+    monkeypatch.setattr(views.services, "list_analysis_outputs", lambda: jobs)
+
+    response = client.get("/analyse/jobs/?q=7123&status=error")
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "3 Analysejobs gefunden" in content
+    assert 'value="error" selected' in content
+    assert "fehlgeschlagen" in content
+    assert "abgeschlossen" in content  # Status filter option remains available.
+
+
 def test_search_page_renders_document_results(client, monkeypatch) -> None:
     from search import views
 

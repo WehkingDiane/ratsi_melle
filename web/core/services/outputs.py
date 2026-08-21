@@ -17,6 +17,16 @@ from .db import table_exists
 
 
 JOB_ID_RE = re.compile(r"job[_-](?P<job_id>[\w.-]+)", re.IGNORECASE)
+JOB_STATUS_LABELS = {
+    "done": "abgeschlossen",
+    "ok": "abgeschlossen",
+    "completed": "abgeschlossen",
+    "pending": "wartet",
+    "queued": "wartet",
+    "running": "läuft",
+    "error": "fehlgeschlagen",
+    "failed": "fehlgeschlagen",
+}
 
 
 def list_analysis_outputs() -> list[dict[str, Any]]:
@@ -388,6 +398,8 @@ def _merge_job(target: dict[str, Any], source: dict[str, Any]) -> None:
 
 def _public_job(job: dict[str, Any]) -> dict[str, Any]:
     public = dict(job)
+    raw_status = str(public.get("status") or "")
+    public["display_status"] = JOB_STATUS_LABELS.get(raw_status.lower(), raw_status or "-")
     public["sources"] = sorted(
         source for source in public.get("sources", [])
         if not _is_private_prompt_artifact_source(source, public)

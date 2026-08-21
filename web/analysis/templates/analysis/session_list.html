@@ -9,5 +9,33 @@
   <p>Vorhandene Sitzungen aus dem lokalen Index.</p>
 </section>
 
+<section class="panel filter-panel">
+  <form method="get" class="form-stack">
+    <div class="grid three-columns tight">
+      <label>Suche <input type="search" name="q" value="{{ query }}" placeholder="Sitzung, Gremium oder Ort"></label>
+      <label>
+        Gremium
+        <select name="committee">
+          <option value="">Alle Gremien</option>
+          {% for committee in committees %}<option value="{{ committee }}"{% if committee == selected_committee %} selected{% endif %}>{{ committee }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>
+        Jahr
+        <select name="year">
+          <option value="">Alle Jahre</option>
+          {% for year in years %}<option value="{{ year }}"{% if year == selected_year %} selected{% endif %}>{{ year }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="actions">
+      <button class="button primary" type="submit">Filtern</button>
+      <a class="button utility" href="{% url 'analysis:session_list' %}">Zurücksetzen</a>
+    </div>
+  </form>
+</section>
+
+<p class="result-count">{{ result_count }} Sitzungen gefunden</p>
 {% include "analysis/partials/session_table.html" with sessions=sessions %}
+{% include "analysis/partials/pagination.html" with page_obj=page_obj filter_query=filter_query label="Sitzungen" %}
 {% endblock %}

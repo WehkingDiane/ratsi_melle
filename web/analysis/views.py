@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from django.core.paginator import Paginator
 from django.http import FileResponse
 from django.http import Http404
 from django.shortcuts import redirect
@@ -10,6 +11,9 @@ from django.urls import reverse
 from django.utils.http import content_disposition_header
 
 from . import services
+
+
+LIST_PAGE_SIZE = 20
 
 
 def analysis_home(request):
@@ -29,13 +33,29 @@ def analysis_home(request):
 
 
 def session_list(request):
-    sessions = services.list_sessions()
+    all_sessions = services.list_sessions()
+    query = request.GET.get("q", "").strip()
+    committee = request.GET.get("committee", "").strip()
+    year = request.GET.get("year", "").strip()
+    sessions = [
+        session for session in all_sessions
+        if _matches_session_filters(session, query=query, committee=committee, year=year)
+    ]
+    page_obj = Paginator(sessions, LIST_PAGE_SIZE).get_page(request.GET.get("page"))
     return render(
         request,
         "analysis/session_list.html",
         {
             "active_nav": "analysis",
-            "sessions": sessions,
+            "sessions": list(page_obj.object_list),
+            "page_obj": page_obj,
+            "result_count": len(sessions),
+            "query": query,
+            "selected_committee": committee,
+            "selected_year": year,
+            "committees": sorted({str(item.get("committee") or "") for item in all_sessions if item.get("committee")}),
+            "years": sorted({_session_year(item) for item in all_sessions if _session_year(item)}, reverse=True),
+            "filter_query": _query_without_page(request),
         },
     )
 
@@ -192,13 +212,31 @@ def prompt_template_deactivate(request, template_id: str):
 
 
 def job_list(request):
-    jobs = services.list_analysis_outputs()
+    all_jobs = services.list_analysis_outputs()
+    query = request.GET.get("q", "").strip()
+    status = request.GET.get("status", "").strip()
+    jobs = [job for job in all_jobs if _matches_job_filters(job, query=query, status=status)]
+    page_obj = Paginator(jobs, LIST_PAGE_SIZE).get_page(request.GET.get("page"))
+    status_options = sorted(
+        {
+            (str(job.get("status") or ""), str(job.get("display_status") or job.get("status") or "-"))
+            for job in all_jobs
+            if job.get("status")
+        },
+        key=lambda item: item[1].casefold(),
+    )
     return render(
         request,
         "analysis/job_list.html",
         {
             "active_nav": "analysis",
-            "jobs": jobs,
+            "jobs": list(page_obj.object_list),
+            "page_obj": page_obj,
+            "result_count": len(jobs),
+            "query": query,
+            "selected_status": status,
+            "status_options": status_options,
+            "filter_query": _query_without_page(request),
         },
     )
 
@@ -214,3 +252,36 @@ def job_detail(request, job_id: str):
             "job_id": job_id,
         },
     )
+
+
+def _matches_session_filters(session: dict, *, query: str, committee: str, year: str) -> bool:
+    searchable = " ".join(
+        str(session.get(key) or "")
+        for key in ("session_id", "meeting_name", "committee", "location")
+    ).casefold()
+    return (
+        (not query or query.casefold() in searchable)
+        and (not committee or str(session.get("committee") or "") == committee)
+        and (not year or _session_year(session) == year)
+    )
+
+
+def _session_year(session: dict) -> str:
+    return str(session.get("date") or "")[:4]
+
+
+def _matches_job_filters(job: dict, *, query: str, status: str) -> bool:
+    searchable = " ".join(
+        str(job.get(key) or "")
+        for key in ("job_id", "session_id", "purpose", "output_type", "model_name")
+    ).casefold()
+    return (
+        (not query or query.casefold() in searchable)
+        and (not status or str(job.get("status") or "") == status)
+    )
+
+
+def _query_without_page(request) -> str:
+    params = request.GET.copy()
+    params.pop("page", None)
+    return params.urlencode()

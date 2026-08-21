@@ -103,10 +103,10 @@ Buttons folgen einem funktionsbezogenen Farbschema: `primary` ist auslösenden H
 - `/analyse/prompts/<template_id>/` zeigt das Formular zum Bearbeiten einer Prompt-Vorlage.
 - `/analyse/prompts/<template_id>/duplizieren/` dupliziert eine Vorlage per POST.
 - `/analyse/prompts/<template_id>/deaktivieren/` deaktiviert eine Vorlage per POST.
-- `/analyse/sitzungen/` listet Sitzungen aus dem lokalen Index.
+- `/analyse/sitzungen/` listet Sitzungen aus dem lokalen Index mit Suche, Gremiums-/Jahresfilter und Paginierung.
 - `/analyse/sitzungen/<session_id>/` zeigt Sitzungsdetails.
 - `/analyse/sitzungen/<session_id>/dokumente/<document_id>/pdf/` liefert eine lokal vorhandene PDF inline fuer die Browseransicht.
-- `/analyse/jobs/` listet Analysejobs und Ausgabedateien.
+- `/analyse/jobs/` listet Analysejobs und Ausgabedateien mit Suche, Statusfilter und Paginierung.
 - `/analyse/jobs/<job_id>/` zeigt Analyseoutputs, einschließlich alter v1-Ausgaben.
 - `/daten/` zeigt links die Weiterleitungen zu Fetch, Build und Vektorindex; rechts stehen der aktuelle Status mit manueller Aktualisierung und die letzten Datenjobs.
 - `/daten/fetch/` startet vorhandene Fetch-Skripte für SessionNet-Sitzungen und Landkreis-Veröffentlichungen.

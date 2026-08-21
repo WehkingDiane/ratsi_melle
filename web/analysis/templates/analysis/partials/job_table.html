@@ -17,7 +17,7 @@
         <td><a href="{% url 'analysis:job_detail' job.job_id %}">Job {{ job.job_id }}</a></td>
         <td>{{ job.session_id|default:"-" }}</td>
         <td>{{ job.output_type|default:job.purpose|default:"-" }}</td>
-        <td>{{ job.status|default:"-" }}</td>
+        <td>{{ job.display_status|default:job.status|default:"-" }}</td>
         {% if not compact %}<td>{{ job.sources|length }}</td>{% endif %}
       </tr>
       {% endfor %}

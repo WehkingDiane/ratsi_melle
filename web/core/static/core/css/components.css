@@ -267,6 +267,28 @@ tr:last-child td {
   margin-top: 14px;
 }
 
+.filter-panel {
+  margin-bottom: 18px;
+}
+
+.filter-panel .form-stack {
+  margin-top: 0;
+}
+
+.result-count {
+  color: var(--muted);
+  font-weight: 700;
+  margin: 0 0 10px;
+}
+
+.pagination {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 18px;
+}
+
 .form-stack label,
 .form-stack fieldset {
   display: grid;
