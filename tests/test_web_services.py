@@ -20,6 +20,7 @@ if str(WEB_ROOT) not in sys.path:
 
 from analysis import services as analysis_services
 from core import service_jobs
+from core.services.outputs import _public_job
 from core import services as core_services
 from data_tools import services as data_services
 from search import services as search_services
@@ -27,6 +28,26 @@ from src.analysis.workflow_db import AnalysisArtifactRecord
 from src.analysis.workflow_db import AnalysisJobRecord
 from src.analysis.workflow_db import add_analysis_output
 from src.analysis.workflow_db import create_analysis_job
+
+
+def test_legacy_done_job_without_ki_response_is_displayed_as_prepared() -> None:
+    public = _public_job(
+        {
+            "job_id": "workflow:174",
+            "status": "done",
+            "markdown": "# Analysegrundlage",
+            "ki_response": "",
+            "sources": set(),
+            "files": [],
+            "structured_outputs": [],
+            "warnings": [],
+        }
+    )
+
+    assert public["status"] == "prepared"
+    assert public["display_status"] == "Analysegrundlage erstellt"
+    assert public["provider_id"] == "none"
+    assert public["response_status"] == "not_requested"
 
 
 @pytest.fixture()

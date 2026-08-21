@@ -372,6 +372,10 @@ def _empty_job(job_id: str) -> dict[str, Any]:
         "scope": "",
         "purpose": "",
         "model_name": "",
+        "provider_id": "",
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "response_status": "",
         "prompt_version": "",
         "prompt_template_id": "",
         "prompt_template_revision": None,
@@ -423,6 +427,15 @@ def _merge_job(target: dict[str, Any], source: dict[str, Any]) -> None:
 def _public_job(job: dict[str, Any]) -> dict[str, Any]:
     public = dict(job)
     raw_status = str(public.get("status") or "")
+    if (
+        raw_status.lower() in {"done", "ok", "completed"}
+        and public.get("markdown")
+        and not public.get("ki_response")
+    ):
+        raw_status = "prepared"
+        public["status"] = raw_status
+        public["provider_id"] = str(public.get("provider_id") or "none")
+        public["response_status"] = str(public.get("response_status") or "not_requested")
     public["display_status"] = JOB_STATUS_LABELS.get(raw_status.lower(), raw_status or "-")
     public["sources"] = sorted(
         source for source in public.get("sources", [])
