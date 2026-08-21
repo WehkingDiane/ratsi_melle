@@ -1,9 +1,13 @@
-<section class="panel service-status">
-  <h2>Allgemeiner Status</h2>
-  <dl class="facts inline">
-    <div><dt>Rohdaten</dt><dd class="{% if status.raw_data_exists %}status-ok{% else %}status-muted{% endif %}">{{ status.raw_data_summary }}</dd></div>
-    <div><dt>Lokaler Index</dt><dd class="{% if status.local_index_exists %}status-ok{% else %}status-muted{% endif %}">{{ status.local_index_summary }}</dd></div>
-    <div><dt>Online-Index</dt><dd class="{% if status.online_index_exists %}status-ok{% else %}status-muted{% endif %}">{{ status.online_index_summary }}</dd></div>
-    <div><dt>Vektorindex</dt><dd class="{% if status.qdrant_exists %}status-ok{% else %}status-muted{% endif %}">{{ status.qdrant_summary }}</dd></div>
+<section class="panel service-status" data-service-status data-status-url="{% url 'data_tools:service_status' %}">
+  <div class="service-status-header">
+    <h2>Aktueller Status</h2>
+    <button class="button utility small" type="button" data-service-status-refresh>Status aktualisieren</button>
+  </div>
+  <dl class="facts inline" aria-live="polite">
+    <div><dt>Rohdaten</dt><dd class="{% if status.raw_data_exists %}status-ok{% else %}status-muted{% endif %}" data-status-field="raw_data_summary" data-status-exists-field="raw_data_exists">{{ status.raw_data_summary }}</dd></div>
+    <div><dt>Lokaler Index</dt><dd class="{% if status.local_index_exists %}status-ok{% else %}status-muted{% endif %}" data-status-field="local_index_summary" data-status-exists-field="local_index_exists">{{ status.local_index_summary }}</dd></div>
+    <div><dt>Online-Index</dt><dd class="{% if status.online_index_exists %}status-ok{% else %}status-muted{% endif %}" data-status-field="online_index_summary" data-status-exists-field="online_index_exists">{{ status.online_index_summary }}</dd></div>
+    <div><dt>Vektorindex</dt><dd class="{% if status.qdrant_exists %}status-ok{% else %}status-muted{% endif %}" data-status-field="qdrant_summary" data-status-exists-field="qdrant_exists">{{ status.qdrant_summary }}</dd></div>
   </dl>
+  <p class="muted service-status-feedback" data-service-status-feedback aria-live="polite" hidden></p>
 </section>

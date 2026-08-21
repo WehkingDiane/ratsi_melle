@@ -108,6 +108,12 @@ def service_job_detail(request, job_id: str):
     )
 
 
+def service_status(request):
+    """Return freshly calculated service status values for manual refreshes."""
+
+    return JsonResponse({"status": services.service_status()})
+
+
 def service_job_status(request):
     active = [job.to_dict() for job in service_jobs.active_service_jobs()]
     recent = [job.to_dict() for job in service_jobs.list_service_jobs(limit=5)]

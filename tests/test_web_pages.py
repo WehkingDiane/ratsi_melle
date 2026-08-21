@@ -48,6 +48,7 @@ def client():
         "/daten/fetch/",
         "/daten/build/",
         "/daten/vektor/",
+        "/daten/status/",
         "/daten/jobs/status/",
         "/veroeffentlichung/",
         "/suche/",
@@ -864,6 +865,62 @@ def test_service_fetch_page_includes_landkreis_fetch(client) -> None:
     assert "Bekanntmachungen" in content
     assert "Amtsblaetter" in content
     assert "Datenwurzel" in content
+
+
+def test_service_pages_expose_manual_status_refresh(client) -> None:
+    response = client.get("/daten/")
+    soup = BeautifulSoup(response.content.decode("utf-8"), "html.parser")
+
+    status_panel = soup.select_one('[data-service-status][data-status-url="/daten/status/"]')
+
+    assert response.status_code == 200
+    assert status_panel is not None
+    assert status_panel.select_one("h2").get_text(strip=True) == "Aktueller Status"
+    assert status_panel.select_one("[data-service-status-refresh]").get_text(strip=True) == "Status aktualisieren"
+    assert {
+        node["data-status-field"]
+        for node in status_panel.select("[data-status-field]")
+    } == {
+        "raw_data_summary",
+        "local_index_summary",
+        "online_index_summary",
+        "qdrant_summary",
+    }
+
+
+def test_service_status_returns_fresh_values(client, monkeypatch) -> None:
+    from data_tools import views
+
+    initial = {
+        "raw_data_exists": False,
+        "raw_data_summary": "fehlt",
+        "local_index_exists": False,
+        "local_index_summary": "fehlt",
+        "online_index_exists": False,
+        "online_index_summary": "fehlt",
+        "qdrant_exists": False,
+        "qdrant_summary": "fehlt",
+    }
+    refreshed = {
+        "raw_data_exists": True,
+        "raw_data_summary": "3 Sitzungsordner",
+        "local_index_exists": True,
+        "local_index_summary": "2 Sitzungen / 4 Dokumente",
+        "online_index_exists": False,
+        "online_index_summary": "fehlt",
+        "qdrant_exists": True,
+        "qdrant_summary": "vorhanden",
+    }
+    status_values = iter((initial, refreshed))
+    monkeypatch.setattr(views.services, "service_status", lambda: next(status_values))
+
+    initial_response = client.get("/daten/status/")
+    refreshed_response = client.get("/daten/status/")
+
+    assert initial_response.status_code == 200
+    assert initial_response.json() == {"status": initial}
+    assert refreshed_response.status_code == 200
+    assert refreshed_response.json() == {"status": refreshed}
 
 
 def test_service_vector_page_renders_vector_status(client, monkeypatch) -> None:

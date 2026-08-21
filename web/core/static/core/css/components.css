@@ -397,6 +397,22 @@ tr:last-child td {
   margin-top: 24px;
 }
 
+.service-status-header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.service-status-header h2 {
+  margin: 0;
+}
+
+.service-status-feedback {
+  margin: 12px 0 0;
+}
+
 .data-overview .service-status {
   margin-top: 0;
 }
