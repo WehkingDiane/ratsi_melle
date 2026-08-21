@@ -189,6 +189,8 @@ Neue Analysejobs speichern Template-ID, Revision und Label. Der gerenderte Promp
 
 Automatische Analysen speichern zusätzlich Provider-ID, Eingabe-/Ausgabetokens und den Antwortstatus. `done` setzt eine nicht leere, als JSON-Objekt validierte Providerantwort voraus. Ohne Provider entsteht eine nachvollziehbare Analysegrundlage mit Status `prepared`; Providerfehler, leere Antworten und ungültiges JSON führen zu `error`.
 
+Bei großen PDF-Mengen priorisiert der Analyseworkflow Beschlussvorlagen und andere entscheidungstragende Quellen. Überschreitet der extrahierte Gesamttext 140.000 Zeichen, wird jedes lesbare Dokument mit höchstens 40.000 Zeichen einzeln voranalysiert und erst danach aus den Voranalysen eine Gesamtausgabe erzeugt. Der gespeicherte Tokenverbrauch umfasst beide Stufen.
+
 Gerenderte Prompt-Snapshots und private Prompt-Artefakte werden nicht als normale Quellen oder Dateien in der Job-Detailansicht angezeigt. Die UI kann Metadaten wie Vorlage, Revision und Zeitpunkt anzeigen, ohne private Prompt-Pfade als öffentliche Artefaktquellen auszugeben.
 
 ## Datenquellen

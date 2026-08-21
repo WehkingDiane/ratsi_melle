@@ -9,7 +9,8 @@ from src.analysis.schemas import (
     ANALYSIS_OUTPUT_SCHEMA_VERSION_V2,
     AnalysisOutputRecord,
 )
-from src.analysis.service import AnalysisRequest, AnalysisService, _parse_ki_json_response
+from src.analysis.providers.base import KiResponse
+from src.analysis.service import AnalysisRequest, AnalysisService, _parse_ki_json_response, _prioritize_documents
 
 
 # ---------------------------------------------------------------------------
@@ -72,6 +73,63 @@ def test_parse_ki_json_response_accepts_markdown_fenced_json() -> None:
 def test_parse_ki_json_response_returns_empty_dict_for_invalid_json() -> None:
     assert _parse_ki_json_response("kein json") == {}
 
+
+def test_document_priority_starts_with_decision_source() -> None:
+    documents = [
+        {"title": "Avifaunistisches Gutachten"},
+        {"title": "Anlage 02 - Begründung"},
+        {"title": "Beschlussvorlage 01/2026"},
+    ]
+
+    prioritized = _prioritize_documents(documents)
+
+    assert [item["title"] for item in prioritized] == [
+        "Beschlussvorlage 01/2026",
+        "Anlage 02 - Begründung",
+        "Avifaunistisches Gutachten",
+    ]
+
+
+def test_large_document_set_is_summarized_before_synthesis(tmp_path: Path, monkeypatch) -> None:
+    calls: list[dict] = []
+
+    class FakeProvider:
+        def analyze(self, **kwargs):
+            calls.append(kwargs)
+            is_summary = "einzelne Quelldokument" in kwargs["prompt"]
+            return KiResponse(
+                provider_id="codex",
+                model_name="gpt-test",
+                response_text='{"key_facts":["Fakt"]}' if is_summary else '{"topic":"Ergebnis"}',
+                input_tokens=10,
+                output_tokens=5,
+            )
+
+    monkeypatch.setattr("src.analysis.providers.registry.build_provider", lambda *_args, **_kwargs: FakeProvider())
+    monkeypatch.setattr("src.analysis.service.extract_pdf_text", lambda _path: "Text " * 20_000)
+    request = AnalysisRequest(
+        db_path=tmp_path / "unused.sqlite",
+        session={"session_id": "1"},
+        scope="tops",
+        selected_tops=["Ö 1"],
+        prompt="Analysiere als JSON",
+        provider_id="codex",
+    )
+
+    response, model, input_tokens, output_tokens, error = AnalysisService()._call_provider(
+        request=request,
+        context="Grundlage\n## Prompt-Hinweis\ndoppelt",
+        pdf_paths=[tmp_path / "a.pdf", tmp_path / "b.pdf"],
+    )
+
+    assert error is None
+    assert response == '{"topic":"Ergebnis"}'
+    assert model == "gpt-test"
+    assert input_tokens == 30
+    assert output_tokens == 15
+    assert len(calls) == 3
+    assert "Dokumentweise Voranalysen" in calls[-1]["context"]
+    assert calls[-1]["pdf_paths"] is None
 
 def test_publication_draft_uses_ki_json_title_and_body() -> None:
     record = AnalysisOutputRecord(

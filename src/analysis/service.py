@@ -12,6 +12,7 @@ import re
 import unicodedata
 
 from src.analysis.analysis_context import build_analysis_markdown, enrich_documents_for_analysis
+from src.analysis.providers._pdf_utils import extract_pdf_text
 from src.analysis.providers.registry import PROVIDER_NONE
 from src.analysis.schemas import (
     ANALYSIS_OUTPUT_SCHEMA_VERSION_V2,
@@ -70,7 +71,7 @@ class AnalysisService:
             scope=request.scope,
             selected_tops=request.selected_tops,
         )
-        documents = enrich_documents_for_analysis(documents)
+        documents = _prioritize_documents(enrich_documents_for_analysis(documents))
         pdf_paths = request.pdf_paths or _pdf_paths_from_documents(documents)
         session_path = self._get_session_path(db_path, session_id)
         markdown = build_analysis_markdown(
@@ -196,13 +197,50 @@ class AnalysisService:
             context_for_provider = re.sub(
                 r"\n## Prompt-Hinweis\n.*$", "", context, flags=re.DOTALL
             ).rstrip()
+            provider_context = context_for_provider
+            provider_pdf_paths = pdf_paths or None
+            summary_input_tokens = 0
+            summary_output_tokens = 0
+            if pdf_paths:
+                extracted_documents = [(path, extract_pdf_text(path)) for path in pdf_paths]
+                if sum(len(text) for _path, text in extracted_documents) > 140_000:
+                    summaries: list[str] = []
+                    for path, text in extracted_documents:
+                        if not text.strip():
+                            summaries.append(f"### {path.name}\nText nicht extrahierbar.")
+                            continue
+                        summary = provider.analyze(
+                            prompt=(
+                                "Fasse dieses einzelne Quelldokument sachlich und quellengetreu "
+                                "in höchstens 900 Wörtern zusammen. Nenne Kernaussagen, Zahlen, "
+                                "Beschlussbezug, Unsicherheiten und offene Fragen. Gib valides JSON "
+                                "mit den Feldern title, key_facts, decision_relevance, uncertainties zurück."
+                            ),
+                            context=text[:40_000],
+                            model=request.model_name or None,
+                            pdf_paths=None,
+                        )
+                        summary_input_tokens += summary.input_tokens
+                        summary_output_tokens += summary.output_tokens
+                        summaries.append(f"### {path.name}\n{summary.response_text}")
+                    provider_context = (
+                        f"{context_for_provider}\n\n## Dokumentweise Voranalysen\n\n"
+                        + "\n\n".join(summaries)
+                    )
+                    provider_pdf_paths = None
             ki = provider.analyze(
                 prompt=request.prompt,
-                context=context_for_provider,
+                context=provider_context,
                 model=request.model_name or None,
-                pdf_paths=pdf_paths or None,
+                pdf_paths=provider_pdf_paths,
             )
-            return ki.response_text, ki.model_name, ki.input_tokens, ki.output_tokens, None
+            return (
+                ki.response_text,
+                ki.model_name,
+                summary_input_tokens + ki.input_tokens,
+                summary_output_tokens + ki.output_tokens,
+                None,
+            )
         except Exception as exc:  # noqa: BLE001
             return "", request.model_name or request.provider_id, 0, 0, str(exc)
 
@@ -843,3 +881,28 @@ def _pdf_paths_from_documents(documents: list[dict]) -> list[Path]:
         if path.suffix.lower() == ".pdf" and path.is_file():
             pdf_paths.append(path)
     return pdf_paths
+
+
+def _prioritize_documents(documents: list[dict]) -> list[dict]:
+    """Put decision-bearing sources before large supporting attachments."""
+
+    priorities = (
+        "beschlussvorlage",
+        "vorlage",
+        "begründung",
+        "planzeichnung",
+        "umweltbericht",
+        "stellungnahme",
+        "prognose",
+        "gutachten",
+    )
+
+    def sort_key(document: dict) -> tuple[int, str]:
+        title = str(document.get("title") or "").casefold()
+        priority = next(
+            (index for index, marker in enumerate(priorities) if marker in title),
+            len(priorities),
+        )
+        return priority, title
+
+    return sorted(documents, key=sort_key)

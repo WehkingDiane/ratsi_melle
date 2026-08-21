@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 
 import pytest
 
@@ -28,4 +29,6 @@ def isolate_analysis_runtime_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr("src.analysis.service.ANALYSIS_PROMPTS_DIR", prompts_dir)
     monkeypatch.setattr("src.analysis.service.PROMPT_SNAPSHOTS_DIR", snapshots_dir)
     monkeypatch.setattr("src.analysis.service.DEFAULT_ANALYSIS_MARKDOWN", latest_md)
-    monkeypatch.setattr("core.service_jobs.SERVICE_JOBS_DB", service_jobs_db)
+    service_jobs = sys.modules.get("core.service_jobs")
+    if service_jobs is not None:
+        monkeypatch.setattr(service_jobs, "SERVICE_JOBS_DB", service_jobs_db)
