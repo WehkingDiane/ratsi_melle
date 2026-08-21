@@ -238,6 +238,8 @@ def test_service_without_provider_leaves_ki_response_empty(tmp_path: Path, monke
     )
     record = AnalysisService().run_journalistic_analysis(request)
     assert record.ki_response == ""
+    assert record.status == "prepared"
+    assert record.response_status == "not_requested"
 
 
 def test_service_provider_error_stored_in_db(tmp_path: Path, monkeypatch) -> None:

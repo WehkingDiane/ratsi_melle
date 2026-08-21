@@ -106,8 +106,8 @@ Buttons folgen einem funktionsbezogenen Farbschema: `primary` ist auslösenden H
 - `/analyse/sitzungen/` listet Sitzungen aus dem lokalen Index mit Suche, Gremiums-/Jahresfilter und Paginierung.
 - `/analyse/sitzungen/<session_id>/` zeigt Sitzungsdetails.
 - `/analyse/sitzungen/<session_id>/dokumente/<document_id>/pdf/` liefert eine lokal vorhandene PDF inline fuer die Browseransicht.
-- `/analyse/jobs/` listet Analysejobs und Ausgabedateien mit Suche, Statusfilter und Paginierung.
-- `/analyse/jobs/<job_id>/` zeigt Analyseoutputs, einschließlich alter v1-Ausgaben.
+- `/analyse/jobs/` listet Analysejobs und Ausgabedateien mit Suche, Statusfilter und Paginierung. Ein lokaler Quelljob und sein Workflow-Index werden als eine kanonische Analyse angezeigt.
+- `/analyse/jobs/<job_id>/` zeigt Analyseoutputs, einschließlich alter v1-Ausgaben, sowie Provider, Tokenverbrauch und Antwortstatus. Manuell erzeugte Analysegrundlagen tragen den Status `prepared` statt `done`.
 - `/daten/` zeigt links die Weiterleitungen zu Fetch, Build und Vektorindex; rechts stehen der aktuelle Status mit manueller Aktualisierung und die letzten Datenjobs.
 - `/daten/fetch/` startet vorhandene Fetch-Skripte für SessionNet-Sitzungen und Landkreis-Veröffentlichungen.
 - `/daten/build/` startet vorhandene SQLite-Build-Skripte für Ratsinfo- und Landkreis-Indizes.
@@ -186,6 +186,8 @@ Prompt-Vorlagen haben einen primären Scope (`session`, `tops` oder `document`).
 ## Prompt-Snapshots
 
 Neue Analysejobs speichern Template-ID, Revision und Label. Der gerenderte Prompt-Snapshot wird im privaten Datenbereich abgelegt, damit alte Jobs nachvollziehbar bleiben, auch wenn eine Vorlage später geändert wird.
+
+Automatische Analysen speichern zusätzlich Provider-ID, Eingabe-/Ausgabetokens und den Antwortstatus. `done` setzt eine nicht leere, als JSON-Objekt validierte Providerantwort voraus. Ohne Provider entsteht eine nachvollziehbare Analysegrundlage mit Status `prepared`; Providerfehler, leere Antworten und ungültiges JSON führen zu `error`.
 
 Gerenderte Prompt-Snapshots und private Prompt-Artefakte werden nicht als normale Quellen oder Dateien in der Job-Detailansicht angezeigt. Die UI kann Metadaten wie Vorlage, Revision und Zeitpunkt anzeigen, ohne private Prompt-Pfade als öffentliche Artefaktquellen auszugeben.
 

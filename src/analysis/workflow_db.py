@@ -25,6 +25,10 @@ class AnalysisJobRecord:
     source_db: str = ""
     source_job_id: int | None = None
     model_name: str = ""
+    provider_id: str = "none"
+    input_tokens: int = 0
+    output_tokens: int = 0
+    response_status: str = "not_requested"
     prompt_version: str = ""
     prompt_template_id: str = ""
     prompt_template_revision: int | None = None
@@ -74,6 +78,10 @@ def initialize_analysis_workflow_db(db_path: Path | None = None) -> Path:
                 source_db TEXT,
                 source_job_id INTEGER,
                 model_name TEXT,
+                provider_id TEXT NOT NULL DEFAULT 'none',
+                input_tokens INTEGER NOT NULL DEFAULT 0,
+                output_tokens INTEGER NOT NULL DEFAULT 0,
+                response_status TEXT NOT NULL DEFAULT 'not_requested',
                 prompt_version TEXT,
                 prompt_template_id TEXT,
                 prompt_template_revision INTEGER,
@@ -121,6 +129,10 @@ def initialize_analysis_workflow_db(db_path: Path | None = None) -> Path:
         _ensure_column(conn, "analysis_jobs", "prompt_template_revision", "INTEGER")
         _ensure_column(conn, "analysis_jobs", "prompt_template_label", "TEXT")
         _ensure_column(conn, "analysis_jobs", "rendered_prompt_snapshot_path", "TEXT")
+        _ensure_column(conn, "analysis_jobs", "provider_id", "TEXT NOT NULL DEFAULT 'none'")
+        _ensure_column(conn, "analysis_jobs", "input_tokens", "INTEGER NOT NULL DEFAULT 0")
+        _ensure_column(conn, "analysis_jobs", "output_tokens", "INTEGER NOT NULL DEFAULT 0")
+        _ensure_column(conn, "analysis_jobs", "response_status", "TEXT NOT NULL DEFAULT 'not_requested'")
         conn.commit()
     return db_path
 
@@ -137,10 +149,11 @@ def create_analysis_job(
             """
             INSERT INTO analysis_jobs
                 (session_id, scope, top_numbers_json, purpose, source_db, source_job_id,
-                 model_name, prompt_version, prompt_template_id, prompt_template_revision,
+                 model_name, provider_id, input_tokens, output_tokens, response_status,
+                 prompt_version, prompt_template_id, prompt_template_revision,
                  prompt_template_label, rendered_prompt_snapshot_path, status, created_at,
                  updated_at, error_message)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 job.session_id,
@@ -150,6 +163,10 @@ def create_analysis_job(
                 job.source_db,
                 job.source_job_id,
                 job.model_name,
+                job.provider_id,
+                job.input_tokens,
+                job.output_tokens,
+                job.response_status,
                 job.prompt_version,
                 job.prompt_template_id or None,
                 job.prompt_template_revision,

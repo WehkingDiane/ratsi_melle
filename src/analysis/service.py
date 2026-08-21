@@ -87,8 +87,8 @@ class AnalysisService:
         with sqlite3.connect(db_path) as conn:
             self.ensure_analysis_tables(conn)
             cur = conn.execute(
-                "INSERT INTO analysis_jobs (created_at, session_id, scope, top_numbers_json, purpose, model_name, prompt_version, prompt_template_id, prompt_template_revision, prompt_template_label, rendered_prompt_snapshot_path, status, error_message) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO analysis_jobs (created_at, session_id, scope, top_numbers_json, purpose, model_name, provider_id, input_tokens, output_tokens, response_status, prompt_version, prompt_template_id, prompt_template_revision, prompt_template_label, rendered_prompt_snapshot_path, status, error_message) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     created_at,
                     request.session["session_id"],
@@ -96,6 +96,10 @@ class AnalysisService:
                     json.dumps(request.selected_tops, ensure_ascii=False),
                     request.purpose or DEFAULT_ANALYSIS_PURPOSE,
                     effective_model,
+                    request.provider_id,
+                    0,
+                    0,
+                    "not_requested",
                     request.prompt_version,
                     request.prompt_template_id or None,
                     request.prompt_template_revision,
@@ -114,13 +118,26 @@ class AnalysisService:
 
         ki_response_text = ""
         error_message: str | None = None
+        input_tokens = 0
+        output_tokens = 0
+        response_status = "not_requested"
 
         if request.provider_id != PROVIDER_NONE:
-            ki_response_text, effective_model, error_message = self._call_provider(
+            (ki_response_text, effective_model, input_tokens, output_tokens, error_message) = self._call_provider(
                 request=request, context=markdown, pdf_paths=pdf_paths
             )
+            if error_message:
+                response_status = "error"
+            elif not ki_response_text.strip():
+                error_message = "Der KI-Provider hat keine Antwort geliefert."
+                response_status = "empty"
+            elif not _parse_ki_json_response(ki_response_text):
+                error_message = "Die KI-Antwort ist kein valides JSON-Objekt."
+                response_status = "invalid_json"
+            else:
+                response_status = "valid_json"
 
-        final_status = "error" if error_message else "done"
+        final_status = "prepared" if request.provider_id == PROVIDER_NONE else ("error" if error_message else "done")
         with sqlite3.connect(db_path) as conn:
             if ki_response_text:
                 conn.execute(
@@ -128,8 +145,8 @@ class AnalysisService:
                     (job_id, "ki_response", ki_response_text, created_at),
                 )
             conn.execute(
-                "UPDATE analysis_jobs SET status = ?, error_message = ?, model_name = ? WHERE id = ?",
-                (final_status, error_message, effective_model, job_id),
+                "UPDATE analysis_jobs SET status = ?, error_message = ?, model_name = ?, provider_id = ?, input_tokens = ?, output_tokens = ?, response_status = ? WHERE id = ?",
+                (final_status, error_message, effective_model, request.provider_id, input_tokens, output_tokens, response_status, job_id),
             )
             conn.commit()
 
@@ -141,6 +158,10 @@ class AnalysisService:
             top_numbers=list(request.selected_tops) if request.scope != "session" else [],
             purpose=request.purpose or DEFAULT_ANALYSIS_PURPOSE,
             model_name=effective_model,
+            provider_id=request.provider_id,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            response_status=response_status,
             prompt_version=request.prompt_version,
             prompt_template_id=request.prompt_template_id,
             prompt_template_revision=request.prompt_template_revision,
@@ -160,7 +181,7 @@ class AnalysisService:
 
     def _call_provider(
         self, *, request: AnalysisRequest, context: str, pdf_paths: list[Path] | None = None
-    ) -> tuple[str, str, str | None]:
+    ) -> tuple[str, str, int, int, str | None]:
         """Dispatch to the configured KI provider.
 
         Returns:
@@ -181,9 +202,9 @@ class AnalysisService:
                 model=request.model_name or None,
                 pdf_paths=pdf_paths or None,
             )
-            return ki.response_text, ki.model_name, None
+            return ki.response_text, ki.model_name, ki.input_tokens, ki.output_tokens, None
         except Exception as exc:  # noqa: BLE001
-            return "", request.model_name or request.provider_id, str(exc)
+            return "", request.model_name or request.provider_id, 0, 0, str(exc)
 
     def save_document_analysis(
         self,
@@ -382,6 +403,10 @@ class AnalysisService:
                 top_numbers_json TEXT,
                 purpose TEXT NOT NULL DEFAULT 'content_analysis',
                 model_name TEXT,
+                provider_id TEXT NOT NULL DEFAULT 'none',
+                input_tokens INTEGER NOT NULL DEFAULT 0,
+                output_tokens INTEGER NOT NULL DEFAULT 0,
+                response_status TEXT NOT NULL DEFAULT 'not_requested',
                 prompt_version TEXT,
                 prompt_template_id TEXT,
                 prompt_template_revision INTEGER,
@@ -406,6 +431,10 @@ class AnalysisService:
         self._ensure_column(conn, "analysis_jobs", "prompt_template_revision", "INTEGER")
         self._ensure_column(conn, "analysis_jobs", "prompt_template_label", "TEXT")
         self._ensure_column(conn, "analysis_jobs", "rendered_prompt_snapshot_path", "TEXT")
+        self._ensure_column(conn, "analysis_jobs", "provider_id", "TEXT NOT NULL DEFAULT 'none'")
+        self._ensure_column(conn, "analysis_jobs", "input_tokens", "INTEGER NOT NULL DEFAULT 0")
+        self._ensure_column(conn, "analysis_jobs", "output_tokens", "INTEGER NOT NULL DEFAULT 0")
+        self._ensure_column(conn, "analysis_jobs", "response_status", "TEXT NOT NULL DEFAULT 'not_requested'")
 
     def _load_documents(
         self,
@@ -492,6 +521,15 @@ class AnalysisService:
             session_id=record.session_id,
             purpose=record.purpose or DEFAULT_ANALYSIS_PURPOSE,
             topic=Topic(title=title),
+            short_summary=str(parsed.get("short_summary") or parsed.get("summary") or ""),
+            document_overview=_dict_list(parsed.get("document_overview")),
+            proposal_or_decision=str(parsed.get("proposal_or_decision") or parsed.get("decision_context") or ""),
+            background=str(parsed.get("background") or ""),
+            financial_impact=str(parsed.get("financial_impact") or parsed.get("effects") or ""),
+            legal_or_formal_basis=str(parsed.get("legal_or_formal_basis") or ""),
+            affected_groups=_list_from_json_value(parsed.get("affected_groups") or []),
+            neutral_assessment=str(parsed.get("neutral_assessment") or ""),
+            sources=_dict_list(parsed.get("sources")),
             open_questions=open_questions,
             risks_or_uncertainties=risks,
         )
@@ -543,6 +581,10 @@ class AnalysisService:
                     source_db=record.source_db,
                     source_job_id=record.job_id,
                     model_name=record.model_name,
+                    provider_id=record.provider_id,
+                    input_tokens=record.input_tokens,
+                    output_tokens=record.output_tokens,
+                    response_status=record.response_status,
                     prompt_version=record.prompt_version,
                     prompt_template_id=record.prompt_template_id,
                     prompt_template_revision=record.prompt_template_revision,
@@ -731,6 +773,12 @@ def _list_from_json_value(value: object) -> list[str]:
     if value:
         return [str(value)]
     return []
+
+
+def _dict_list(value: object) -> list[dict[str, object]]:
+    if not isinstance(value, list):
+        return []
+    return [dict(item) for item in value if isinstance(item, dict)]
 
 
 def _slugify(text: str) -> str:

@@ -14,7 +14,7 @@
     <tbody>
       {% for job in jobs %}
       <tr>
-        <td><a href="{% url 'analysis:job_detail' job.job_id %}">Job {{ job.job_id }}</a></td>
+        <td><a href="{% url 'analysis:job_detail' job.job_id %}">Analyse {{ job.display_job_id|default:job.job_id }}</a></td>
         <td>{{ job.session_id|default:"-" }}</td>
         <td>{{ job.output_type|default:job.purpose|default:"-" }}</td>
         <td>{{ job.display_status|default:job.status|default:"-" }}</td>

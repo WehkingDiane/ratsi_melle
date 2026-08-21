@@ -26,6 +26,7 @@ JOB_STATUS_LABELS = {
     "running": "läuft",
     "error": "fehlgeschlagen",
     "failed": "fehlgeschlagen",
+    "prepared": "Analysegrundlage erstellt",
 }
 
 
@@ -41,6 +42,8 @@ def list_analysis_outputs() -> list[dict[str, Any]]:
             job = jobs.setdefault(job_id, _empty_job(job_id))
             job.update({key: value for key, value in row.items() if value not in (None, "")})
             job["sources"].add(str(db_path.relative_to(paths.REPO_ROOT)))
+
+    _merge_linked_source_jobs(jobs)
 
     for file_job in _analysis_jobs_from_files():
         job_id = _job_key_for_file_job(file_job, jobs)
@@ -86,6 +89,8 @@ def get_analysis_output(job_id: str) -> dict[str, Any] | None:
     jobs = list_analysis_outputs()
     for job in jobs:
         if str(job.get("job_id")) == normalized_id:
+            return job
+        if normalized_id in job.get("aliases", []):
             return job
     db_matches = [job for job in jobs if str(job.get("db_job_id") or "") == normalized_id]
     if len(db_matches) == 1:
@@ -383,7 +388,26 @@ def _empty_job(job_id: str) -> dict[str, Any]:
         "sources": set(),
         "structured_outputs": [],
         "warnings": [],
+        "aliases": [],
     }
+
+
+def _merge_linked_source_jobs(jobs: dict[str, dict[str, Any]]) -> None:
+    """Fold local source jobs into their canonical workflow record."""
+
+    for workflow_key, workflow_job in list(jobs.items()):
+        if not workflow_key.startswith("workflow:"):
+            continue
+        source_job_id = str(workflow_job.get("source_job_id") or "")
+        source_db = str(workflow_job.get("source_db") or "").replace("\\", "/")
+        if not source_job_id or not source_db.endswith("/local_index.sqlite"):
+            continue
+        local_key = f"local:{source_job_id}"
+        local_job = jobs.pop(local_key, None)
+        if local_job is None:
+            continue
+        _merge_job(workflow_job, local_job)
+        workflow_job.setdefault("aliases", []).append(local_key)
 
 
 def _merge_job(target: dict[str, Any], source: dict[str, Any]) -> None:
@@ -413,6 +437,7 @@ def _public_job(job: dict[str, Any]) -> dict[str, Any]:
     public["has_content"] = any(
         public.get(key) for key in ("markdown", "ki_response", "prompt_text", "structured_outputs")
     )
+    public["display_job_id"] = str(public.get("db_job_id") or public.get("job_id") or "")
     return public
 
 

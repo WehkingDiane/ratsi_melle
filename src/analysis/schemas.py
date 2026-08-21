@@ -40,6 +40,10 @@ class AnalysisOutputRecord:
     top_numbers: list[str] = field(default_factory=list)
     purpose: str = DEFAULT_ANALYSIS_PURPOSE
     model_name: str = ""
+    provider_id: str = "none"
+    input_tokens: int = 0
+    output_tokens: int = 0
+    response_status: str = "not_requested"
     prompt_version: str = ""
     prompt_template_id: str = ""
     prompt_template_revision: int | None = None
@@ -140,10 +144,18 @@ class StructuredAnalysisOutput:
     session_id: str = ""
     purpose: str = DEFAULT_ANALYSIS_PURPOSE
     topic: Topic = field(default_factory=Topic)
+    short_summary: str = ""
+    document_overview: list[dict[str, object]] = field(default_factory=list)
+    proposal_or_decision: str = ""
+    background: str = ""
+    financial_impact: str = ""
+    legal_or_formal_basis: str = ""
     facts: list[Fact] = field(default_factory=list)
     decisions: list[Decision] = field(default_factory=list)
     financial_effects: list[FinancialEffect] = field(default_factory=list)
     affected_groups: list[str] = field(default_factory=list)
+    neutral_assessment: str = ""
+    sources: list[dict[str, object]] = field(default_factory=list)
     citizen_relevance: CitizenRelevance = field(default_factory=CitizenRelevance)
     open_questions: list[str] = field(default_factory=list)
     risks_or_uncertainties: list[str] = field(default_factory=list)

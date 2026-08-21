@@ -36,6 +36,7 @@ def test_ensure_analysis_tables_creates_correct_schema(tmp_path: Path) -> None:
             "top_numbers_json", "purpose", "model_name", "prompt_version",
             "prompt_template_id", "prompt_template_revision", "prompt_template_label",
             "rendered_prompt_snapshot_path", "status", "error_message",
+            "provider_id", "input_tokens", "output_tokens", "response_status",
         }
 
         outputs_cols = {row[1] for row in conn.execute("PRAGMA table_info(analysis_outputs)").fetchall()}
@@ -119,14 +120,20 @@ def test_structured_analysis_uses_ki_json_fields() -> None:
         session_id="123",
         purpose="journalistic_publication",
         ki_response=(
-            '{"topic":"Thema","missing_information":["Zahl fehlt"],'
-            '"source_notes":["Quelle pruefen"]}'
+            '{"topic":"Thema","short_summary":"Kurz",'
+            '"proposal_or_decision":"Beschluss",'
+            '"affected_groups":["Anwohner"],"missing_information":["Zahl fehlt"],'
+            '"source_notes":["Quelle pruefen"],"sources":[{"title":"Vorlage"}]}'
         ),
     )
 
     structured = AnalysisService()._build_structured_analysis(record, {"committee": "Rat"})
 
     assert structured.topic.title == "Thema"
+    assert structured.short_summary == "Kurz"
+    assert structured.proposal_or_decision == "Beschluss"
+    assert structured.affected_groups == ["Anwohner"]
+    assert structured.sources == [{"title": "Vorlage"}]
     assert structured.open_questions == ["Zahl fehlt"]
     assert structured.risks_or_uncertainties == ["Quelle pruefen"]
 

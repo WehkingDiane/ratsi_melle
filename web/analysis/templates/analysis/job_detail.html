@@ -5,7 +5,7 @@
 {% block content %}
 {% if job %}
 <section class="page-heading">
-  <p class="eyebrow">Job {{ job.job_id }}{% if job.session_id %} · Sitzung {{ job.session_id }}{% endif %}</p>
+  <p class="eyebrow">Analyse {{ job.display_job_id|default:job.job_id }}{% if job.session_id %} · Sitzung {{ job.session_id }}{% endif %}</p>
   <h1>Analyseergebnis</h1>
   <p>{{ job.purpose|default:"Kein Zweck hinterlegt" }}{% if job.status %} · {{ job.status }}{% endif %}</p>
 </section>
@@ -16,6 +16,9 @@
     <div><dt>Schema</dt><dd>{{ job.schema_version|default:"-" }}</dd></div>
     <div><dt>Typ</dt><dd>{{ job.output_type|default:"-" }}</dd></div>
     <div><dt>Modell</dt><dd>{{ job.model_name|default:"-" }}</dd></div>
+    <div><dt>Provider</dt><dd>{{ job.provider_id|default:"-" }}</dd></div>
+    <div><dt>Tokens</dt><dd>{{ job.input_tokens|default:0 }} ein / {{ job.output_tokens|default:0 }} aus</dd></div>
+    <div><dt>Antwort</dt><dd>{{ job.response_status|default:"-" }}</dd></div>
     <div><dt>Prompt</dt><dd>{{ job.prompt_version|default:"-" }}</dd></div>
     <div><dt>Vorlage</dt><dd>{% if job.prompt_template_label %}{{ job.prompt_template_label }}{% elif job.prompt_template_id %}{{ job.prompt_template_id }}{% else %}-{% endif %}</dd></div>
     <div><dt>Vorlagenrevision</dt><dd>{{ job.prompt_template_revision|default:"-" }}</dd></div>
