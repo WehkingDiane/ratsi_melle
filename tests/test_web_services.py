@@ -51,6 +51,25 @@ def test_legacy_done_job_without_ki_response_is_displayed_as_prepared() -> None:
     assert public["response_status"] == "not_requested"
 
 
+def test_valid_workflow_job_without_indexed_response_stays_done() -> None:
+    public = _public_job(
+        {
+            "job_id": "workflow:1",
+            "status": "done",
+            "response_status": "valid_json",
+            "markdown": "# Grundlage\n\n## KI-Analyse\n\n### Kurzfassung\n\nFertig.",
+            "ki_response": "",
+            "sources": set(),
+            "files": [],
+            "structured_outputs": [],
+            "warnings": [],
+        }
+    )
+
+    assert public["status"] == "done"
+    assert public["display_status"] == "abgeschlossen"
+
+
 @pytest.fixture()
 def workspace_tmp() -> Path:
     tmp = ROOT / "tests" / "_runtime_tmp" / uuid.uuid4().hex
@@ -1423,6 +1442,26 @@ def test_execute_prepared_analysis_resolves_artifact_paths(
         workspace_tmp / "data/analysis_outputs/session/job_1.article.md"
     )
     assert "ANTWORTFORMAT (VERPFLICHTENDES JSON)" in captured["prompt"]
+
+    def failing_execute(_self, _request, **_kwargs):
+        raise sqlite3.OperationalError("database is locked")
+
+    recovered = {}
+    monkeypatch.setattr(core_analysis.AnalysisService, "execute_prepared_analysis", failing_execute)
+    monkeypatch.setattr(
+        core_analysis,
+        "update_analysis_job",
+        lambda job_id, **kwargs: recovered.update({"job_id": job_id, **kwargs}),
+    )
+
+    failed_result, failed_errors = core_analysis.execute_prepared_analysis(
+        "1", "codex", "gpt-test"
+    )
+
+    assert failed_result is None
+    assert "database is locked" in failed_errors[0]
+    assert recovered["status"] == "error"
+    assert recovered["response_status"] == "error"
 
 
 def test_default_template_id_prefers_meeting_briefing(monkeypatch, workspace_tmp: Path) -> None:

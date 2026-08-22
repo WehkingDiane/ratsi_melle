@@ -90,6 +90,8 @@ Bei einem nachträglich ausgeführten Job mit dem Zweck `journalistic_publicatio
 
 Automatisch ausgeführte Webanalysen ergänzen den gespeicherten Fachprompt um einen verbindlichen JSON-Ausgabevertrag. Dieser verwendet dieselben Felder wie die regelbasierte Markdown-Aufbereitung. Der Vertrag wird auch beim Nachstart älterer vorbereiteter Jobs ergänzt. Ein Workflow-Job wird vor dem Provideraufruf atomar von `prepared` oder `error` nach `running` übernommen; nur der erfolgreiche Claim darf den kostenpflichtigen Aufruf ausführen.
 
+Schlägt die Ausführung nach diesem Claim unerwartet fehl, wird der Job wieder als `error` und damit wiederholbar gespeichert. Provider-IDs werden ebenso wie `none` nicht als Modellvorgabe in das Wiederholungsformular übernommen. Bei Workflow-Jobs mit `response_status=valid_json` bleibt der Status `done` auch dann erhalten, wenn die Rohantwort nicht als eigener Workflow-Output indexiert wurde.
+
 ## Beispiel
 
 Ein Publikationsentwurf enthält mindestens:

@@ -296,6 +296,11 @@ def job_detail(request, job_id: str):
         )
         job = services.get_analysis_output(job_id)
     preview_text, has_readable_analysis = _job_markdown_preview(job)
+    provider_options = [
+        option for option in services.provider_options() if option["value"] != "none"
+    ]
+    stored_model_name = str(job.get("model_name") or "") if job else ""
+    provider_sentinels = {"none"} | {option["value"] for option in provider_options}
     return render(
         request,
         "analysis/job_detail.html",
@@ -305,9 +310,8 @@ def job_detail(request, job_id: str):
             "job_id": job_id,
             "markdown_preview": render_markdown_preview(preview_text),
             "has_readable_analysis": has_readable_analysis,
-            "provider_options": [
-                option for option in services.provider_options() if option["value"] != "none"
-            ],
+            "provider_options": provider_options,
+            "retry_model_name": "" if stored_model_name in provider_sentinels else stored_model_name,
             "errors": errors,
         },
     )

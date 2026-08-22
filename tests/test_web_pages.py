@@ -1360,8 +1360,10 @@ def test_prepared_job_detail_offers_in_place_execution(client, monkeypatch) -> N
     assert 'src="/static/core/js/analysis_job.js"' in content
 
     job["status"] = "error"
+    job["model_name"] = "codex"
     retry_content = client.get("/analyse/jobs/1/").content.decode("utf-8")
     assert "Analyse erneut absenden" in retry_content
+    assert 'name="model_name" value=""' in retry_content
 
 
 def test_completed_job_prioritizes_readable_analysis_in_preview(client, monkeypatch) -> None:

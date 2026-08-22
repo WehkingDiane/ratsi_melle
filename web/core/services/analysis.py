@@ -9,7 +9,7 @@ from src.analysis.prompts.models import PromptTemplate
 from src.analysis.prompts.validation import render_prompt
 from src.analysis.service import AnalysisRequest
 from src.analysis.service import AnalysisService
-from src.analysis.workflow_db import claim_analysis_job
+from src.analysis.workflow_db import claim_analysis_job, update_analysis_job
 
 from . import paths
 from .prompts import get_active_prompt_template
@@ -185,14 +185,28 @@ def execute_prepared_analysis(
         prompt_template_label=str(job.get("prompt_template_label") or ""),
         purpose=purpose,
     )
-    record = AnalysisService().execute_prepared_analysis(
-        request,
-        workflow_job_id=workflow_job_id,
-        source_job_id=source_job_id,
-        markdown=str(job.get("markdown") or ""),
-        artifact_paths=artifact_paths,
-        workflow_db_path=paths.ANALYSIS_WORKFLOW_DB,
-    )
+    try:
+        record = AnalysisService().execute_prepared_analysis(
+            request,
+            workflow_job_id=workflow_job_id,
+            source_job_id=source_job_id,
+            markdown=str(job.get("markdown") or ""),
+            artifact_paths=artifact_paths,
+            workflow_db_path=paths.ANALYSIS_WORKFLOW_DB,
+        )
+    except Exception as exc:  # noqa: BLE001 - Claimed jobs must always become retryable.
+        update_analysis_job(
+            workflow_job_id,
+            model_name=model_name.strip() or provider_id,
+            provider_id=provider_id,
+            input_tokens=0,
+            output_tokens=0,
+            response_status="error",
+            status="error",
+            error_message=str(exc),
+            db_path=paths.ANALYSIS_WORKFLOW_DB,
+        )
+        return None, [f"Die Analyse konnte nicht ausgeführt werden: {exc}"]
     return record.to_dict(), []
 
 

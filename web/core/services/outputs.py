@@ -463,10 +463,13 @@ def _public_job(job: dict[str, Any]) -> dict[str, Any]:
         public["aliases"] = list(public.get("aliases") or []) + [storage_job_id]
         public["job_id"] = str(public.get("db_job_id") or storage_job_id.removeprefix("workflow:"))
     raw_status = str(public.get("status") or "")
+    markdown_analysis = str(public.get("markdown") or "").partition("## KI-Analyse")[2].strip()
     if (
         raw_status.lower() in {"done", "ok", "completed"}
         and public.get("markdown")
         and not public.get("ki_response")
+        and str(public.get("response_status") or "") != "valid_json"
+        and not markdown_analysis
     ):
         raw_status = "prepared"
         public["status"] = raw_status
