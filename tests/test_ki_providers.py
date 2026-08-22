@@ -102,7 +102,7 @@ def _make_openai_mock(response_text: str = "OpenAI-Antwort"):
     return mock_openai
 
 
-def test_codex_provider_analyze() -> None:
+def test_codex_provider_uses_luna_default_with_chat_completions() -> None:
     mock_openai = _make_openai_mock("OpenAI-Ergebnis")
     with patch.dict("sys.modules", {"openai": mock_openai}):
         provider = build_provider(PROVIDER_CODEX, api_key="test-key")
