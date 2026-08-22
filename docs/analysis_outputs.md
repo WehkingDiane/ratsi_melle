@@ -82,7 +82,9 @@ Prompt-bezogene Felder in `analysis_jobs`:
 
 Alte Analysejobs ohne diese Felder bleiben lesbar. Wenn eine Vorlage später geändert wird, bleiben ID, Revision, Label und Snapshot des alten Jobs unverändert nachvollziehbar.
 
-Die Weboberfläche verwendet ausschließlich `analysis_jobs.job_id` aus dieser Workflow-Datenbank als öffentliche Nummer. `source_job_id` und Präfixe wie `local:` oder `workflow:` sind interne Alt- beziehungsweise Verknüpfungsdaten und werden Nutzern nicht mehr als getrennte Jobs angezeigt. Vorbereitete Markdown-Artefakte besitzen einen zunächst leeren Abschnitt `## KI-Analyse`; eine spätere Provider-Ausführung aktualisiert denselben Datensatz und dasselbe Markdown-Artefakt.
+Die Weboberfläche verwendet ausschließlich `analysis_jobs.job_id` aus dieser Workflow-Datenbank als öffentliche Nummer. `source_job_id` und Präfixe wie `local:` oder `workflow:` sind interne Alt- beziehungsweise Verknüpfungsdaten und werden Nutzern nicht mehr als getrennte Jobs angezeigt. Vorbereitete Markdown-Artefakte besitzen einen zunächst leeren Abschnitt `## KI-Analyse`; eine spätere Provider-Ausführung aktualisiert denselben Datensatz und dasselbe Markdown-Artefakt. Strukturierte Antworten werden für dieses Markdown regelbasiert in lesbare Überschriften, Absätze, Listen und Quellenlinks übertragen. Das ursprüngliche JSON bleibt unverändert im KI-Antwortartefakt gespeichert.
+
+Die Leseansicht unter `/analyse/antworten/` übernimmt nur gefüllte Abschnitte `## KI-Analyse`. Sie orientiert sich am vorhandenen Antwortinhalt und zeigt dadurch auch nachträglich aufbereitete Antworten, deren ältere Statusmetadaten noch nicht konsistent sind. Analysegrundlage, Prompt und technische Artefakte werden dort ausgeblendet und bleiben über die Jobdetailseite erreichbar.
 
 ## Beispiel
 

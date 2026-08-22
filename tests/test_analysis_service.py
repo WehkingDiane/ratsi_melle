@@ -10,7 +10,13 @@ from src.analysis.schemas import (
     AnalysisOutputRecord,
 )
 from src.analysis.providers.base import KiResponse
-from src.analysis.service import AnalysisRequest, AnalysisService, _parse_ki_json_response, _prioritize_documents
+from src.analysis.service import (
+    AnalysisRequest,
+    AnalysisService,
+    _analysis_response_markdown,
+    _parse_ki_json_response,
+    _prioritize_documents,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -72,6 +78,42 @@ def test_parse_ki_json_response_accepts_markdown_fenced_json() -> None:
 
 def test_parse_ki_json_response_returns_empty_dict_for_invalid_json() -> None:
     assert _parse_ki_json_response("kein json") == {}
+
+
+def test_structured_analysis_response_is_rendered_as_readable_markdown() -> None:
+    response = json.dumps(
+        {
+            "topic": "Windenergie",
+            "short_summary": "Kurze sachliche Zusammenfassung.",
+            "document_overview": [
+                {
+                    "title": "Beschlussvorlage",
+                    "document_type": "Vorlage",
+                    "role": "Hauptquelle",
+                    "summary": "Enthält den Beschlussvorschlag.",
+                }
+            ],
+            "open_questions": ["Welche Folgekosten entstehen?"],
+            "sources": [
+                {
+                    "title": "Vorlage 1",
+                    "document_type": "Beschlussvorlage",
+                    "agenda_item": "Ö 6",
+                    "url": "https://example.invalid/vorlage",
+                }
+            ],
+        },
+        ensure_ascii=False,
+    )
+
+    markdown = _analysis_response_markdown(response)
+
+    assert "### Thema\n\nWindenergie" in markdown
+    assert "### Kurzfassung" in markdown
+    assert "#### 1. Beschlussvorlage" in markdown
+    assert "- Welche Folgekosten entstehen?" in markdown
+    assert "[Vorlage 1](https://example.invalid/vorlage)" in markdown
+    assert not markdown.lstrip().startswith("{")
 
 
 def test_document_priority_starts_with_decision_source() -> None:
@@ -404,6 +446,8 @@ def test_prepared_analysis_is_executed_in_place(tmp_path: Path, monkeypatch) -> 
 
     class FakeProvider:
         def analyze(self, **_kwargs):
+            with sqlite3.connect(workflow_db) as conn:
+                assert conn.execute("SELECT status FROM analysis_jobs").fetchone()[0] == "running"
             return KiResponse(
                 provider_id="codex",
                 model_name="gpt-test",
@@ -440,7 +484,10 @@ def test_prepared_analysis_is_executed_in_place(tmp_path: Path, monkeypatch) -> 
     assert title == "Analyse Sitzung 2026-08-13 - Ortsrat Melle-Mitte"
     assert completed.status == "done"
     assert completed.markdown.count("## KI-Analyse") == 1
-    assert '{"title":"Ergebnis"}' in article.read_text(encoding="utf-8")
+    article_text = article.read_text(encoding="utf-8")
+    assert "### Title\n\nErgebnis" in article_text
+    response_path = raw.with_name(raw.name.replace(".raw.json", ".ki_response.json"))
+    assert json.loads(response_path.read_text(encoding="utf-8")) == {"title": "Ergebnis"}
     with sqlite3.connect(workflow_db) as conn:
         assert conn.execute("SELECT COUNT(*) FROM analysis_jobs").fetchone()[0] == 1
         assert conn.execute("SELECT status FROM analysis_jobs").fetchone()[0] == "done"

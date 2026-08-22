@@ -40,6 +40,7 @@ def client():
         "/analyse/prompts/",
         "/analyse/prompts/neu/",
         "/analyse/starten/",
+        "/analyse/antworten/",
         "/analyse/sitzungen/",
         "/analyse/sitzungen/does-not-exist/",
         "/analyse/jobs/",
@@ -89,6 +90,7 @@ def test_templates_are_kept_in_their_feature_apps() -> None:
     }
     assert {
         "analysis_start.html",
+        "answer_reader.html",
         "index.html",
         "job_detail.html",
         "job_list.html",
@@ -132,6 +134,7 @@ def test_main_navigation_is_in_shared_layout(client) -> None:
     assert "Analyse-Übersicht" in content
     assert "Prompt-Vorlagen" in content
     assert "KI-Analyse starten" in content
+    assert "Antworten lesen" in content
     assert "Sitzungen" in content
     assert "Analysejobs" in content
     assert "Daten" in content
@@ -163,7 +166,14 @@ def test_navigation_dropdowns_have_expected_links(client) -> None:
 
     assert labels == {
         "Dashboard": ["Dashboard öffnen"],
-        "Analyse": ["Analyse-Übersicht", "Prompt-Vorlagen", "KI-Analyse starten", "Sitzungen", "Analysejobs"],
+        "Analyse": [
+            "Analyse-Übersicht",
+            "Prompt-Vorlagen",
+            "KI-Analyse starten",
+            "Antworten lesen",
+            "Sitzungen",
+            "Analysejobs",
+        ],
         "Daten": ["Fetch: Daten holen", "Build: Datenbank-Tools", "Build: Vektorindex"],
         "Veröffentlichung": ["Veröffentlichung öffnen"],
         "Suche": ["Suche öffnen"],
@@ -1343,7 +1353,94 @@ def test_prepared_job_detail_offers_in_place_execution(client, monkeypatch) -> N
     assert "Analyse Sitzung 2026-08-13 - Ortsrat Melle-Mitte" in content
     assert "Analyse jetzt absenden" in content
     assert 'name="provider_id"' in content
+    assert 'id="analysis-job-run-submit"' in content
+    assert 'id="analysis-job-run-status"' in content
+    assert 'src="/static/core/js/analysis_job.js"' in content
 
     job["status"] = "error"
     retry_content = client.get("/analyse/jobs/1/").content.decode("utf-8")
     assert "Analyse erneut absenden" in retry_content
+
+
+def test_completed_job_prioritizes_readable_analysis_in_preview(client, monkeypatch) -> None:
+    from analysis import views
+
+    monkeypatch.setattr(
+        views.services,
+        "get_analysis_output",
+        lambda _job_id: {
+            "job_id": "1",
+            "display_job_id": "1",
+            "title": "Analyse Sitzung 2026-08-13 - Ortsrat Melle-Mitte",
+            "status": "done",
+            "markdown": (
+                "# Analysegrundlage\n\nInterne Dokumentliste\n\n"
+                "## KI-Analyse\n\n### Kurzfassung\n\nLesbares Ergebnis.\n"
+            ),
+            "sources": [],
+            "structured_outputs": [],
+            "has_content": True,
+        },
+    )
+
+    response = client.get("/analyse/jobs/1/")
+    soup = BeautifulSoup(response.content.decode("utf-8"), "html.parser")
+    preview = soup.select_one(".markdown-preview")
+
+    assert response.status_code == 200
+    assert soup.find("h2", string="KI-Analyse") is not None
+    assert "Lesbares Ergebnis." in preview.get_text()
+    assert "Interne Dokumentliste" not in preview.get_text()
+    assert "Vollständige Markdown-Datei anzeigen" in soup.get_text()
+
+
+def test_answer_reader_only_lists_jobs_with_readable_answers(client, monkeypatch) -> None:
+    from analysis import views
+
+    monkeypatch.setattr(
+        views.services,
+        "list_analysis_outputs",
+        lambda: [
+            {
+                "job_id": "2",
+                "display_job_id": "2",
+                "title": "Analyse Sitzung 2026-08-14 - Ausschuss",
+                "status": "prepared",
+                "markdown": "# Analysegrundlage\n\n## KI-Analyse\n",
+            },
+            {
+                "job_id": "3",
+                "display_job_id": "3",
+                "title": "Analyse mit nachträglich aufbereiteter Antwort",
+                "status": "prepared",
+                "response_status": "valid_json",
+                "markdown": (
+                    "# Analysegrundlage\n\n## KI-Analyse\n\n"
+                    "### Kurzfassung\n\nNachträglich lesbar gemacht.\n"
+                ),
+            },
+            {
+                "job_id": "1",
+                "display_job_id": "1",
+                "title": "Analyse Sitzung 2026-08-13 - Ortsrat Melle-Mitte",
+                "status": "done",
+                "model_name": "gpt-5.6-terra",
+                "markdown": (
+                    "# Analysegrundlage\n\nInterne Dokumentliste\n\n"
+                    "## KI-Analyse\n\n### Kurzfassung\n\nLesbares Ergebnis.\n"
+                ),
+            },
+        ],
+    )
+
+    response = client.get("/analyse/antworten/?job_id=1")
+    soup = BeautifulSoup(response.content.decode("utf-8"), "html.parser")
+    preview = soup.select_one(".answer-preview")
+
+    assert response.status_code == 200
+    assert soup.find("h1", string="Antworten lesen") is not None
+    assert len(soup.select(".answer-list-item")) == 2
+    assert "Ortsrat Melle-Mitte" in soup.select_one(".answer-list-item.active").get_text()
+    assert "Lesbares Ergebnis." in preview.get_text()
+    assert "Interne Dokumentliste" not in preview.get_text()
+    assert soup.select_one('.answer-document a[href="/analyse/jobs/1/"]') is not None

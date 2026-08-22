@@ -105,6 +105,12 @@
   margin-top: 28px;
 }
 
+.answer-reader {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(230px, 0.34fr) minmax(0, 1fr);
+}
+
 .section-title {
   align-items: center;
   display: flex;
@@ -136,7 +142,8 @@
 
   .two-columns,
   .three-columns,
-  .split-content {
+  .split-content,
+  .answer-reader {
     grid-template-columns: 1fr;
   }
 }

@@ -193,6 +193,49 @@ tr:last-child td {
   gap: 14px;
 }
 
+.answer-reader-list {
+  align-self: start;
+}
+
+.answer-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.answer-list-item {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+}
+
+.answer-list-item span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.answer-list-item:hover,
+.answer-list-item.active {
+  background: var(--surface-muted);
+  border-color: var(--accent);
+  text-decoration: none;
+}
+
+.answer-document > h2 {
+  font-size: 24px;
+}
+
+.answer-meta {
+  margin-bottom: 24px;
+}
+
+.answer-preview {
+  max-width: 78ch;
+}
+
 .list-item {
   background: var(--surface);
   border: 1px solid var(--border);

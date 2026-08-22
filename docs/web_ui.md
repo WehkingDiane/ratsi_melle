@@ -75,7 +75,7 @@ Analyse-Seitentemplates und fachliche Analyse-Partials liegen ausschließlich un
 Das gemeinsame Layout in `web/core/templates/base.html` stellt Header, Hauptnavigation, Inhaltsbereich und Footer bereit. Die Hauptpunkte sind als Dropdown-Menüs aufgebaut. Die Navigation zeigt:
 
 - Dashboard
-- Analyse mit Unterpunkten für Übersicht, Analyse starten, Prompt-Vorlagen, Sitzungen und Analysejobs
+- Analyse mit Unterpunkten für Übersicht, Analyse starten, Antworten lesen, Prompt-Vorlagen, Sitzungen und Analysejobs
 - Daten mit Unterpunkten für Fetch, Build und Vektorindex
 - Veröffentlichung
 - Suche
@@ -98,6 +98,7 @@ Buttons folgen einem funktionsbezogenen Farbschema: `primary` ist auslösenden H
 - `/` zeigt das Dashboard.
 - `/analyse/` zeigt den Analyse-Einstieg.
 - `/analyse/starten/` bietet den Formularfluss zum Starten einer Analyse.
+- `/analyse/antworten/` listet Jobs mit einem gefüllten KI-Antwortabschnitt und zeigt die ausgewählte Antwort in einer reduzierten Leseansicht. Prompt, Dokumentpfade, Roh-JSON und weitere technische Angaben bleiben auf der verlinkten Jobdetailseite. Maßgeblich ist der vorhandene Antwortinhalt, damit auch nachträglich aufbereitete Antworten trotz veralteter Statusmetadaten lesbar bleiben.
 - `/analyse/prompts/` listet private Prompt-Vorlagen und bietet Scope-Filter.
 - `/analyse/prompts/neu/` zeigt das Formular zum Anlegen einer Prompt-Vorlage.
 - `/analyse/prompts/<template_id>/` zeigt das Formular zum Bearbeiten einer Prompt-Vorlage.
@@ -107,7 +108,7 @@ Buttons folgen einem funktionsbezogenen Farbschema: `primary` ist auslösenden H
 - `/analyse/sitzungen/<session_id>/` zeigt Sitzungsdetails.
 - `/analyse/sitzungen/<session_id>/dokumente/<document_id>/pdf/` liefert eine lokal vorhandene PDF inline fuer die Browseransicht.
 - `/analyse/jobs/` listet jeden Workflow-Job genau einmal mit einer einfachen fortlaufenden Nummer und einem Titel wie `Job 1 - Analyse Sitzung 2026-08-13 - Ortsrat Melle-Mitte`. Interne lokale Quell-IDs werden nicht angezeigt.
-- `/analyse/jobs/<job_id>/` zeigt Analyseoutputs, einschließlich alter v1-Ausgaben, sowie Provider, Tokenverbrauch und Antwortstatus. Manuell erzeugte Analysegrundlagen tragen den Status `prepared` statt `done` und können auf derselben Seite nach Auswahl von Provider und Modell ausgeführt werden. Fehlgeschlagene Provideraufrufe lassen sich dort im selben Job erneut absenden.
+- `/analyse/jobs/<job_id>/` zeigt Analyseoutputs, einschließlich alter v1-Ausgaben, sowie Provider, Tokenverbrauch und Antwortstatus. Manuell erzeugte Analysegrundlagen tragen den Status `prepared` statt `done` und können auf derselben Seite nach Auswahl von Provider und Modell ausgeführt werden. Fehlgeschlagene Provideraufrufe lassen sich dort im selben Job erneut absenden. Beim Absenden wird der Button sofort gesperrt und ein deutlich sichtbarer Laufhinweis eingeblendet; parallel erhält der Workflow-Job den Status `running`, sodass kein zweiter Aufruf gestartet werden kann.
 - Markdown-Ausgaben werden auf der Jobdetailseite serverseitig formatiert dargestellt; der unveränderte Quelltext bleibt aufklappbar. Die Vorschau entfernt nicht freigegebenes HTML, Attribute und unsichere URL-Schemata.
 - `/daten/` zeigt links die Weiterleitungen zu Fetch, Build und Vektorindex; rechts stehen der aktuelle Status mit manueller Aktualisierung und die letzten Datenjobs.
 - `/daten/fetch/` startet vorhandene Fetch-Skripte für SessionNet-Sitzungen und Landkreis-Veröffentlichungen.
@@ -142,7 +143,7 @@ Textdateien wie `.txt`, `.md` und `.html` werden als Auszug in die Analysegrundl
 
 Mit Provider `none` wird nur die Analysegrundlage samt gerendertem Prompt erzeugt. Das ist der sichere Standard und eignet sich für manuelle ChatGPT-Nutzung. Ein echter automatisierter KI-Aufruf erfolgt erst bei Auswahl eines API-Providers. Ein ChatGPT-Plus-Konto ist kein API-Zugang; für die Automatisierung über OpenAI wird ein API-Key benötigt. Der OpenAI-Provider nutzt standardmäßig `gpt-5.6-terra`, übergibt das Ausgabelimit als `max_completion_tokens` und ist auf längere strukturierte Antworten ausgelegt. Prompt-Vorlagen werden unter `/analyse/prompts/` verwaltet und privat gespeichert. Das Analyseformular bietet nur aktive Vorlagen an, die zum gewählten Scope passen, und wählt für Sitzungsbriefings beziehungsweise TOP-Analysen passende Vorlagen voraus, wenn sie vorhanden sind.
 
-Jede vorbereitete Markdown-Datei enthält bereits die leere Überschrift `## KI-Analyse`. Wird der Job später auf seiner Detailseite abgesendet, bleibt seine Jobnummer unverändert; Providerstatus, Tokenverbrauch und dieselbe Markdown-Datei werden aktualisiert und die validierte KI-Antwort unter dieser Überschrift eingetragen.
+Jede vorbereitete Markdown-Datei enthält bereits die leere Überschrift `## KI-Analyse`. Wird der Job später auf seiner Detailseite abgesendet, bleibt seine Jobnummer unverändert; Providerstatus, Tokenverbrauch und dieselbe Markdown-Datei werden aktualisiert. Valide strukturierte JSON-Antworten werden deterministisch in deutsche Markdown-Abschnitte, Listen, Dokumentübersichten und Quellenlinks umgewandelt. Die unveränderte Providerantwort bleibt daneben als `*.ki_response.json` erhalten; die lesbare Aufbereitung verursacht keinen weiteren KI-Aufruf.
 
 ## Bereits funktionsfähig
 
@@ -150,6 +151,7 @@ Jede vorbereitete Markdown-Datei enthält bereits die leere Überschrift `## KI-
 - Analyse-Startseite mit Schnellauswahl für Sitzungsbriefing und TOP-Detailanalyse
 - Analyse starten mit bestehendem `AnalysisService`
 - vorbereitete Analysejobs ohne neuen Job direkt aus der Markdown-Vorschau absenden
+- eigene Leseansicht für fertig ausgeführte Antworten unter `/analyse/antworten/`
 - private Prompt-Vorlagenverwaltung unter `/analyse/prompts/`
 - Sitzungsliste und Sitzungsdetails aus `data/db/local_index.sqlite`
 - PDF-Ansicht aus den Sitzungsdetails in einem separaten Browser-Tab oder -Fenster, sofern die PDF lokal vorhanden ist

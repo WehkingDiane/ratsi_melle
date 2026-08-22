@@ -242,6 +242,49 @@ def job_list(request):
     )
 
 
+def answer_reader(request):
+    """Show readable AI answers without the technical job context."""
+
+    answers = []
+    for job in services.list_analysis_outputs():
+        answer_markdown, has_readable_analysis = _job_markdown_preview(job)
+        if not has_readable_analysis:
+            continue
+        answer = dict(job)
+        answer["answer_markdown"] = answer_markdown
+        answers.append(answer)
+
+    requested_job_id = request.GET.get("job_id", "").strip()
+    selected_job = next(
+        (
+            answer
+            for answer in answers
+            if requested_job_id
+            and requested_job_id
+            in {
+                str(answer.get("job_id") or ""),
+                str(answer.get("display_job_id") or ""),
+            }
+        ),
+        None,
+    )
+    if selected_job is None and answers:
+        selected_job = answers[0]
+
+    return render(
+        request,
+        "analysis/answer_reader.html",
+        {
+            "active_nav": "analysis",
+            "answers": answers,
+            "selected_job": selected_job,
+            "answer_preview": render_markdown_preview(
+                str(selected_job.get("answer_markdown") or "") if selected_job else ""
+            ),
+        },
+    )
+
+
 def job_detail(request, job_id: str):
     job = services.get_analysis_output(job_id)
     errors: list[str] = []
@@ -252,6 +295,7 @@ def job_detail(request, job_id: str):
             request.POST.get("model_name", ""),
         )
         job = services.get_analysis_output(job_id)
+    preview_text, has_readable_analysis = _job_markdown_preview(job)
     return render(
         request,
         "analysis/job_detail.html",
@@ -259,13 +303,27 @@ def job_detail(request, job_id: str):
             "active_nav": "analysis",
             "job": job,
             "job_id": job_id,
-            "markdown_preview": render_markdown_preview(str(job.get("markdown") or "")) if job else "",
+            "markdown_preview": render_markdown_preview(preview_text),
+            "has_readable_analysis": has_readable_analysis,
             "provider_options": [
                 option for option in services.provider_options() if option["value"] != "none"
             ],
             "errors": errors,
         },
     )
+
+
+def _job_markdown_preview(job: dict | None) -> tuple[str, bool]:
+    """Prefer the readable KI section over the full analysis context."""
+
+    markdown = str(job.get("markdown") or "") if job else ""
+    marker = "## KI-Analyse"
+    if marker not in markdown:
+        return markdown, False
+    _context, _marker, analysis = markdown.partition(marker)
+    if analysis.strip():
+        return analysis.strip(), True
+    return markdown, False
 
 
 def _matches_session_filters(session: dict, *, query: str, committee: str, year: str) -> bool:

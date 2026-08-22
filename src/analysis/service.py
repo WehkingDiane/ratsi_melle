@@ -204,6 +204,16 @@ class AnalysisService:
         documents = _prioritize_documents(enrich_documents_for_analysis(documents))
         pdf_paths = request.pdf_paths or _pdf_paths_from_documents(documents)
         base_markdown = _with_ki_analysis(markdown, "")
+        update_analysis_job(
+            workflow_job_id,
+            model_name=request.model_name or request.provider_id,
+            provider_id=request.provider_id,
+            input_tokens=0,
+            output_tokens=0,
+            response_status="pending",
+            status="running",
+            db_path=workflow_db_path,
+        )
         response, model_name, input_tokens, output_tokens, error_message = self._call_provider(
             request=request,
             context=base_markdown,
@@ -905,12 +915,112 @@ def _parse_ki_json_response(response_text: str) -> dict:
 def _with_ki_analysis(markdown: str, response_text: str) -> str:
     """Return one Markdown document with exactly one KI analysis section."""
 
-    base = re.sub(r"\n## KI-Analyse(?:\n.*)?$", "", markdown.rstrip(), flags=re.DOTALL)
+    base = re.sub(r"\n## KI-Analyse(?:\n.*)?$", "", markdown.rstrip(), flags=re.DOTALL).rstrip()
     response = response_text.strip()
     section = "## KI-Analyse"
     if response:
-        section += f"\n\n{response}"
+        section += f"\n\n{_analysis_response_markdown(response)}"
     return f"{base}\n\n{section}\n"
+
+
+def _analysis_response_markdown(response_text: str) -> str:
+    """Render a structured provider response as readable German Markdown."""
+
+    data = _parse_ki_json_response(response_text)
+    if not data:
+        return response_text.strip()
+
+    parts: list[str] = []
+    scalar_sections = (
+        ("topic", "Thema"),
+        ("short_summary", "Kurzfassung"),
+        ("proposal_or_decision", "Beschlussvorschlag und Ergebnis"),
+        ("background", "Hintergrund"),
+        ("financial_impact", "Finanzielle Auswirkungen"),
+        ("legal_or_formal_basis", "Rechtliche und formale Grundlagen"),
+        ("neutral_assessment", "Neutrale Einordnung"),
+    )
+    for key, label in scalar_sections:
+        value = str(data.get(key) or "").strip()
+        if value:
+            parts.append(f"### {label}\n\n{value}")
+
+    documents = data.get("document_overview")
+    if isinstance(documents, list) and documents:
+        lines = ["### Dokumentübersicht"]
+        for index, document in enumerate(documents, start=1):
+            if not isinstance(document, dict):
+                lines.append(f"{index}. {document}")
+                continue
+            title = str(document.get("title") or f"Dokument {index}").strip()
+            lines.append(f"#### {index}. {title}")
+            metadata = [
+                str(document.get(key) or "").strip()
+                for key in ("document_type", "role")
+                if str(document.get(key) or "").strip()
+            ]
+            if metadata:
+                lines.append(f"*{' · '.join(metadata)}*")
+            summary = str(document.get("summary") or "").strip()
+            if summary:
+                lines.append(summary)
+        parts.append("\n\n".join(lines))
+
+    list_sections = (
+        ("affected_groups", "Betroffene Gruppen"),
+        ("open_questions", "Offene Fragen"),
+        ("contradictions", "Widersprüche und Unklarheiten"),
+    )
+    for key, label in list_sections:
+        values = data.get(key)
+        if isinstance(values, list) and values:
+            parts.append(
+                f"### {label}\n\n"
+                + "\n".join(f"- {str(value).strip()}" for value in values if str(value).strip())
+            )
+
+    sources = data.get("sources")
+    if isinstance(sources, list) and sources:
+        lines = ["### Quellen"]
+        for index, source in enumerate(sources, start=1):
+            if not isinstance(source, dict):
+                lines.append(f"{index}. {source}")
+                continue
+            title = str(source.get("title") or "Quelle").strip()
+            url = str(source.get("url") or "").strip()
+            document_type = str(source.get("document_type") or "").strip()
+            agenda_item = str(source.get("agenda_item") or "").strip()
+            line = f"{index}. [{title}]({url})" if url else f"{index}. {title}"
+            details = " · ".join(value for value in (document_type, agenda_item) if value)
+            if details:
+                line += f" — {details}"
+            lines.append(line)
+        parts.append("\n".join(lines))
+
+    known_keys = {key for key, _label in scalar_sections + list_sections} | {
+        "document_overview",
+        "sources",
+    }
+    for key, value in data.items():
+        if key in known_keys or value in (None, "", [], {}):
+            continue
+        label = key.replace("_", " ").strip().capitalize()
+        parts.append(f"### {label}\n\n{_generic_markdown_value(value)}")
+
+    return "\n\n".join(part for part in parts if part.strip()).strip()
+
+
+def _generic_markdown_value(value: object) -> str:
+    """Render unknown structured fields without discarding their content."""
+
+    if isinstance(value, list):
+        return "\n".join(f"- {_generic_markdown_value(item)}" for item in value)
+    if isinstance(value, dict):
+        return "\n".join(
+            f"- **{str(key).replace('_', ' ').capitalize()}:** {_generic_markdown_value(item)}"
+            for key, item in value.items()
+        )
+    return str(value).strip()
 
 
 def _analysis_job_title(session: dict, fallback_date: str = "") -> str:

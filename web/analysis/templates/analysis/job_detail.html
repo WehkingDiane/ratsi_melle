@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Job {{ job.display_job_id|default:job_id }} - Ratsi Melle{% endblock %}
 
@@ -26,12 +27,19 @@
   {% if job.error_message %}<p class="status-error">{{ job.error_message }}</p>{% endif %}
 </section>
 
+{% if job.status == "running" %}
+<div class="running-banner" role="status" aria-live="polite">
+  <span class="job-spinner" aria-hidden="true"></span>
+  <span>Die KI-Analyse läuft. Bitte warte und starte den Job nicht erneut.</span>
+</div>
+{% endif %}
+
 {% if job.status == "prepared" or job.status == "error" %}
 <section class="panel">
   <h2>{% if job.status == "error" %}Analyse erneut absenden{% else %}Vorbereitete Analyse absenden{% endif %}</h2>
   <p>Die Analysegrundlage ist gespeichert. Wähle einen Provider, um genau diesen Job auszuführen und die Antwort in seine Markdown-Datei einzutragen.</p>
   {% for error in errors %}<p class="status-error">{{ error }}</p>{% endfor %}
-  <form method="post" class="form-stack">
+  <form method="post" class="form-stack" id="analysis-job-run-form">
     {% csrf_token %}
     <div class="grid two-columns tight">
       <label>
@@ -46,7 +54,11 @@
       </label>
     </div>
     <div class="actions">
-      <button class="button primary" type="submit">{% if job.status == "error" %}Analyse erneut absenden{% else %}Analyse jetzt absenden{% endif %}</button>
+      <button class="button primary" type="submit" id="analysis-job-run-submit">{% if job.status == "error" %}Analyse erneut absenden{% else %}Analyse jetzt absenden{% endif %}</button>
+    </div>
+    <div class="running-banner" id="analysis-job-run-status" role="status" aria-live="polite" hidden>
+      <span class="job-spinner" aria-hidden="true"></span>
+      <span>Die KI-Analyse läuft. Das kann bei vielen Dokumenten mehrere Minuten dauern. Bitte Seite nicht neu laden und den Job nicht erneut starten.</span>
     </div>
   </form>
 </section>
@@ -62,10 +74,10 @@
 
   {% if job.markdown %}
   <article class="panel">
-    <h2>Markdown-Vorschau</h2>
+    <h2>{% if has_readable_analysis %}KI-Analyse{% else %}Markdown-Vorschau{% endif %}</h2>
     <div class="markdown-preview">{{ markdown_preview }}</div>
     <details class="raw-markdown">
-      <summary>Markdown-Quelltext anzeigen</summary>
+      <summary>{% if has_readable_analysis %}Vollständige Markdown-Datei anzeigen{% else %}Markdown-Quelltext anzeigen{% endif %}</summary>
       <pre class="text-block">{{ job.markdown }}</pre>
     </details>
   </article>
@@ -109,4 +121,5 @@
   <p class="empty-state">Dieser Analysejob ist in den lokalen Ausgaben nicht vorhanden.</p>
 </section>
 {% endif %}
+{% if job %}<script src="{% static 'core/js/analysis_job.js' %}"></script>{% endif %}
 {% endblock %}
