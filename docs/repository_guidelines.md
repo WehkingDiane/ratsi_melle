@@ -54,6 +54,7 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 - SQLite-Datenbanken liegen unter `data/db/`.
 - Landkreis-Veröffentlichungen nutzen eine getrennte Datenbank `data/db/landkreis_publications.sqlite` und eine eigene Rohdatenwurzel. Standard ist `data/raw/landkreis/`; fuer grosse lokale Datenbestaende kann `RATSI_LANDKREIS_DATA_DIR` oder `--data-dir` auf einen externen Speicherort zeigen. Gespeichert werden relative Pfade innerhalb dieser Wurzel.
 - Analyse-Eingaben liegen unter `data/analysis_requests/`, Analyse-Ausgaben unter `data/analysis_outputs/`.
+- Wiederherstellbare lokale Sicherungen vor einem Jobreset liegen unter `data/archive/` und werden nicht eingecheckt.
 - Sensible Inhalte (personenbezogene Daten, API-Schlüssel) werden nicht eingecheckt. Für Beispiele wird auf `*.template`-Dateien zurückgegriffen.
 - Lokale Dokumentreferenzen aus SQLite, Exporten oder Suchindizes dürfen nur auf Dateien unter einer zulaessigen `data/raw/`-Wurzel zeigen; absolute Fremdpfade gelten als ungueltig.
 - Unterordner unter `data/raw/.../agenda/` bestehen ausschließlich aus der TOP-Nummer und dem offiziellen Titel; Zusätze wie „Berichterstatter …“ werden beim Sluggen entfernt, damit identische Punkte unabhängig vom Reporter gleich heißen.
@@ -113,4 +114,4 @@ Diese Regeln bilden das Fundament für den weiteren Projektverlauf und können b
 ## .gitignore & lokale Daten
 
 - Lokale venvs, Agent-Konfigurationen, Caches und Logs werden ueber `.gitignore` ausgeschlossen.
-- Rohdaten verbleiben unter `data/raw/`; DBs, Analyse-Requests und Analyse-Outputs liegen unter `data/db/`, `data/analysis_requests/` und `data/analysis_outputs/` und werden nicht committet.
+- Rohdaten verbleiben unter `data/raw/`; DBs, Analyse-Requests, Analyse-Outputs und lokale Sicherungen liegen unter `data/db/`, `data/analysis_requests/`, `data/analysis_outputs/` und `data/archive/` und werden nicht committet.

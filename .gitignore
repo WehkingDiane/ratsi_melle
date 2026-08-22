@@ -15,6 +15,7 @@ data/raw/
 data/processed/
 data/private/**
 !data/private/.gitkeep
+data/archive/
 *.private.json
 *.local.json
 prompt_templates.json
