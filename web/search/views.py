@@ -10,19 +10,20 @@ from . import services
 def index(request):
     query = request.GET.get("q", "").strip()
     source = request.GET.get("source", "ratsinfo")
-    semantic_search = services.search_semantic_documents(query, source=source)
-    all_results = semantic_search["results"]
     date_from = request.GET.get("date_from", "").strip()
     date_to = request.GET.get("date_to", "").strip()
     committee = request.GET.get("committee", "").strip()
     document_type = request.GET.get("document_type", "").strip()
-    results = services.filter_semantic_results(
-        all_results,
+    semantic_search = services.search_semantic_documents(
+        query,
+        source=source,
         date_from=date_from,
         date_to=date_to,
         committee=committee,
         document_type=document_type,
     )
+    results = semantic_search["results"]
+    filter_options = semantic_search.get("filter_options", {})
     return render(
         request,
         "search/index.html",
@@ -31,7 +32,7 @@ def index(request):
             "query": query,
             "selected_source": source if source == "landkreis" else "ratsinfo",
             "results": results,
-            "unfiltered_result_count": len(all_results),
+            "unfiltered_result_count": semantic_search.get("candidate_count", len(results)),
             "search_error": semantic_search["error"],
             "search_warning": semantic_search["warning"],
             "has_query": bool(query.strip()),
@@ -40,7 +41,7 @@ def index(request):
             "date_to": date_to,
             "selected_committee": committee,
             "selected_document_type": document_type,
-            "committees": services.result_filter_options(all_results, "committee"),
-            "document_types": services.result_filter_options(all_results, "document_type"),
+            "committees": filter_options.get("committees", []),
+            "document_types": filter_options.get("document_types", []),
         },
     )

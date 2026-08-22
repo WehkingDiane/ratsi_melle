@@ -97,6 +97,10 @@ def search_semantic_documents(
     *,
     limit: int = MAX_SEMANTIC_SEARCH_RESULTS,
     source: str = "ratsinfo",
+    date_from: str = "",
+    date_to: str = "",
+    committee: str = "",
+    document_type: str = "",
 ) -> dict[str, Any]:
     """Search indexed document contents via the local Qdrant vector index."""
 
@@ -125,10 +129,13 @@ def search_semantic_documents(
     try:
         embedder, bm25 = _get_semantic_resources()
         store = _create_vector_store(qdrant_dir, source_config["collection_name"])
+        result_limit = max(1, min(int(limit), MAX_SEMANTIC_SEARCH_RESULTS))
+        has_filters = any((date_from, date_to, committee, document_type))
+        candidate_limit = MAX_SEARCH_RESULTS if has_filters else result_limit
         results = store.search(
             query_dense=embedder.embed_query(normalized_query),
             query_sparse=bm25.encode_query(normalized_query),
-            limit=max(1, min(int(limit), MAX_SEMANTIC_SEARCH_RESULTS)),
+            limit=candidate_limit,
         )
     except Exception as exc:  # noqa: BLE001
         missing_collection_text = source_config["missing_collection_text"]
@@ -146,11 +153,24 @@ def search_semantic_documents(
             except Exception:  # noqa: BLE001 - Search results should survive cleanup errors.
                 pass
 
+    candidates = [
+        _with_semantic_display_fields(rank, result, source_config["source"])
+        for rank, result in enumerate(results, start=1)
+    ]
+    filtered_results = filter_semantic_results(
+        candidates,
+        date_from=date_from,
+        date_to=date_to,
+        committee=committee,
+        document_type=document_type,
+    )[:result_limit]
     return {
-        "results": [
-            _with_semantic_display_fields(rank, result, source_config["source"])
-            for rank, result in enumerate(results, start=1)
-        ],
+        "results": filtered_results,
+        "candidate_count": len(candidates),
+        "filter_options": {
+            "committees": result_filter_options(candidates, "committee"),
+            "document_types": result_filter_options(candidates, "document_type"),
+        },
         "error": "",
         "warning": (
             f"Ergebnisse stammen aus der hybriden {source_config['label']}-Vektorsuche "

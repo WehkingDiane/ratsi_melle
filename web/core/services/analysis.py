@@ -9,6 +9,7 @@ from src.analysis.prompts.models import PromptTemplate
 from src.analysis.prompts.validation import render_prompt
 from src.analysis.service import AnalysisRequest
 from src.analysis.service import AnalysisService
+from src.analysis.workflow_db import claim_analysis_job
 
 from . import paths
 from .prompts import get_active_prompt_template
@@ -90,6 +91,7 @@ def run_analysis_from_form(data: dict[str, Any]) -> tuple[dict[str, Any] | None,
     prompt = ""
     if template and session:
         prompt = render_prompt(template, _prompt_context(session, scope, selected_tops_for_scope, purpose))
+        prompt = _with_json_output_contract(prompt, purpose)
 
     if errors or not session:
         return None, errors
@@ -155,20 +157,33 @@ def execute_prepared_analysis(
             artifact_paths["structured"] = path
     if "article" not in artifact_paths:
         return None, ["Die Markdown-Datei des vorbereiteten Jobs wurde nicht gefunden."]
+    if not claim_analysis_job(
+        workflow_job_id,
+        model_name=model_name.strip(),
+        provider_id=provider_id,
+        db_path=paths.ANALYSIS_WORKFLOW_DB,
+    ):
+        return None, [
+            "Dieser Analysejob wurde bereits gestartet oder inzwischen abgeschlossen."
+        ]
 
+    purpose = str(
+        job.get("purpose")
+        or default_purpose_for_scope(str(job.get("scope") or "session"))
+    )
     request = AnalysisRequest(
         db_path=paths.LOCAL_INDEX_DB,
         session=session,
         scope=str(job.get("scope") or "session"),
         selected_tops=[str(value) for value in job.get("top_numbers", [])],
-        prompt=str(job.get("prompt_text") or ""),
+        prompt=_with_json_output_contract(str(job.get("prompt_text") or ""), purpose),
         provider_id=provider_id,
         model_name=model_name.strip(),
         prompt_version=str(job.get("prompt_version") or "web"),
         prompt_template_id=str(job.get("prompt_template_id") or ""),
         prompt_template_revision=job.get("prompt_template_revision"),
         prompt_template_label=str(job.get("prompt_template_label") or ""),
-        purpose=str(job.get("purpose") or default_purpose_for_scope(str(job.get("scope") or "session"))),
+        purpose=purpose,
     )
     record = AnalysisService().execute_prepared_analysis(
         request,
@@ -179,6 +194,35 @@ def execute_prepared_analysis(
         workflow_db_path=paths.ANALYSIS_WORKFLOW_DB,
     )
     return record.to_dict(), []
+
+
+def _with_json_output_contract(prompt: str, purpose: str) -> str:
+    """Append the JSON contract required by automatic response validation."""
+
+    marker = "ANTWORTFORMAT (VERPFLICHTENDES JSON)"
+    if marker in prompt:
+        return prompt
+    if purpose == "journalistic_publication":
+        fields = (
+            '"title": string, "subtitle": string, "intro": string, "body": string, '
+            '"sources": array of objects with title, document_type, agenda_item and url'
+        )
+    else:
+        fields = (
+            '"topic": string, "short_summary": string, "proposal_or_decision": string, '
+            '"background": string, "financial_impact": string, '
+            '"legal_or_formal_basis": string, "neutral_assessment": string, '
+            '"document_overview": array of objects with title, document_type, role and summary, '
+            '"affected_groups": array of strings, "open_questions": array of strings, '
+            '"contradictions": array of strings, "sources": array of objects with title, '
+            'document_type, agenda_item and url'
+        )
+    return (
+        f"{prompt.rstrip()}\n\n{marker}:\n"
+        "Antworte ausschließlich mit genau einem validen JSON-Objekt, ohne Markdown-Codeblock "
+        f"und ohne Text davor oder danach. Verwende diese Felder: {fields}. "
+        "Nutze leere Strings oder leere Arrays, wenn eine Angabe nicht belegt ist."
+    )
 
 
 def default_template_id(scope: str, purpose: str = "") -> str:

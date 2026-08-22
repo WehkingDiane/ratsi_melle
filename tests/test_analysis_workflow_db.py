@@ -8,6 +8,7 @@ from src.analysis.workflow_db import (
     AnalysisJobRecord,
     PublicationJobRecord,
     add_analysis_output,
+    claim_analysis_job,
     create_analysis_job,
     create_publication_job,
     initialize_analysis_workflow_db,
@@ -93,6 +94,27 @@ def test_analysis_workflow_db_stores_job_output_and_publication(tmp_path: Path) 
         "data/analysis_outputs/2026/03/session/job_1.publication.json",
     )
     assert publication == ("draft", "pending")
+
+
+def test_analysis_workflow_job_can_only_be_claimed_once(tmp_path: Path) -> None:
+    db_path = tmp_path / "analysis_workflow.sqlite"
+    job_id = create_analysis_job(
+        AnalysisJobRecord(session_id="7123", scope="session", status="prepared"),
+        db_path,
+    )
+
+    assert claim_analysis_job(
+        job_id, model_name="", provider_id="codex", db_path=db_path
+    ) is True
+    assert claim_analysis_job(
+        job_id, model_name="gpt-test", provider_id="codex", db_path=db_path
+    ) is False
+
+    with sqlite3.connect(db_path) as conn:
+        assert conn.execute(
+            "SELECT status, provider_id, model_name FROM analysis_jobs WHERE job_id = ?",
+            (job_id,),
+        ).fetchone() == ("running", "codex", "codex")
 
 
 def test_analysis_workflow_db_allocates_ids_for_duplicate_source_jobs(

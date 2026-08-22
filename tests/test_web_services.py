@@ -213,6 +213,59 @@ def test_semantic_result_filters_preserve_relevance_order() -> None:
     assert search_services.result_filter_options(results, "committee") == ["Ortsrat", "Rat"]
 
 
+def test_semantic_search_filters_candidates_before_result_limit(
+    workspace_tmp: Path, monkeypatch
+) -> None:
+    qdrant_dir = workspace_tmp / "data" / "db" / "qdrant"
+    qdrant_dir.mkdir(parents=True)
+    captured = {}
+
+    class FakeStore:
+        def search(self, **kwargs):
+            captured.update(kwargs)
+            return [
+                {
+                    "title": f"Fremder Treffer {index}",
+                    "committee": "Rat",
+                    "document_type": "vorlage",
+                }
+                for index in range(20)
+            ] + [
+                {
+                    "title": "Gesuchter Treffer",
+                    "committee": "Ortsrat",
+                    "document_type": "protokoll",
+                }
+            ]
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(search_services, "QDRANT_DIR", qdrant_dir)
+    monkeypatch.setattr(search_services, "_semantic_search_dependency_error", lambda: "")
+    monkeypatch.setattr(
+        search_services,
+        "_get_semantic_resources",
+        lambda: (
+            type("Embedder", (), {"embed_query": lambda _self, _query: [0.1]})(),
+            type(
+                "BM25",
+                (),
+                {"encode_query": lambda _self, _query: {"indices": [], "values": []}},
+            )(),
+        ),
+    )
+    monkeypatch.setattr(search_services, "_create_vector_store", lambda *_args: FakeStore())
+
+    response = search_services.search_semantic_documents(
+        "Windkraft", committee="Ortsrat", document_type="protokoll"
+    )
+
+    assert captured["limit"] == search_services.MAX_SEARCH_RESULTS
+    assert [result["title"] for result in response["results"]] == ["Gesuchter Treffer"]
+    assert response["candidate_count"] == 21
+
+
 def test_semantic_search_documents_uses_landkreis_collection(workspace_tmp: Path, monkeypatch) -> None:
     qdrant_dir = workspace_tmp / "data" / "db" / "qdrant"
     qdrant_dir.mkdir(parents=True)
@@ -1301,6 +1354,18 @@ def test_run_analysis_from_form_validates_missing_session(monkeypatch, workspace
     assert errors
 
 
+def test_analysis_prompts_append_required_json_contract() -> None:
+    from core.services import analysis as core_analysis
+
+    prompt = core_analysis._with_json_output_contract(
+        "Erzeuge Abschnitte.", "meeting_briefing"
+    )
+
+    assert "ANTWORTFORMAT (VERPFLICHTENDES JSON)" in prompt
+    assert '"short_summary": string' in prompt
+    assert "ausschließlich mit genau einem validen JSON-Objekt" in prompt
+
+
 def test_execute_prepared_analysis_resolves_artifact_paths(
     monkeypatch, workspace_tmp: Path
 ) -> None:
@@ -1337,12 +1402,14 @@ def test_execute_prepared_analysis_resolves_artifact_paths(
     monkeypatch.setattr(core_analysis.paths, "REPO_ROOT", workspace_tmp)
     monkeypatch.setattr(core_analysis.paths, "LOCAL_INDEX_DB", workspace_tmp / "local.sqlite")
     monkeypatch.setattr(core_analysis.paths, "ANALYSIS_WORKFLOW_DB", workspace_tmp / "workflow.sqlite")
+    monkeypatch.setattr(core_analysis, "claim_analysis_job", lambda *_args, **_kwargs: True)
 
     class _Record:
         def to_dict(self):
             return {"job_id": 1, "status": "done"}
 
-    def fake_execute(_self, _request, **kwargs):
+    def fake_execute(_self, request, **kwargs):
+        captured["prompt"] = request.prompt
         captured.update(kwargs)
         return _Record()
 
@@ -1355,6 +1422,7 @@ def test_execute_prepared_analysis_resolves_artifact_paths(
     assert captured["artifact_paths"]["article"] == (
         workspace_tmp / "data/analysis_outputs/session/job_1.article.md"
     )
+    assert "ANTWORTFORMAT (VERPFLICHTENDES JSON)" in captured["prompt"]
 
 
 def test_default_template_id_prefers_meeting_briefing(monkeypatch, workspace_tmp: Path) -> None:

@@ -344,7 +344,7 @@ def test_search_page_renders_document_results(client, monkeypatch) -> None:
     monkeypatch.setattr(
         views.services,
         "search_semantic_documents",
-        lambda _query, source="ratsinfo": {
+        lambda _query, source="ratsinfo", **_filters: {
             "results": [
                 {
                     "rank": 1,
@@ -385,7 +385,7 @@ def test_search_page_renders_landkreis_results_without_session_links(client, mon
 
     captured = {}
 
-    def fake_search(query, source="ratsinfo"):
+    def fake_search(query, source="ratsinfo", **_filters):
         captured["query"] = query
         captured["source"] = source
         return {

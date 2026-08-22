@@ -88,6 +88,8 @@ Die Leseansicht unter `/analyse/antworten/` übernimmt nur gefüllte Abschnitte 
 
 Bei einem nachträglich ausgeführten Job mit dem Zweck `journalistic_publication` werden neben den bestehenden Analyseartefakten auch der Publikationsentwurf, der zugehörige Workflow-Output und der Publikationsjob im selben Workflow-Datensatz ergänzt. Das Platzhaltermodell `none` vorbereiteter Jobs wird beim Absenden nicht als Modellname übernommen; ein leeres Modellfeld verwendet das Standardmodell des ausgewählten Providers.
 
+Automatisch ausgeführte Webanalysen ergänzen den gespeicherten Fachprompt um einen verbindlichen JSON-Ausgabevertrag. Dieser verwendet dieselben Felder wie die regelbasierte Markdown-Aufbereitung. Der Vertrag wird auch beim Nachstart älterer vorbereiteter Jobs ergänzt. Ein Workflow-Job wird vor dem Provideraufruf atomar von `prepared` oder `error` nach `running` übernommen; nur der erfolgreiche Claim darf den kostenpflichtigen Aufruf ausführen.
+
 ## Beispiel
 
 Ein Publikationsentwurf enthält mindestens:

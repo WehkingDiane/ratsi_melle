@@ -228,6 +228,38 @@ def update_analysis_job(
         conn.commit()
 
 
+def claim_analysis_job(
+    job_id: int,
+    *,
+    model_name: str,
+    provider_id: str,
+    db_path: Path | None = None,
+) -> bool:
+    """Atomically claim one prepared or failed job for provider execution."""
+
+    db_path = initialize_analysis_workflow_db(db_path)
+    with sqlite3.connect(db_path) as conn:
+        cursor = conn.execute(
+            """
+            UPDATE analysis_jobs
+            SET model_name = ?, provider_id = ?, input_tokens = 0, output_tokens = 0,
+                response_status = 'pending', status = 'running', updated_at = ?,
+                error_message = NULL
+            WHERE job_id = ? AND status IN ('prepared', 'error')
+            """,
+            (model_name or provider_id, provider_id, utc_now(), job_id),
+        )
+        if cursor.rowcount != 1:
+            conn.rollback()
+            return False
+        conn.execute(
+            "UPDATE analysis_outputs SET status = 'running' WHERE job_id = ?",
+            (job_id,),
+        )
+        conn.commit()
+        return True
+
+
 def add_analysis_output(
     artifact: AnalysisArtifactRecord, db_path: Path | None = None
 ) -> int:
