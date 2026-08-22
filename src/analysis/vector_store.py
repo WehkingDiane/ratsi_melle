@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -120,6 +121,10 @@ class DocumentVectorStore:
         query_sparse: dict,
         limit: int = 10,
         session_id: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        committee: str | None = None,
+        document_type: str | None = None,
     ) -> list[dict]:
         """Run hybrid search combining dense (Harrier) and sparse (BM25) vectors.
 
@@ -132,6 +137,10 @@ class DocumentVectorStore:
             query_sparse: BM25 sparse query dict with ``indices`` and ``values``.
             limit: Maximum number of results to return.
             session_id: When set, restrict results to this session.
+            date_from: Optional inclusive lower bound for the meeting date.
+            date_to: Optional inclusive upper bound for the meeting date.
+            committee: Optional exact committee name.
+            document_type: Optional exact document type.
 
         Returns:
             List of result dicts with keys: ``doc_id``, ``score``, ``title``,
@@ -141,6 +150,7 @@ class DocumentVectorStore:
         from qdrant_client.models import (
             Filter,
             FieldCondition,
+            DatetimeRange,
             MatchValue,
             Prefetch,
             FusionQuery,
@@ -150,16 +160,36 @@ class DocumentVectorStore:
 
         client = self._get_client()
 
-        search_filter: Filter | None = None
+        filter_conditions = []
         if session_id is not None:
-            search_filter = Filter(
-                must=[
-                    FieldCondition(
-                        key="session_id",
-                        match=MatchValue(value=session_id),
-                    )
-                ]
+            filter_conditions.append(
+                FieldCondition(
+                    key="session_id",
+                    match=MatchValue(value=session_id),
+                )
             )
+        if committee is not None:
+            filter_conditions.append(
+                FieldCondition(key="committee", match=MatchValue(value=committee))
+            )
+        if document_type is not None:
+            filter_conditions.append(
+                FieldCondition(
+                    key="document_type",
+                    match=MatchValue(value=document_type),
+                )
+            )
+        if date_from is not None or date_to is not None:
+            filter_conditions.append(
+                FieldCondition(
+                    key="date",
+                    range=DatetimeRange(
+                        gte=date.fromisoformat(date_from) if date_from else None,
+                        lte=date.fromisoformat(date_to) if date_to else None,
+                    ),
+                )
+            )
+        search_filter = Filter(must=filter_conditions) if filter_conditions else None
 
         # Prefetch candidates from both retrieval methods, then fuse
         response = client.query_points(

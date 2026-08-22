@@ -165,11 +165,26 @@ def test_semantic_search_documents_uses_vector_store(workspace_tmp: Path, monkey
         def close(self):
             captured["store_closed"] = True
 
-        def search(self, *, query_dense, query_sparse, limit, session_id=None):
+        def search(
+            self,
+            *,
+            query_dense,
+            query_sparse,
+            limit,
+            session_id=None,
+            date_from=None,
+            date_to=None,
+            committee=None,
+            document_type=None,
+        ):
             captured["query_dense"] = query_dense
             captured["query_sparse"] = query_sparse
             captured["limit"] = limit
             captured["session_id"] = session_id
+            captured["date_from"] = date_from
+            captured["date_to"] = date_to
+            captured["committee"] = committee
+            captured["document_type"] = document_type
             return [
                 {
                     "doc_id": 123,
@@ -205,6 +220,10 @@ def test_semantic_search_documents_uses_vector_store(workspace_tmp: Path, monkey
     assert captured["query_sparse"] == {"indices": [1], "values": [0.5]}
     assert captured["limit"] == search_services.MAX_SEMANTIC_SEARCH_RESULTS
     assert captured["session_id"] is None
+    assert captured["date_from"] is None
+    assert captured["date_to"] is None
+    assert captured["committee"] is None
+    assert captured["document_type"] is None
     assert captured["store_closed"] is True
     assert response["results"][0]["rank"] == 1
     assert response["results"][0]["display_date"] == "11.03.2026"
@@ -280,7 +299,9 @@ def test_semantic_search_filters_candidates_before_result_limit(
         "Windkraft", committee="Ortsrat", document_type="protokoll"
     )
 
-    assert captured["limit"] == search_services.MAX_SEARCH_RESULTS
+    assert captured["limit"] == search_services.MAX_SEMANTIC_SEARCH_RESULTS
+    assert captured["committee"] == "Ortsrat"
+    assert captured["document_type"] == "protokoll"
     assert [result["title"] for result in response["results"]] == ["Gesuchter Treffer"]
     assert response["candidate_count"] == 21
 
@@ -304,7 +325,7 @@ def test_semantic_search_documents_uses_landkreis_collection(workspace_tmp: Path
         def close(self):
             captured["store_closed"] = True
 
-        def search(self, *, query_dense, query_sparse, limit, session_id=None):
+        def search(self, *, query_dense, query_sparse, limit, **_filters):
             captured["collection_name"] = captured["created_collection_name"]
             return [
                 {
@@ -724,6 +745,8 @@ def test_workflow_jobs_hide_internal_local_source_jobs(workspace_tmp: Path, monk
             session_id="workflow-session",
             scope="session",
             purpose="content_analysis",
+            source_db=str(workspace_tmp / "data" / "db" / "local_index.sqlite"),
+            source_job_id=1,
             model_name="none",
             prompt_version="web",
             status="done",
@@ -786,7 +809,7 @@ def test_workflow_jobs_hide_internal_local_source_jobs(workspace_tmp: Path, monk
     assert set(jobs) == {"1"}
     assert jobs["1"]["session_id"] == "workflow-session"
     assert analysis_services.get_analysis_output("workflow:1")["session_id"] == "workflow-session"
-    assert analysis_services.get_analysis_output("local:1") is None
+    assert analysis_services.get_analysis_output("local:1")["session_id"] == "workflow-session"
     assert analysis_services.get_analysis_output("1")["session_id"] == "workflow-session"
 
 
@@ -861,7 +884,7 @@ def test_file_analysis_outputs_merge_into_unique_db_job(workspace_tmp: Path, mon
     assert "data/analysis_outputs/job_1.json" in jobs["local:1"]["files"]
 
 
-def test_file_analysis_outputs_prefer_workflow_job_when_db_ids_collide(
+def test_unlinked_local_job_remains_visible_when_workflow_job_id_collides(
     workspace_tmp: Path, monkeypatch
 ) -> None:
     workflow_db = workspace_tmp / "data" / "db" / "analysis_workflow.sqlite"
@@ -939,8 +962,9 @@ def test_file_analysis_outputs_prefer_workflow_job_when_db_ids_collide(
 
     jobs = {str(job["job_id"]): job for job in analysis_services.list_analysis_outputs()}
 
-    assert set(jobs) == {"1"}
+    assert set(jobs) == {"1", "local:1"}
     assert jobs["1"]["ki_response"] == "Workflow-Datei"
+    assert jobs["local:1"]["session_id"] == "local-session"
 
 
 def test_canonical_analysis_job_id_prefers_workflow_source_job(

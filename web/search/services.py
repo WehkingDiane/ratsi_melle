@@ -130,12 +130,14 @@ def search_semantic_documents(
         embedder, bm25 = _get_semantic_resources()
         store = _create_vector_store(qdrant_dir, source_config["collection_name"])
         result_limit = max(1, min(int(limit), MAX_SEMANTIC_SEARCH_RESULTS))
-        has_filters = any((date_from, date_to, committee, document_type))
-        candidate_limit = MAX_SEARCH_RESULTS if has_filters else result_limit
         results = store.search(
             query_dense=embedder.embed_query(normalized_query),
             query_sparse=bm25.encode_query(normalized_query),
-            limit=candidate_limit,
+            limit=result_limit,
+            date_from=date_from or None,
+            date_to=date_to or None,
+            committee=committee or None,
+            document_type=document_type or None,
         )
     except Exception as exc:  # noqa: BLE001
         missing_collection_text = source_config["missing_collection_text"]

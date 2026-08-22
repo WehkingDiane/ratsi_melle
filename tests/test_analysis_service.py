@@ -150,7 +150,7 @@ def test_large_document_set_is_summarized_before_synthesis(tmp_path: Path, monke
     class FakeProvider:
         def analyze(self, **kwargs):
             calls.append(kwargs)
-            is_summary = "einzelne Quelldokument" in kwargs["prompt"]
+            is_summary = "Fasse" in kwargs["prompt"] or "Verdichte" in kwargs["prompt"]
             return KiResponse(
                 provider_id="codex",
                 model_name="gpt-test",
@@ -160,7 +160,8 @@ def test_large_document_set_is_summarized_before_synthesis(tmp_path: Path, monke
             )
 
     monkeypatch.setattr("src.analysis.providers.registry.build_provider", lambda *_args, **_kwargs: FakeProvider())
-    monkeypatch.setattr("src.analysis.service.extract_pdf_text", lambda _path: "Text " * 20_000)
+    full_text = "A" * 80_000 + "ENDE-DES-DOKUMENTS"
+    monkeypatch.setattr("src.analysis.service.extract_pdf_text", lambda _path: full_text)
     request = AnalysisRequest(
         db_path=tmp_path / "unused.sqlite",
         session={"session_id": "1"},
@@ -179,10 +180,12 @@ def test_large_document_set_is_summarized_before_synthesis(tmp_path: Path, monke
     assert error is None
     assert response == '{"topic":"Ergebnis"}'
     assert model == "gpt-test"
-    assert input_tokens == 30
-    assert output_tokens == 15
-    assert len(calls) == 3
+    assert input_tokens == 90
+    assert output_tokens == 45
+    assert len(calls) == 9
+    assert sum("ENDE-DES-DOKUMENTS" in call["context"] for call in calls) == 2
     assert "Dokumentweise Voranalysen" in calls[-1]["context"]
+    assert sum("Teil 3 von 3" in call["context"] for call in calls) == 4
     assert calls[-1]["pdf_paths"] is None
 
 def test_publication_draft_uses_ki_json_title_and_body() -> None:

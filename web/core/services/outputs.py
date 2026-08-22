@@ -35,9 +35,10 @@ def list_analysis_outputs() -> list[dict[str, Any]]:
 
     jobs: dict[str, dict[str, Any]] = {}
     workflow_rows = _analysis_jobs_from_db(paths.ANALYSIS_WORKFLOW_DB)
-    db_sources = [(paths.ANALYSIS_WORKFLOW_DB, workflow_rows)]
-    if not workflow_rows:
-        db_sources.append((paths.LOCAL_INDEX_DB, _analysis_jobs_from_db(paths.LOCAL_INDEX_DB)))
+    db_sources = [
+        (paths.ANALYSIS_WORKFLOW_DB, workflow_rows),
+        (paths.LOCAL_INDEX_DB, _analysis_jobs_from_db(paths.LOCAL_INDEX_DB)),
+    ]
     for db_path, rows in db_sources:
         for row in rows:
             job_id = str(row.get("job_id") or "")

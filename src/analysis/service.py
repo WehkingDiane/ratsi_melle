@@ -437,20 +437,52 @@ class AnalysisService:
                         if not text.strip():
                             summaries.append(f"### {path.name}\nText nicht extrahierbar.")
                             continue
-                        summary = provider.analyze(
-                            prompt=(
-                                "Fasse dieses einzelne Quelldokument sachlich und quellengetreu "
-                                "in höchstens 900 Wörtern zusammen. Nenne Kernaussagen, Zahlen, "
-                                "Beschlussbezug, Unsicherheiten und offene Fragen. Gib valides JSON "
-                                "mit den Feldern title, key_facts, decision_relevance, uncertainties zurück."
-                            ),
-                            context=text[:40_000],
-                            model=request.model_name or None,
-                            pdf_paths=None,
-                        )
-                        summary_input_tokens += summary.input_tokens
-                        summary_output_tokens += summary.output_tokens
-                        summaries.append(f"### {path.name}\n{summary.response_text}")
+                        chunks = [
+                            text[start : start + 40_000]
+                            for start in range(0, len(text), 40_000)
+                        ]
+                        chunk_summaries: list[str] = []
+                        for index, chunk in enumerate(chunks, start=1):
+                            summary = provider.analyze(
+                                prompt=(
+                                    "Fasse diesen Teil eines einzelnen Quelldokuments sachlich und "
+                                    "quellengetreu in höchstens 350 Wörtern zusammen. Nenne Kernaussagen, "
+                                    "Zahlen, Beschlussbezug, Unsicherheiten und offene Fragen. Gib valides "
+                                    "JSON mit den Feldern title, key_facts, decision_relevance, "
+                                    "uncertainties zurück."
+                                ),
+                                context=(
+                                    f"Dokument: {path.name}\nTeil {index} von {len(chunks)}\n\n{chunk}"
+                                ),
+                                model=request.model_name or None,
+                                pdf_paths=None,
+                            )
+                            summary_input_tokens += summary.input_tokens
+                            summary_output_tokens += summary.output_tokens
+                            chunk_summaries.append(
+                                f"#### Teil {index} von {len(chunks)}\n{summary.response_text}"
+                            )
+                        document_summary_text = summary.response_text
+                        if len(chunk_summaries) > 1:
+                            document_summary = provider.analyze(
+                                prompt=(
+                                    "Verdichte die Zusammenfassungen aller Teile dieses Dokuments zu "
+                                    "einer vollständigen, quellengetreuen Dokumentzusammenfassung in "
+                                    "höchstens 900 Wörtern. Erhalte wichtige Zahlen, Beschlussbezüge, "
+                                    "Unsicherheiten und offene Fragen. Gib valides JSON mit den Feldern "
+                                    "title, key_facts, decision_relevance, uncertainties zurück."
+                                ),
+                                context=(
+                                    f"Dokument: {path.name}\n\n"
+                                    + "\n\n".join(chunk_summaries)
+                                ),
+                                model=request.model_name or None,
+                                pdf_paths=None,
+                            )
+                            summary_input_tokens += document_summary.input_tokens
+                            summary_output_tokens += document_summary.output_tokens
+                            document_summary_text = document_summary.response_text
+                        summaries.append(f"### {path.name}\n{document_summary_text}")
                     provider_context = (
                         f"{context_for_provider}\n\n## Dokumentweise Voranalysen\n\n"
                         + "\n\n".join(summaries)
