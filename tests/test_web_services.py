@@ -1319,7 +1319,7 @@ def test_execute_prepared_analysis_resolves_artifact_paths(
             "scope": "session",
             "top_numbers": [],
             "purpose": "meeting_briefing",
-            "status": "prepared",
+            "status": "error",
             "prompt_text": "Analysiere als JSON.",
             "markdown": "# Grundlage\n\n## KI-Analyse\n",
             "files": ["data/analysis_outputs/session/job_1.article.md"],

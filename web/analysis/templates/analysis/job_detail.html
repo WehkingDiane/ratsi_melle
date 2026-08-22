@@ -26,9 +26,9 @@
   {% if job.error_message %}<p class="status-error">{{ job.error_message }}</p>{% endif %}
 </section>
 
-{% if job.status == "prepared" %}
+{% if job.status == "prepared" or job.status == "error" %}
 <section class="panel">
-  <h2>Vorbereitete Analyse absenden</h2>
+  <h2>{% if job.status == "error" %}Analyse erneut absenden{% else %}Vorbereitete Analyse absenden{% endif %}</h2>
   <p>Die Analysegrundlage ist gespeichert. Wähle einen Provider, um genau diesen Job auszuführen und die Antwort in seine Markdown-Datei einzutragen.</p>
   {% for error in errors %}<p class="status-error">{{ error }}</p>{% endfor %}
   <form method="post" class="form-stack">
@@ -46,7 +46,7 @@
       </label>
     </div>
     <div class="actions">
-      <button class="button primary" type="submit">Analyse jetzt absenden</button>
+      <button class="button primary" type="submit">{% if job.status == "error" %}Analyse erneut absenden{% else %}Analyse jetzt absenden{% endif %}</button>
     </div>
   </form>
 </section>

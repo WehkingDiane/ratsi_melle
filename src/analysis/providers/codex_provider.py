@@ -55,7 +55,7 @@ class CodexProvider(KiProvider):
 
         completion = self._client.chat.completions.create(
             model=model_name,
-            max_tokens=self._max_tokens,
+            max_completion_tokens=self._max_tokens,
             messages=[
                 {
                     "role": "system",

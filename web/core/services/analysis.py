@@ -122,8 +122,10 @@ def execute_prepared_analysis(
     job = get_analysis_output(job_id)
     if not job:
         return None, ["Der Analysejob wurde nicht gefunden."]
-    if str(job.get("status") or "") != "prepared":
-        return None, ["Nur vorbereitete Analysen können nachträglich abgesendet werden."]
+    if str(job.get("status") or "") not in {"prepared", "error"}:
+        return None, [
+            "Nur vorbereitete oder fehlgeschlagene Analysen können erneut abgesendet werden."
+        ]
     if provider_id == "none":
         return None, ["Bitte einen KI-Provider für die Ausführung wählen."]
     if provider_id not in {option["value"] for option in provider_options()}:

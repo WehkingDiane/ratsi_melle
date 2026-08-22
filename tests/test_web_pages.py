@@ -1343,3 +1343,7 @@ def test_prepared_job_detail_offers_in_place_execution(client, monkeypatch) -> N
     assert "Analyse Sitzung 2026-08-13 - Ortsrat Melle-Mitte" in content
     assert "Analyse jetzt absenden" in content
     assert 'name="provider_id"' in content
+
+    job["status"] = "error"
+    retry_content = client.get("/analyse/jobs/1/").content.decode("utf-8")
+    assert "Analyse erneut absenden" in retry_content
