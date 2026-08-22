@@ -1340,6 +1340,7 @@ def test_prepared_job_detail_offers_in_place_execution(client, monkeypatch) -> N
         "session_id": "8188",
         "status": "prepared",
         "display_status": "Analysegrundlage erstellt",
+        "model_name": "none",
         "markdown": "# Grundlage\n\n## KI-Analyse\n",
         "sources": [],
         "structured_outputs": [],
@@ -1353,6 +1354,7 @@ def test_prepared_job_detail_offers_in_place_execution(client, monkeypatch) -> N
     assert "Analyse Sitzung 2026-08-13 - Ortsrat Melle-Mitte" in content
     assert "Analyse jetzt absenden" in content
     assert 'name="provider_id"' in content
+    assert 'name="model_name" value=""' in content
     assert 'id="analysis-job-run-submit"' in content
     assert 'id="analysis-job-run-status"' in content
     assert 'src="/static/core/js/analysis_job.js"' in content

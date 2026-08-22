@@ -50,7 +50,7 @@
       </label>
       <label>
         Modell
-        <input type="text" name="model_name" value="{{ job.model_name }}" placeholder="Provider-Standardmodell">
+        <input type="text" name="model_name" value="{% if job.model_name != 'none' %}{{ job.model_name }}{% endif %}" placeholder="Provider-Standardmodell">
       </label>
     </div>
     <div class="actions">

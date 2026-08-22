@@ -439,6 +439,7 @@ def test_prepared_analysis_is_executed_in_place(tmp_path: Path, monkeypatch) -> 
         scope="session",
         selected_tops=[],
         prompt="Analysiere als JSON.",
+        purpose="journalistic_publication",
     )
     prepared = service.run_journalistic_analysis(prepared_request)
     assert prepared.status == "prepared"
@@ -451,7 +452,7 @@ def test_prepared_analysis_is_executed_in_place(tmp_path: Path, monkeypatch) -> 
             return KiResponse(
                 provider_id="codex",
                 model_name="gpt-test",
-                response_text='{"title":"Ergebnis"}',
+                response_text='{"title":"Ergebnis","body":"Veröffentlichungstext"}',
                 input_tokens=21,
                 output_tokens=8,
             )
@@ -473,6 +474,7 @@ def test_prepared_analysis_is_executed_in_place(tmp_path: Path, monkeypatch) -> 
             prompt="Analysiere als JSON.",
             provider_id="codex",
             model_name="gpt-test",
+            purpose="journalistic_publication",
         ),
         workflow_job_id=workflow_job_id,
         source_job_id=prepared.job_id,
@@ -485,9 +487,19 @@ def test_prepared_analysis_is_executed_in_place(tmp_path: Path, monkeypatch) -> 
     assert completed.status == "done"
     assert completed.markdown.count("## KI-Analyse") == 1
     article_text = article.read_text(encoding="utf-8")
-    assert "### Title\n\nErgebnis" in article_text
+    assert "# Ergebnis" in article_text
+    assert "Veröffentlichungstext" in article_text
     response_path = raw.with_name(raw.name.replace(".raw.json", ".ki_response.json"))
-    assert json.loads(response_path.read_text(encoding="utf-8")) == {"title": "Ergebnis"}
+    assert json.loads(response_path.read_text(encoding="utf-8")) == {
+        "title": "Ergebnis",
+        "body": "Veröffentlichungstext",
+    }
+    publication_path = raw.with_name(raw.name.replace(".raw.json", ".publication.json"))
+    assert publication_path.is_file()
     with sqlite3.connect(workflow_db) as conn:
         assert conn.execute("SELECT COUNT(*) FROM analysis_jobs").fetchone()[0] == 1
         assert conn.execute("SELECT status FROM analysis_jobs").fetchone()[0] == "done"
+        assert conn.execute(
+            "SELECT COUNT(*) FROM analysis_outputs WHERE output_type = 'publication_draft'"
+        ).fetchone()[0] == 1
+        assert conn.execute("SELECT COUNT(*) FROM publication_jobs").fetchone()[0] == 1

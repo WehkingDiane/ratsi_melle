@@ -271,6 +271,13 @@ class AnalysisService:
             db_path=workflow_db_path,
         )
         self._overwrite_existing_artifacts(record, documents, request.session, artifact_paths)
+        self._persist_deferred_publication(
+            record,
+            request.session,
+            artifact_paths,
+            workflow_job_id,
+            workflow_db_path,
+        )
         return record
 
     def _update_source_job(self, record: AnalysisOutputRecord) -> None:
@@ -347,6 +354,61 @@ class AnalysisService:
             )
         DEFAULT_ANALYSIS_MARKDOWN.parent.mkdir(parents=True, exist_ok=True)
         DEFAULT_ANALYSIS_MARKDOWN.write_text(record.markdown.rstrip() + "\n", encoding="utf-8")
+
+    def _persist_deferred_publication(
+        self,
+        record: AnalysisOutputRecord,
+        session: dict,
+        artifact_paths: dict[str, Path],
+        workflow_job_id: int,
+        workflow_db_path: Path | None,
+    ) -> None:
+        """Create publication artifacts when a prepared publication job completes."""
+
+        if record.purpose != "journalistic_publication" or record.status != "done":
+            return
+
+        parsed_ki = _parse_ki_json_response(record.ki_response)
+        article_markdown = record.markdown
+        if parsed_ki:
+            title, subtitle, intro, body, sources = _publication_parts_from_ki_json(
+                parsed_ki, session
+            )
+            if body:
+                article_markdown = _publication_markdown_from_parts(
+                    title=title,
+                    subtitle=subtitle,
+                    intro=intro,
+                    body=body,
+                    sources=sources,
+                )
+
+        article_path = artifact_paths.get("article")
+        if article_path:
+            _write_text(article_path, article_markdown)
+        _write_text(DEFAULT_ANALYSIS_MARKDOWN, article_markdown)
+
+        publication = self._build_publication_draft(record, article_markdown, session)
+        raw_path = artifact_paths.get("raw")
+        if raw_path:
+            publication_path = raw_path.with_name(
+                raw_path.name.replace(".raw.json", ".publication.json")
+            )
+        else:
+            publication_path = (
+                self._resolve_output_dir(record) / f"job_{record.job_id}.publication.json"
+            )
+        _write_text(
+            publication_path,
+            json.dumps(publication.to_dict(), indent=2, ensure_ascii=False),
+        )
+        self._index_publication_output(
+            record,
+            publication,
+            publication_path,
+            workflow_job_id,
+            workflow_db_path,
+        )
 
     def _call_provider(
         self, *, request: AnalysisRequest, context: str, pdf_paths: list[Path] | None = None
@@ -850,6 +912,7 @@ class AnalysisService:
         publication: PublicationDraftOutput,
         publication_path: Path,
         workflow_job_id: int,
+        workflow_db_path: Path | None = None,
     ) -> None:
         try:
             output_id = add_analysis_output(
@@ -859,7 +922,8 @@ class AnalysisService:
                     schema_version=ANALYSIS_OUTPUT_SCHEMA_VERSION_V2,
                     json_path=str(publication_path),
                     status=publication.status,
-                )
+                ),
+                db_path=workflow_db_path,
             )
             create_publication_job(
                 PublicationJobRecord(
@@ -871,7 +935,8 @@ class AnalysisService:
                     review_status=publication.review.status,
                     published_url=publication.publication.published_url,
                     published_at=publication.publication.published_at,
-                )
+                ),
+                db_path=workflow_db_path,
             )
         except sqlite3.Error:
             return

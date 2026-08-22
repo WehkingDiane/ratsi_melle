@@ -86,6 +86,8 @@ Die Weboberfläche verwendet ausschließlich `analysis_jobs.job_id` aus dieser W
 
 Die Leseansicht unter `/analyse/antworten/` übernimmt nur gefüllte Abschnitte `## KI-Analyse`. Sie orientiert sich am vorhandenen Antwortinhalt und zeigt dadurch auch nachträglich aufbereitete Antworten, deren ältere Statusmetadaten noch nicht konsistent sind. Analysegrundlage, Prompt und technische Artefakte werden dort ausgeblendet und bleiben über die Jobdetailseite erreichbar.
 
+Bei einem nachträglich ausgeführten Job mit dem Zweck `journalistic_publication` werden neben den bestehenden Analyseartefakten auch der Publikationsentwurf, der zugehörige Workflow-Output und der Publikationsjob im selben Workflow-Datensatz ergänzt. Das Platzhaltermodell `none` vorbereiteter Jobs wird beim Absenden nicht als Modellname übernommen; ein leeres Modellfeld verwendet das Standardmodell des ausgewählten Providers.
+
 ## Beispiel
 
 Ein Publikationsentwurf enthält mindestens:
