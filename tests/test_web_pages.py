@@ -540,7 +540,7 @@ def test_analysis_start_explains_session_document_transfer(client, monkeypatch) 
     assert "ChatGPT Plus kann nicht direkt über die API genutzt werden" in content
     assert 'value="meeting_briefing" selected' in content
     assert 'value="none" selected' in content
-    assert 'placeholder="gpt-5.6-terra"' in content
+    assert 'placeholder="gpt-5.6-luna"' in content
 
 
 def test_analysis_start_scope_switch_filters_prompt_templates(client, monkeypatch) -> None:
@@ -1437,11 +1437,37 @@ def test_answer_reader_only_lists_jobs_with_readable_answers(client, monkeypatch
                 "display_job_id": "1",
                 "title": "Analyse Sitzung 2026-08-13 - Ortsrat Melle-Mitte",
                 "status": "done",
-                "model_name": "gpt-5.6-terra",
+                "model_name": "gpt-5.6-luna",
                 "markdown": (
                     "# Analysegrundlage\n\nInterne Dokumentliste\n\n"
                     "## KI-Analyse\n\n### Kurzfassung\n\nLesbares Ergebnis.\n"
                 ),
+            },
+            {
+                "job_id": "4",
+                "display_job_id": "4",
+                "title": "Ungültige Providerantwort",
+                "status": "error",
+                "response_status": "invalid_json",
+                "error_message": "Die KI-Antwort ist kein valides JSON-Objekt.",
+                "markdown": (
+                    "# Analysegrundlage\n\n## KI-Analyse\n\n"
+                    "Nicht als JSON gelieferte Providerantwort.\n"
+                ),
+            },
+            {
+                "job_id": "5",
+                "title": "Leere Providerantwort",
+                "status": "error",
+                "response_status": "empty",
+                "markdown": "# Analysegrundlage\n\n## KI-Analyse\n\nTechnischer Platzhalter.\n",
+            },
+            {
+                "job_id": "6",
+                "title": "Providerfehler",
+                "status": "error",
+                "response_status": "error",
+                "markdown": "# Analysegrundlage\n\n## KI-Analyse\n\nTechnische Fehlermeldung.\n",
             },
         ],
     )
@@ -1456,4 +1482,7 @@ def test_answer_reader_only_lists_jobs_with_readable_answers(client, monkeypatch
     assert "Ortsrat Melle-Mitte" in soup.select_one(".answer-list-item.active").get_text()
     assert "Lesbares Ergebnis." in preview.get_text()
     assert "Interne Dokumentliste" not in preview.get_text()
+    assert "Ungültige Providerantwort" not in soup.get_text()
+    assert "Leere Providerantwort" not in soup.get_text()
+    assert "Providerfehler" not in soup.get_text()
     assert soup.select_one('.answer-document a[href="/analyse/jobs/1/"]') is not None

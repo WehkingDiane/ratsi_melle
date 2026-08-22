@@ -142,7 +142,7 @@ def analysis_start(request):
             "selected_purpose": purpose,
             "selected_provider_id": provider_id,
             "model_name": model_name,
-            "default_model_name": "gpt-5.6-terra",
+            "default_model_name": "gpt-5.6-luna",
             "purpose_options": services.analysis_purpose_options(),
             "provider_options": services.provider_options(),
             "errors": errors,
@@ -247,6 +247,12 @@ def answer_reader(request):
 
     answers = []
     for job in services.list_analysis_outputs():
+        response_status = str(job.get("response_status") or "").strip().lower()
+        job_status = str(job.get("status") or "").strip().lower()
+        if response_status in {"error", "empty", "invalid_json"}:
+            continue
+        if response_status and job_status in {"error", "failed"}:
+            continue
         answer_markdown, has_readable_analysis = _job_markdown_preview(job)
         if not has_readable_analysis:
             continue

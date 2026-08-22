@@ -8,7 +8,7 @@ from src.analysis.providers.base import KiProvider, KiResponse
 from src.analysis.providers._pdf_utils import extract_pdf_text
 from src.config.secrets import get_api_key as _get_api_key
 
-_DEFAULT_MODEL = "gpt-5.6-terra"
+_DEFAULT_MODEL = "gpt-5.6-luna"
 _MAX_CONTEXT_CHARS = 160_000
 
 

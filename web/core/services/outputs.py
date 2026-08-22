@@ -342,6 +342,7 @@ def _read_json_output(path: Path, job: dict[str, Any], *, preserve_job_id: bool 
         return
     normalized = normalize_analysis_output(data if isinstance(data, dict) else {})
     job["structured_outputs"].append(normalized)
+    owns_parent_status = normalized.get("output_type") != "publication_draft"
     for key in (
         "job_id",
         "created_at",
@@ -365,6 +366,8 @@ def _read_json_output(path: Path, job: dict[str, Any], *, preserve_job_id: bool 
         "schema_version",
     ):
         if preserve_job_id and key == "job_id":
+            continue
+        if key in {"status", "error_message"} and not owns_parent_status:
             continue
         value = normalized.get(key)
         if value not in (None, "", []):

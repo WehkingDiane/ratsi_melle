@@ -703,6 +703,62 @@ def test_workflow_output_paths_accept_windows_separators(workspace_tmp: Path, mo
     assert "data/analysis_outputs/2026/03/session/job_1.raw.json" in job["files"]
 
 
+def test_publication_draft_status_does_not_replace_completed_analysis_status(
+    workspace_tmp: Path, monkeypatch
+) -> None:
+    publication_path = workspace_tmp / "data" / "analysis_outputs" / "job_1.publication.json"
+    publication_path.parent.mkdir(parents=True)
+    publication_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "2.0",
+                "output_type": "publication_draft",
+                "job_id": 1,
+                "session_id": "7123",
+                "purpose": "journalistic_publication",
+                "title": "Entwurf",
+                "body_markdown": "# Entwurf",
+                "status": "draft",
+            }
+        ),
+        encoding="utf-8",
+    )
+    workflow_db = workspace_tmp / "data" / "db" / "analysis_workflow.sqlite"
+    job_id = create_analysis_job(
+        AnalysisJobRecord(
+            session_id="7123",
+            scope="session",
+            purpose="journalistic_publication",
+            model_name="gpt-test",
+            provider_id="codex",
+            response_status="valid_json",
+            status="done",
+        ),
+        workflow_db,
+    )
+    add_analysis_output(
+        AnalysisArtifactRecord(
+            job_id=job_id,
+            output_type="publication_draft",
+            schema_version="2.0",
+            json_path="data/analysis_outputs/job_1.publication.json",
+            status="draft",
+        ),
+        workflow_db,
+    )
+    monkeypatch.setattr(analysis_services, "REPO_ROOT", workspace_tmp)
+    monkeypatch.setattr(analysis_services, "LOCAL_INDEX_DB", workspace_tmp / "missing.sqlite")
+    monkeypatch.setattr(analysis_services, "ANALYSIS_WORKFLOW_DB", workflow_db)
+    monkeypatch.setattr(analysis_services, "ANALYSIS_OUTPUTS_DIR", workspace_tmp / "missing_outputs")
+
+    job = analysis_services.get_analysis_output(f"workflow:{job_id}")
+
+    assert job is not None
+    assert job["status"] == "done"
+    assert job["display_status"] == "abgeschlossen"
+    assert job["structured_outputs"][0]["status"] == "draft"
+
+
 def test_source_artifacts_merge_into_single_public_workflow_job(
     workspace_tmp: Path, monkeypatch
 ) -> None:
