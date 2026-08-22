@@ -94,6 +94,8 @@ Schlägt die Ausführung nach diesem Claim unerwartet fehl, wird der Job wieder 
 
 Beim Nachstart werden sowohl die regulären Artefaktnamen als auch kollisionsbedingt nummerierte Varianten wie `job_1.article.1.md`, `job_1.raw.1.json` und `job_1.structured.1.json` erkannt. Dadurch bleiben vorbereitete Jobs auch nach einem Indexneuaufbau oder einer wiederverwendeten lokalen Job-ID ausführbar.
 
+Abgeleitete KI-Antwort- und Publikationsdateien behalten denselben Kollisionssuffix, beispielsweise `job_1.ki_response.1.json` und `job_1.publication.1.json`. Das nummerierte Rohartefakt wird dadurch nicht überschrieben.
+
 ## Beispiel
 
 Ein Publikationsentwurf enthält mindestens:

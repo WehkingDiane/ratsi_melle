@@ -16,6 +16,7 @@ from src.analysis.service import (
     _analysis_response_markdown,
     _parse_ki_json_response,
     _prioritize_documents,
+    _related_raw_artifact_path,
 )
 
 
@@ -114,6 +115,17 @@ def test_structured_analysis_response_is_rendered_as_readable_markdown() -> None
     assert "- Welche Folgekosten entstehen?" in markdown
     assert "[Vorlage 1](https://example.invalid/vorlage)" in markdown
     assert not markdown.lstrip().startswith("{")
+
+
+def test_related_raw_artifact_path_preserves_collision_suffix() -> None:
+    raw_path = Path("job_1.raw.3.json")
+
+    assert _related_raw_artifact_path(raw_path, "ki_response") == Path(
+        "job_1.ki_response.3.json"
+    )
+    assert _related_raw_artifact_path(raw_path, "publication") == Path(
+        "job_1.publication.3.json"
+    )
 
 
 def test_document_priority_starts_with_decision_source() -> None:

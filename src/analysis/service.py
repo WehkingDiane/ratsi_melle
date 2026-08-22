@@ -349,7 +349,7 @@ class AnalysisService:
             )
         if record.ki_response and raw_path:
             _write_text(
-                raw_path.with_name(raw_path.name.replace(".raw.json", ".ki_response.json")),
+                _related_raw_artifact_path(raw_path, "ki_response"),
                 json.dumps(_parse_ki_json_response(record.ki_response), indent=2, ensure_ascii=False),
             )
         DEFAULT_ANALYSIS_MARKDOWN.parent.mkdir(parents=True, exist_ok=True)
@@ -391,9 +391,7 @@ class AnalysisService:
         publication = self._build_publication_draft(record, article_markdown, session)
         raw_path = artifact_paths.get("raw")
         if raw_path:
-            publication_path = raw_path.with_name(
-                raw_path.name.replace(".raw.json", ".publication.json")
-            )
+            publication_path = _related_raw_artifact_path(raw_path, "publication")
         else:
             publication_path = (
                 self._resolve_output_dir(record) / f"job_{record.job_id}.publication.json"
@@ -1216,6 +1214,22 @@ def _write_text(path: Path, content: str) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content.rstrip() + "\n", encoding="utf-8")
     return path
+
+
+def _related_raw_artifact_path(raw_path: Path, artifact_type: str) -> Path:
+    """Derive a sibling JSON path while preserving a collision suffix."""
+
+    match = re.fullmatch(
+        r"(?P<prefix>.+)\.raw(?P<collision>\.\d+)?\.json",
+        raw_path.name,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        raise ValueError(f"Kein gültiges Raw-Analyseartefakt: {raw_path.name}")
+    collision = match.group("collision") or ""
+    return raw_path.with_name(
+        f"{match.group('prefix')}.{artifact_type}{collision}.json"
+    )
 
 
 def _source_available(document: dict) -> bool:
