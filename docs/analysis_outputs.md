@@ -67,7 +67,7 @@ data/db/analysis_workflow.sqlite
 
 Sie dient als Index und Statussystem. Große Inhalte bleiben in JSON- und Markdown-Dateien. Die wichtigsten Tabellen sind:
 
-- `analysis_jobs`: Analyseauftrag mit Sitzung, Scope, TOPs, Zweck, Modell, Prompt-Version, Prompt-Vorlagen-Metadaten und Status.
+- `analysis_jobs`: kanonischer Analyseauftrag mit öffentlicher Jobnummer, verständlichem Titel, Sitzung, Scope, TOPs, Zweck, Modell, Prompt-Version, Prompt-Vorlagen-Metadaten und Status.
 - `analysis_outputs`: Verweise auf JSON- und Markdown-Artefakte mit Output-Typ und Schema-Version.
 - `publication_jobs`: vorbereiteter Review- und Veröffentlichungsstatus für Publikationsentwürfe.
 
@@ -81,6 +81,8 @@ Prompt-bezogene Felder in `analysis_jobs`:
 - `rendered_prompt_snapshot_path`: privater Pfad zum gerenderten Prompt-Snapshot.
 
 Alte Analysejobs ohne diese Felder bleiben lesbar. Wenn eine Vorlage später geändert wird, bleiben ID, Revision, Label und Snapshot des alten Jobs unverändert nachvollziehbar.
+
+Die Weboberfläche verwendet ausschließlich `analysis_jobs.job_id` aus dieser Workflow-Datenbank als öffentliche Nummer. `source_job_id` und Präfixe wie `local:` oder `workflow:` sind interne Alt- beziehungsweise Verknüpfungsdaten und werden Nutzern nicht mehr als getrennte Jobs angezeigt. Vorbereitete Markdown-Artefakte besitzen einen zunächst leeren Abschnitt `## KI-Analyse`; eine spätere Provider-Ausführung aktualisiert denselben Datensatz und dasselbe Markdown-Artefakt.
 
 ## Beispiel
 

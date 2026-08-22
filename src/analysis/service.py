@@ -31,6 +31,7 @@ from src.analysis.workflow_db import (
     add_analysis_output,
     create_analysis_job,
     create_publication_job,
+    update_analysis_job,
 )
 from src.fetching.storage_layout import resolve_local_file_path
 from src.paths import ANALYSIS_OUTPUTS_DIR, ANALYSIS_PROMPTS_DIR, DEFAULT_ANALYSIS_MARKDOWN, PROMPT_SNAPSHOTS_DIR
@@ -81,6 +82,7 @@ class AnalysisService:
             documents=documents,
             prompt=request.prompt,
         )
+        markdown = _with_ki_analysis(markdown, "")
 
         # Resolve effective model name (provider default when not overridden)
         effective_model = request.model_name or request.provider_id
@@ -151,6 +153,7 @@ class AnalysisService:
             )
             conn.commit()
 
+        markdown = _with_ki_analysis(markdown, ki_response_text)
         record = AnalysisOutputRecord(
             job_id=job_id,
             created_at=created_at,
@@ -179,6 +182,161 @@ class AnalysisService:
         )
         self.persist_analysis_artifacts(record, documents=documents, session=request.session)
         return record
+
+    def execute_prepared_analysis(
+        self,
+        request: AnalysisRequest,
+        *,
+        workflow_job_id: int,
+        source_job_id: int,
+        markdown: str,
+        artifact_paths: dict[str, Path],
+        workflow_db_path: Path | None = None,
+    ) -> AnalysisOutputRecord:
+        """Run a provider for an existing prepared job without creating a new job."""
+
+        documents = self._load_documents(
+            db_path=request.db_path,
+            session_id=str(request.session["session_id"]),
+            scope=request.scope,
+            selected_tops=request.selected_tops,
+        )
+        documents = _prioritize_documents(enrich_documents_for_analysis(documents))
+        pdf_paths = request.pdf_paths or _pdf_paths_from_documents(documents)
+        base_markdown = _with_ki_analysis(markdown, "")
+        response, model_name, input_tokens, output_tokens, error_message = self._call_provider(
+            request=request,
+            context=base_markdown,
+            pdf_paths=pdf_paths,
+        )
+        if error_message:
+            response_status = "error"
+        elif not response.strip():
+            error_message = "Der KI-Provider hat keine Antwort geliefert."
+            response_status = "empty"
+        elif not _parse_ki_json_response(response):
+            error_message = "Die KI-Antwort ist kein valides JSON-Objekt."
+            response_status = "invalid_json"
+        else:
+            response_status = "valid_json"
+        status = "error" if error_message else "done"
+        final_markdown = _with_ki_analysis(base_markdown, response)
+        created_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        record = AnalysisOutputRecord(
+            job_id=source_job_id,
+            created_at=created_at,
+            session_id=str(request.session["session_id"]),
+            scope=request.scope,
+            top_numbers=list(request.selected_tops),
+            purpose=request.purpose or DEFAULT_ANALYSIS_PURPOSE,
+            model_name=model_name,
+            provider_id=request.provider_id,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            response_status=response_status,
+            prompt_version=request.prompt_version,
+            prompt_template_id=request.prompt_template_id,
+            prompt_template_revision=request.prompt_template_revision,
+            prompt_template_label=request.prompt_template_label,
+            prompt_text=request.prompt,
+            markdown=final_markdown,
+            ki_response=response,
+            document_count=len(documents),
+            source_db=str(request.db_path),
+            session_path=self._get_session_path(request.db_path, str(request.session["session_id"])),
+            session_date=str(request.session.get("date") or ""),
+            status=status,
+            error_message=error_message or "",
+        )
+        self._update_source_job(record)
+        update_analysis_job(
+            workflow_job_id,
+            model_name=model_name,
+            provider_id=request.provider_id,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            response_status=response_status,
+            status=status,
+            error_message=error_message or "",
+            db_path=workflow_db_path,
+        )
+        self._overwrite_existing_artifacts(record, documents, request.session, artifact_paths)
+        return record
+
+    def _update_source_job(self, record: AnalysisOutputRecord) -> None:
+        """Keep legacy source tables synchronized when they still exist."""
+
+        try:
+            with sqlite3.connect(record.source_db) as conn:
+                tables = {
+                    str(row[0])
+                    for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+                }
+                if "analysis_jobs" not in tables or "analysis_outputs" not in tables:
+                    return
+                conn.execute(
+                    """UPDATE analysis_jobs SET status = ?, error_message = ?, model_name = ?,
+                       provider_id = ?, input_tokens = ?, output_tokens = ?, response_status = ?
+                       WHERE id = ?""",
+                    (
+                        record.status,
+                        record.error_message or None,
+                        record.model_name,
+                        record.provider_id,
+                        record.input_tokens,
+                        record.output_tokens,
+                        record.response_status,
+                        record.job_id,
+                    ),
+                )
+                conn.execute(
+                    "UPDATE analysis_outputs SET content = ? WHERE job_id = ? AND output_format = 'markdown'",
+                    (record.markdown, record.job_id),
+                )
+                conn.execute(
+                    "DELETE FROM analysis_outputs WHERE job_id = ? AND output_format = 'ki_response'",
+                    (record.job_id,),
+                )
+                if record.ki_response:
+                    conn.execute(
+                        "INSERT INTO analysis_outputs (job_id, output_format, content, created_at) VALUES (?, 'ki_response', ?, ?)",
+                        (record.job_id, record.ki_response, record.created_at),
+                    )
+                conn.commit()
+        except sqlite3.Error:
+            return
+
+    def _overwrite_existing_artifacts(
+        self,
+        record: AnalysisOutputRecord,
+        documents: list[dict],
+        session: dict,
+        artifact_paths: dict[str, Path],
+    ) -> None:
+        """Replace the artifacts belonging to one prepared workflow job in place."""
+
+        article_path = artifact_paths.get("article")
+        if article_path:
+            _write_text(article_path, record.markdown)
+        raw_path = artifact_paths.get("raw")
+        if raw_path:
+            _write_text(
+                raw_path,
+                json.dumps(self._build_raw_analysis(record, documents).to_dict(), indent=2, ensure_ascii=False),
+            )
+        structured_path = artifact_paths.get("structured")
+        if structured_path:
+            _write_text(
+                structured_path,
+                json.dumps(self._build_structured_analysis(record, session).to_dict(), indent=2, ensure_ascii=False),
+            )
+        if record.ki_response and raw_path:
+            _write_text(
+                raw_path.with_name(raw_path.name.replace(".raw.json", ".ki_response.json")),
+                json.dumps(_parse_ki_json_response(record.ki_response), indent=2, ensure_ascii=False),
+            )
+        DEFAULT_ANALYSIS_MARKDOWN.parent.mkdir(parents=True, exist_ok=True)
+        DEFAULT_ANALYSIS_MARKDOWN.write_text(record.markdown.rstrip() + "\n", encoding="utf-8")
 
     def _call_provider(
         self, *, request: AnalysisRequest, context: str, pdf_paths: list[Path] | None = None
@@ -354,8 +512,6 @@ class AnalysisService:
                     body=body,
                     sources=sources,
                 )
-        elif record.ki_response and record.scope != "document":
-            md_content += f"\n\n## KI-Analyse\n\n{record.ki_response}\n"
         article_path = _write_text_no_overwrite(
             output_dir / f"{job_stem}.article.md", md_content
         )
@@ -391,6 +547,7 @@ class AnalysisService:
             raw_path=raw_path,
             structured_path=structured_path,
             article_path=article_path,
+            session=session or {},
         )
         if record.purpose == "journalistic_publication" and record.status == "done":
             publication = self._build_publication_draft(record, md_content, session or {})
@@ -608,12 +765,14 @@ class AnalysisService:
         raw_path: Path,
         structured_path: Path,
         article_path: Path,
+        session: dict,
     ) -> int | None:
         try:
             workflow_job_id = create_analysis_job(
                 AnalysisJobRecord(
                     session_id=record.session_id,
                     scope=record.scope,
+                    title=_analysis_job_title(session, record.session_date),
                     top_numbers=record.top_numbers,
                     purpose=record.purpose or DEFAULT_ANALYSIS_PURPOSE,
                     source_db=record.source_db,
@@ -743,6 +902,30 @@ def _parse_ki_json_response(response_text: str) -> dict:
     return data if isinstance(data, dict) else {}
 
 
+def _with_ki_analysis(markdown: str, response_text: str) -> str:
+    """Return one Markdown document with exactly one KI analysis section."""
+
+    base = re.sub(r"\n## KI-Analyse(?:\n.*)?$", "", markdown.rstrip(), flags=re.DOTALL)
+    response = response_text.strip()
+    section = "## KI-Analyse"
+    if response:
+        section += f"\n\n{response}"
+    return f"{base}\n\n{section}\n"
+
+
+def _analysis_job_title(session: dict, fallback_date: str = "") -> str:
+    """Build the concise human-readable title used throughout the web UI."""
+
+    date = str(session.get("date") or fallback_date or "ohne Datum")
+    committee = str(
+        session.get("committee")
+        or session.get("meeting_name")
+        or session.get("name")
+        or "unbekanntes Gremium"
+    )
+    return f"Analyse Sitzung {date} - {committee}"
+
+
 def _publication_parts_from_ki_json(
     parsed: dict, session: dict
 ) -> tuple[str, str, str, str, list]:
@@ -850,6 +1033,14 @@ def _write_text_no_overwrite(path: Path, content: str) -> Path:
         counter += 1
     target.write_text(content.rstrip() + "\n", encoding="utf-8")
     return target
+
+
+def _write_text(path: Path, content: str) -> Path:
+    """Write a known job artifact in place."""
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content.rstrip() + "\n", encoding="utf-8")
+    return path
 
 
 def _source_available(document: dict) -> bool:

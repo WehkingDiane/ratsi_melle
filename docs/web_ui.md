@@ -106,8 +106,8 @@ Buttons folgen einem funktionsbezogenen Farbschema: `primary` ist auslösenden H
 - `/analyse/sitzungen/` listet Sitzungen aus dem lokalen Index mit Suche, Gremiums-/Jahresfilter und Paginierung.
 - `/analyse/sitzungen/<session_id>/` zeigt Sitzungsdetails.
 - `/analyse/sitzungen/<session_id>/dokumente/<document_id>/pdf/` liefert eine lokal vorhandene PDF inline fuer die Browseransicht.
-- `/analyse/jobs/` listet Analysejobs und Ausgabedateien mit Suche, Statusfilter und Paginierung. Ein lokaler Quelljob und sein Workflow-Index werden als eine kanonische Analyse angezeigt.
-- `/analyse/jobs/<job_id>/` zeigt Analyseoutputs, einschließlich alter v1-Ausgaben, sowie Provider, Tokenverbrauch und Antwortstatus. Manuell erzeugte Analysegrundlagen tragen den Status `prepared` statt `done`.
+- `/analyse/jobs/` listet jeden Workflow-Job genau einmal mit einer einfachen fortlaufenden Nummer und einem Titel wie `Job 1 - Analyse Sitzung 2026-08-13 - Ortsrat Melle-Mitte`. Interne lokale Quell-IDs werden nicht angezeigt.
+- `/analyse/jobs/<job_id>/` zeigt Analyseoutputs, einschließlich alter v1-Ausgaben, sowie Provider, Tokenverbrauch und Antwortstatus. Manuell erzeugte Analysegrundlagen tragen den Status `prepared` statt `done` und können auf derselben Seite nach Auswahl von Provider und Modell ausgeführt werden.
 - Markdown-Ausgaben werden auf der Jobdetailseite serverseitig formatiert dargestellt; der unveränderte Quelltext bleibt aufklappbar. Die Vorschau entfernt nicht freigegebenes HTML, Attribute und unsichere URL-Schemata.
 - `/daten/` zeigt links die Weiterleitungen zu Fetch, Build und Vektorindex; rechts stehen der aktuelle Status mit manueller Aktualisierung und die letzten Datenjobs.
 - `/daten/fetch/` startet vorhandene Fetch-Skripte für SessionNet-Sitzungen und Landkreis-Veröffentlichungen.
@@ -142,11 +142,14 @@ Textdateien wie `.txt`, `.md` und `.html` werden als Auszug in die Analysegrundl
 
 Mit Provider `none` wird nur die Analysegrundlage samt gerendertem Prompt erzeugt. Das ist der sichere Standard und eignet sich für manuelle ChatGPT-Nutzung. Ein echter automatisierter KI-Aufruf erfolgt erst bei Auswahl eines API-Providers. Ein ChatGPT-Plus-Konto ist kein API-Zugang; für die Automatisierung über OpenAI wird ein API-Key benötigt. Der OpenAI-Provider nutzt standardmäßig `gpt-5.6-terra` und ist auf längere strukturierte Antworten ausgelegt. Prompt-Vorlagen werden unter `/analyse/prompts/` verwaltet und privat gespeichert. Das Analyseformular bietet nur aktive Vorlagen an, die zum gewählten Scope passen, und wählt für Sitzungsbriefings beziehungsweise TOP-Analysen passende Vorlagen voraus, wenn sie vorhanden sind.
 
+Jede vorbereitete Markdown-Datei enthält bereits die leere Überschrift `## KI-Analyse`. Wird der Job später auf seiner Detailseite abgesendet, bleibt seine Jobnummer unverändert; Providerstatus, Tokenverbrauch und dieselbe Markdown-Datei werden aktualisiert und die validierte KI-Antwort unter dieser Überschrift eingetragen.
+
 ## Bereits funktionsfähig
 
 - Dashboard mit Datenstatus und Schnelleinstiegen
 - Analyse-Startseite mit Schnellauswahl für Sitzungsbriefing und TOP-Detailanalyse
 - Analyse starten mit bestehendem `AnalysisService`
+- vorbereitete Analysejobs ohne neuen Job direkt aus der Markdown-Vorschau absenden
 - private Prompt-Vorlagenverwaltung unter `/analyse/prompts/`
 - Sitzungsliste und Sitzungsdetails aus `data/db/local_index.sqlite`
 - PDF-Ansicht aus den Sitzungsdetails in einem separaten Browser-Tab oder -Fenster, sofern die PDF lokal vorhanden ist
@@ -188,7 +191,7 @@ Prompt-Vorlagen haben einen primären Scope (`session`, `tops` oder `document`).
 
 Neue Analysejobs speichern Template-ID, Revision und Label. Der gerenderte Prompt-Snapshot wird im privaten Datenbereich abgelegt, damit alte Jobs nachvollziehbar bleiben, auch wenn eine Vorlage später geändert wird.
 
-Automatische Analysen speichern zusätzlich Provider-ID, Eingabe-/Ausgabetokens und den Antwortstatus. `done` setzt eine nicht leere, als JSON-Objekt validierte Providerantwort voraus. Ohne Provider entsteht eine nachvollziehbare Analysegrundlage mit Status `prepared`; Providerfehler, leere Antworten und ungültiges JSON führen zu `error`.
+Automatische Analysen speichern zusätzlich Provider-ID, Eingabe-/Ausgabetokens und den Antwortstatus. `done` setzt eine nicht leere, als JSON-Objekt validierte Providerantwort voraus. Ohne Provider entsteht eine nachvollziehbare Analysegrundlage mit Status `prepared`; Providerfehler, leere Antworten und ungültiges JSON führen zu `error`. Der Workflow-Index ist die einzige öffentliche Jobliste; lokale Quelljobs und Dateinamen dienen nur noch der internen Verknüpfung.
 
 Bei großen PDF-Mengen priorisiert der Analyseworkflow Beschlussvorlagen und andere entscheidungstragende Quellen. Überschreitet der extrahierte Gesamttext 140.000 Zeichen, wird jedes lesbare Dokument mit höchstens 40.000 Zeichen einzeln voranalysiert und erst danach aus den Voranalysen eine Gesamtausgabe erzeugt. Der gespeicherte Tokenverbrauch umfasst beide Stufen.
 

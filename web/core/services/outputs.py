@@ -34,8 +34,12 @@ def list_analysis_outputs() -> list[dict[str, Any]]:
     """Return known analysis jobs from workflow tables and output files."""
 
     jobs: dict[str, dict[str, Any]] = {}
-    for db_path in (paths.ANALYSIS_WORKFLOW_DB, paths.LOCAL_INDEX_DB):
-        for row in _analysis_jobs_from_db(db_path):
+    workflow_rows = _analysis_jobs_from_db(paths.ANALYSIS_WORKFLOW_DB)
+    db_sources = [(paths.ANALYSIS_WORKFLOW_DB, workflow_rows)]
+    if not workflow_rows:
+        db_sources.append((paths.LOCAL_INDEX_DB, _analysis_jobs_from_db(paths.LOCAL_INDEX_DB)))
+    for db_path, rows in db_sources:
+        for row in rows:
             job_id = str(row.get("job_id") or "")
             if not job_id:
                 continue
@@ -49,6 +53,8 @@ def list_analysis_outputs() -> list[dict[str, Any]]:
         job_id = _job_key_for_file_job(file_job, jobs)
         job = jobs.setdefault(job_id, _empty_job(job_id))
         _merge_job(job, file_job)
+
+    _merge_legacy_prompt_files(jobs)
 
     sorted_jobs = sorted(
         jobs.values(),
@@ -64,6 +70,7 @@ def _job_key_for_file_job(file_job: dict[str, Any], jobs: dict[str, dict[str, An
         job_key
         for job_key, job in jobs.items()
         if str(job.get("db_job_id") or "") == file_job_id
+        or str(job.get("source_job_id") or "") == file_job_id
     ]
     if len(matches) == 1:
         return matches[0]
@@ -153,6 +160,10 @@ def _analysis_jobs_from_db(db_path: Path) -> list[dict[str, Any]]:
         row["db_source"] = source_key
         row["job_id"] = f"{source_key}:{db_job_id}"
         row["db_outputs"] = outputs_by_job.get(str(db_job_id), [])
+        try:
+            row["top_numbers"] = list(json.loads(str(row.get("top_numbers_json") or "[]")))
+        except (json.JSONDecodeError, TypeError):
+            row["top_numbers"] = []
         for output in row["db_outputs"]:
             _merge_db_output(row, output)
         _load_prompt_snapshot(row)
@@ -294,12 +305,32 @@ def _analysis_jobs_from_files() -> list[dict[str, Any]]:
 
 
 def _analysis_artifact_roots() -> list[Path]:
-    roots = [paths.ANALYSIS_OUTPUTS_DIR, paths.ANALYSIS_PROMPTS_DIR]
+    roots = [paths.ANALYSIS_OUTPUTS_DIR]
     unique_roots: list[Path] = []
     for root in roots:
         if root not in unique_roots:
             unique_roots.append(root)
     return unique_roots
+
+
+def _merge_legacy_prompt_files(jobs: dict[str, dict[str, Any]]) -> None:
+    """Enrich known legacy jobs with prompts without creating prompt-only jobs."""
+
+    root = paths.ANALYSIS_PROMPTS_DIR
+    if not root.exists():
+        return
+    for path in root.rglob("*.txt"):
+        file_job_id = _job_id_from_path(path)
+        if not file_job_id:
+            continue
+        matches = [
+            job
+            for job in jobs.values()
+            if str(job.get("db_job_id") or "") == file_job_id
+            or str(job.get("source_job_id") or "") == file_job_id
+        ]
+        if len(matches) == 1 and not matches[0].get("prompt_text"):
+            matches[0]["prompt_text"] = _read_text(path).strip()
 
 
 def _read_json_output(path: Path, job: dict[str, Any], *, preserve_job_id: bool = False) -> None:
@@ -426,6 +457,11 @@ def _merge_job(target: dict[str, Any], source: dict[str, Any]) -> None:
 
 def _public_job(job: dict[str, Any]) -> dict[str, Any]:
     public = dict(job)
+    storage_job_id = str(public.get("job_id") or "")
+    if storage_job_id.startswith("workflow:"):
+        public["storage_job_id"] = storage_job_id
+        public["aliases"] = list(public.get("aliases") or []) + [storage_job_id]
+        public["job_id"] = str(public.get("db_job_id") or storage_job_id.removeprefix("workflow:"))
     raw_status = str(public.get("status") or "")
     if (
         raw_status.lower() in {"done", "ok", "completed"}
@@ -451,7 +487,17 @@ def _public_job(job: dict[str, Any]) -> dict[str, Any]:
         public.get(key) for key in ("markdown", "ki_response", "prompt_text", "structured_outputs")
     )
     public["display_job_id"] = str(public.get("db_job_id") or public.get("job_id") or "")
+    public["ki_response_in_markdown"] = "## KI-Analyse" in str(public.get("markdown") or "")
+    public["title"] = str(public.get("title") or _fallback_job_title(public))
     return public
+
+
+def _fallback_job_title(job: dict[str, Any]) -> str:
+    session_id = str(job.get("session_id") or "unbekannt")
+    date = str(job.get("session_date") or "").strip()
+    if date:
+        return f"Analyse Sitzung {date} - {session_id}"
+    return f"Analyse Sitzung {session_id}"
 
 
 def _is_private_prompt_artifact_source(value: Any, job: dict[str, Any]) -> bool:

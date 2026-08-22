@@ -608,7 +608,7 @@ def test_analysis_start_post_redirects_to_created_job(client, monkeypatch) -> No
     monkeypatch.setattr(
         views.services,
         "canonical_analysis_job_id",
-        lambda _result: "workflow:7",
+        lambda _result: "7",
     )
 
     response = client.post(
@@ -623,7 +623,7 @@ def test_analysis_start_post_redirects_to_created_job(client, monkeypatch) -> No
     )
 
     assert response.status_code == 302
-    assert response.headers["Location"] == "/analyse/jobs/workflow:7/"
+    assert response.headers["Location"] == "/analyse/jobs/7/"
 
 
 def test_prompt_template_management_create_edit_duplicate_deactivate(client, monkeypatch, tmp_path) -> None:
@@ -1241,6 +1241,8 @@ def test_legacy_v1_analysis_output_page_loads(client, monkeypatch, tmp_path) -> 
         encoding="utf-8",
     )
     monkeypatch.setattr(services, "ANALYSIS_OUTPUTS_DIR", outputs)
+    monkeypatch.setattr(services, "ANALYSIS_WORKFLOW_DB", tmp_path / "missing_workflow.sqlite")
+    monkeypatch.setattr(services, "LOCAL_INDEX_DB", tmp_path / "missing_local.sqlite")
 
     response = client.get("/analyse/jobs/4/")
     content = response.content.decode("utf-8")
@@ -1271,6 +1273,7 @@ def test_analysis_job_detail_renders_result_sections(client, monkeypatch) -> Non
             "sources": ["data/analysis_outputs/job_7.raw.json"],
             "has_content": True,
             "error_message": "",
+            "ki_response_in_markdown": False,
         },
     )
 
@@ -1315,3 +1318,28 @@ def test_analysis_job_detail_renders_safe_markdown_preview(client, monkeypatch) 
     assert "<script>" not in content
     assert "javascript:" not in preview
     assert "Markdown-Quelltext anzeigen" in content
+
+
+def test_prepared_job_detail_offers_in_place_execution(client, monkeypatch) -> None:
+    from analysis import views
+
+    job = {
+        "job_id": "1",
+        "display_job_id": "1",
+        "title": "Analyse Sitzung 2026-08-13 - Ortsrat Melle-Mitte",
+        "session_id": "8188",
+        "status": "prepared",
+        "display_status": "Analysegrundlage erstellt",
+        "markdown": "# Grundlage\n\n## KI-Analyse\n",
+        "sources": [],
+        "structured_outputs": [],
+        "has_content": True,
+    }
+    monkeypatch.setattr(views.services, "get_analysis_output", lambda _job_id: job)
+
+    content = client.get("/analyse/jobs/1/").content.decode("utf-8")
+
+    assert "Job 1" in content
+    assert "Analyse Sitzung 2026-08-13 - Ortsrat Melle-Mitte" in content
+    assert "Analyse jetzt absenden" in content
+    assert 'name="provider_id"' in content

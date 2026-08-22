@@ -244,6 +244,14 @@ def job_list(request):
 
 def job_detail(request, job_id: str):
     job = services.get_analysis_output(job_id)
+    errors: list[str] = []
+    if request.method == "POST" and job:
+        _result, errors = services.execute_prepared_analysis(
+            job_id,
+            request.POST.get("provider_id", ""),
+            request.POST.get("model_name", ""),
+        )
+        job = services.get_analysis_output(job_id)
     return render(
         request,
         "analysis/job_detail.html",
@@ -252,6 +260,10 @@ def job_detail(request, job_id: str):
             "job": job,
             "job_id": job_id,
             "markdown_preview": render_markdown_preview(str(job.get("markdown") or "")) if job else "",
+            "provider_options": [
+                option for option in services.provider_options() if option["value"] != "none"
+            ],
+            "errors": errors,
         },
     )
 

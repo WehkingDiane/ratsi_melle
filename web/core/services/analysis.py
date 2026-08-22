@@ -111,6 +111,73 @@ def run_analysis_from_form(data: dict[str, Any]) -> tuple[dict[str, Any] | None,
     return record.to_dict(), []
 
 
+def execute_prepared_analysis(
+    job_id: str, provider_id: str, model_name: str = ""
+) -> tuple[dict[str, Any] | None, list[str]]:
+    """Execute one prepared workflow job in place."""
+
+    from .outputs import get_analysis_output
+
+    job = get_analysis_output(job_id)
+    if not job:
+        return None, ["Der Analysejob wurde nicht gefunden."]
+    if str(job.get("status") or "") != "prepared":
+        return None, ["Nur vorbereitete Analysen können nachträglich abgesendet werden."]
+    if provider_id == "none":
+        return None, ["Bitte einen KI-Provider für die Ausführung wählen."]
+    if provider_id not in {option["value"] for option in provider_options()}:
+        return None, ["Der KI-Provider ist ungültig."]
+
+    session_id = str(job.get("session_id") or "")
+    session = get_session(session_id)
+    if not session:
+        return None, ["Die zugehörige Sitzung ist nicht mehr im lokalen Index vorhanden."]
+    try:
+        workflow_job_id = int(job.get("db_job_id") or job_id)
+        source_job_id = int(job.get("source_job_id") or workflow_job_id)
+    except (TypeError, ValueError):
+        return None, ["Der Analysejob besitzt keine gültige interne Verknüpfung."]
+
+    artifact_paths: dict[str, Path] = {}
+    for value in job.get("files", []):
+        path = Path(str(value))
+        if not path.is_absolute():
+            path = paths.REPO_ROOT / path
+        normalized = path.name.lower()
+        if normalized.endswith(".article.md"):
+            artifact_paths["article"] = path
+        elif normalized.endswith(".raw.json"):
+            artifact_paths["raw"] = path
+        elif normalized.endswith(".structured.json"):
+            artifact_paths["structured"] = path
+    if "article" not in artifact_paths:
+        return None, ["Die Markdown-Datei des vorbereiteten Jobs wurde nicht gefunden."]
+
+    request = AnalysisRequest(
+        db_path=paths.LOCAL_INDEX_DB,
+        session=session,
+        scope=str(job.get("scope") or "session"),
+        selected_tops=[str(value) for value in job.get("top_numbers", [])],
+        prompt=str(job.get("prompt_text") or ""),
+        provider_id=provider_id,
+        model_name=model_name.strip(),
+        prompt_version=str(job.get("prompt_version") or "web"),
+        prompt_template_id=str(job.get("prompt_template_id") or ""),
+        prompt_template_revision=job.get("prompt_template_revision"),
+        prompt_template_label=str(job.get("prompt_template_label") or ""),
+        purpose=str(job.get("purpose") or default_purpose_for_scope(str(job.get("scope") or "session"))),
+    )
+    record = AnalysisService().execute_prepared_analysis(
+        request,
+        workflow_job_id=workflow_job_id,
+        source_job_id=source_job_id,
+        markdown=str(job.get("markdown") or ""),
+        artifact_paths=artifact_paths,
+        workflow_db_path=paths.ANALYSIS_WORKFLOW_DB,
+    )
+    return record.to_dict(), []
+
+
 def default_template_id(scope: str, purpose: str = "") -> str:
     """Return the best active template id for a requested analysis mode."""
     purpose = purpose or default_purpose_for_scope(scope)

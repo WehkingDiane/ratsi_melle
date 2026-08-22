@@ -20,6 +20,7 @@ def utc_now() -> str:
 class AnalysisJobRecord:
     session_id: str
     scope: str
+    title: str = ""
     top_numbers: list[str] = field(default_factory=list)
     purpose: str = DEFAULT_ANALYSIS_PURPOSE
     source_db: str = ""
@@ -71,6 +72,7 @@ def initialize_analysis_workflow_db(db_path: Path | None = None) -> Path:
             """
             CREATE TABLE IF NOT EXISTS analysis_jobs (
                 job_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT,
                 session_id TEXT NOT NULL,
                 scope TEXT NOT NULL,
                 top_numbers_json TEXT,
@@ -122,6 +124,7 @@ def initialize_analysis_workflow_db(db_path: Path | None = None) -> Path:
             """
         )
         _ensure_column(conn, "analysis_jobs", "purpose", "TEXT NOT NULL DEFAULT 'content_analysis'")
+        _ensure_column(conn, "analysis_jobs", "title", "TEXT")
         _ensure_column(conn, "analysis_jobs", "updated_at", "TEXT")
         _ensure_column(conn, "analysis_jobs", "source_db", "TEXT")
         _ensure_column(conn, "analysis_jobs", "source_job_id", "INTEGER")
@@ -148,14 +151,15 @@ def create_analysis_job(
         cur = conn.execute(
             """
             INSERT INTO analysis_jobs
-                (session_id, scope, top_numbers_json, purpose, source_db, source_job_id,
+                (title, session_id, scope, top_numbers_json, purpose, source_db, source_job_id,
                  model_name, provider_id, input_tokens, output_tokens, response_status,
                  prompt_version, prompt_template_id, prompt_template_revision,
                  prompt_template_label, rendered_prompt_snapshot_path, status, created_at,
                  updated_at, error_message)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
+                job.title or None,
                 job.session_id,
                 job.scope,
                 json.dumps(job.top_numbers, ensure_ascii=False),
@@ -180,6 +184,48 @@ def create_analysis_job(
         )
         conn.commit()
         return int(cur.lastrowid)
+
+
+def update_analysis_job(
+    job_id: int,
+    *,
+    model_name: str,
+    provider_id: str,
+    input_tokens: int,
+    output_tokens: int,
+    response_status: str,
+    status: str,
+    error_message: str = "",
+    db_path: Path | None = None,
+) -> None:
+    """Update one existing workflow job after a deferred provider call."""
+
+    db_path = initialize_analysis_workflow_db(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            UPDATE analysis_jobs
+            SET model_name = ?, provider_id = ?, input_tokens = ?, output_tokens = ?,
+                response_status = ?, status = ?, updated_at = ?, error_message = ?
+            WHERE job_id = ?
+            """,
+            (
+                model_name,
+                provider_id,
+                input_tokens,
+                output_tokens,
+                response_status,
+                status,
+                utc_now(),
+                error_message or None,
+                job_id,
+            ),
+        )
+        conn.execute(
+            "UPDATE analysis_outputs SET status = ? WHERE job_id = ?",
+            (status, job_id),
+        )
+        conn.commit()
 
 
 def add_analysis_output(

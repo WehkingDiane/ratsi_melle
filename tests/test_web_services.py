@@ -28,6 +28,7 @@ from src.analysis.workflow_db import AnalysisArtifactRecord
 from src.analysis.workflow_db import AnalysisJobRecord
 from src.analysis.workflow_db import add_analysis_output
 from src.analysis.workflow_db import create_analysis_job
+from src.analysis.workflow_db import initialize_analysis_workflow_db
 
 
 def test_legacy_done_job_without_ki_response_is_displayed_as_prepared() -> None:
@@ -546,7 +547,8 @@ def test_workflow_analysis_output_schema_is_displayed(workspace_tmp: Path, monke
 
     assert job is not None
     assert job_id != 1
-    assert job["job_id"] == f"workflow:{job_id}"
+    assert job["job_id"] == str(job_id)
+    assert job["storage_job_id"] == f"workflow:{job_id}"
     assert job["db_job_id"] == job_id
     assert job["session_id"] == "7123"
     assert job["output_type"] == "raw_analysis"
@@ -608,7 +610,42 @@ def test_workflow_output_paths_accept_windows_separators(workspace_tmp: Path, mo
     assert "data/analysis_outputs/2026/03/session/job_1.raw.json" in job["files"]
 
 
-def test_db_analysis_outputs_are_namespaced_by_source(workspace_tmp: Path, monkeypatch) -> None:
+def test_source_artifacts_merge_into_single_public_workflow_job(
+    workspace_tmp: Path, monkeypatch
+) -> None:
+    output_dir = workspace_tmp / "data" / "analysis_outputs"
+    output_dir.mkdir(parents=True)
+    (output_dir / "job_10.article.md").write_text("# Grundlage", encoding="utf-8")
+    workflow_db = workspace_tmp / "data" / "db" / "analysis_workflow.sqlite"
+    with sqlite3.connect(initialize_analysis_workflow_db(workflow_db)) as conn:
+        conn.execute("DELETE FROM analysis_jobs")
+        conn.execute(
+            """INSERT INTO analysis_jobs
+               (job_id, title, session_id, scope, top_numbers_json, purpose, source_db,
+                source_job_id, provider_id, status, created_at, updated_at)
+               VALUES (174, ?, '8188', 'session', '[]', 'meeting_briefing', ?, 10,
+                       'none', 'prepared', ?, ?)""",
+            (
+                "Analyse Sitzung 2026-08-13 - Ortsrat Melle-Mitte",
+                str(workspace_tmp / "data" / "db" / "local_index.sqlite"),
+                "2026-08-21T16:10:14Z",
+                "2026-08-21T16:10:14Z",
+            ),
+        )
+        conn.commit()
+    monkeypatch.setattr(analysis_services, "REPO_ROOT", workspace_tmp)
+    monkeypatch.setattr(analysis_services, "LOCAL_INDEX_DB", workspace_tmp / "missing.sqlite")
+    monkeypatch.setattr(analysis_services, "ANALYSIS_WORKFLOW_DB", workflow_db)
+    monkeypatch.setattr(analysis_services, "ANALYSIS_OUTPUTS_DIR", output_dir)
+
+    jobs = analysis_services.list_analysis_outputs()
+
+    assert len(jobs) == 1
+    assert jobs[0]["job_id"] == "174"
+    assert jobs[0]["markdown"] == "# Grundlage"
+
+
+def test_workflow_jobs_hide_internal_local_source_jobs(workspace_tmp: Path, monkeypatch) -> None:
     workflow_db = workspace_tmp / "data" / "db" / "analysis_workflow.sqlite"
     workflow_job_id = create_analysis_job(
         AnalysisJobRecord(
@@ -674,13 +711,11 @@ def test_db_analysis_outputs_are_namespaced_by_source(workspace_tmp: Path, monke
 
     jobs = {str(job["job_id"]): job for job in analysis_services.list_analysis_outputs()}
 
-    assert {"workflow:1", "local:1"} <= set(jobs)
-    assert jobs["workflow:1"]["session_id"] == "workflow-session"
-    assert jobs["local:1"]["session_id"] == "local-session"
-    assert jobs["local:1"]["markdown"] == "# Lokale Analyse"
+    assert set(jobs) == {"1"}
+    assert jobs["1"]["session_id"] == "workflow-session"
     assert analysis_services.get_analysis_output("workflow:1")["session_id"] == "workflow-session"
-    assert analysis_services.get_analysis_output("local:1")["session_id"] == "local-session"
-    assert analysis_services.get_analysis_output("1") is None
+    assert analysis_services.get_analysis_output("local:1") is None
+    assert analysis_services.get_analysis_output("1")["session_id"] == "workflow-session"
 
 
 def test_file_analysis_outputs_merge_into_unique_db_job(workspace_tmp: Path, monkeypatch) -> None:
@@ -832,10 +867,8 @@ def test_file_analysis_outputs_prefer_workflow_job_when_db_ids_collide(
 
     jobs = {str(job["job_id"]): job for job in analysis_services.list_analysis_outputs()}
 
-    assert {"workflow:1", "local:1"} <= set(jobs)
-    assert "1" not in jobs
-    assert jobs["workflow:1"]["ki_response"] == "Workflow-Datei"
-    assert jobs["local:1"]["ki_response"] == ""
+    assert set(jobs) == {"1"}
+    assert jobs["1"]["ki_response"] == "Workflow-Datei"
 
 
 def test_canonical_analysis_job_id_prefers_workflow_source_job(
@@ -901,7 +934,7 @@ def test_canonical_analysis_job_id_prefers_workflow_source_job(
     monkeypatch.setattr(analysis_services, "ANALYSIS_WORKFLOW_DB", workflow_db)
     monkeypatch.setattr(analysis_services, "ANALYSIS_OUTPUTS_DIR", workspace_tmp / "missing_outputs")
 
-    assert analysis_services.canonical_analysis_job_id({"job_id": 1}) == f"workflow:{workflow_job_id}"
+    assert analysis_services.canonical_analysis_job_id({"job_id": 1}) == str(workflow_job_id)
 
 
 def test_prompt_artifact_is_loaded_from_prompt_directory(workspace_tmp: Path, monkeypatch) -> None:

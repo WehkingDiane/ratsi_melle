@@ -377,3 +377,70 @@ def test_analysis_service_persists_versioned_outputs(tmp_path: Path, monkeypatch
     assert payload["schema_version"] == ANALYSIS_OUTPUT_SCHEMA_VERSION_V2
     assert payload["output_type"] == "raw_analysis"
     assert payload["job_id"] == record.job_id
+
+
+def test_prepared_analysis_is_executed_in_place(tmp_path: Path, monkeypatch) -> None:
+    db_path = _build_db(tmp_path)
+    outputs_dir = tmp_path / "data" / "analysis_outputs"
+    workflow_db = tmp_path / "data" / "db" / "analysis_workflow.sqlite"
+    monkeypatch.setattr("src.analysis.service.ANALYSIS_OUTPUTS_DIR", outputs_dir)
+    monkeypatch.setattr("src.analysis.service.ANALYSIS_PROMPTS_DIR", tmp_path / "private" / "prompts")
+    monkeypatch.setattr("src.analysis.service.PROMPT_SNAPSHOTS_DIR", tmp_path / "private" / "snapshots")
+    monkeypatch.setattr("src.analysis.service.DEFAULT_ANALYSIS_MARKDOWN", tmp_path / "latest.md")
+    monkeypatch.setattr("src.analysis.workflow_db.ANALYSIS_WORKFLOW_DB", workflow_db)
+
+    service = AnalysisService()
+    session = {"session_id": "7001", "date": "2026-08-13", "committee": "Ortsrat Melle-Mitte"}
+    prepared_request = AnalysisRequest(
+        db_path=db_path,
+        session=session,
+        scope="session",
+        selected_tops=[],
+        prompt="Analysiere als JSON.",
+    )
+    prepared = service.run_journalistic_analysis(prepared_request)
+    assert prepared.status == "prepared"
+    assert prepared.markdown.rstrip().endswith("## KI-Analyse")
+
+    class FakeProvider:
+        def analyze(self, **_kwargs):
+            return KiResponse(
+                provider_id="codex",
+                model_name="gpt-test",
+                response_text='{"title":"Ergebnis"}',
+                input_tokens=21,
+                output_tokens=8,
+            )
+
+    monkeypatch.setattr("src.analysis.providers.registry.build_provider", lambda *_args, **_kwargs: FakeProvider())
+    with sqlite3.connect(workflow_db) as conn:
+        workflow_job_id = int(conn.execute("SELECT job_id FROM analysis_jobs").fetchone()[0])
+        title = conn.execute("SELECT title FROM analysis_jobs").fetchone()[0]
+    article = next(outputs_dir.rglob(f"job_{prepared.job_id}.article.md"))
+    raw = next(outputs_dir.rglob(f"job_{prepared.job_id}.raw.json"))
+    structured = next(outputs_dir.rglob(f"job_{prepared.job_id}.structured.json"))
+
+    completed = service.execute_prepared_analysis(
+        AnalysisRequest(
+            db_path=db_path,
+            session=session,
+            scope="session",
+            selected_tops=[],
+            prompt="Analysiere als JSON.",
+            provider_id="codex",
+            model_name="gpt-test",
+        ),
+        workflow_job_id=workflow_job_id,
+        source_job_id=prepared.job_id,
+        markdown=prepared.markdown,
+        artifact_paths={"article": article, "raw": raw, "structured": structured},
+        workflow_db_path=workflow_db,
+    )
+
+    assert title == "Analyse Sitzung 2026-08-13 - Ortsrat Melle-Mitte"
+    assert completed.status == "done"
+    assert completed.markdown.count("## KI-Analyse") == 1
+    assert '{"title":"Ergebnis"}' in article.read_text(encoding="utf-8")
+    with sqlite3.connect(workflow_db) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM analysis_jobs").fetchone()[0] == 1
+        assert conn.execute("SELECT status FROM analysis_jobs").fetchone()[0] == "done"

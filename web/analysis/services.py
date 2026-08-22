@@ -15,6 +15,7 @@ from core.services.analysis import analysis_purpose_options as _analysis_purpose
 from core.services.analysis import default_provider_id as _default_provider_id
 from core.services.analysis import default_purpose_for_scope as _default_purpose_for_scope
 from core.services.analysis import default_template_id as _default_template_id
+from core.services.analysis import execute_prepared_analysis as _execute_prepared_analysis
 from core.services.analysis import provider_options as _provider_options
 from core.services.analysis import run_analysis_from_form as _run_analysis_from_form
 
@@ -135,3 +136,10 @@ def source_overview() -> dict[str, Any]:
 def run_analysis_from_form(data: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
     _sync_paths()
     return _run_analysis_from_form(data)
+
+
+def execute_prepared_analysis(
+    job_id: str, provider_id: str, model_name: str = ""
+) -> tuple[dict[str, Any] | None, list[str]]:
+    _sync_paths()
+    return _execute_prepared_analysis(job_id, provider_id, model_name)

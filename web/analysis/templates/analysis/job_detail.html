@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Analyse {{ job_id }} - Ratsi Melle{% endblock %}
+{% block title %}Job {{ job.display_job_id|default:job_id }} - Ratsi Melle{% endblock %}
 
 {% block content %}
 {% if job %}
 <section class="page-heading">
-  <p class="eyebrow">Analyse {{ job.display_job_id|default:job.job_id }}{% if job.session_id %} · Sitzung {{ job.session_id }}{% endif %}</p>
-  <h1>Analyseergebnis</h1>
+  <p class="eyebrow">Job {{ job.display_job_id|default:job.job_id }}</p>
+  <h1>{{ job.title }}</h1>
   <p>{{ job.purpose|default:"Kein Zweck hinterlegt" }}{% if job.status %} · {{ job.status }}{% endif %}</p>
 </section>
 
@@ -26,8 +26,34 @@
   {% if job.error_message %}<p class="status-error">{{ job.error_message }}</p>{% endif %}
 </section>
 
+{% if job.status == "prepared" %}
+<section class="panel">
+  <h2>Vorbereitete Analyse absenden</h2>
+  <p>Die Analysegrundlage ist gespeichert. Wähle einen Provider, um genau diesen Job auszuführen und die Antwort in seine Markdown-Datei einzutragen.</p>
+  {% for error in errors %}<p class="status-error">{{ error }}</p>{% endfor %}
+  <form method="post" class="form-stack">
+    {% csrf_token %}
+    <div class="grid two-columns tight">
+      <label>
+        KI-Provider
+        <select name="provider_id" required>
+          {% for option in provider_options %}<option value="{{ option.value }}">{{ option.label }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>
+        Modell
+        <input type="text" name="model_name" value="{{ job.model_name }}" placeholder="Provider-Standardmodell">
+      </label>
+    </div>
+    <div class="actions">
+      <button class="button primary" type="submit">Analyse jetzt absenden</button>
+    </div>
+  </form>
+</section>
+{% endif %}
+
 <section class="content-stack">
-  {% if job.ki_response %}
+  {% if job.ki_response and not job.ki_response_in_markdown %}
   <article class="panel">
     <h2>KI-Analyse</h2>
     <pre class="text-block">{{ job.ki_response }}</pre>
