@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Antworten lesen - Ratsi Melle{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow">KI-Analysen</p>
+  <h1>Antworten lesen</h1>
+  <p>Fertige Analyseantworten in einer ruhigen Leseansicht – ohne Prompt, Dokumentpfade und technische Rohdaten.</p>
+</section>
+
+<section class="answer-reader">
+  <aside class="panel answer-reader-list">
+    <h2>Fertige Antworten</h2>
+    {% if answers %}
+      <nav class="answer-list" aria-label="Fertige Analyseantworten">
+        {% for answer in answers %}
+          <a class="answer-list-item{% if selected_job and answer.job_id == selected_job.job_id %} active{% endif %}" href="{% url 'analysis:answer_reader' %}?job_id={{ answer.display_job_id|default:answer.job_id }}"{% if selected_job and answer.job_id == selected_job.job_id %} aria-current="page"{% endif %}>
+            <strong>Job {{ answer.display_job_id|default:answer.job_id }}</strong>
+            <span>{{ answer.title|default:"Analyseantwort" }}</span>
+          </a>
+        {% endfor %}
+      </nav>
+    {% else %}
+      <p class="muted">Noch keine fertige Antwort vorhanden.</p>
+      <div class="actions">
+        <a class="button primary" href="{% url 'analysis:analysis_start' %}">Analyse starten</a>
+      </div>
+    {% endif %}
+  </aside>
+
+  <article class="panel answer-document">
+    {% if selected_job %}
+      <p class="eyebrow">Job {{ selected_job.display_job_id|default:selected_job.job_id }}</p>
+      <h2>{{ selected_job.title|default:"Analyseantwort" }}</h2>
+      <div class="item-meta answer-meta">
+        {% if selected_job.model_name %}<span>Modell: {{ selected_job.model_name }}</span>{% endif %}
+        {% if selected_job.completed_at %}<span>Fertiggestellt: {{ selected_job.completed_at }}</span>{% endif %}
+      </div>
+      <div class="markdown-preview answer-preview">{{ answer_preview }}</div>
+      <div class="actions">
+        <a class="button utility" href="{% url 'analysis:job_detail' selected_job.display_job_id|default:selected_job.job_id %}">Technische Jobdetails</a>
+      </div>
+    {% else %}
+      <h2>Keine Antwort ausgewählt</h2>
+      <p class="muted">Sobald eine Analyse erfolgreich abgeschlossen ist, erscheint sie hier.</p>
+    {% endif %}
+  </article>
+</section>
+{% endblock %}

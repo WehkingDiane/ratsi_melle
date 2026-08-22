@@ -4,7 +4,7 @@ import importlib
 import sqlite3
 import sys
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 
 import pytest
 
@@ -104,6 +104,40 @@ def test_document_vector_store_accepts_custom_collection(tmp_path: Path) -> None
     store = DocumentVectorStore(tmp_path / "qdrant", collection_name="landkreis_publications")
 
     assert store.collection_name == "landkreis_publications"
+
+
+def test_document_vector_store_applies_metadata_filters_before_hybrid_limit(
+    tmp_path: Path,
+) -> None:
+    captured = {}
+
+    class FakeClient:
+        def query_points(self, **kwargs):
+            captured.update(kwargs)
+            return SimpleNamespace(points=[])
+
+    store = DocumentVectorStore(tmp_path / "qdrant")
+    store._client = FakeClient()
+
+    results = store.search(
+        query_dense=[0.1],
+        query_sparse={"indices": [], "values": []},
+        limit=7,
+        date_from="2026-01-01",
+        date_to="2026-12-31",
+        committee="Ortsrat",
+        document_type="protokoll",
+    )
+
+    assert results == []
+    assert captured["limit"] == 7
+    filters = [prefetch.filter for prefetch in captured["prefetch"]]
+    assert filters[0] == filters[1]
+    conditions = {condition.key: condition for condition in filters[0].must}
+    assert conditions["committee"].match.value == "Ortsrat"
+    assert conditions["document_type"].match.value == "protokoll"
+    assert str(conditions["date"].range.gte) == "2026-01-01"
+    assert str(conditions["date"].range.lte) == "2026-12-31"
 
 
 def test_stable_document_id_is_deterministic_and_sensitive_to_inputs() -> None:
@@ -256,6 +290,7 @@ def test_landkreis_main_indexes_missing_documents_and_payload(
     assert point["payload"]["publication_id"] == "pub-1"
     assert point["payload"]["source"] == "amtsblaetter"
     assert point["payload"]["document_title"] == "PDF Anlage"
+    assert point["payload"]["snippet"] == "Extrahierter"
     assert point["payload"]["local_path"] == str((data_root / "amtsblaetter/2026/a.pdf").resolve())
 
 
@@ -373,7 +408,8 @@ def test_build_document_payload_preserves_existing_fields(tmp_path: Path) -> Non
             "date": "2025-09-18",
             "committee": "Rat",
             "session_path": str(tmp_path / "data" / "raw" / "2025" / "2025-09-18_Rat_901"),
-        }
+        },
+        search_text="Ein längerer Text zur Vorlage.",
     )
 
     assert payload == {
@@ -385,6 +421,7 @@ def test_build_document_payload_preserves_existing_fields(tmp_path: Path) -> Non
         "local_path": str(pdf_path.resolve()),
         "date": "2025-09-18",
         "committee": "Rat",
+        "snippet": "Ein längerer Text zur Vorlage.",
     }
 
 

@@ -9,5 +9,26 @@
   <p>Vorhandene Analyseergebnisse und Dateien aus den lokalen Ausgaben.</p>
 </section>
 
+<section class="panel filter-panel">
+  <form method="get" class="form-stack">
+    <div class="grid two-columns tight">
+      <label>Suche <input type="search" name="q" value="{{ query }}" placeholder="Job, Sitzung, Zweck oder Modell"></label>
+      <label>
+        Status
+        <select name="status">
+          <option value="">Alle Status</option>
+          {% for value, label in status_options %}<option value="{{ value }}"{% if value == selected_status %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="actions">
+      <button class="button primary" type="submit">Filtern</button>
+      <a class="button utility" href="{% url 'analysis:job_list' %}">Zurücksetzen</a>
+    </div>
+  </form>
+</section>
+
+<p class="result-count">{{ result_count }} Analysejobs gefunden</p>
 {% include "analysis/partials/job_table.html" with jobs=jobs %}
+{% include "analysis/partials/pagination.html" with page_obj=page_obj filter_query=filter_query label="Analysejobs" %}
 {% endblock %}

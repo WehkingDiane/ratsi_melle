@@ -123,6 +123,39 @@ def test_json_repository_initializes_from_example(tmp_path: Path) -> None:
     assert store_path.exists()
 
 
+def test_json_repository_adds_missing_example_templates_without_overwriting(
+    tmp_path: Path,
+) -> None:
+    store_path = tmp_path / "private" / "prompt_templates.json"
+    store_path.parent.mkdir(parents=True)
+    customized = replace(_template(), label="Meine bearbeitete Vorlage", revision=7)
+    store_path.write_text(
+        json.dumps({"templates": [customized.to_dict()]}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    example_path = tmp_path / "prompt_templates.example.json"
+    example_path.write_text(
+        json.dumps(
+            {
+                "templates": [
+                    _template().to_dict(),
+                    _template("top_critical_analysis", "tops").to_dict(),
+                ]
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    repo = JsonPromptTemplateRepository(path=store_path, example_path=example_path)
+    templates = {template.id: template for template in repo.list_templates()}
+
+    assert set(templates) == {"session_demo", "top_critical_analysis"}
+    assert templates["session_demo"].label == "Meine bearbeitete Vorlage"
+    assert templates["session_demo"].revision == 7
+    assert templates["top_critical_analysis"].scope == "tops"
+
+
 def test_json_repository_scope_filter_save_revision_and_deactivate(tmp_path: Path) -> None:
     repo = JsonPromptTemplateRepository(path=tmp_path / "prompt_templates.json", example_path=tmp_path / "missing.json")
     repo.save_template(_template())

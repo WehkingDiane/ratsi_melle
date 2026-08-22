@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
 from typing import Any
 
+from src.analysis.prompts.models import PromptTemplate
 from src.analysis.prompts.validation import render_prompt
 from src.analysis.service import AnalysisRequest
 from src.analysis.service import AnalysisService
+from src.analysis.workflow_db import claim_analysis_job, update_analysis_job
 
 from . import paths
 from .prompts import get_active_prompt_template
@@ -16,21 +20,33 @@ from .sessions import get_session
 def analysis_purpose_options() -> list[dict[str, str]]:
     """Return supported analysis purposes for the web form."""
     return [
+        {"value": "meeting_briefing", "label": "Sitzung vorbereiten: Überblick über alle TOPs"},
+        {"value": "top_deep_dive", "label": "TOP analysieren: erklären und kritisch prüfen"},
+        {"value": "session_preparation", "label": "Sitzungsvorbereitung"},
         {"value": "content_analysis", "label": "Inhaltsanalyse"},
         {"value": "fact_extraction", "label": "Strukturierte Faktenerfassung"},
-        {"value": "session_preparation", "label": "Sitzungsvorbereitung"},
         {"value": "journalistic_publication", "label": "Journalistischer Publikationsentwurf"},
     ]
+
+
+def default_purpose_for_scope(scope: str) -> str:
+    """Return the user-oriented default analysis purpose for a scope."""
+    return "top_deep_dive" if scope == "tops" else "meeting_briefing"
 
 
 def provider_options() -> list[dict[str, str]]:
     """Return provider options known to the existing analysis service."""
     return [
-        {"value": "none", "label": "Kein Provider (nur Grundlage)"},
-        {"value": "claude", "label": "Claude (Anthropic)"},
-        {"value": "codex", "label": "Codex (OpenAI)"},
-        {"value": "ollama", "label": "Ollama (lokal)"},
+        {"value": "none", "label": "Manuell / ChatGPT: Grundlage und Prompt erzeugen"},
+        {"value": "codex", "label": "OpenAI API: Analyse automatisch erstellen"},
+        {"value": "claude", "label": "Claude API (Anthropic)"},
+        {"value": "ollama", "label": "Ollama lokal"},
     ]
+
+
+def default_provider_id() -> str:
+    """Return the safe default provider for the local web form."""
+    return "none"
 
 
 def run_analysis_from_form(data: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
@@ -42,7 +58,7 @@ def run_analysis_from_form(data: dict[str, Any]) -> tuple[dict[str, Any] | None,
     provider_id = str(data.get("provider_id") or "none").strip()
     model_name = str(data.get("model_name") or "").strip()
     template_id = str(data.get("template_id") or "").strip()
-    purpose = str(data.get("purpose") or "content_analysis").strip()
+    purpose = str(data.get("purpose") or default_purpose_for_scope(scope)).strip()
 
     session = get_session(session_id) if session_id else None
     if not session:
@@ -69,11 +85,14 @@ def run_analysis_from_form(data: dict[str, Any]) -> tuple[dict[str, Any] | None,
         errors.append("Der Analysezweck ist ungültig.")
 
     selected_tops_for_scope = selected_tops if scope == "tops" else []
+    if not template_id:
+        template_id = default_template_id(scope, purpose)
     template, template_errors = get_active_prompt_template(template_id, scope)
     errors.extend(template_errors)
     prompt = ""
     if template and session:
         prompt = render_prompt(template, _prompt_context(session, scope, selected_tops_for_scope, purpose))
+        prompt = _with_json_output_contract(prompt, purpose)
 
     if errors or not session:
         return None, errors
@@ -94,6 +113,175 @@ def run_analysis_from_form(data: dict[str, Any]) -> tuple[dict[str, Any] | None,
     )
     record = AnalysisService().run_journalistic_analysis(request)
     return record.to_dict(), []
+
+
+def execute_prepared_analysis(
+    job_id: str, provider_id: str, model_name: str = ""
+) -> tuple[dict[str, Any] | None, list[str]]:
+    """Execute one prepared workflow job in place."""
+
+    from .outputs import get_analysis_output
+
+    job = get_analysis_output(job_id)
+    if not job:
+        return None, ["Der Analysejob wurde nicht gefunden."]
+    if str(job.get("status") or "") not in {"prepared", "error"}:
+        return None, [
+            "Nur vorbereitete oder fehlgeschlagene Analysen können erneut abgesendet werden."
+        ]
+    if provider_id == "none":
+        return None, ["Bitte einen KI-Provider für die Ausführung wählen."]
+    if provider_id not in {option["value"] for option in provider_options()}:
+        return None, ["Der KI-Provider ist ungültig."]
+
+    session_id = str(job.get("session_id") or "")
+    session = get_session(session_id)
+    if not session:
+        return None, ["Die zugehörige Sitzung ist nicht mehr im lokalen Index vorhanden."]
+    try:
+        workflow_job_id = int(job.get("db_job_id") or job_id)
+        source_job_id = int(job.get("source_job_id") or workflow_job_id)
+    except (TypeError, ValueError):
+        return None, ["Der Analysejob besitzt keine gültige interne Verknüpfung."]
+
+    artifact_paths: dict[str, Path] = {}
+    for value in job.get("files", []):
+        path = Path(str(value))
+        if not path.is_absolute():
+            path = paths.REPO_ROOT / path
+        artifact_kind = _analysis_artifact_kind(path)
+        if artifact_kind:
+            artifact_paths[artifact_kind] = path
+    if "article" not in artifact_paths:
+        return None, ["Die Markdown-Datei des vorbereiteten Jobs wurde nicht gefunden."]
+    if not claim_analysis_job(
+        workflow_job_id,
+        model_name=model_name.strip(),
+        provider_id=provider_id,
+        db_path=paths.ANALYSIS_WORKFLOW_DB,
+    ):
+        return None, [
+            "Dieser Analysejob wurde bereits gestartet oder inzwischen abgeschlossen."
+        ]
+
+    purpose = str(
+        job.get("purpose")
+        or default_purpose_for_scope(str(job.get("scope") or "session"))
+    )
+    request = AnalysisRequest(
+        db_path=paths.LOCAL_INDEX_DB,
+        session=session,
+        scope=str(job.get("scope") or "session"),
+        selected_tops=[str(value) for value in job.get("top_numbers", [])],
+        prompt=_with_json_output_contract(str(job.get("prompt_text") or ""), purpose),
+        provider_id=provider_id,
+        model_name=model_name.strip(),
+        prompt_version=str(job.get("prompt_version") or "web"),
+        prompt_template_id=str(job.get("prompt_template_id") or ""),
+        prompt_template_revision=job.get("prompt_template_revision"),
+        prompt_template_label=str(job.get("prompt_template_label") or ""),
+        purpose=purpose,
+    )
+    try:
+        record = AnalysisService().execute_prepared_analysis(
+            request,
+            workflow_job_id=workflow_job_id,
+            source_job_id=source_job_id,
+            markdown=str(job.get("markdown") or ""),
+            artifact_paths=artifact_paths,
+            workflow_db_path=paths.ANALYSIS_WORKFLOW_DB,
+        )
+    except Exception as exc:  # noqa: BLE001 - Claimed jobs must always become retryable.
+        update_analysis_job(
+            workflow_job_id,
+            model_name=model_name.strip() or provider_id,
+            provider_id=provider_id,
+            input_tokens=0,
+            output_tokens=0,
+            response_status="error",
+            status="error",
+            error_message=str(exc),
+            db_path=paths.ANALYSIS_WORKFLOW_DB,
+        )
+        return None, [f"Die Analyse konnte nicht ausgeführt werden: {exc}"]
+    return record.to_dict(), []
+
+
+def _with_json_output_contract(prompt: str, purpose: str) -> str:
+    """Append the JSON contract required by automatic response validation."""
+
+    marker = "ANTWORTFORMAT (VERPFLICHTENDES JSON)"
+    if marker in prompt:
+        return prompt
+    if purpose == "journalistic_publication":
+        fields = (
+            '"title": string, "subtitle": string, "intro": string, "body": string, '
+            '"sources": array of objects with title, document_type, agenda_item and url'
+        )
+    else:
+        fields = (
+            '"topic": string, "short_summary": string, "proposal_or_decision": string, '
+            '"background": string, "financial_impact": string, '
+            '"legal_or_formal_basis": string, "neutral_assessment": string, '
+            '"document_overview": array of objects with title, document_type, role and summary, '
+            '"affected_groups": array of strings, "open_questions": array of strings, '
+            '"contradictions": array of strings, "sources": array of objects with title, '
+            'document_type, agenda_item and url'
+        )
+    return (
+        f"{prompt.rstrip()}\n\n{marker}:\n"
+        "Antworte ausschließlich mit genau einem validen JSON-Objekt, ohne Markdown-Codeblock "
+        f"und ohne Text davor oder danach. Verwende diese Felder: {fields}. "
+        "Nutze leere Strings oder leere Arrays, wenn eine Angabe nicht belegt ist."
+    )
+
+
+def _analysis_artifact_kind(path: Path) -> str:
+    """Identify regular and collision-suffixed analysis artifact paths."""
+
+    match = re.search(
+        r"\.(article|raw|structured)(?:\.\d+)?\.(md|json)$",
+        path.name.lower(),
+    )
+    if not match:
+        return ""
+    kind, extension = match.groups()
+    if (kind == "article" and extension == "md") or (
+        kind in {"raw", "structured"} and extension == "json"
+    ):
+        return kind
+    return ""
+
+
+def default_template_id(scope: str, purpose: str = "") -> str:
+    """Return the best active template id for a requested analysis mode."""
+    purpose = purpose or default_purpose_for_scope(scope)
+    templates = _templates_for_scope(scope)
+    if not templates:
+        return ""
+    preferred_ids = {
+        ("session", "meeting_briefing"): ["meeting_briefing", "session_preparation_briefing"],
+        ("session", "session_preparation"): ["meeting_briefing", "session_preparation_briefing"],
+        ("tops", "top_deep_dive"): ["top_critical_analysis", "top_deep_dive"],
+        ("tops", "content_analysis"): ["top_critical_analysis", "top_deep_dive"],
+    }.get((scope, purpose), [])
+    for template_id in preferred_ids:
+        if any(template.id == template_id for template in templates):
+            return template_id
+    return templates[0].id
+
+
+def _templates_for_scope(scope: str) -> list[PromptTemplate]:
+    try:
+        return [template for template in _read_active_prompt_templates(scope) if template.is_active]
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def _read_active_prompt_templates(scope: str) -> list[PromptTemplate]:
+    from .prompts import prompt_repository
+
+    return prompt_repository().list_templates(scope)
 
 
 def _prompt_context(

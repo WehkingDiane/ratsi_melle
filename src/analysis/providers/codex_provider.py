@@ -8,14 +8,15 @@ from src.analysis.providers.base import KiProvider, KiResponse
 from src.analysis.providers._pdf_utils import extract_pdf_text
 from src.config.secrets import get_api_key as _get_api_key
 
-_DEFAULT_MODEL = "gpt-4o-mini"
-_MAX_CONTEXT_CHARS = 100_000
+# Official endpoint support: https://developers.openai.com/api/docs/models/gpt-5.6-luna
+_DEFAULT_MODEL = "gpt-5.6-luna"
+_MAX_CONTEXT_CHARS = 160_000
 
 
 class CodexProvider(KiProvider):
     """Calls the OpenAI Chat Completions API using the openai SDK."""
 
-    def __init__(self, api_key: str | None = None, *, max_tokens: int = 2048) -> None:
+    def __init__(self, api_key: str | None = None, *, max_tokens: int = 6000) -> None:
         """
         Args:
             api_key: OpenAI API key. Falls back to OS keychain, then
@@ -55,13 +56,14 @@ class CodexProvider(KiProvider):
 
         completion = self._client.chat.completions.create(
             model=model_name,
-            max_tokens=self._max_tokens,
+            max_completion_tokens=self._max_tokens,
             messages=[
                 {
                     "role": "system",
                     "content": (
                         "Du analysierst kommunalpolitische Dokumente aus dem "
-                        "Ratsinformationssystem Melle. Antworte auf Deutsch."
+                        "Ratsinformationssystem Melle. Antworte auf Deutsch, "
+                        "strukturiert, quellenbezogen und mit expliziten offenen Fragen."
                     ),
                 },
                 {"role": "user", "content": user_message},

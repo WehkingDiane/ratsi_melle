@@ -97,6 +97,10 @@ def search_semantic_documents(
     *,
     limit: int = MAX_SEMANTIC_SEARCH_RESULTS,
     source: str = "ratsinfo",
+    date_from: str = "",
+    date_to: str = "",
+    committee: str = "",
+    document_type: str = "",
 ) -> dict[str, Any]:
     """Search indexed document contents via the local Qdrant vector index."""
 
@@ -125,10 +129,15 @@ def search_semantic_documents(
     try:
         embedder, bm25 = _get_semantic_resources()
         store = _create_vector_store(qdrant_dir, source_config["collection_name"])
+        result_limit = max(1, min(int(limit), MAX_SEMANTIC_SEARCH_RESULTS))
         results = store.search(
             query_dense=embedder.embed_query(normalized_query),
             query_sparse=bm25.encode_query(normalized_query),
-            limit=max(1, min(int(limit), MAX_SEMANTIC_SEARCH_RESULTS)),
+            limit=result_limit,
+            date_from=date_from or None,
+            date_to=date_to or None,
+            committee=committee or None,
+            document_type=document_type or None,
         )
     except Exception as exc:  # noqa: BLE001
         missing_collection_text = source_config["missing_collection_text"]
@@ -146,17 +155,61 @@ def search_semantic_documents(
             except Exception:  # noqa: BLE001 - Search results should survive cleanup errors.
                 pass
 
+    candidates = [
+        _with_semantic_display_fields(rank, result, source_config["source"])
+        for rank, result in enumerate(results, start=1)
+    ]
+    filtered_results = filter_semantic_results(
+        candidates,
+        date_from=date_from,
+        date_to=date_to,
+        committee=committee,
+        document_type=document_type,
+    )[:result_limit]
     return {
-        "results": [
-            _with_semantic_display_fields(rank, result, source_config["source"])
-            for rank, result in enumerate(results, start=1)
-        ],
+        "results": filtered_results,
+        "candidate_count": len(candidates),
+        "filter_options": {
+            "committees": result_filter_options(candidates, "committee"),
+            "document_types": result_filter_options(candidates, "document_type"),
+        },
         "error": "",
         "warning": (
             f"Ergebnisse stammen aus der hybriden {source_config['label']}-Vektorsuche "
             "(Harrier + BM25, RRF-Rangfusion)."
         ),
     }
+
+
+def filter_semantic_results(
+    results: list[dict[str, Any]],
+    *,
+    date_from: str = "",
+    date_to: str = "",
+    committee: str = "",
+    document_type: str = "",
+) -> list[dict[str, Any]]:
+    """Filter semantic hits without changing their relevance order."""
+
+    return [
+        result
+        for result in results
+        if (not date_from or str(result.get("date") or "")[:10] >= date_from)
+        and (not date_to or str(result.get("date") or "")[:10] <= date_to)
+        and (not committee or str(result.get("committee") or "") == committee)
+        and (not document_type or str(result.get("document_type") or "") == document_type)
+    ]
+
+
+def result_filter_options(results: list[dict[str, Any]], field: str) -> list[str]:
+    """Return sorted non-empty values for a supported result filter."""
+
+    if field not in {"committee", "document_type"}:
+        return []
+    return sorted(
+        {str(result.get(field) or "").strip() for result in results if result.get(field)},
+        key=str.casefold,
+    )
 
 
 @lru_cache(maxsize=1)
@@ -207,7 +260,7 @@ def _semantic_search_dependency_error() -> str:
     if not missing:
         return ""
     return (
-        "Die Vektorsuche ist nicht verfuegbar, weil Abhaengigkeiten fehlen: "
+        "Die Vektorsuche ist nicht verfügbar, weil Abhängigkeiten fehlen: "
         f"{', '.join(missing)}. Installieren mit: "
         "pip install qdrant-client sentence-transformers fastembed"
     )
@@ -230,7 +283,16 @@ def _with_semantic_display_fields(rank: int, result: dict[str, Any], source: str
     enriched["rank"] = rank
     enriched["display_score"] = _format_rrf_score(enriched.get("score"))
     enriched["search_source"] = source
+    enriched["snippet"] = _compact_snippet(str(enriched.get("snippet") or ""))
     return enriched
+
+
+def _compact_snippet(value: str, *, max_chars: int = 280) -> str:
+    normalized = " ".join(value.split())
+    if len(normalized) <= max_chars:
+        return normalized
+    shortened = normalized[: max_chars + 1].rsplit(" ", 1)[0].strip()
+    return f"{shortened or normalized[:max_chars].strip()} …"
 
 
 def _format_rrf_score(value: Any) -> str:

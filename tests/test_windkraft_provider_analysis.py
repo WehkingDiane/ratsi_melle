@@ -100,7 +100,7 @@ def _assert_response(response, provider_id: str) -> None:
 
 @skip_no_codex
 def test_codex_windkraft(windkraft_text: str) -> None:
-    """Codex (gpt-4o-mini) analysiert den Windkraft-Dokumenttext."""
+    """Codex analysiert den Windkraft-Dokumenttext mit dem Standardmodell."""
     from src.analysis.providers.codex_provider import CodexProvider
 
     provider = CodexProvider(max_tokens=400)

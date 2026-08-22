@@ -34,3 +34,33 @@ a {
 a:hover {
   text-decoration: underline;
 }
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.skip-link {
+  background: var(--text);
+  color: #ffffff;
+  left: 16px;
+  padding: 10px 14px;
+  position: fixed;
+  top: 12px;
+  transform: translateY(-160%);
+  z-index: 100;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+.visually-hidden {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}

@@ -274,13 +274,13 @@ def main(argv: list[str] | None = None) -> None:
             vector_results = vectorizer.encode_documents(texts)
 
             points: list[dict] = []
-            for doc, vectors in zip(batch, vector_results):
+            for doc, text, vectors in zip(batch, texts, vector_results):
                 points.append(
                     {
                         "id": doc["_qdrant_id"],
                         "dense_vector": vectors["dense_vector"],
                         "sparse_vector": vectors["sparse_vector"],
-                        "payload": build_document_payload(doc),
+                        "payload": build_document_payload(doc, search_text=text),
                     }
                 )
 

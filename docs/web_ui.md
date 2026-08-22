@@ -75,11 +75,13 @@ Analyse-Seitentemplates und fachliche Analyse-Partials liegen ausschließlich un
 Das gemeinsame Layout in `web/core/templates/base.html` stellt Header, Hauptnavigation, Inhaltsbereich und Footer bereit. Die Hauptpunkte sind als Dropdown-Menüs aufgebaut. Die Navigation zeigt:
 
 - Dashboard
-- Analyse mit Unterpunkten für Übersicht, Analyse starten, Prompt-Vorlagen, Sitzungen und Analysejobs
+- Analyse mit Unterpunkten für Übersicht, Analyse starten, Antworten lesen, Prompt-Vorlagen, Sitzungen und Analysejobs
 - Daten mit Unterpunkten für Fetch, Build und Vektorindex
 - Veröffentlichung
 - Suche
 - Einstellungen
+
+Die Navigation ist per Tastatur bedienbar, besitzt sichtbare Fokusmarkierungen und lässt sich auf kleinen Bildschirmen mit einem semantischen Menübutton öffnen. Ein Sprunglink führt direkt zum Hauptinhalt. Lange Formulare verwenden passende Zahlen-, Datums- und Suchfelder; sicherheitsrelevante Löschaktionen verlangen eine Bestätigung.
 
 Der Header zeigt den Projektnamen "Ratsi Melle" und die Unterzeile "Lokale Arbeitsoberfläche". Der Footer markiert die Anwendung als lokale Entwicklungsoberfläche. Die CSS-Dateien liegen zentral unter `web/core/static/core/css/`:
 
@@ -96,31 +98,34 @@ Buttons folgen einem funktionsbezogenen Farbschema: `primary` ist auslösenden H
 - `/` zeigt das Dashboard.
 - `/analyse/` zeigt den Analyse-Einstieg.
 - `/analyse/starten/` bietet den Formularfluss zum Starten einer Analyse.
+- `/analyse/antworten/` listet Jobs mit einem gefüllten KI-Antwortabschnitt und zeigt die ausgewählte Antwort in einer reduzierten Leseansicht. Prompt, Dokumentpfade, Roh-JSON und weitere technische Angaben bleiben auf der verlinkten Jobdetailseite. Maßgeblich ist der vorhandene Antwortinhalt, damit auch nachträglich aufbereitete Antworten trotz veralteter Statusmetadaten lesbar bleiben.
 - `/analyse/prompts/` listet private Prompt-Vorlagen und bietet Scope-Filter.
 - `/analyse/prompts/neu/` zeigt das Formular zum Anlegen einer Prompt-Vorlage.
 - `/analyse/prompts/<template_id>/` zeigt das Formular zum Bearbeiten einer Prompt-Vorlage.
 - `/analyse/prompts/<template_id>/duplizieren/` dupliziert eine Vorlage per POST.
 - `/analyse/prompts/<template_id>/deaktivieren/` deaktiviert eine Vorlage per POST.
-- `/analyse/sitzungen/` listet Sitzungen aus dem lokalen Index.
+- `/analyse/sitzungen/` listet Sitzungen aus dem lokalen Index mit Suche, Gremiums-/Jahresfilter und Paginierung.
 - `/analyse/sitzungen/<session_id>/` zeigt Sitzungsdetails.
 - `/analyse/sitzungen/<session_id>/dokumente/<document_id>/pdf/` liefert eine lokal vorhandene PDF inline fuer die Browseransicht.
-- `/analyse/jobs/` listet Analysejobs und Ausgabedateien.
-- `/analyse/jobs/<job_id>/` zeigt Analyseoutputs, einschließlich alter v1-Ausgaben.
-- `/daten/` zeigt links die Weiterleitungen zu Fetch, Build und Vektorindex; rechts stehen allgemeiner Status und letzte Datenjobs.
+- `/analyse/jobs/` listet jeden Workflow-Job genau einmal mit einer einfachen fortlaufenden Nummer und einem Titel wie `Job 1 - Analyse Sitzung 2026-08-13 - Ortsrat Melle-Mitte`. Interne lokale Quell-IDs werden nicht angezeigt.
+- `/analyse/jobs/<job_id>/` zeigt Analyseoutputs, einschließlich alter v1-Ausgaben, sowie Provider, Tokenverbrauch und Antwortstatus. Manuell erzeugte Analysegrundlagen tragen den Status `prepared` statt `done` und können auf derselben Seite nach Auswahl von Provider und Modell ausgeführt werden. Fehlgeschlagene Provideraufrufe lassen sich dort im selben Job erneut absenden. Beim Absenden wird der Button sofort gesperrt und ein deutlich sichtbarer Laufhinweis eingeblendet; parallel erhält der Workflow-Job den Status `running`, sodass kein zweiter Aufruf gestartet werden kann.
+- Markdown-Ausgaben werden auf der Jobdetailseite serverseitig formatiert dargestellt; der unveränderte Quelltext bleibt aufklappbar. Die Vorschau entfernt nicht freigegebenes HTML, Attribute und unsichere URL-Schemata.
+- `/daten/` zeigt links die Weiterleitungen zu Fetch, Build und Vektorindex; rechts stehen der aktuelle Status mit manueller Aktualisierung und die letzten Datenjobs.
 - `/daten/fetch/` startet vorhandene Fetch-Skripte für SessionNet-Sitzungen und Landkreis-Veröffentlichungen.
 - `/daten/build/` startet vorhandene SQLite-Build-Skripte für Ratsinfo- und Landkreis-Indizes.
 - `/daten/vektor/` zeigt Ratsinfo- und Landkreis-Vektorstatus und startet Ratsinfo- oder Landkreis-Vektorindex-Builds. Beim Landkreis-Build koennen Datenwurzel und maximale Textlaenge pro Dokument fuer externe Rohdaten und knappen XPU/GPU-Speicher gesetzt werden.
-- `/daten/jobs/<job_id>/` zeigt Status und Ausgabe eines gestarteten Datenjobs.
+- `/daten/jobs/<job_id>/` zeigt Status und Ausgabe eines gestarteten Datenjobs. Die letzten 50 Datenjobs werden in `data/db/service_jobs.sqlite` gespeichert und bleiben nach einem Serverneustart sichtbar; zuvor laufende Jobs werden dabei als unterbrochen markiert.
 - `/daten/jobs/<job_id>/status/` liefert den aktuellen Datenjobstatus als JSON für die automatische Logaktualisierung.
+- `/daten/status/` liefert den frisch berechneten Rohdaten-, Datenbank- und Vektorindexstatus als JSON für die manuelle Aktualisierung.
 - `/veroeffentlichung/` ist ein Platzhalter für Publikations- und Reviewfunktionen.
-- `/suche/` durchsucht lokal indexierte Dokumentinhalte semantisch über den Qdrant-Vektorindex. Die Suche nutzt Harrier-Dense-Embeddings, BM25-Sparse-Vektoren und RRF-Rangfusion. Die Quellen-Auswahl bietet Ratsinfo als Standard und Landkreis als getrennte Collection `landkreis_publications`.
+- `/suche/` durchsucht lokal indexierte Dokumentinhalte semantisch über den Qdrant-Vektorindex. Die Suche nutzt Harrier-Dense-Embeddings, BM25-Sparse-Vektoren und RRF-Rangfusion. Bei aktiven Datums-, Gremiums- oder Dokumenttypfiltern werden bis zu 100 semantische Kandidaten geladen, anschließend gefiltert und erst danach auf 20 sichtbare Treffer begrenzt. Dadurch können relevante gefilterte Dokumente auch dann erscheinen, wenn sie im ungefilterten Ranking hinter Platz 20 liegen. Neu aufgebaute Vektorindizes liefern außerdem kurze Textausschnitte. Die Quellen-Auswahl bietet Ratsinfo als Standard und Landkreis als getrennte Collection `landkreis_publications`; beim Wechsel zu Landkreis werden die dort nicht anwendbaren Ratsinfo-Filter Gremium und Dokumenttyp verworfen.
 - `/einstellungen/` verwaltet lokale Einstellungen, darunter die sichere Ablage eines Hugging-Face-Tokens im OS-Schlüsselring.
 
 Alte Service-URLs unter `/analyse/service/` werden auf den Datenbereich umgeleitet, damit technische Datenpflege nicht mehr im Analysebereich hängt.
 
-## Analyse Starten
+## Sitzung vorbereiten und Analyse starten
 
-Der Startfluss unter `/analyse/starten/` nutzt den bestehenden `AnalysisService` aus `src.analysis.service`.
+Der Startfluss unter `/analyse/starten/` nutzt den bestehenden `AnalysisService` aus `src.analysis.service`. Die Seite ist als Arbeitsassistenz aufgebaut: Nutzer wählen zuerst eine Sitzung und danach entweder `Sitzung vorbereiten` für einen Überblick über alle Tagesordnungspunkte oder `TOP analysieren` für eine kritischere Detailanalyse einzelner Tagesordnungspunkte.
 
 Bei einer Analyse der ganzen Sitzung werden alle lokal verfügbaren Dokumente dieser Sitzung in die Analysegrundlage aufgenommen und an den KI-Provider übergeben. Die Analyse-Startseite weist darauf ausdrücklich hin und zeigt, wie viele lokale Dokumente verfügbar sind.
 
@@ -134,15 +139,19 @@ Die Analysegrundlage enthält zusätzlich:
 - die Dokumentliste im Scope
 - die Art der KI-Übergabe je Dokument: Textauszug, PDF-Anhang oder nur Metadaten
 
-Textdateien wie `.txt`, `.md` und `.html` werden als Auszug in die Analysegrundlage aufgenommen. PDF-Dateien werden als PDF-Pfade an Provider weitergegeben, die PDF-Anhänge oder PDF-Textextraktion unterstützen.
+Textdateien wie `.txt`, `.md` und `.html` werden als Auszug in die Analysegrundlage aufgenommen. PDF-Dateien werden als PDF-Pfade an Provider weitergegeben, die PDF-Anhänge oder PDF-Textextraktion unterstützen. Die Installation über `requirements.txt` enthält `pypdf[crypto]`, damit auch AES-verschlüsselte, ohne Passwort lesbare Ratsdokumente extrahiert werden können.
 
-Mit Provider `none` wird nur die Analysegrundlage erzeugt. Ein echter KI-Aufruf erfolgt erst bei Auswahl eines KI-Providers. Prompt-Vorlagen werden unter `/analyse/prompts/` verwaltet und privat gespeichert. Das Analyseformular bietet nur aktive Vorlagen an, die zum gewählten Scope passen.
+Mit Provider `none` wird nur die Analysegrundlage samt gerendertem Prompt erzeugt. Das ist der sichere Standard und eignet sich für manuelle ChatGPT-Nutzung. Ein echter automatisierter KI-Aufruf erfolgt erst bei Auswahl eines API-Providers. Ein ChatGPT-Plus-Konto ist kein API-Zugang; für die Automatisierung über OpenAI wird ein API-Key benötigt. Der OpenAI-Provider nutzt standardmäßig `gpt-5.6-luna`, das laut offizieller OpenAI-Modelldokumentation den Endpunkt `v1/chat/completions` unterstützt. Er übergibt das Ausgabelimit als `max_completion_tokens` und ist auf längere strukturierte Antworten ausgelegt. Prompt-Vorlagen werden unter `/analyse/prompts/` verwaltet und privat gespeichert. Das Analyseformular bietet nur aktive Vorlagen an, die zum gewählten Scope passen, und wählt für Sitzungsbriefings beziehungsweise TOP-Analysen passende Vorlagen voraus, wenn sie vorhanden sind.
+
+Jede vorbereitete Markdown-Datei enthält bereits die leere Überschrift `## KI-Analyse`. Wird der Job später auf seiner Detailseite abgesendet, bleibt seine Jobnummer unverändert; Providerstatus, Tokenverbrauch und dieselbe Markdown-Datei werden aktualisiert. Valide strukturierte JSON-Antworten werden deterministisch in deutsche Markdown-Abschnitte, Listen, Dokumentübersichten und Quellenlinks umgewandelt. Die unveränderte Providerantwort bleibt daneben als `*.ki_response.json` erhalten; die lesbare Aufbereitung verursacht keinen weiteren KI-Aufruf.
 
 ## Bereits funktionsfähig
 
 - Dashboard mit Datenstatus und Schnelleinstiegen
-- Analyse-Startseite
+- Analyse-Startseite mit Schnellauswahl für Sitzungsbriefing und TOP-Detailanalyse
 - Analyse starten mit bestehendem `AnalysisService`
+- vorbereitete Analysejobs ohne neuen Job direkt aus der Markdown-Vorschau absenden
+- eigene Leseansicht für fertig ausgeführte Antworten unter `/analyse/antworten/`
 - private Prompt-Vorlagenverwaltung unter `/analyse/prompts/`
 - Sitzungsliste und Sitzungsdetails aus `data/db/local_index.sqlite`
 - PDF-Ansicht aus den Sitzungsdetails in einem separaten Browser-Tab oder -Fenster, sofern die PDF lokal vorhanden ist
@@ -152,7 +161,8 @@ Mit Provider `none` wird nur die Analysegrundlage erzeugt. Ein echter KI-Aufruf 
 - Anzeige alter v1-Analyseoutputs
 - Fetch-, Build- und Vektorindex-Servicefunktionen für Ratsinfo und Landkreis unter `/daten/`
 - Statusanzeige für laufende Datenjobs im Header; ohne laufenden Job bleibt sie ausgeblendet
-- automatische Aktualisierung der Logausgabe auf Datenjob-Detailseiten
+- manuelle Aktualisierung des aktuellen Datenstatus auf den Service-Seiten ohne vollständigen Seitenwechsel
+- automatische Aktualisierung der Logausgabe auf Datenjob-Detailseiten; nach Abschluss werden der verständliche Endstatus und der aktuelle Datenstatus automatisch nachgeladen
 
 ## Platzhalter
 
@@ -177,11 +187,17 @@ Der Pfad kann über Environment-Variablen angepasst werden:
 
 Beim ersten Zugriff kann die private Datei aus `docs/examples/prompt_templates.example.json` initialisiert werden. Diese Beispiel-Datei enthält nur harmlose Demo-Prompts. Echte Vorlagen werden über die Django-Seite `/analyse/prompts/` erstellt und bleiben durch `.gitignore` außerhalb des Repository-Inhalts geschützt.
 
+Bei Projektaktualisierungen ergänzt die Anwendung neu ausgelieferte Standardvorlagen aus der Beispieldatei automatisch im bestehenden privaten Speicher. Bereits vorhandene IDs werden nicht überschrieben; individuelle Texte, Aktivierungsstatus und Revisionen bleiben erhalten.
+
 Prompt-Vorlagen haben einen primären Scope (`session`, `tops` oder `document`). Intern können geladene Legacy-Vorlagen mehrere Scopes behalten, damit bestehende private JSON-Dateien weiter in allen vorgesehenen Analysekontexten auswählbar bleiben.
 
 ## Prompt-Snapshots
 
 Neue Analysejobs speichern Template-ID, Revision und Label. Der gerenderte Prompt-Snapshot wird im privaten Datenbereich abgelegt, damit alte Jobs nachvollziehbar bleiben, auch wenn eine Vorlage später geändert wird.
+
+Automatische Analysen speichern zusätzlich Provider-ID, Eingabe-/Ausgabetokens und den Antwortstatus. `done` setzt eine nicht leere, als JSON-Objekt validierte Providerantwort voraus. Ohne Provider entsteht eine nachvollziehbare Analysegrundlage mit Status `prepared`; Providerfehler, leere Antworten und ungültiges JSON führen zu `error`. Der Workflow-Index liefert die kanonischen Jobs; über `source_job_id` verknüpfte lokale Quelljobs werden darin zusammengeführt. Nicht verknüpfte historische lokale Jobs bleiben für bestehende Installationen weiterhin sichtbar.
+
+Bei großen PDF-Mengen priorisiert der Analyseworkflow Beschlussvorlagen und andere entscheidungstragende Quellen. Überschreitet der extrahierte Gesamttext 140.000 Zeichen, wird jedes lesbare Dokument vollständig in Abschnitten von höchstens 40.000 Zeichen voranalysiert. Die Abschnittsergebnisse werden zunächst je Dokument verdichtet; erst danach entsteht aus den Dokumentzusammenfassungen die Gesamtausgabe. Der gespeicherte Tokenverbrauch umfasst alle Stufen.
 
 Gerenderte Prompt-Snapshots und private Prompt-Artefakte werden nicht als normale Quellen oder Dateien in der Job-Detailansicht angezeigt. Die UI kann Metadaten wie Vorlage, Revision und Zeitpunkt anzeigen, ohne private Prompt-Pfade als öffentliche Artefaktquellen auszugeben.
 

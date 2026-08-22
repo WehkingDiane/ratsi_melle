@@ -13,6 +13,7 @@ LANDKREIS_PUBLICATIONS_DB = Path(
     os.environ.get("RATSI_LANDKREIS_DB", REPO_ROOT / "data" / "db" / "landkreis_publications.sqlite")
 ).expanduser()
 ANALYSIS_WORKFLOW_DB = REPO_ROOT / "data" / "db" / "analysis_workflow.sqlite"
+SERVICE_JOBS_DB = REPO_ROOT / "data" / "db" / "service_jobs.sqlite"
 QDRANT_DIR = REPO_ROOT / "data" / "db" / "qdrant"
 ANALYSIS_OUTPUTS_DIR = REPO_ROOT / "data" / "analysis_outputs"
 ANALYSIS_PROMPTS_DIR = PRIVATE_DATA_DIR / "analysis_prompts"

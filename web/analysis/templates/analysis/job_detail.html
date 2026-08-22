@@ -1,12 +1,13 @@
 {% extends "base.html" %}
+{% load static %}
 
-{% block title %}Analyse {{ job_id }} - Ratsi Melle{% endblock %}
+{% block title %}Job {{ job.display_job_id|default:job_id }} - Ratsi Melle{% endblock %}
 
 {% block content %}
 {% if job %}
 <section class="page-heading">
-  <p class="eyebrow">Job {{ job.job_id }}{% if job.session_id %} · Sitzung {{ job.session_id }}{% endif %}</p>
-  <h1>Analyseergebnis</h1>
+  <p class="eyebrow">Job {{ job.display_job_id|default:job.job_id }}</p>
+  <h1>{{ job.title }}</h1>
   <p>{{ job.purpose|default:"Kein Zweck hinterlegt" }}{% if job.status %} · {{ job.status }}{% endif %}</p>
 </section>
 
@@ -16,6 +17,9 @@
     <div><dt>Schema</dt><dd>{{ job.schema_version|default:"-" }}</dd></div>
     <div><dt>Typ</dt><dd>{{ job.output_type|default:"-" }}</dd></div>
     <div><dt>Modell</dt><dd>{{ job.model_name|default:"-" }}</dd></div>
+    <div><dt>Provider</dt><dd>{{ job.provider_id|default:"-" }}</dd></div>
+    <div><dt>Tokens</dt><dd>{{ job.input_tokens|default:0 }} ein / {{ job.output_tokens|default:0 }} aus</dd></div>
+    <div><dt>Antwort</dt><dd>{{ job.response_status|default:"-" }}</dd></div>
     <div><dt>Prompt</dt><dd>{{ job.prompt_version|default:"-" }}</dd></div>
     <div><dt>Vorlage</dt><dd>{% if job.prompt_template_label %}{{ job.prompt_template_label }}{% elif job.prompt_template_id %}{{ job.prompt_template_id }}{% else %}-{% endif %}</dd></div>
     <div><dt>Vorlagenrevision</dt><dd>{{ job.prompt_template_revision|default:"-" }}</dd></div>
@@ -23,26 +27,67 @@
   {% if job.error_message %}<p class="status-error">{{ job.error_message }}</p>{% endif %}
 </section>
 
-<section class="content-stack">
-  {% if job.markdown %}
-  <article class="panel">
-    <h2>Markdown</h2>
-    <pre class="text-block">{{ job.markdown }}</pre>
-  </article>
-  {% endif %}
+{% if job.status == "running" %}
+<div class="running-banner" role="status" aria-live="polite">
+  <span class="job-spinner" aria-hidden="true"></span>
+  <span>Die KI-Analyse läuft. Bitte warte und starte den Job nicht erneut.</span>
+</div>
+{% endif %}
 
-  {% if job.ki_response %}
+{% if job.status == "prepared" or job.status == "error" %}
+<section class="panel">
+  <h2>{% if job.status == "error" %}Analyse erneut absenden{% else %}Vorbereitete Analyse absenden{% endif %}</h2>
+  <p>Die Analysegrundlage ist gespeichert. Wähle einen Provider, um genau diesen Job auszuführen und die Antwort in seine Markdown-Datei einzutragen.</p>
+  {% for error in errors %}<p class="status-error">{{ error }}</p>{% endfor %}
+  <form method="post" class="form-stack" id="analysis-job-run-form">
+    {% csrf_token %}
+    <div class="grid two-columns tight">
+      <label>
+        KI-Provider
+        <select name="provider_id" required>
+          {% for option in provider_options %}<option value="{{ option.value }}">{{ option.label }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>
+        Modell
+        <input type="text" name="model_name" value="{{ retry_model_name }}" placeholder="Provider-Standardmodell">
+      </label>
+    </div>
+    <div class="actions">
+      <button class="button primary" type="submit" id="analysis-job-run-submit">{% if job.status == "error" %}Analyse erneut absenden{% else %}Analyse jetzt absenden{% endif %}</button>
+    </div>
+    <div class="running-banner" id="analysis-job-run-status" role="status" aria-live="polite" hidden>
+      <span class="job-spinner" aria-hidden="true"></span>
+      <span>Die KI-Analyse läuft. Das kann bei vielen Dokumenten mehrere Minuten dauern. Bitte Seite nicht neu laden und den Job nicht erneut starten.</span>
+    </div>
+  </form>
+</section>
+{% endif %}
+
+<section class="content-stack">
+  {% if job.ki_response and not job.ki_response_in_markdown %}
   <article class="panel">
-    <h2>KI-Antwort</h2>
+    <h2>KI-Analyse</h2>
     <pre class="text-block">{{ job.ki_response }}</pre>
   </article>
   {% endif %}
 
-  {% if job.prompt_text %}
+  {% if job.markdown %}
   <article class="panel">
-    <h2>Prompt</h2>
-    <pre class="text-block">{{ job.prompt_text }}</pre>
+    <h2>{% if has_readable_analysis %}KI-Analyse{% else %}Markdown-Vorschau{% endif %}</h2>
+    <div class="markdown-preview">{{ markdown_preview }}</div>
+    <details class="raw-markdown">
+      <summary>{% if has_readable_analysis %}Vollständige Markdown-Datei anzeigen{% else %}Markdown-Quelltext anzeigen{% endif %}</summary>
+      <pre class="text-block">{{ job.markdown }}</pre>
+    </details>
   </article>
+  {% endif %}
+
+  {% if job.prompt_text %}
+  <details class="panel">
+    <summary>Verwendeter Prompt</summary>
+    <pre class="text-block">{{ job.prompt_text }}</pre>
+  </details>
   {% endif %}
 
   {% if job.structured_outputs %}
@@ -76,4 +121,5 @@
   <p class="empty-state">Dieser Analysejob ist in den lokalen Ausgaben nicht vorhanden.</p>
 </section>
 {% endif %}
+{% if job %}<script src="{% static 'core/js/analysis_job.js' %}"></script>{% endif %}
 {% endblock %}

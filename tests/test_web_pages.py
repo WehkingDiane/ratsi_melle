@@ -40,6 +40,7 @@ def client():
         "/analyse/prompts/",
         "/analyse/prompts/neu/",
         "/analyse/starten/",
+        "/analyse/antworten/",
         "/analyse/sitzungen/",
         "/analyse/sitzungen/does-not-exist/",
         "/analyse/jobs/",
@@ -48,6 +49,7 @@ def client():
         "/daten/fetch/",
         "/daten/build/",
         "/daten/vektor/",
+        "/daten/status/",
         "/daten/jobs/status/",
         "/veroeffentlichung/",
         "/suche/",
@@ -66,6 +68,7 @@ def test_nested_pages_use_absolute_static_urls(client) -> None:
 
     assert 'href="/static/core/css/base.css"' in content
     assert 'src="/static/core/js/service_status.js"' in content
+    assert 'src="/static/core/js/navigation.js"' in content
     assert 'href="static/' not in content
     assert 'src="static/' not in content
 
@@ -87,6 +90,7 @@ def test_templates_are_kept_in_their_feature_apps() -> None:
     }
     assert {
         "analysis_start.html",
+        "answer_reader.html",
         "index.html",
         "job_detail.html",
         "job_list.html",
@@ -130,6 +134,7 @@ def test_main_navigation_is_in_shared_layout(client) -> None:
     assert "Analyse-Übersicht" in content
     assert "Prompt-Vorlagen" in content
     assert "KI-Analyse starten" in content
+    assert "Antworten lesen" in content
     assert "Sitzungen" in content
     assert "Analysejobs" in content
     assert "Daten" in content
@@ -143,6 +148,9 @@ def test_main_navigation_is_in_shared_layout(client) -> None:
     assert "Einstellungen" in content
     assert "Einstellungen öffnen" in content
     assert "Lokale Entwicklungsoberfläche" in content
+    assert 'class="skip-link" href="#main-content"' in content
+    assert 'class="nav-toggle" type="button"' in content
+    assert 'aria-controls="main-navigation"' in content
 
 
 def test_navigation_dropdowns_have_expected_links(client) -> None:
@@ -158,7 +166,14 @@ def test_navigation_dropdowns_have_expected_links(client) -> None:
 
     assert labels == {
         "Dashboard": ["Dashboard öffnen"],
-        "Analyse": ["Analyse-Übersicht", "Prompt-Vorlagen", "KI-Analyse starten", "Sitzungen", "Analysejobs"],
+        "Analyse": [
+            "Analyse-Übersicht",
+            "Prompt-Vorlagen",
+            "KI-Analyse starten",
+            "Antworten lesen",
+            "Sitzungen",
+            "Analysejobs",
+        ],
         "Daten": ["Fetch: Daten holen", "Build: Datenbank-Tools", "Build: Vektorindex"],
         "Veröffentlichung": ["Veröffentlichung öffnen"],
         "Suche": ["Suche öffnen"],
@@ -188,6 +203,7 @@ def test_active_navigation_matches_section(path: str, active_label: str, client)
 
     assert response.status_code == 200
     assert active_items == [active_label]
+    assert soup.select_one('.nav-menu-label[aria-current="page"]').get_text(strip=True) == active_label
 
 
 def test_settings_page_exposes_huggingface_token_form(client, monkeypatch) -> None:
@@ -246,7 +262,7 @@ def test_settings_page_deletes_huggingface_token(client, monkeypatch) -> None:
 
     assert response.status_code == 200
     assert deleted == ["huggingface"]
-    assert "Hugging Face-Token geloescht" in content
+    assert "Hugging Face-Token gelöscht" in content
 
 
 def test_job_indicator_is_hidden_without_active_job(client) -> None:
@@ -262,7 +278,64 @@ def test_analysis_start_page_loads_for_session(client) -> None:
     response = client.get("/analyse/starten/?session_id=does-not-exist")
 
     assert response.status_code == 200
-    assert "KI-Analyse starten" in response.content.decode("utf-8")
+    assert "Sitzung vorbereiten" in response.content.decode("utf-8")
+
+
+def test_session_list_filters_and_paginates(client, monkeypatch) -> None:
+    from analysis import views
+
+    sessions = [
+        {
+            "session_id": str(index),
+            "date": "2026-03-11" if index < 25 else "2025-03-11",
+            "display_date": "11.03.2026",
+            "committee": "Rat" if index % 2 == 0 else "Ausschuss",
+            "meeting_name": f"Sitzung {index}",
+            "location": "Melle",
+        }
+        for index in range(30)
+    ]
+    monkeypatch.setattr(views.services, "list_sessions", lambda: sessions)
+
+    filtered = client.get("/analyse/sitzungen/?q=Sitzung&committee=Rat&year=2026")
+    second_page = client.get("/analyse/sitzungen/?q=Sitzung&page=2")
+    filtered_content = filtered.content.decode("utf-8")
+    second_page_content = second_page.content.decode("utf-8")
+
+    assert filtered.status_code == 200
+    assert "13 Sitzungen gefunden" in filtered_content
+    assert 'value="Rat" selected' in filtered_content
+    assert 'value="2026" selected' in filtered_content
+    assert second_page.status_code == 200
+    assert "Seite 2 von 2" in second_page_content
+    assert "?q=Sitzung&amp;page=1" in second_page_content
+
+
+def test_job_list_filters_status_and_uses_display_labels(client, monkeypatch) -> None:
+    from analysis import views
+
+    jobs = [
+        {
+            "job_id": f"job-{index}",
+            "session_id": "7123",
+            "purpose": "Sitzung vorbereiten",
+            "model_name": "demo",
+            "status": "done" if index % 2 == 0 else "error",
+            "display_status": "abgeschlossen" if index % 2 == 0 else "fehlgeschlagen",
+            "sources": [],
+        }
+        for index in range(6)
+    ]
+    monkeypatch.setattr(views.services, "list_analysis_outputs", lambda: jobs)
+
+    response = client.get("/analyse/jobs/?q=7123&status=error")
+    content = response.content.decode("utf-8")
+
+    assert response.status_code == 200
+    assert "3 Analysejobs gefunden" in content
+    assert 'value="error" selected' in content
+    assert "fehlgeschlagen" in content
+    assert "abgeschlossen" in content  # Status filter option remains available.
 
 
 def test_search_page_renders_document_results(client, monkeypatch) -> None:
@@ -271,7 +344,7 @@ def test_search_page_renders_document_results(client, monkeypatch) -> None:
     monkeypatch.setattr(
         views.services,
         "search_semantic_documents",
-        lambda _query, source="ratsinfo": {
+        lambda _query, source="ratsinfo", **_filters: {
             "results": [
                 {
                     "rank": 1,
@@ -285,6 +358,7 @@ def test_search_page_renders_document_results(client, monkeypatch) -> None:
                     "title": "Windkraft in Riemsloh",
                     "document_type": "beschlussvorlage",
                     "display_type": "beschlussvorlage",
+                    "snippet": "Windkraft wird in Riemsloh beraten.",
                 }
             ],
             "error": "",
@@ -300,6 +374,9 @@ def test_search_page_renders_document_results(client, monkeypatch) -> None:
     assert "0.0328" in content
     assert "Windkraft in Riemsloh" in content
     assert "/analyse/sitzungen/7123/" in content
+    assert "Windkraft wird in Riemsloh beraten." in content
+    assert 'name="date_from"' in content
+    assert 'name="committee"' in content
     assert '<option value="ratsinfo" selected>Ratsinfo</option>' in content
 
 
@@ -308,9 +385,11 @@ def test_search_page_renders_landkreis_results_without_session_links(client, mon
 
     captured = {}
 
-    def fake_search(query, source="ratsinfo"):
+    def fake_search(query, source="ratsinfo", **_filters):
         captured["query"] = query
         captured["source"] = source
+        captured["committee"] = _filters.get("committee")
+        captured["document_type"] = _filters.get("document_type")
         return {
             "results": [
                 {
@@ -331,11 +410,18 @@ def test_search_page_renders_landkreis_results_without_session_links(client, mon
 
     monkeypatch.setattr(views.services, "search_semantic_documents", fake_search)
 
-    response = client.get("/suche/?q=Melle&source=landkreis")
+    response = client.get(
+        "/suche/?q=Melle&source=landkreis&committee=Rat&document_type=vorlage"
+    )
     content = response.content.decode("utf-8")
 
     assert response.status_code == 200
-    assert captured == {"query": "Melle", "source": "landkreis"}
+    assert captured == {
+        "query": "Melle",
+        "source": "landkreis",
+        "committee": "",
+        "document_type": "",
+    }
     assert '<option value="landkreis" selected>Landkreis</option>' in content
     assert "amtsblaetter" in content
     assert "Amtsblatt 10" in content
@@ -439,8 +525,8 @@ def test_analysis_start_explains_session_document_transfer(client, monkeypatch) 
     content = response.content.decode("utf-8")
 
     assert response.status_code == 200
-    assert "KI-Dokumentübergabe" in content
-    assert "Bei „Ganze Sitzung“ werden alle lokal verfügbaren Dokumente" in content
+    assert "Quellen und Nutzung" in content
+    assert "Die Analysegrundlage enthält Sitzungsdaten" in content
     assert "2 von 3 lokalen Dokumenten verfügbar" in content
     assert "0 analysierbare Dokumente" in content
     assert "nicht auswählbar" in content
@@ -449,7 +535,12 @@ def test_analysis_start_explains_session_document_transfer(client, monkeypatch) 
     assert 'id="analysis-start-submit"' in content
     assert "Analyse wurde gestartet" in content
     assert 'aria-live="polite"' in content
-    assert "submitButton.disabled = true" in content
+    assert 'src="/static/core/js/analysis_start.js"' in content
+    assert "TOP analysieren" in content
+    assert "ChatGPT Plus kann nicht direkt über die API genutzt werden" in content
+    assert 'value="meeting_briefing" selected' in content
+    assert 'value="none" selected' in content
+    assert 'placeholder="gpt-5.6-luna"' in content
 
 
 def test_analysis_start_scope_switch_filters_prompt_templates(client, monkeypatch) -> None:
@@ -510,8 +601,9 @@ def test_analysis_start_scope_switch_filters_prompt_templates(client, monkeypatc
     assert response.status_code == 200
     assert "Session Vorlage" in content
     assert "TOP Vorlage" not in content
+    assert 'value="meeting_briefing" selected' in content
     assert 'href="/analyse/starten/?session_id=7123&amp;scope=session"' in content
-    assert 'url.searchParams.delete("template_id")' in content
+    assert 'src="/static/core/js/analysis_start.js"' in content
 
     response = client.get("/analyse/starten/?session_id=7123&scope=tops")
     content = response.content.decode("utf-8")
@@ -519,6 +611,7 @@ def test_analysis_start_scope_switch_filters_prompt_templates(client, monkeypatc
     assert response.status_code == 200
     assert "TOP Vorlage" in content
     assert "Session Vorlage" not in content
+    assert 'value="top_deep_dive" selected' in content
     assert 'href="/analyse/starten/?session_id=7123&amp;scope=tops"' in content
     assert 'value="session_tpl" selected' not in content
 
@@ -534,7 +627,7 @@ def test_analysis_start_post_redirects_to_created_job(client, monkeypatch) -> No
     monkeypatch.setattr(
         views.services,
         "canonical_analysis_job_id",
-        lambda _result: "workflow:7",
+        lambda _result: "7",
     )
 
     response = client.post(
@@ -549,7 +642,7 @@ def test_analysis_start_post_redirects_to_created_job(client, monkeypatch) -> No
     )
 
     assert response.status_code == 302
-    assert response.headers["Location"] == "/analyse/jobs/workflow:7/"
+    assert response.headers["Location"] == "/analyse/jobs/7/"
 
 
 def test_prompt_template_management_create_edit_duplicate_deactivate(client, monkeypatch, tmp_path) -> None:
@@ -855,8 +948,64 @@ def test_service_fetch_page_includes_landkreis_fetch(client) -> None:
     assert "Landkreis-Veröffentlichungen laden" in content
     assert 'name="action" value="fetch_landkreis_publications"' in content
     assert "Bekanntmachungen" in content
-    assert "Amtsblaetter" in content
+    assert "Amtsblätter" in content
     assert "Datenwurzel" in content
+
+
+def test_service_pages_expose_manual_status_refresh(client) -> None:
+    response = client.get("/daten/")
+    soup = BeautifulSoup(response.content.decode("utf-8"), "html.parser")
+
+    status_panel = soup.select_one('[data-service-status][data-status-url="/daten/status/"]')
+
+    assert response.status_code == 200
+    assert status_panel is not None
+    assert status_panel.select_one("h2").get_text(strip=True) == "Aktueller Status"
+    assert status_panel.select_one("[data-service-status-refresh]").get_text(strip=True) == "Status aktualisieren"
+    assert {
+        node["data-status-field"]
+        for node in status_panel.select("[data-status-field]")
+    } == {
+        "raw_data_summary",
+        "local_index_summary",
+        "online_index_summary",
+        "qdrant_summary",
+    }
+
+
+def test_service_status_returns_fresh_values(client, monkeypatch) -> None:
+    from data_tools import views
+
+    initial = {
+        "raw_data_exists": False,
+        "raw_data_summary": "fehlt",
+        "local_index_exists": False,
+        "local_index_summary": "fehlt",
+        "online_index_exists": False,
+        "online_index_summary": "fehlt",
+        "qdrant_exists": False,
+        "qdrant_summary": "fehlt",
+    }
+    refreshed = {
+        "raw_data_exists": True,
+        "raw_data_summary": "3 Sitzungsordner",
+        "local_index_exists": True,
+        "local_index_summary": "2 Sitzungen / 4 Dokumente",
+        "online_index_exists": False,
+        "online_index_summary": "fehlt",
+        "qdrant_exists": True,
+        "qdrant_summary": "vorhanden",
+    }
+    status_values = iter((initial, refreshed))
+    monkeypatch.setattr(views.services, "service_status", lambda: next(status_values))
+
+    initial_response = client.get("/daten/status/")
+    refreshed_response = client.get("/daten/status/")
+
+    assert initial_response.status_code == 200
+    assert initial_response.json() == {"status": initial}
+    assert refreshed_response.status_code == 200
+    assert refreshed_response.json() == {"status": refreshed}
 
 
 def test_service_vector_page_renders_vector_status(client, monkeypatch) -> None:
@@ -1067,6 +1216,7 @@ def test_service_job_detail_exposes_live_update_hooks(client, monkeypatch) -> No
         finished_at = ""
         command_text = "python scripts/build_local_index.py"
         output = "Zeile 1"
+        status_label = "läuft"
 
     monkeypatch.setattr(views.service_jobs, "get_service_job", lambda _job_id: Job())
 
@@ -1075,9 +1225,10 @@ def test_service_job_detail_exposes_live_update_hooks(client, monkeypatch) -> No
 
     assert response.status_code == 200
     assert soup.select_one("[data-service-job-id]")["data-service-job-id"] == "abc123"
-    assert soup.select_one("#job-status").get_text(strip=True) == "running"
+    assert soup.select_one("#job-status").get_text(strip=True) == "läuft"
     assert soup.select_one("#job-output").get_text(strip=True) == "Zeile 1"
     assert soup.select_one("#job-running-banner") is not None
+    assert soup.select_one("#job-completion-message").has_attr("hidden")
     assert soup.select_one('script[src="/static/core/js/service_job_detail.js"]') is not None
 
 
@@ -1109,6 +1260,8 @@ def test_legacy_v1_analysis_output_page_loads(client, monkeypatch, tmp_path) -> 
         encoding="utf-8",
     )
     monkeypatch.setattr(services, "ANALYSIS_OUTPUTS_DIR", outputs)
+    monkeypatch.setattr(services, "ANALYSIS_WORKFLOW_DB", tmp_path / "missing_workflow.sqlite")
+    monkeypatch.setattr(services, "LOCAL_INDEX_DB", tmp_path / "missing_local.sqlite")
 
     response = client.get("/analyse/jobs/4/")
     content = response.content.decode("utf-8")
@@ -1139,6 +1292,7 @@ def test_analysis_job_detail_renders_result_sections(client, monkeypatch) -> Non
             "sources": ["data/analysis_outputs/job_7.raw.json"],
             "has_content": True,
             "error_message": "",
+            "ki_response_in_markdown": False,
         },
     )
 
@@ -1148,9 +1302,187 @@ def test_analysis_job_detail_renders_result_sections(client, monkeypatch) -> Non
 
     assert response.status_code == 200
     assert "Metadaten" in headings
-    assert "Markdown" in headings
-    assert "KI-Antwort" in headings
-    assert "Prompt" in headings
+    assert "KI-Analyse" in headings
+    assert "Markdown-Vorschau" in headings
+    assert soup.find("summary", string="Verwendeter Prompt") is not None
     assert "Strukturierte Daten" in headings
     assert "Quellen" in headings
     assert "data/analysis_outputs/job_7.raw.json" in soup.get_text()
+
+
+def test_analysis_job_detail_renders_safe_markdown_preview(client, monkeypatch) -> None:
+    from analysis import views
+
+    monkeypatch.setattr(
+        views.services,
+        "get_analysis_output",
+        lambda _job_id: {
+            "job_id": "workflow:1",
+            "display_job_id": "1",
+            "session_id": "8188",
+            "status": "done",
+            "markdown": "# Überschrift\n\n**Text** <script>alert(1)</script> [Böse](javascript:alert(1))",
+            "sources": [],
+            "structured_outputs": [],
+            "has_content": True,
+        },
+    )
+
+    content = client.get("/analyse/jobs/workflow:1/").content.decode("utf-8")
+    soup = BeautifulSoup(content, "html.parser")
+    preview = str(soup.select_one(".markdown-preview"))
+
+    assert '<div class="markdown-preview"><h1>Überschrift</h1>' in content
+    assert "<strong>Text</strong>" in content
+    assert "<script>" not in content
+    assert "javascript:" not in preview
+    assert "Markdown-Quelltext anzeigen" in content
+
+
+def test_prepared_job_detail_offers_in_place_execution(client, monkeypatch) -> None:
+    from analysis import views
+
+    job = {
+        "job_id": "1",
+        "display_job_id": "1",
+        "title": "Analyse Sitzung 2026-08-13 - Ortsrat Melle-Mitte",
+        "session_id": "8188",
+        "status": "prepared",
+        "display_status": "Analysegrundlage erstellt",
+        "model_name": "none",
+        "markdown": "# Grundlage\n\n## KI-Analyse\n",
+        "sources": [],
+        "structured_outputs": [],
+        "has_content": True,
+    }
+    monkeypatch.setattr(views.services, "get_analysis_output", lambda _job_id: job)
+
+    content = client.get("/analyse/jobs/1/").content.decode("utf-8")
+
+    assert "Job 1" in content
+    assert "Analyse Sitzung 2026-08-13 - Ortsrat Melle-Mitte" in content
+    assert "Analyse jetzt absenden" in content
+    assert 'name="provider_id"' in content
+    assert 'name="model_name" value=""' in content
+    assert 'id="analysis-job-run-submit"' in content
+    assert 'id="analysis-job-run-status"' in content
+    assert 'src="/static/core/js/analysis_job.js"' in content
+
+    job["status"] = "error"
+    job["model_name"] = "codex"
+    retry_content = client.get("/analyse/jobs/1/").content.decode("utf-8")
+    assert "Analyse erneut absenden" in retry_content
+    assert 'name="model_name" value=""' in retry_content
+
+
+def test_completed_job_prioritizes_readable_analysis_in_preview(client, monkeypatch) -> None:
+    from analysis import views
+
+    monkeypatch.setattr(
+        views.services,
+        "get_analysis_output",
+        lambda _job_id: {
+            "job_id": "1",
+            "display_job_id": "1",
+            "title": "Analyse Sitzung 2026-08-13 - Ortsrat Melle-Mitte",
+            "status": "done",
+            "markdown": (
+                "# Analysegrundlage\n\nInterne Dokumentliste\n\n"
+                "## KI-Analyse\n\n### Kurzfassung\n\nLesbares Ergebnis.\n"
+            ),
+            "sources": [],
+            "structured_outputs": [],
+            "has_content": True,
+        },
+    )
+
+    response = client.get("/analyse/jobs/1/")
+    soup = BeautifulSoup(response.content.decode("utf-8"), "html.parser")
+    preview = soup.select_one(".markdown-preview")
+
+    assert response.status_code == 200
+    assert soup.find("h2", string="KI-Analyse") is not None
+    assert "Lesbares Ergebnis." in preview.get_text()
+    assert "Interne Dokumentliste" not in preview.get_text()
+    assert "Vollständige Markdown-Datei anzeigen" in soup.get_text()
+
+
+def test_answer_reader_only_lists_jobs_with_readable_answers(client, monkeypatch) -> None:
+    from analysis import views
+
+    monkeypatch.setattr(
+        views.services,
+        "list_analysis_outputs",
+        lambda: [
+            {
+                "job_id": "2",
+                "display_job_id": "2",
+                "title": "Analyse Sitzung 2026-08-14 - Ausschuss",
+                "status": "prepared",
+                "markdown": "# Analysegrundlage\n\n## KI-Analyse\n",
+            },
+            {
+                "job_id": "3",
+                "display_job_id": "3",
+                "title": "Analyse mit nachträglich aufbereiteter Antwort",
+                "status": "prepared",
+                "response_status": "valid_json",
+                "markdown": (
+                    "# Analysegrundlage\n\n## KI-Analyse\n\n"
+                    "### Kurzfassung\n\nNachträglich lesbar gemacht.\n"
+                ),
+            },
+            {
+                "job_id": "1",
+                "display_job_id": "1",
+                "title": "Analyse Sitzung 2026-08-13 - Ortsrat Melle-Mitte",
+                "status": "done",
+                "model_name": "gpt-5.6-luna",
+                "markdown": (
+                    "# Analysegrundlage\n\nInterne Dokumentliste\n\n"
+                    "## KI-Analyse\n\n### Kurzfassung\n\nLesbares Ergebnis.\n"
+                ),
+            },
+            {
+                "job_id": "4",
+                "display_job_id": "4",
+                "title": "Ungültige Providerantwort",
+                "status": "error",
+                "response_status": "invalid_json",
+                "error_message": "Die KI-Antwort ist kein valides JSON-Objekt.",
+                "markdown": (
+                    "# Analysegrundlage\n\n## KI-Analyse\n\n"
+                    "Nicht als JSON gelieferte Providerantwort.\n"
+                ),
+            },
+            {
+                "job_id": "5",
+                "title": "Leere Providerantwort",
+                "status": "error",
+                "response_status": "empty",
+                "markdown": "# Analysegrundlage\n\n## KI-Analyse\n\nTechnischer Platzhalter.\n",
+            },
+            {
+                "job_id": "6",
+                "title": "Providerfehler",
+                "status": "error",
+                "response_status": "error",
+                "markdown": "# Analysegrundlage\n\n## KI-Analyse\n\nTechnische Fehlermeldung.\n",
+            },
+        ],
+    )
+
+    response = client.get("/analyse/antworten/?job_id=1")
+    soup = BeautifulSoup(response.content.decode("utf-8"), "html.parser")
+    preview = soup.select_one(".answer-preview")
+
+    assert response.status_code == 200
+    assert soup.find("h1", string="Antworten lesen") is not None
+    assert len(soup.select(".answer-list-item")) == 2
+    assert "Ortsrat Melle-Mitte" in soup.select_one(".answer-list-item.active").get_text()
+    assert "Lesbares Ergebnis." in preview.get_text()
+    assert "Interne Dokumentliste" not in preview.get_text()
+    assert "Ungültige Providerantwort" not in soup.get_text()
+    assert "Leere Providerantwort" not in soup.get_text()
+    assert "Providerfehler" not in soup.get_text()
+    assert soup.select_one('.answer-document a[href="/analyse/jobs/1/"]') is not None

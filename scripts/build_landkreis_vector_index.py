@@ -86,7 +86,7 @@ def _resolve_local_path(local_path: str, data_root: Path | None = None) -> str:
     return str(path.resolve())
 
 
-def _build_payload(row: dict, *, data_root: Path = LANDKREIS_DATA_DIR) -> dict:
+def _build_payload(row: dict, *, data_root: Path = LANDKREIS_DATA_DIR, search_text: str = "") -> dict:
     return {
         "source_system": "landkreis",
         "publication_id": str(row.get("publication_id") or ""),
@@ -96,6 +96,7 @@ def _build_payload(row: dict, *, data_root: Path = LANDKREIS_DATA_DIR) -> dict:
         "date": str(row.get("date") or ""),
         "url": str(row.get("url") or ""),
         "local_path": _resolve_local_path(str(row.get("local_path") or ""), data_root=data_root),
+        "snippet": _truncate_text(" ".join(search_text.split()), 500),
     }
 
 
@@ -297,9 +298,9 @@ def main(argv: list[str] | None = None) -> None:
                     "id": doc["_qdrant_id"],
                     "dense_vector": vectors["dense_vector"],
                     "sparse_vector": vectors["sparse_vector"],
-                    "payload": _build_payload(doc, data_root=data_dir),
+                    "payload": _build_payload(doc, data_root=data_dir, search_text=text),
                 }
-                for doc, vectors in zip(batch, vector_results)
+                for doc, text, vectors in zip(batch, texts, vector_results)
             ]
             vector_store.upsert_batch(points)
             indexed_count += len(batch)

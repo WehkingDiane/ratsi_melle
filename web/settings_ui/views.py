@@ -39,7 +39,7 @@ def index(request):
                     errors.append(f"Token konnte nicht gespeichert werden: {exc}")
         elif action == "delete_token":
             delete_api_key(provider_id)
-            messages.append(f"{provider['label']}-Token geloescht.")
+            messages.append(f"{provider['label']}-Token gelöscht.")
         else:
             errors.append("Unbekannte Aktion.")
 

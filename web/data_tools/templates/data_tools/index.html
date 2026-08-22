@@ -50,7 +50,7 @@
           <tr>
             <td><a href="{% url 'data_tools:service_job_detail' job.job_id %}">{{ job.job_id }}</a></td>
             <td>{{ job.action }}</td>
-            <td>{{ job.status }}</td>
+            <td>{{ job.status_label }}</td>
             <td class="datetime-value">{{ job.started_at|default:"-" }}</td>
           </tr>
           {% endfor %}

@@ -28,7 +28,7 @@
     <form method="post" class="form-stack">
       {% csrf_token %}
       <input type="hidden" name="action" value="build_online_index">
-      <label>Jahr <input type="text" name="year" value="{{ current_year }}"></label>
+      <label>Jahr <input type="number" name="year" value="{{ current_year }}" min="2000" max="2100"></label>
       <label>Monate <input type="text" name="months" placeholder="z. B. 1 2 3 oder leer für alle"></label>
       <label class="checkbox-inline"><input type="checkbox" name="refresh_existing" value="1"> Bestehende Sitzungen aktualisieren</label>
       <label class="checkbox-inline"><input type="checkbox" name="only_refresh" value="1"> Nur bestehende Sitzungen aktualisieren</label>
@@ -42,7 +42,7 @@
       {% csrf_token %}
       <input type="hidden" name="action" value="build_landkreis_publications_db">
       <label>Datenwurzel <input type="text" name="data_dir" placeholder="Optional, z. B. /mnt/d/landkreis_osnabrueck"></label>
-      <label>Maximale Textzeichen <input type="text" name="max_text_chars" placeholder="Standard: 200000"></label>
+      <label>Maximale Textzeichen <input type="number" name="max_text_chars" min="1" placeholder="Standard: 200000"></label>
       <button class="button primary" type="submit">Landkreis-Datenbank bauen</button>
     </form>
   </article>

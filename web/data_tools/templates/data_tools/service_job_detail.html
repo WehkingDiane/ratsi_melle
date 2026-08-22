@@ -11,10 +11,10 @@
 </section>
 
 {% if job %}
-<section class="panel" data-service-job-id="{{ job_id }}">
+<section class="panel" data-service-job-id="{{ job_id }}" data-service-job-running="{% if job.status == 'running' or job.status == 'queued' %}true{% else %}false{% endif %}">
   <h2>{{ job.action }}</h2>
   <dl class="facts inline">
-    <div><dt>Status</dt><dd id="job-status" class="{% if job.status == 'ok' %}status-ok{% elif job.status == 'running' or job.status == 'queued' %}status-warning{% else %}status-error{% endif %}">{{ job.status }}</dd></div>
+    <div><dt>Status</dt><dd id="job-status" class="{% if job.status == 'ok' %}status-ok{% elif job.status == 'running' or job.status == 'queued' %}status-warning{% else %}status-error{% endif %}">{{ job.status_label|default:job.status }}</dd></div>
     <div><dt>Exit-Code</dt><dd id="job-exit-code">{{ job.exit_code|default:"-" }}</dd></div>
     <div><dt>Start</dt><dd id="job-started-at" class="datetime-value">{{ job.started_at|default:"-" }}</dd></div>
     <div><dt>Ende</dt><dd id="job-finished-at" class="datetime-value">{{ job.finished_at|default:"-" }}</dd></div>
@@ -25,11 +25,14 @@
     <span>Script wird ausgeführt. Die Logausgabe wird automatisch aktualisiert.</span>
   </div>
   {% endif %}
+  <p id="job-completion-message" class="{% if job.status == 'ok' %}status-ok{% else %}status-error{% endif %}" aria-live="polite"{% if job.status == "running" or job.status == "queued" %} hidden{% endif %}>
+    {% if job.status == "ok" %}Datenjob wurde erfolgreich abgeschlossen.{% elif job.status != "running" and job.status != "queued" %}Datenjob ist fehlgeschlagen.{% endif %}
+  </p>
   <pre class="text-block compact">{{ job.command_text }}</pre>
   <pre class="text-block" id="job-output">{{ job.output|default:"Noch keine Ausgabe." }}</pre>
 </section>
 {% else %}
-<p class="empty-state">Dieser Datenjob ist nicht mehr im lokalen Prozessspeicher vorhanden.</p>
+<p class="empty-state">Dieser Datenjob wurde nicht gefunden.</p>
 {% endif %}
 
 {% include "core/partials/service_status.html" %}

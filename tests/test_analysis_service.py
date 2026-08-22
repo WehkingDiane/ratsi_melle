@@ -9,7 +9,15 @@ from src.analysis.schemas import (
     ANALYSIS_OUTPUT_SCHEMA_VERSION_V2,
     AnalysisOutputRecord,
 )
-from src.analysis.service import AnalysisRequest, AnalysisService, _parse_ki_json_response
+from src.analysis.providers.base import KiResponse
+from src.analysis.service import (
+    AnalysisRequest,
+    AnalysisService,
+    _analysis_response_markdown,
+    _parse_ki_json_response,
+    _prioritize_documents,
+    _related_raw_artifact_path,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -36,6 +44,7 @@ def test_ensure_analysis_tables_creates_correct_schema(tmp_path: Path) -> None:
             "top_numbers_json", "purpose", "model_name", "prompt_version",
             "prompt_template_id", "prompt_template_revision", "prompt_template_label",
             "rendered_prompt_snapshot_path", "status", "error_message",
+            "provider_id", "input_tokens", "output_tokens", "response_status",
         }
 
         outputs_cols = {row[1] for row in conn.execute("PRAGMA table_info(analysis_outputs)").fetchall()}
@@ -71,6 +80,113 @@ def test_parse_ki_json_response_accepts_markdown_fenced_json() -> None:
 def test_parse_ki_json_response_returns_empty_dict_for_invalid_json() -> None:
     assert _parse_ki_json_response("kein json") == {}
 
+
+def test_structured_analysis_response_is_rendered_as_readable_markdown() -> None:
+    response = json.dumps(
+        {
+            "topic": "Windenergie",
+            "short_summary": "Kurze sachliche Zusammenfassung.",
+            "document_overview": [
+                {
+                    "title": "Beschlussvorlage",
+                    "document_type": "Vorlage",
+                    "role": "Hauptquelle",
+                    "summary": "Enthält den Beschlussvorschlag.",
+                }
+            ],
+            "open_questions": ["Welche Folgekosten entstehen?"],
+            "sources": [
+                {
+                    "title": "Vorlage 1",
+                    "document_type": "Beschlussvorlage",
+                    "agenda_item": "Ö 6",
+                    "url": "https://example.invalid/vorlage",
+                }
+            ],
+        },
+        ensure_ascii=False,
+    )
+
+    markdown = _analysis_response_markdown(response)
+
+    assert "### Thema\n\nWindenergie" in markdown
+    assert "### Kurzfassung" in markdown
+    assert "#### 1. Beschlussvorlage" in markdown
+    assert "- Welche Folgekosten entstehen?" in markdown
+    assert "[Vorlage 1](https://example.invalid/vorlage)" in markdown
+    assert not markdown.lstrip().startswith("{")
+
+
+def test_related_raw_artifact_path_preserves_collision_suffix() -> None:
+    raw_path = Path("job_1.raw.3.json")
+
+    assert _related_raw_artifact_path(raw_path, "ki_response") == Path(
+        "job_1.ki_response.3.json"
+    )
+    assert _related_raw_artifact_path(raw_path, "publication") == Path(
+        "job_1.publication.3.json"
+    )
+
+
+def test_document_priority_starts_with_decision_source() -> None:
+    documents = [
+        {"title": "Avifaunistisches Gutachten"},
+        {"title": "Anlage 02 - Begründung"},
+        {"title": "Beschlussvorlage 01/2026"},
+    ]
+
+    prioritized = _prioritize_documents(documents)
+
+    assert [item["title"] for item in prioritized] == [
+        "Beschlussvorlage 01/2026",
+        "Anlage 02 - Begründung",
+        "Avifaunistisches Gutachten",
+    ]
+
+
+def test_large_document_set_is_summarized_before_synthesis(tmp_path: Path, monkeypatch) -> None:
+    calls: list[dict] = []
+
+    class FakeProvider:
+        def analyze(self, **kwargs):
+            calls.append(kwargs)
+            is_summary = "Fasse" in kwargs["prompt"] or "Verdichte" in kwargs["prompt"]
+            return KiResponse(
+                provider_id="codex",
+                model_name="gpt-test",
+                response_text='{"key_facts":["Fakt"]}' if is_summary else '{"topic":"Ergebnis"}',
+                input_tokens=10,
+                output_tokens=5,
+            )
+
+    monkeypatch.setattr("src.analysis.providers.registry.build_provider", lambda *_args, **_kwargs: FakeProvider())
+    full_text = "A" * 80_000 + "ENDE-DES-DOKUMENTS"
+    monkeypatch.setattr("src.analysis.service.extract_pdf_text", lambda _path: full_text)
+    request = AnalysisRequest(
+        db_path=tmp_path / "unused.sqlite",
+        session={"session_id": "1"},
+        scope="tops",
+        selected_tops=["Ö 1"],
+        prompt="Analysiere als JSON",
+        provider_id="codex",
+    )
+
+    response, model, input_tokens, output_tokens, error = AnalysisService()._call_provider(
+        request=request,
+        context="Grundlage\n## Prompt-Hinweis\ndoppelt",
+        pdf_paths=[tmp_path / "a.pdf", tmp_path / "b.pdf"],
+    )
+
+    assert error is None
+    assert response == '{"topic":"Ergebnis"}'
+    assert model == "gpt-test"
+    assert input_tokens == 90
+    assert output_tokens == 45
+    assert len(calls) == 9
+    assert sum("ENDE-DES-DOKUMENTS" in call["context"] for call in calls) == 2
+    assert "Dokumentweise Voranalysen" in calls[-1]["context"]
+    assert sum("Teil 3 von 3" in call["context"] for call in calls) == 4
+    assert calls[-1]["pdf_paths"] is None
 
 def test_publication_draft_uses_ki_json_title_and_body() -> None:
     record = AnalysisOutputRecord(
@@ -119,14 +235,20 @@ def test_structured_analysis_uses_ki_json_fields() -> None:
         session_id="123",
         purpose="journalistic_publication",
         ki_response=(
-            '{"topic":"Thema","missing_information":["Zahl fehlt"],'
-            '"source_notes":["Quelle pruefen"]}'
+            '{"topic":"Thema","short_summary":"Kurz",'
+            '"proposal_or_decision":"Beschluss",'
+            '"affected_groups":["Anwohner"],"missing_information":["Zahl fehlt"],'
+            '"source_notes":["Quelle pruefen"],"sources":[{"title":"Vorlage"}]}'
         ),
     )
 
     structured = AnalysisService()._build_structured_analysis(record, {"committee": "Rat"})
 
     assert structured.topic.title == "Thema"
+    assert structured.short_summary == "Kurz"
+    assert structured.proposal_or_decision == "Beschluss"
+    assert structured.affected_groups == ["Anwohner"]
+    assert structured.sources == [{"title": "Vorlage"}]
     assert structured.open_questions == ["Zahl fehlt"]
     assert structured.risks_or_uncertainties == ["Quelle pruefen"]
 
@@ -312,3 +434,87 @@ def test_analysis_service_persists_versioned_outputs(tmp_path: Path, monkeypatch
     assert payload["schema_version"] == ANALYSIS_OUTPUT_SCHEMA_VERSION_V2
     assert payload["output_type"] == "raw_analysis"
     assert payload["job_id"] == record.job_id
+
+
+def test_prepared_analysis_is_executed_in_place(tmp_path: Path, monkeypatch) -> None:
+    db_path = _build_db(tmp_path)
+    outputs_dir = tmp_path / "data" / "analysis_outputs"
+    workflow_db = tmp_path / "data" / "db" / "analysis_workflow.sqlite"
+    monkeypatch.setattr("src.analysis.service.ANALYSIS_OUTPUTS_DIR", outputs_dir)
+    monkeypatch.setattr("src.analysis.service.ANALYSIS_PROMPTS_DIR", tmp_path / "private" / "prompts")
+    monkeypatch.setattr("src.analysis.service.PROMPT_SNAPSHOTS_DIR", tmp_path / "private" / "snapshots")
+    monkeypatch.setattr("src.analysis.service.DEFAULT_ANALYSIS_MARKDOWN", tmp_path / "latest.md")
+    monkeypatch.setattr("src.analysis.workflow_db.ANALYSIS_WORKFLOW_DB", workflow_db)
+
+    service = AnalysisService()
+    session = {"session_id": "7001", "date": "2026-08-13", "committee": "Ortsrat Melle-Mitte"}
+    prepared_request = AnalysisRequest(
+        db_path=db_path,
+        session=session,
+        scope="session",
+        selected_tops=[],
+        prompt="Analysiere als JSON.",
+        purpose="journalistic_publication",
+    )
+    prepared = service.run_journalistic_analysis(prepared_request)
+    assert prepared.status == "prepared"
+    assert prepared.markdown.rstrip().endswith("## KI-Analyse")
+
+    class FakeProvider:
+        def analyze(self, **_kwargs):
+            with sqlite3.connect(workflow_db) as conn:
+                assert conn.execute("SELECT status FROM analysis_jobs").fetchone()[0] == "running"
+            return KiResponse(
+                provider_id="codex",
+                model_name="gpt-test",
+                response_text='{"title":"Ergebnis","body":"Veröffentlichungstext"}',
+                input_tokens=21,
+                output_tokens=8,
+            )
+
+    monkeypatch.setattr("src.analysis.providers.registry.build_provider", lambda *_args, **_kwargs: FakeProvider())
+    with sqlite3.connect(workflow_db) as conn:
+        workflow_job_id = int(conn.execute("SELECT job_id FROM analysis_jobs").fetchone()[0])
+        title = conn.execute("SELECT title FROM analysis_jobs").fetchone()[0]
+    article = next(outputs_dir.rglob(f"job_{prepared.job_id}.article.md"))
+    raw = next(outputs_dir.rglob(f"job_{prepared.job_id}.raw.json"))
+    structured = next(outputs_dir.rglob(f"job_{prepared.job_id}.structured.json"))
+
+    completed = service.execute_prepared_analysis(
+        AnalysisRequest(
+            db_path=db_path,
+            session=session,
+            scope="session",
+            selected_tops=[],
+            prompt="Analysiere als JSON.",
+            provider_id="codex",
+            model_name="gpt-test",
+            purpose="journalistic_publication",
+        ),
+        workflow_job_id=workflow_job_id,
+        source_job_id=prepared.job_id,
+        markdown=prepared.markdown,
+        artifact_paths={"article": article, "raw": raw, "structured": structured},
+        workflow_db_path=workflow_db,
+    )
+
+    assert title == "Analyse Sitzung 2026-08-13 - Ortsrat Melle-Mitte"
+    assert completed.status == "done"
+    assert completed.markdown.count("## KI-Analyse") == 1
+    article_text = article.read_text(encoding="utf-8")
+    assert "# Ergebnis" in article_text
+    assert "Veröffentlichungstext" in article_text
+    response_path = raw.with_name(raw.name.replace(".raw.json", ".ki_response.json"))
+    assert json.loads(response_path.read_text(encoding="utf-8")) == {
+        "title": "Ergebnis",
+        "body": "Veröffentlichungstext",
+    }
+    publication_path = raw.with_name(raw.name.replace(".raw.json", ".publication.json"))
+    assert publication_path.is_file()
+    with sqlite3.connect(workflow_db) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM analysis_jobs").fetchone()[0] == 1
+        assert conn.execute("SELECT status FROM analysis_jobs").fetchone()[0] == "done"
+        assert conn.execute(
+            "SELECT COUNT(*) FROM analysis_outputs WHERE output_type = 'publication_draft'"
+        ).fetchone()[0] == 1
+        assert conn.execute("SELECT COUNT(*) FROM publication_jobs").fetchone()[0] == 1

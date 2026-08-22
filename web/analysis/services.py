@@ -11,8 +11,12 @@ from core.services import prompts
 from core.services import sessions
 from core.services import source_check
 from core.services import status
-from core.services.analysis import analysis_purpose_options
-from core.services.analysis import provider_options
+from core.services.analysis import analysis_purpose_options as _analysis_purpose_options
+from core.services.analysis import default_provider_id as _default_provider_id
+from core.services.analysis import default_purpose_for_scope as _default_purpose_for_scope
+from core.services.analysis import default_template_id as _default_template_id
+from core.services.analysis import execute_prepared_analysis as _execute_prepared_analysis
+from core.services.analysis import provider_options as _provider_options
 from core.services.analysis import run_analysis_from_form as _run_analysis_from_form
 
 
@@ -37,6 +41,31 @@ def _sync_paths() -> None:
     paths.PROMPT_TEMPLATES_PATH = Path(PROMPT_TEMPLATES_PATH)
     paths.PROMPT_TEMPLATES_EXAMPLE = Path(PROMPT_TEMPLATES_EXAMPLE)
     paths.PROMPT_SNAPSHOTS_DIR = Path(PROMPT_SNAPSHOTS_DIR)
+
+
+def analysis_purpose_options() -> list[dict[str, str]]:
+    _sync_paths()
+    return _analysis_purpose_options()
+
+
+def default_purpose_for_scope(scope: str) -> str:
+    _sync_paths()
+    return _default_purpose_for_scope(scope)
+
+
+def provider_options() -> list[dict[str, str]]:
+    _sync_paths()
+    return _provider_options()
+
+
+def default_provider_id() -> str:
+    _sync_paths()
+    return _default_provider_id()
+
+
+def default_template_id(scope: str, purpose: str = "") -> str:
+    _sync_paths()
+    return _default_template_id(scope, purpose)
 
 
 def list_sessions() -> list[dict[str, Any]]:
@@ -107,3 +136,10 @@ def source_overview() -> dict[str, Any]:
 def run_analysis_from_form(data: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
     _sync_paths()
     return _run_analysis_from_form(data)
+
+
+def execute_prepared_analysis(
+    job_id: str, provider_id: str, model_name: str = ""
+) -> tuple[dict[str, Any] | None, list[str]]:
+    _sync_paths()
+    return _execute_prepared_analysis(job_id, provider_id, model_name)

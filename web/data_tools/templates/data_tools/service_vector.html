@@ -17,7 +17,7 @@
     <form method="post" class="form-stack">
       {% csrf_token %}
       <input type="hidden" name="action" value="build_vector_index">
-      <label>Limit <input type="text" name="limit" placeholder="Optional, z. B. 100"></label>
+      <label>Limit <input type="number" name="limit" min="1" placeholder="Optional, z. B. 100"></label>
       <button class="button primary" type="submit">Ratsinfo-Vektorindex bauen</button>
     </form>
   </article>
@@ -28,8 +28,8 @@
       {% csrf_token %}
       <input type="hidden" name="action" value="build_landkreis_vector_index">
       <label>Datenwurzel <input type="text" name="data_dir" placeholder="Optional, z. B. /mnt/d/landkreis_osnabrueck"></label>
-      <label>Limit <input type="text" name="limit" placeholder="Optional, z. B. 100"></label>
-      <label>Maximale Textzeichen <input type="text" name="max_text_chars" placeholder="Standard: 6000"></label>
+      <label>Limit <input type="number" name="limit" min="1" placeholder="Optional, z. B. 100"></label>
+      <label>Maximale Textzeichen <input type="number" name="max_text_chars" min="1" placeholder="Standard: 6000"></label>
       <button class="button primary" type="submit">Landkreis-Vektorindex bauen</button>
     </form>
   </article>

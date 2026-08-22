@@ -102,16 +102,21 @@ def _make_openai_mock(response_text: str = "OpenAI-Antwort"):
     return mock_openai
 
 
-def test_codex_provider_analyze() -> None:
+def test_codex_provider_uses_luna_default_with_chat_completions() -> None:
     mock_openai = _make_openai_mock("OpenAI-Ergebnis")
     with patch.dict("sys.modules", {"openai": mock_openai}):
         provider = build_provider(PROVIDER_CODEX, api_key="test-key")
         result = provider.analyze(prompt="Analysiere.", context="Sitzung 2026")
 
     assert result.provider_id == PROVIDER_CODEX
+    assert result.model_name == "gpt-5.6-luna"
     assert result.response_text == "OpenAI-Ergebnis"
     assert result.input_tokens == 15
     assert result.output_tokens == 25
+    kwargs = mock_openai.OpenAI.return_value.chat.completions.create.call_args.kwargs
+    assert kwargs["model"] == "gpt-5.6-luna"
+    assert kwargs["max_completion_tokens"] == 6000
+    assert "max_tokens" not in kwargs
 
 
 # ---------------------------------------------------------------------------
@@ -234,6 +239,8 @@ def test_service_without_provider_leaves_ki_response_empty(tmp_path: Path, monke
     )
     record = AnalysisService().run_journalistic_analysis(request)
     assert record.ki_response == ""
+    assert record.status == "prepared"
+    assert record.response_status == "not_requested"
 
 
 def test_service_provider_error_stored_in_db(tmp_path: Path, monkeypatch) -> None:

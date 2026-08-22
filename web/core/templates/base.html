@@ -12,37 +12,38 @@
   <link rel="stylesheet" href="{% static 'core/css/status.css' %}">
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Zum Hauptinhalt</a>
   <header class="site-header">
     <div class="site-header-inner">
       <div class="brand-block">
         <a class="brand" href="{% url 'dashboard' %}">Ratsi Melle</a>
         <p>Lokale Arbeitsoberfläche</p>
       </div>
-      <input class="nav-checkbox" type="checkbox" id="nav-toggle">
-      <label class="nav-toggle" for="nav-toggle" aria-label="Navigation umschalten">
+      <button class="nav-toggle" type="button" aria-label="Navigation öffnen" aria-expanded="false" aria-controls="main-navigation">
         <span></span>
         <span></span>
         <span></span>
-      </label>
-      <nav class="main-nav" aria-label="Hauptnavigation">
+      </button>
+      <nav class="main-nav" id="main-navigation" aria-label="Hauptnavigation">
         <div class="nav-menu">
-          <a class="nav-menu-label {% if active_nav == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}" aria-haspopup="true">Dashboard</a>
+          <a class="nav-menu-label {% if active_nav == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}" aria-haspopup="true"{% if active_nav == 'dashboard' %} aria-current="page"{% endif %}>Dashboard</a>
           <div class="nav-dropdown" aria-label="Dashboard-Untermenü">
             <a href="{% url 'dashboard' %}">Dashboard öffnen</a>
           </div>
         </div>
         <div class="nav-menu">
-          <a class="nav-menu-label {% if active_nav == 'analysis' %}active{% endif %}" href="{% url 'analysis:index' %}" aria-haspopup="true">Analyse</a>
+          <a class="nav-menu-label {% if active_nav == 'analysis' %}active{% endif %}" href="{% url 'analysis:index' %}" aria-haspopup="true"{% if active_nav == 'analysis' %} aria-current="page"{% endif %}>Analyse</a>
           <div class="nav-dropdown" aria-label="Analyse-Untermenü">
             <a href="{% url 'analysis:index' %}">Analyse-Übersicht</a>
             <a href="{% url 'analysis:prompt_template_list' %}">Prompt-Vorlagen</a>
             <a href="{% url 'analysis:analysis_start' %}">KI-Analyse starten</a>
+            <a href="{% url 'analysis:answer_reader' %}">Antworten lesen</a>
             <a href="{% url 'analysis:session_list' %}">Sitzungen</a>
             <a href="{% url 'analysis:job_list' %}">Analysejobs</a>
           </div>
         </div>
         <div class="nav-menu">
-          <a class="nav-menu-label {% if active_nav == 'data' %}active{% endif %}" href="{% url 'data_tools:index' %}" aria-haspopup="true">Daten</a>
+          <a class="nav-menu-label {% if active_nav == 'data' %}active{% endif %}" href="{% url 'data_tools:index' %}" aria-haspopup="true"{% if active_nav == 'data' %} aria-current="page"{% endif %}>Daten</a>
           <div class="nav-dropdown" aria-label="Daten-Untermenü">
             <a href="{% url 'data_tools:service_fetch' %}">Fetch: Daten holen</a>
             <a href="{% url 'data_tools:service_build' %}">Build: Datenbank-Tools</a>
@@ -50,19 +51,19 @@
           </div>
         </div>
         <div class="nav-menu">
-          <a class="nav-menu-label {% if active_nav == 'publishing' %}active{% endif %}" href="{% url 'publishing:index' %}" aria-haspopup="true">Veröffentlichung</a>
+          <a class="nav-menu-label {% if active_nav == 'publishing' %}active{% endif %}" href="{% url 'publishing:index' %}" aria-haspopup="true"{% if active_nav == 'publishing' %} aria-current="page"{% endif %}>Veröffentlichung</a>
           <div class="nav-dropdown" aria-label="Veröffentlichung-Untermenü">
             <a href="{% url 'publishing:index' %}">Veröffentlichung öffnen</a>
           </div>
         </div>
         <div class="nav-menu">
-          <a class="nav-menu-label {% if active_nav == 'search' %}active{% endif %}" href="{% url 'search:index' %}" aria-haspopup="true">Suche</a>
+          <a class="nav-menu-label {% if active_nav == 'search' %}active{% endif %}" href="{% url 'search:index' %}" aria-haspopup="true"{% if active_nav == 'search' %} aria-current="page"{% endif %}>Suche</a>
           <div class="nav-dropdown" aria-label="Suche-Untermenü">
             <a href="{% url 'search:index' %}">Suche öffnen</a>
           </div>
         </div>
         <div class="nav-menu">
-          <a class="nav-menu-label {% if active_nav == 'settings' %}active{% endif %}" href="{% url 'settings_ui:index' %}" aria-haspopup="true">Einstellungen</a>
+          <a class="nav-menu-label {% if active_nav == 'settings' %}active{% endif %}" href="{% url 'settings_ui:index' %}" aria-haspopup="true"{% if active_nav == 'settings' %} aria-current="page"{% endif %}>Einstellungen</a>
           <div class="nav-dropdown" aria-label="Einstellungen-Untermenü">
             <a href="{% url 'settings_ui:index' %}">Einstellungen öffnen</a>
           </div>
@@ -74,12 +75,13 @@
       </a>
     </div>
   </header>
-  <main class="shell">
+  <main class="shell" id="main-content" tabindex="-1">
     {% block content %}{% endblock %}
   </main>
   <footer class="site-footer">
     <div class="site-footer-inner">Lokale Entwicklungsoberfläche</div>
   </footer>
   <script src="{% static 'core/js/service_status.js' %}"></script>
+  <script src="{% static 'core/js/navigation.js' %}"></script>
 </body>
 </html>

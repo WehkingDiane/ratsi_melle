@@ -20,6 +20,7 @@ if str(WEB_ROOT) not in sys.path:
 
 from analysis import services as analysis_services
 from core import service_jobs
+from core.services.outputs import _public_job
 from core import services as core_services
 from data_tools import services as data_services
 from search import services as search_services
@@ -27,6 +28,46 @@ from src.analysis.workflow_db import AnalysisArtifactRecord
 from src.analysis.workflow_db import AnalysisJobRecord
 from src.analysis.workflow_db import add_analysis_output
 from src.analysis.workflow_db import create_analysis_job
+from src.analysis.workflow_db import initialize_analysis_workflow_db
+
+
+def test_legacy_done_job_without_ki_response_is_displayed_as_prepared() -> None:
+    public = _public_job(
+        {
+            "job_id": "workflow:174",
+            "status": "done",
+            "markdown": "# Analysegrundlage",
+            "ki_response": "",
+            "sources": set(),
+            "files": [],
+            "structured_outputs": [],
+            "warnings": [],
+        }
+    )
+
+    assert public["status"] == "prepared"
+    assert public["display_status"] == "Analysegrundlage erstellt"
+    assert public["provider_id"] == "none"
+    assert public["response_status"] == "not_requested"
+
+
+def test_valid_workflow_job_without_indexed_response_stays_done() -> None:
+    public = _public_job(
+        {
+            "job_id": "workflow:1",
+            "status": "done",
+            "response_status": "valid_json",
+            "markdown": "# Grundlage\n\n## KI-Analyse\n\n### Kurzfassung\n\nFertig.",
+            "ki_response": "",
+            "sources": set(),
+            "files": [],
+            "structured_outputs": [],
+            "warnings": [],
+        }
+    )
+
+    assert public["status"] == "done"
+    assert public["display_status"] == "abgeschlossen"
 
 
 @pytest.fixture()
@@ -124,11 +165,26 @@ def test_semantic_search_documents_uses_vector_store(workspace_tmp: Path, monkey
         def close(self):
             captured["store_closed"] = True
 
-        def search(self, *, query_dense, query_sparse, limit, session_id=None):
+        def search(
+            self,
+            *,
+            query_dense,
+            query_sparse,
+            limit,
+            session_id=None,
+            date_from=None,
+            date_to=None,
+            committee=None,
+            document_type=None,
+        ):
             captured["query_dense"] = query_dense
             captured["query_sparse"] = query_sparse
             captured["limit"] = limit
             captured["session_id"] = session_id
+            captured["date_from"] = date_from
+            captured["date_to"] = date_to
+            captured["committee"] = committee
+            captured["document_type"] = document_type
             return [
                 {
                     "doc_id": 123,
@@ -141,6 +197,7 @@ def test_semantic_search_documents_uses_vector_store(workspace_tmp: Path, monkey
                     "document_type": "beschlussvorlage",
                     "url": "https://example.test/do.asp",
                     "local_path": "",
+                    "snippet": "Windkraft wird in Riemsloh beraten.",
                 }
             ]
 
@@ -163,11 +220,90 @@ def test_semantic_search_documents_uses_vector_store(workspace_tmp: Path, monkey
     assert captured["query_sparse"] == {"indices": [1], "values": [0.5]}
     assert captured["limit"] == search_services.MAX_SEMANTIC_SEARCH_RESULTS
     assert captured["session_id"] is None
+    assert captured["date_from"] is None
+    assert captured["date_to"] is None
+    assert captured["committee"] is None
+    assert captured["document_type"] is None
     assert captured["store_closed"] is True
     assert response["results"][0]["rank"] == 1
     assert response["results"][0]["display_date"] == "11.03.2026"
     assert response["results"][0]["display_score"] == "0.0328"
     assert response["results"][0]["search_source"] == "ratsinfo"
+    assert response["results"][0]["snippet"] == "Windkraft wird in Riemsloh beraten."
+
+
+def test_semantic_result_filters_preserve_relevance_order() -> None:
+    results = [
+        {"rank": 1, "date": "2026-03-11", "committee": "Rat", "document_type": "vorlage"},
+        {"rank": 2, "date": "2025-03-11", "committee": "Rat", "document_type": "protokoll"},
+        {"rank": 3, "date": "2026-04-01", "committee": "Ortsrat", "document_type": "vorlage"},
+    ]
+
+    filtered = search_services.filter_semantic_results(
+        results,
+        date_from="2026-01-01",
+        date_to="2026-12-31",
+        committee="Rat",
+        document_type="vorlage",
+    )
+
+    assert [result["rank"] for result in filtered] == [1]
+    assert search_services.result_filter_options(results, "committee") == ["Ortsrat", "Rat"]
+
+
+def test_semantic_search_filters_candidates_before_result_limit(
+    workspace_tmp: Path, monkeypatch
+) -> None:
+    qdrant_dir = workspace_tmp / "data" / "db" / "qdrant"
+    qdrant_dir.mkdir(parents=True)
+    captured = {}
+
+    class FakeStore:
+        def search(self, **kwargs):
+            captured.update(kwargs)
+            return [
+                {
+                    "title": f"Fremder Treffer {index}",
+                    "committee": "Rat",
+                    "document_type": "vorlage",
+                }
+                for index in range(20)
+            ] + [
+                {
+                    "title": "Gesuchter Treffer",
+                    "committee": "Ortsrat",
+                    "document_type": "protokoll",
+                }
+            ]
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(search_services, "QDRANT_DIR", qdrant_dir)
+    monkeypatch.setattr(search_services, "_semantic_search_dependency_error", lambda: "")
+    monkeypatch.setattr(
+        search_services,
+        "_get_semantic_resources",
+        lambda: (
+            type("Embedder", (), {"embed_query": lambda _self, _query: [0.1]})(),
+            type(
+                "BM25",
+                (),
+                {"encode_query": lambda _self, _query: {"indices": [], "values": []}},
+            )(),
+        ),
+    )
+    monkeypatch.setattr(search_services, "_create_vector_store", lambda *_args: FakeStore())
+
+    response = search_services.search_semantic_documents(
+        "Windkraft", committee="Ortsrat", document_type="protokoll"
+    )
+
+    assert captured["limit"] == search_services.MAX_SEMANTIC_SEARCH_RESULTS
+    assert captured["committee"] == "Ortsrat"
+    assert captured["document_type"] == "protokoll"
+    assert [result["title"] for result in response["results"]] == ["Gesuchter Treffer"]
+    assert response["candidate_count"] == 21
 
 
 def test_semantic_search_documents_uses_landkreis_collection(workspace_tmp: Path, monkeypatch) -> None:
@@ -189,7 +325,7 @@ def test_semantic_search_documents_uses_landkreis_collection(workspace_tmp: Path
         def close(self):
             captured["store_closed"] = True
 
-        def search(self, *, query_dense, query_sparse, limit, session_id=None):
+        def search(self, *, query_dense, query_sparse, limit, **_filters):
             captured["collection_name"] = captured["created_collection_name"]
             return [
                 {
@@ -504,7 +640,8 @@ def test_workflow_analysis_output_schema_is_displayed(workspace_tmp: Path, monke
 
     assert job is not None
     assert job_id != 1
-    assert job["job_id"] == f"workflow:{job_id}"
+    assert job["job_id"] == str(job_id)
+    assert job["storage_job_id"] == f"workflow:{job_id}"
     assert job["db_job_id"] == job_id
     assert job["session_id"] == "7123"
     assert job["output_type"] == "raw_analysis"
@@ -566,13 +703,106 @@ def test_workflow_output_paths_accept_windows_separators(workspace_tmp: Path, mo
     assert "data/analysis_outputs/2026/03/session/job_1.raw.json" in job["files"]
 
 
-def test_db_analysis_outputs_are_namespaced_by_source(workspace_tmp: Path, monkeypatch) -> None:
+def test_publication_draft_status_does_not_replace_completed_analysis_status(
+    workspace_tmp: Path, monkeypatch
+) -> None:
+    publication_path = workspace_tmp / "data" / "analysis_outputs" / "job_1.publication.json"
+    publication_path.parent.mkdir(parents=True)
+    publication_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "2.0",
+                "output_type": "publication_draft",
+                "job_id": 1,
+                "session_id": "7123",
+                "purpose": "journalistic_publication",
+                "title": "Entwurf",
+                "body_markdown": "# Entwurf",
+                "status": "draft",
+            }
+        ),
+        encoding="utf-8",
+    )
+    workflow_db = workspace_tmp / "data" / "db" / "analysis_workflow.sqlite"
+    job_id = create_analysis_job(
+        AnalysisJobRecord(
+            session_id="7123",
+            scope="session",
+            purpose="journalistic_publication",
+            model_name="gpt-test",
+            provider_id="codex",
+            response_status="valid_json",
+            status="done",
+        ),
+        workflow_db,
+    )
+    add_analysis_output(
+        AnalysisArtifactRecord(
+            job_id=job_id,
+            output_type="publication_draft",
+            schema_version="2.0",
+            json_path="data/analysis_outputs/job_1.publication.json",
+            status="draft",
+        ),
+        workflow_db,
+    )
+    monkeypatch.setattr(analysis_services, "REPO_ROOT", workspace_tmp)
+    monkeypatch.setattr(analysis_services, "LOCAL_INDEX_DB", workspace_tmp / "missing.sqlite")
+    monkeypatch.setattr(analysis_services, "ANALYSIS_WORKFLOW_DB", workflow_db)
+    monkeypatch.setattr(analysis_services, "ANALYSIS_OUTPUTS_DIR", workspace_tmp / "missing_outputs")
+
+    job = analysis_services.get_analysis_output(f"workflow:{job_id}")
+
+    assert job is not None
+    assert job["status"] == "done"
+    assert job["display_status"] == "abgeschlossen"
+    assert job["structured_outputs"][0]["status"] == "draft"
+
+
+def test_source_artifacts_merge_into_single_public_workflow_job(
+    workspace_tmp: Path, monkeypatch
+) -> None:
+    output_dir = workspace_tmp / "data" / "analysis_outputs"
+    output_dir.mkdir(parents=True)
+    (output_dir / "job_10.article.md").write_text("# Grundlage", encoding="utf-8")
+    workflow_db = workspace_tmp / "data" / "db" / "analysis_workflow.sqlite"
+    with sqlite3.connect(initialize_analysis_workflow_db(workflow_db)) as conn:
+        conn.execute("DELETE FROM analysis_jobs")
+        conn.execute(
+            """INSERT INTO analysis_jobs
+               (job_id, title, session_id, scope, top_numbers_json, purpose, source_db,
+                source_job_id, provider_id, status, created_at, updated_at)
+               VALUES (174, ?, '8188', 'session', '[]', 'meeting_briefing', ?, 10,
+                       'none', 'prepared', ?, ?)""",
+            (
+                "Analyse Sitzung 2026-08-13 - Ortsrat Melle-Mitte",
+                str(workspace_tmp / "data" / "db" / "local_index.sqlite"),
+                "2026-08-21T16:10:14Z",
+                "2026-08-21T16:10:14Z",
+            ),
+        )
+        conn.commit()
+    monkeypatch.setattr(analysis_services, "REPO_ROOT", workspace_tmp)
+    monkeypatch.setattr(analysis_services, "LOCAL_INDEX_DB", workspace_tmp / "missing.sqlite")
+    monkeypatch.setattr(analysis_services, "ANALYSIS_WORKFLOW_DB", workflow_db)
+    monkeypatch.setattr(analysis_services, "ANALYSIS_OUTPUTS_DIR", output_dir)
+
+    jobs = analysis_services.list_analysis_outputs()
+
+    assert len(jobs) == 1
+    assert jobs[0]["job_id"] == "174"
+    assert jobs[0]["markdown"] == "# Grundlage"
+
+
+def test_workflow_jobs_hide_internal_local_source_jobs(workspace_tmp: Path, monkeypatch) -> None:
     workflow_db = workspace_tmp / "data" / "db" / "analysis_workflow.sqlite"
     workflow_job_id = create_analysis_job(
         AnalysisJobRecord(
             session_id="workflow-session",
             scope="session",
             purpose="content_analysis",
+            source_db=str(workspace_tmp / "data" / "db" / "local_index.sqlite"),
+            source_job_id=1,
             model_name="none",
             prompt_version="web",
             status="done",
@@ -632,13 +862,11 @@ def test_db_analysis_outputs_are_namespaced_by_source(workspace_tmp: Path, monke
 
     jobs = {str(job["job_id"]): job for job in analysis_services.list_analysis_outputs()}
 
-    assert {"workflow:1", "local:1"} <= set(jobs)
-    assert jobs["workflow:1"]["session_id"] == "workflow-session"
-    assert jobs["local:1"]["session_id"] == "local-session"
-    assert jobs["local:1"]["markdown"] == "# Lokale Analyse"
+    assert set(jobs) == {"1"}
+    assert jobs["1"]["session_id"] == "workflow-session"
     assert analysis_services.get_analysis_output("workflow:1")["session_id"] == "workflow-session"
-    assert analysis_services.get_analysis_output("local:1")["session_id"] == "local-session"
-    assert analysis_services.get_analysis_output("1") is None
+    assert analysis_services.get_analysis_output("local:1")["session_id"] == "workflow-session"
+    assert analysis_services.get_analysis_output("1")["session_id"] == "workflow-session"
 
 
 def test_file_analysis_outputs_merge_into_unique_db_job(workspace_tmp: Path, monkeypatch) -> None:
@@ -712,7 +940,7 @@ def test_file_analysis_outputs_merge_into_unique_db_job(workspace_tmp: Path, mon
     assert "data/analysis_outputs/job_1.json" in jobs["local:1"]["files"]
 
 
-def test_file_analysis_outputs_prefer_workflow_job_when_db_ids_collide(
+def test_unlinked_local_job_remains_visible_when_workflow_job_id_collides(
     workspace_tmp: Path, monkeypatch
 ) -> None:
     workflow_db = workspace_tmp / "data" / "db" / "analysis_workflow.sqlite"
@@ -790,10 +1018,9 @@ def test_file_analysis_outputs_prefer_workflow_job_when_db_ids_collide(
 
     jobs = {str(job["job_id"]): job for job in analysis_services.list_analysis_outputs()}
 
-    assert {"workflow:1", "local:1"} <= set(jobs)
-    assert "1" not in jobs
-    assert jobs["workflow:1"]["ki_response"] == "Workflow-Datei"
-    assert jobs["local:1"]["ki_response"] == ""
+    assert set(jobs) == {"1", "local:1"}
+    assert jobs["1"]["ki_response"] == "Workflow-Datei"
+    assert jobs["local:1"]["session_id"] == "local-session"
 
 
 def test_canonical_analysis_job_id_prefers_workflow_source_job(
@@ -859,7 +1086,7 @@ def test_canonical_analysis_job_id_prefers_workflow_source_job(
     monkeypatch.setattr(analysis_services, "ANALYSIS_WORKFLOW_DB", workflow_db)
     monkeypatch.setattr(analysis_services, "ANALYSIS_OUTPUTS_DIR", workspace_tmp / "missing_outputs")
 
-    assert analysis_services.canonical_analysis_job_id({"job_id": 1}) == f"workflow:{workflow_job_id}"
+    assert analysis_services.canonical_analysis_job_id({"job_id": 1}) == str(workflow_job_id)
 
 
 def test_prompt_artifact_is_loaded_from_prompt_directory(workspace_tmp: Path, monkeypatch) -> None:
@@ -1224,6 +1451,156 @@ def test_run_analysis_from_form_validates_missing_session(monkeypatch, workspace
 
     assert result is None
     assert errors
+
+
+def test_analysis_prompts_append_required_json_contract() -> None:
+    from core.services import analysis as core_analysis
+
+    prompt = core_analysis._with_json_output_contract(
+        "Erzeuge Abschnitte.", "meeting_briefing"
+    )
+
+    assert "ANTWORTFORMAT (VERPFLICHTENDES JSON)" in prompt
+    assert '"short_summary": string' in prompt
+    assert "ausschließlich mit genau einem validen JSON-Objekt" in prompt
+
+
+def test_execute_prepared_analysis_resolves_artifact_paths(
+    monkeypatch, workspace_tmp: Path
+) -> None:
+    from core.services import analysis as core_analysis
+    from core.services import outputs as core_outputs
+
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(
+        core_outputs,
+        "get_analysis_output",
+        lambda _job_id: {
+            "job_id": "1",
+            "db_job_id": 1,
+            "source_job_id": 1,
+            "session_id": "8188",
+            "scope": "session",
+            "top_numbers": [],
+            "purpose": "meeting_briefing",
+            "status": "error",
+            "prompt_text": "Analysiere als JSON.",
+            "markdown": "# Grundlage\n\n## KI-Analyse\n",
+            "files": [
+                "data/analysis_outputs/session/job_1.article.1.md",
+                "data/analysis_outputs/session/job_1.raw.1.json",
+                "data/analysis_outputs/session/job_1.structured.1.json",
+            ],
+        },
+    )
+    monkeypatch.setattr(
+        core_analysis,
+        "get_session",
+        lambda _session_id: {
+            "session_id": "8188",
+            "date": "2026-08-13",
+            "committee": "Ortsrat Melle-Mitte",
+        },
+    )
+    monkeypatch.setattr(core_analysis.paths, "REPO_ROOT", workspace_tmp)
+    monkeypatch.setattr(core_analysis.paths, "LOCAL_INDEX_DB", workspace_tmp / "local.sqlite")
+    monkeypatch.setattr(core_analysis.paths, "ANALYSIS_WORKFLOW_DB", workspace_tmp / "workflow.sqlite")
+    monkeypatch.setattr(core_analysis, "claim_analysis_job", lambda *_args, **_kwargs: True)
+
+    class _Record:
+        def to_dict(self):
+            return {"job_id": 1, "status": "done"}
+
+    def fake_execute(_self, request, **kwargs):
+        captured["prompt"] = request.prompt
+        captured.update(kwargs)
+        return _Record()
+
+    monkeypatch.setattr(core_analysis.AnalysisService, "execute_prepared_analysis", fake_execute)
+
+    result, errors = core_analysis.execute_prepared_analysis("1", "codex", "gpt-test")
+
+    assert errors == []
+    assert result == {"job_id": 1, "status": "done"}
+    assert captured["artifact_paths"]["article"] == (
+        workspace_tmp / "data/analysis_outputs/session/job_1.article.1.md"
+    )
+    assert captured["artifact_paths"]["raw"].name == "job_1.raw.1.json"
+    assert captured["artifact_paths"]["structured"].name == "job_1.structured.1.json"
+    assert "ANTWORTFORMAT (VERPFLICHTENDES JSON)" in captured["prompt"]
+
+    def failing_execute(_self, _request, **_kwargs):
+        raise sqlite3.OperationalError("database is locked")
+
+    recovered = {}
+    monkeypatch.setattr(core_analysis.AnalysisService, "execute_prepared_analysis", failing_execute)
+    monkeypatch.setattr(
+        core_analysis,
+        "update_analysis_job",
+        lambda job_id, **kwargs: recovered.update({"job_id": job_id, **kwargs}),
+    )
+
+    failed_result, failed_errors = core_analysis.execute_prepared_analysis(
+        "1", "codex", "gpt-test"
+    )
+
+    assert failed_result is None
+    assert "database is locked" in failed_errors[0]
+    assert recovered["status"] == "error"
+    assert recovered["response_status"] == "error"
+
+
+def test_default_template_id_prefers_meeting_briefing(monkeypatch, workspace_tmp: Path) -> None:
+    template_path = workspace_tmp / "prompt_templates.json"
+    example_path = workspace_tmp / "prompt_templates.example.json"
+    example_path.write_text(
+        json.dumps(
+            {
+                "templates": [
+                    {
+                        "id": "other_session",
+                        "label": "Andere Sitzung",
+                        "scope": "session",
+                        "description": "",
+                        "prompt_text": "Analysiere {{session_title}}.",
+                        "variables": ["session_title"],
+                        "is_active": True,
+                        "visibility": "private",
+                        "revision": 1,
+                    },
+                    {
+                        "id": "meeting_briefing",
+                        "label": "Sitzung vorbereiten",
+                        "scope": "session",
+                        "description": "",
+                        "prompt_text": "Bereite {{session_title}} vor.",
+                        "variables": ["session_title"],
+                        "is_active": True,
+                        "visibility": "private",
+                        "revision": 1,
+                    },
+                    {
+                        "id": "top_critical_analysis",
+                        "label": "TOP kritisch",
+                        "scope": "tops",
+                        "description": "",
+                        "prompt_text": "Analysiere {{agenda_item}}.",
+                        "variables": ["agenda_item"],
+                        "is_active": True,
+                        "visibility": "private",
+                        "revision": 1,
+                    },
+                ]
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_PATH", template_path)
+    monkeypatch.setattr(analysis_services, "PROMPT_TEMPLATES_EXAMPLE", example_path)
+
+    assert analysis_services.default_template_id("session", "meeting_briefing") == "meeting_briefing"
+    assert analysis_services.default_template_id("tops", "top_deep_dive") == "top_critical_analysis"
 
 
 def test_run_analysis_from_form_rejects_top_without_analysis_documents(monkeypatch, workspace_tmp: Path) -> None:
@@ -1994,6 +2371,7 @@ def test_service_job_launch_failure_is_marked_error(monkeypatch, workspace_tmp: 
     assert current is not None
     assert current.status == "error"
     assert current.to_dict()["running"] is False
+    assert current.to_dict()["status_label"] == "fehlgeschlagen"
     assert "Service konnte nicht gestartet werden" in current.summary
     assert "missing executable" in current.output
 
@@ -2021,6 +2399,7 @@ def test_service_job_output_keeps_only_bounded_tail(monkeypatch, workspace_tmp: 
     assert current is not None
     lines = current.output.splitlines()
     assert current.status == "ok"
+    assert current.status_label == "erfolgreich"
     assert len(lines) == 500
     assert lines[0] == "line-100"
     assert lines[-1] == "line-599"
@@ -2057,3 +2436,58 @@ def test_terminal_service_jobs_are_pruned_but_active_jobs_remain() -> None:
         finally:
             service_jobs._jobs.clear()
             service_jobs._jobs.update(old_jobs)
+
+
+def test_service_jobs_survive_memory_reload(monkeypatch, workspace_tmp: Path) -> None:
+    db_path = workspace_tmp / "data" / "db" / "service_jobs.sqlite"
+    monkeypatch.setattr(service_jobs, "SERVICE_JOBS_DB", db_path)
+    with service_jobs._lock:
+        service_jobs._loaded_db_path = None
+        service_jobs._jobs.clear()
+        service_jobs._ensure_loaded_locked()
+        service_jobs._jobs["persisted"] = service_jobs.ServiceJob(
+            job_id="persisted",
+            action="build_local_index",
+            command=["python", "scripts/build_local_index.py"],
+            status="ok",
+            exit_code=0,
+            output="Index erstellt",
+            finished_at="21.08.2026 12:00:00",
+            created_at="2026-08-21T09:59:00Z",
+        )
+        service_jobs._persist_snapshot_locked()
+        service_jobs._jobs.clear()
+        service_jobs._loaded_db_path = None
+
+    reloaded = service_jobs.get_service_job("persisted")
+
+    assert reloaded is not None
+    assert reloaded.status == "ok"
+    assert reloaded.output == "Index erstellt"
+    assert reloaded.command == ["python", "scripts/build_local_index.py"]
+
+
+def test_running_service_job_is_marked_interrupted_after_reload(monkeypatch, workspace_tmp: Path) -> None:
+    db_path = workspace_tmp / "data" / "db" / "service_jobs.sqlite"
+    monkeypatch.setattr(service_jobs, "SERVICE_JOBS_DB", db_path)
+    with service_jobs._lock:
+        service_jobs._loaded_db_path = None
+        service_jobs._jobs.clear()
+        service_jobs._ensure_loaded_locked()
+        service_jobs._jobs["interrupted"] = service_jobs.ServiceJob(
+            job_id="interrupted",
+            action="fetch_sessions",
+            command=["python", "scripts/fetch_sessions.py"],
+            status="running",
+            created_at="2026-08-21T09:59:00Z",
+        )
+        service_jobs._persist_snapshot_locked()
+        service_jobs._jobs.clear()
+        service_jobs._loaded_db_path = None
+
+    reloaded = service_jobs.get_service_job("interrupted")
+
+    assert reloaded is not None
+    assert reloaded.status == "error"
+    assert "Serverneustart unterbrochen" in reloaded.summary
+    assert reloaded.finished_at

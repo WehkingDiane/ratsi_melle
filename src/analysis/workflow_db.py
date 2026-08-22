@@ -20,11 +20,16 @@ def utc_now() -> str:
 class AnalysisJobRecord:
     session_id: str
     scope: str
+    title: str = ""
     top_numbers: list[str] = field(default_factory=list)
     purpose: str = DEFAULT_ANALYSIS_PURPOSE
     source_db: str = ""
     source_job_id: int | None = None
     model_name: str = ""
+    provider_id: str = "none"
+    input_tokens: int = 0
+    output_tokens: int = 0
+    response_status: str = "not_requested"
     prompt_version: str = ""
     prompt_template_id: str = ""
     prompt_template_revision: int | None = None
@@ -67,6 +72,7 @@ def initialize_analysis_workflow_db(db_path: Path | None = None) -> Path:
             """
             CREATE TABLE IF NOT EXISTS analysis_jobs (
                 job_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT,
                 session_id TEXT NOT NULL,
                 scope TEXT NOT NULL,
                 top_numbers_json TEXT,
@@ -74,6 +80,10 @@ def initialize_analysis_workflow_db(db_path: Path | None = None) -> Path:
                 source_db TEXT,
                 source_job_id INTEGER,
                 model_name TEXT,
+                provider_id TEXT NOT NULL DEFAULT 'none',
+                input_tokens INTEGER NOT NULL DEFAULT 0,
+                output_tokens INTEGER NOT NULL DEFAULT 0,
+                response_status TEXT NOT NULL DEFAULT 'not_requested',
                 prompt_version TEXT,
                 prompt_template_id TEXT,
                 prompt_template_revision INTEGER,
@@ -114,6 +124,7 @@ def initialize_analysis_workflow_db(db_path: Path | None = None) -> Path:
             """
         )
         _ensure_column(conn, "analysis_jobs", "purpose", "TEXT NOT NULL DEFAULT 'content_analysis'")
+        _ensure_column(conn, "analysis_jobs", "title", "TEXT")
         _ensure_column(conn, "analysis_jobs", "updated_at", "TEXT")
         _ensure_column(conn, "analysis_jobs", "source_db", "TEXT")
         _ensure_column(conn, "analysis_jobs", "source_job_id", "INTEGER")
@@ -121,6 +132,10 @@ def initialize_analysis_workflow_db(db_path: Path | None = None) -> Path:
         _ensure_column(conn, "analysis_jobs", "prompt_template_revision", "INTEGER")
         _ensure_column(conn, "analysis_jobs", "prompt_template_label", "TEXT")
         _ensure_column(conn, "analysis_jobs", "rendered_prompt_snapshot_path", "TEXT")
+        _ensure_column(conn, "analysis_jobs", "provider_id", "TEXT NOT NULL DEFAULT 'none'")
+        _ensure_column(conn, "analysis_jobs", "input_tokens", "INTEGER NOT NULL DEFAULT 0")
+        _ensure_column(conn, "analysis_jobs", "output_tokens", "INTEGER NOT NULL DEFAULT 0")
+        _ensure_column(conn, "analysis_jobs", "response_status", "TEXT NOT NULL DEFAULT 'not_requested'")
         conn.commit()
     return db_path
 
@@ -136,13 +151,15 @@ def create_analysis_job(
         cur = conn.execute(
             """
             INSERT INTO analysis_jobs
-                (session_id, scope, top_numbers_json, purpose, source_db, source_job_id,
-                 model_name, prompt_version, prompt_template_id, prompt_template_revision,
+                (title, session_id, scope, top_numbers_json, purpose, source_db, source_job_id,
+                 model_name, provider_id, input_tokens, output_tokens, response_status,
+                 prompt_version, prompt_template_id, prompt_template_revision,
                  prompt_template_label, rendered_prompt_snapshot_path, status, created_at,
                  updated_at, error_message)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
+                job.title or None,
                 job.session_id,
                 job.scope,
                 json.dumps(job.top_numbers, ensure_ascii=False),
@@ -150,6 +167,10 @@ def create_analysis_job(
                 job.source_db,
                 job.source_job_id,
                 job.model_name,
+                job.provider_id,
+                job.input_tokens,
+                job.output_tokens,
+                job.response_status,
                 job.prompt_version,
                 job.prompt_template_id or None,
                 job.prompt_template_revision,
@@ -163,6 +184,80 @@ def create_analysis_job(
         )
         conn.commit()
         return int(cur.lastrowid)
+
+
+def update_analysis_job(
+    job_id: int,
+    *,
+    model_name: str,
+    provider_id: str,
+    input_tokens: int,
+    output_tokens: int,
+    response_status: str,
+    status: str,
+    error_message: str = "",
+    db_path: Path | None = None,
+) -> None:
+    """Update one existing workflow job after a deferred provider call."""
+
+    db_path = initialize_analysis_workflow_db(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            """
+            UPDATE analysis_jobs
+            SET model_name = ?, provider_id = ?, input_tokens = ?, output_tokens = ?,
+                response_status = ?, status = ?, updated_at = ?, error_message = ?
+            WHERE job_id = ?
+            """,
+            (
+                model_name,
+                provider_id,
+                input_tokens,
+                output_tokens,
+                response_status,
+                status,
+                utc_now(),
+                error_message or None,
+                job_id,
+            ),
+        )
+        conn.execute(
+            "UPDATE analysis_outputs SET status = ? WHERE job_id = ?",
+            (status, job_id),
+        )
+        conn.commit()
+
+
+def claim_analysis_job(
+    job_id: int,
+    *,
+    model_name: str,
+    provider_id: str,
+    db_path: Path | None = None,
+) -> bool:
+    """Atomically claim one prepared or failed job for provider execution."""
+
+    db_path = initialize_analysis_workflow_db(db_path)
+    with sqlite3.connect(db_path) as conn:
+        cursor = conn.execute(
+            """
+            UPDATE analysis_jobs
+            SET model_name = ?, provider_id = ?, input_tokens = 0, output_tokens = 0,
+                response_status = 'pending', status = 'running', updated_at = ?,
+                error_message = NULL
+            WHERE job_id = ? AND status IN ('prepared', 'error')
+            """,
+            (model_name or provider_id, provider_id, utc_now(), job_id),
+        )
+        if cursor.rowcount != 1:
+            conn.rollback()
+            return False
+        conn.execute(
+            "UPDATE analysis_outputs SET status = 'running' WHERE job_id = ?",
+            (job_id,),
+        )
+        conn.commit()
+        return True
 
 
 def add_analysis_output(
