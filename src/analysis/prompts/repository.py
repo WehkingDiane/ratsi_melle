@@ -110,6 +110,7 @@ class JsonPromptTemplateRepository(PromptTemplateRepository):
 
     def _ensure_initialized(self) -> None:
         if self.path.exists():
+            self._merge_missing_example_templates()
             return
         self.path.parent.mkdir(parents=True, exist_ok=True)
         if self.example_path.exists():
@@ -117,6 +118,51 @@ class JsonPromptTemplateRepository(PromptTemplateRepository):
         else:
             data = '{"templates": []}\n'
         self._write_raw(data)
+
+    def _merge_missing_example_templates(self) -> None:
+        """Add newly shipped templates without replacing private customizations."""
+
+        if not self.example_path.exists():
+            return
+        try:
+            private_data = json.loads(self.path.read_text(encoding="utf-8"))
+            example_data = json.loads(self.example_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return  # The regular loader reports malformed private JSON precisely.
+        except OSError:
+            return
+
+        private_templates = (
+            private_data.get("templates") if isinstance(private_data, dict) else private_data
+        )
+        example_templates = (
+            example_data.get("templates") if isinstance(example_data, dict) else example_data
+        )
+        if not isinstance(private_templates, list) or not isinstance(example_templates, list):
+            return
+
+        existing_ids = {
+            str(item.get("id") or "")
+            for item in private_templates
+            if isinstance(item, dict)
+        }
+        missing = [
+            item
+            for item in example_templates
+            if isinstance(item, dict)
+            and str(item.get("id") or "")
+            and str(item.get("id")) not in existing_ids
+        ]
+        if not missing:
+            return
+        self._write_raw(
+            json.dumps(
+                {"templates": [*private_templates, *missing]},
+                indent=2,
+                ensure_ascii=False,
+            )
+            + "\n"
+        )
 
     def _load(self) -> list[PromptTemplate]:
         self._ensure_initialized()

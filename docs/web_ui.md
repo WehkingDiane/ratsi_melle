@@ -187,6 +187,8 @@ Der Pfad kann über Environment-Variablen angepasst werden:
 
 Beim ersten Zugriff kann die private Datei aus `docs/examples/prompt_templates.example.json` initialisiert werden. Diese Beispiel-Datei enthält nur harmlose Demo-Prompts. Echte Vorlagen werden über die Django-Seite `/analyse/prompts/` erstellt und bleiben durch `.gitignore` außerhalb des Repository-Inhalts geschützt.
 
+Bei Projektaktualisierungen ergänzt die Anwendung neu ausgelieferte Standardvorlagen aus der Beispieldatei automatisch im bestehenden privaten Speicher. Bereits vorhandene IDs werden nicht überschrieben; individuelle Texte, Aktivierungsstatus und Revisionen bleiben erhalten.
+
 Prompt-Vorlagen haben einen primären Scope (`session`, `tops` oder `document`). Intern können geladene Legacy-Vorlagen mehrere Scopes behalten, damit bestehende private JSON-Dateien weiter in allen vorgesehenen Analysekontexten auswählbar bleiben.
 
 ## Prompt-Snapshots
