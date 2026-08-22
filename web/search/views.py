@@ -9,11 +9,14 @@ from . import services
 
 def index(request):
     query = request.GET.get("q", "").strip()
-    source = request.GET.get("source", "ratsinfo")
+    source = "landkreis" if request.GET.get("source") == "landkreis" else "ratsinfo"
     date_from = request.GET.get("date_from", "").strip()
     date_to = request.GET.get("date_to", "").strip()
     committee = request.GET.get("committee", "").strip()
     document_type = request.GET.get("document_type", "").strip()
+    if source == "landkreis":
+        committee = ""
+        document_type = ""
     semantic_search = services.search_semantic_documents(
         query,
         source=source,
@@ -30,7 +33,7 @@ def index(request):
         {
             "active_nav": "search",
             "query": query,
-            "selected_source": source if source == "landkreis" else "ratsinfo",
+            "selected_source": source,
             "results": results,
             "unfiltered_result_count": semantic_search.get("candidate_count", len(results)),
             "search_error": semantic_search["error"],

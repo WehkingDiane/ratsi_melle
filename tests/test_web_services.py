@@ -1406,7 +1406,11 @@ def test_execute_prepared_analysis_resolves_artifact_paths(
             "status": "error",
             "prompt_text": "Analysiere als JSON.",
             "markdown": "# Grundlage\n\n## KI-Analyse\n",
-            "files": ["data/analysis_outputs/session/job_1.article.md"],
+            "files": [
+                "data/analysis_outputs/session/job_1.article.1.md",
+                "data/analysis_outputs/session/job_1.raw.1.json",
+                "data/analysis_outputs/session/job_1.structured.1.json",
+            ],
         },
     )
     monkeypatch.setattr(
@@ -1439,8 +1443,10 @@ def test_execute_prepared_analysis_resolves_artifact_paths(
     assert errors == []
     assert result == {"job_id": 1, "status": "done"}
     assert captured["artifact_paths"]["article"] == (
-        workspace_tmp / "data/analysis_outputs/session/job_1.article.md"
+        workspace_tmp / "data/analysis_outputs/session/job_1.article.1.md"
     )
+    assert captured["artifact_paths"]["raw"].name == "job_1.raw.1.json"
+    assert captured["artifact_paths"]["structured"].name == "job_1.structured.1.json"
     assert "ANTWORTFORMAT (VERPFLICHTENDES JSON)" in captured["prompt"]
 
     def failing_execute(_self, _request, **_kwargs):

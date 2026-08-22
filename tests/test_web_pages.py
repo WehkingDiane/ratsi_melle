@@ -388,6 +388,8 @@ def test_search_page_renders_landkreis_results_without_session_links(client, mon
     def fake_search(query, source="ratsinfo", **_filters):
         captured["query"] = query
         captured["source"] = source
+        captured["committee"] = _filters.get("committee")
+        captured["document_type"] = _filters.get("document_type")
         return {
             "results": [
                 {
@@ -408,11 +410,18 @@ def test_search_page_renders_landkreis_results_without_session_links(client, mon
 
     monkeypatch.setattr(views.services, "search_semantic_documents", fake_search)
 
-    response = client.get("/suche/?q=Melle&source=landkreis")
+    response = client.get(
+        "/suche/?q=Melle&source=landkreis&committee=Rat&document_type=vorlage"
+    )
     content = response.content.decode("utf-8")
 
     assert response.status_code == 200
-    assert captured == {"query": "Melle", "source": "landkreis"}
+    assert captured == {
+        "query": "Melle",
+        "source": "landkreis",
+        "committee": "",
+        "document_type": "",
+    }
     assert '<option value="landkreis" selected>Landkreis</option>' in content
     assert "amtsblaetter" in content
     assert "Amtsblatt 10" in content

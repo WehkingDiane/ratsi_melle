@@ -92,6 +92,8 @@ Automatisch ausgeführte Webanalysen ergänzen den gespeicherten Fachprompt um e
 
 Schlägt die Ausführung nach diesem Claim unerwartet fehl, wird der Job wieder als `error` und damit wiederholbar gespeichert. Provider-IDs werden ebenso wie `none` nicht als Modellvorgabe in das Wiederholungsformular übernommen. Bei Workflow-Jobs mit `response_status=valid_json` bleibt der Status `done` auch dann erhalten, wenn die Rohantwort nicht als eigener Workflow-Output indexiert wurde.
 
+Beim Nachstart werden sowohl die regulären Artefaktnamen als auch kollisionsbedingt nummerierte Varianten wie `job_1.article.1.md`, `job_1.raw.1.json` und `job_1.structured.1.json` erkannt. Dadurch bleiben vorbereitete Jobs auch nach einem Indexneuaufbau oder einer wiederverwendeten lokalen Job-ID ausführbar.
+
 ## Beispiel
 
 Ein Publikationsentwurf enthält mindestens:

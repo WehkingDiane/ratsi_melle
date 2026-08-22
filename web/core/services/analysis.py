@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -148,13 +149,9 @@ def execute_prepared_analysis(
         path = Path(str(value))
         if not path.is_absolute():
             path = paths.REPO_ROOT / path
-        normalized = path.name.lower()
-        if normalized.endswith(".article.md"):
-            artifact_paths["article"] = path
-        elif normalized.endswith(".raw.json"):
-            artifact_paths["raw"] = path
-        elif normalized.endswith(".structured.json"):
-            artifact_paths["structured"] = path
+        artifact_kind = _analysis_artifact_kind(path)
+        if artifact_kind:
+            artifact_paths[artifact_kind] = path
     if "article" not in artifact_paths:
         return None, ["Die Markdown-Datei des vorbereiteten Jobs wurde nicht gefunden."]
     if not claim_analysis_job(
@@ -237,6 +234,23 @@ def _with_json_output_contract(prompt: str, purpose: str) -> str:
         f"und ohne Text davor oder danach. Verwende diese Felder: {fields}. "
         "Nutze leere Strings oder leere Arrays, wenn eine Angabe nicht belegt ist."
     )
+
+
+def _analysis_artifact_kind(path: Path) -> str:
+    """Identify regular and collision-suffixed analysis artifact paths."""
+
+    match = re.search(
+        r"\.(article|raw|structured)(?:\.\d+)?\.(md|json)$",
+        path.name.lower(),
+    )
+    if not match:
+        return ""
+    kind, extension = match.groups()
+    if (kind == "article" and extension == "md") or (
+        kind in {"raw", "structured"} and extension == "json"
+    ):
+        return kind
+    return ""
 
 
 def default_template_id(scope: str, purpose: str = "") -> str:
