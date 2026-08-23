@@ -1478,6 +1478,7 @@ def test_execute_prepared_analysis_resolves_artifact_paths(
         lambda _job_id: {
             "job_id": "1",
             "db_job_id": 1,
+            "db_source": "workflow",
             "source_job_id": 1,
             "session_id": "8188",
             "scope": "session",
@@ -1548,6 +1549,37 @@ def test_execute_prepared_analysis_resolves_artifact_paths(
     assert "database is locked" in failed_errors[0]
     assert recovered["status"] == "error"
     assert recovered["response_status"] == "error"
+
+
+def test_execute_prepared_analysis_rejects_unlinked_local_job(monkeypatch) -> None:
+    from core.services import analysis as core_analysis
+    from core.services import outputs as core_outputs
+
+    monkeypatch.setattr(
+        core_outputs,
+        "get_analysis_output",
+        lambda _job_id: {
+            "job_id": "local:1",
+            "db_job_id": 1,
+            "db_source": "local",
+            "session_id": "8188",
+            "status": "prepared",
+        },
+    )
+    claimed = False
+
+    def fake_claim(*_args, **_kwargs):
+        nonlocal claimed
+        claimed = True
+        return True
+
+    monkeypatch.setattr(core_analysis, "claim_analysis_job", fake_claim)
+
+    result, errors = core_analysis.execute_prepared_analysis("local:1", "codex")
+
+    assert result is None
+    assert "Legacy-Analysejob" in errors[0]
+    assert claimed is False
 
 
 def test_default_template_id_prefers_meeting_briefing(monkeypatch, workspace_tmp: Path) -> None:

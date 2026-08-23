@@ -68,7 +68,7 @@ Sie ist danach standardmäßig unter `http://127.0.0.1:8000/` erreichbar. Detail
 - Lokaler SQLite-Index: `data/db/local_index.sqlite`
 - Online-Index: `data/db/online_session_index.sqlite`
 - Landkreis-Veröffentlichungen: `data/db/landkreis_publications.sqlite`
-- Lokaler Vektorindex: `data/db/qdrant/` mit getrennten Collections fuer Ratsinfo (`ratsi_documents`) und Landkreis (`landkreis_publications`)
+- Lokaler Vektorindex: `data/db/qdrant/` mit getrennten Collections fuer Ratsinfo (`ratsi_documents`) und Landkreis (`landkreis_publications`); regulaere Build-Laeufe ergaenzen fehlende Treffertext-Payloads bestehender Punkte ohne erneutes Embedding
 - Django-Datenpflege unter `/daten/`: SessionNet- und Landkreis-Fetch-, SQLite-Build- und Vektorindex-Jobs starten; die Vektorseite zeigt Status fuer Ratsinfo und Landkreis
 - Django-Suche unter `/suche/`: semantische Dokumentensuche ueber den lokalen Qdrant-Vektorindex; Standard ist Ratsinfo. Fuer Landkreis-Treffer zuerst `python scripts/build_landkreis_vector_index.py` oder `/daten/vektor/` nutzen; fuer Ratsinfo `python scripts/build_vector_index.py` oder `/daten/vektor/`
 - Analyse-Workflow und v2-Ausgaben: [docs/analysis_outputs.md](/mnt/c/users/diane/git/ratsi_melle/docs/analysis_outputs.md:1)
@@ -97,7 +97,7 @@ python scripts/fetch_landkreis_publications.py --source bekanntmachungen --query
 python scripts/search_landkreis_publications.py "Melle Genehmigung"
 ```
 
-`fetch_landkreis_publications.py` speichert nur Rohdaten aus dem Online-Angebot. Bereits vorhandene Landkreis-Veröffentlichungen mit lokalem `manifest.json` werden bei spaeteren Laeufen uebersprungen. Fuer neue Bekanntmachungen werden Detailseiten und Dokument-Metadaten erfasst, aber keine PDF-Dateien heruntergeladen. Neue Amtsblaetter werden vollstaendig geladen. Die SQLite-Datenbank wird danach mit `build_landkreis_publications_db.py` aus den gespeicherten Manifests und lokalen Dateien aufgebaut. `build_landkreis_vector_index.py` indexiert lokal vorhandene Landkreis-Dokumente in die getrennte Qdrant-Collection `landkreis_publications`, loest lokale Pfade gegen dieselbe Landkreis-Datenwurzel (`RATSI_LANDKREIS_DATA_DIR` oder `--data-dir`) auf und begrenzt den Embedding-Text standardmaessig auf 6000 Zeichen pro Dokument; bei knappem XPU/GPU-Speicher kann `--max-text-chars` weiter reduziert werden.
+`fetch_landkreis_publications.py` speichert nur Rohdaten aus dem Online-Angebot. Bereits vorhandene Landkreis-Veröffentlichungen mit lokalem `manifest.json` werden bei spaeteren Laeufen uebersprungen. Fuer neue Bekanntmachungen werden Detailseiten und Dokument-Metadaten erfasst, aber keine PDF-Dateien heruntergeladen. Neue Amtsblaetter werden vollstaendig geladen. Die SQLite-Datenbank wird danach mit `build_landkreis_publications_db.py` aus den gespeicherten Manifests und lokalen Dateien aufgebaut. `build_landkreis_vector_index.py` indexiert lokal vorhandene Landkreis-Dokumente in die getrennte Qdrant-Collection `landkreis_publications`, ergaenzt fehlende Treffertexte in bereits indexierten Punkten ohne erneutes Embedding, loest lokale Pfade gegen dieselbe Landkreis-Datenwurzel (`RATSI_LANDKREIS_DATA_DIR` oder `--data-dir`) auf und begrenzt den Embedding-Text standardmaessig auf 6000 Zeichen pro Dokument; bei knappem XPU/GPU-Speicher kann `--max-text-chars` weiter reduziert werden.
 
 Fuer grosse Downloads kann die Rohdatenablage ausserhalb des Projekts liegen:
 

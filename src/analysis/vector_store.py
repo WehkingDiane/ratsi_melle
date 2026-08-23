@@ -273,6 +273,41 @@ class DocumentVectorStore:
         except Exception:
             return set()
 
+    def get_ids_with_payload_field(self, field: str) -> set[int]:
+        """Return indexed integer IDs whose payload contains the requested field."""
+        client = self._get_client()
+        try:
+            ids: set[int] = set()
+            offset: int | None = None
+            while True:
+                records, next_offset = client.scroll(
+                    collection_name=self.collection_name,
+                    with_payload=[field],
+                    with_vectors=False,
+                    limit=1000,
+                    offset=offset,
+                )
+                for record in records:
+                    payload = record.payload or {}
+                    if isinstance(record.id, int) and field in payload:
+                        ids.add(record.id)
+                if next_offset is None:
+                    break
+                offset = next_offset
+            return ids
+        except Exception:
+            return set()
+
+    def update_payloads(self, points: list[dict]) -> None:
+        """Merge point-specific payload fields without replacing stored vectors."""
+        client = self._get_client()
+        for point in points:
+            client.set_payload(
+                collection_name=self.collection_name,
+                points=[point["id"]],
+                payload=point["payload"],
+            )
+
     def delete_ids(self, ids: set[int]) -> None:
         """Remove vector points by their IDs (used for reconciliation)."""
         if not ids:
