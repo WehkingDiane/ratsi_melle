@@ -28,3 +28,4 @@ def test_harrier_embedder_passes_configured_huggingface_token(monkeypatch) -> No
         embeddings.HarrierEmbedder()._get_model()
 
     assert captured["kwargs"]["token"] == "hf_stored"
+    assert captured["kwargs"]["model_kwargs"] == {"dtype": "auto"}

@@ -345,7 +345,7 @@ Der angezeigte Score ist:
 
 ### Semantische Suche
 
-- `sentence-transformers`
+- `sentence-transformers` 5.x und `transformers` 5.x fuer das Harrier-Qwen3-Modell
 - `qdrant-client`
 - `fastembed`
 - `torch` separat fuer CPU oder XPU
