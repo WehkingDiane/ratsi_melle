@@ -23,12 +23,20 @@ class _FakeVectorStore:
         self._count = count
         self.deleted_ids: list[set[int]] = []
         self.upserted_batches: list[list[dict]] = []
+        self.payload_ids = set(indexed_ids)
+        self.updated_payloads: list[list[dict]] = []
 
     def ensure_collection(self) -> None:
         pass
 
     def get_indexed_ids(self) -> set[int]:
         return set(self._indexed_ids)
+
+    def get_ids_with_payload_field(self, _field: str) -> set[int]:
+        return set(self.payload_ids)
+
+    def update_payloads(self, points: list[dict]) -> None:
+        self.updated_payloads.append(points)
 
     def delete_ids(self, ids: set[int]) -> None:
         self.deleted_ids.append(set(ids))
@@ -104,6 +112,37 @@ def test_document_vector_store_accepts_custom_collection(tmp_path: Path) -> None
     store = DocumentVectorStore(tmp_path / "qdrant", collection_name="landkreis_publications")
 
     assert store.collection_name == "landkreis_publications"
+
+
+def test_document_vector_store_reads_and_updates_point_payloads(tmp_path: Path) -> None:
+    calls: list[dict] = []
+
+    class FakeClient:
+        def scroll(self, **kwargs):
+            calls.append(kwargs)
+            if kwargs["offset"] is None:
+                return [
+                    SimpleNamespace(id=1, payload={"snippet": "vorhanden"}),
+                    SimpleNamespace(id=2, payload={}),
+                ], 2
+            return [SimpleNamespace(id=3, payload={"snippet": ""})], None
+
+        def set_payload(self, **kwargs):
+            calls.append(kwargs)
+
+    store = DocumentVectorStore(tmp_path / "qdrant")
+    store._client = FakeClient()
+
+    assert store.get_ids_with_payload_field("snippet") == {1, 3}
+    store.update_payloads([{"id": 2, "payload": {"snippet": "ergänzt"}}])
+
+    assert calls[0]["with_payload"] == ["snippet"]
+    assert calls[0]["with_vectors"] is False
+    assert calls[-1] == {
+        "collection_name": "ratsi_documents",
+        "points": [2],
+        "payload": {"snippet": "ergänzt"},
+    }
 
 
 def test_document_vector_store_applies_metadata_filters_before_hybrid_limit(
@@ -348,6 +387,54 @@ def test_landkreis_main_skips_indexed_and_deletes_orphans_only_without_limit(
     assert "Skipping orphan cleanup because --limit is set." in capsys.readouterr().out
 
 
+def test_landkreis_main_refreshes_snippet_payload_for_existing_vectors(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    doc = {
+        "publication_id": "pub-1",
+        "source": "amtsblaetter",
+        "title": "Amtsblatt 10",
+        "document_title": "PDF Anlage",
+        "date": "2026-03-11",
+        "url": "https://example.org/a.pdf",
+        "local_path": "a.pdf",
+        "extracted_text": "Inhalt für den Suchtreffer",
+    }
+    current_id = build_landkreis_vector_index._stable_landkreis_qdrant_id(
+        "pub-1", "https://example.org/a.pdf"
+    )
+    vector_store = _FakeVectorStore(indexed_ids={current_id}, count=1)
+    vector_store.payload_ids.clear()
+
+    class _FakeDocumentVectorStore:
+        def __new__(cls, _path, collection_name=""):
+            return vector_store
+
+    monkeypatch.setattr(
+        build_landkreis_vector_index,
+        "_validate_runtime_dependencies",
+        lambda: (object, _FakeDocumentVectorStore),
+    )
+    monkeypatch.setattr(build_landkreis_vector_index, "_load_documents", lambda _db_path: [doc])
+    db_path = tmp_path / "landkreis.sqlite"
+    db_path.write_text("", encoding="utf-8")
+
+    build_landkreis_vector_index.main(
+        ["--db", str(db_path), "--qdrant-dir", str(tmp_path / "qdrant")]
+    )
+
+    assert len(vector_store.updated_payloads) == 1
+    assert vector_store.updated_payloads[0][0]["id"] == current_id
+    assert (
+        vector_store.updated_payloads[0][0]["payload"]["snippet"]
+        == "Inhalt für den Suchtreffer"
+    )
+    assert vector_store.upserted_batches == []
+    assert "Refreshing snippet payloads for 1 existing Landkreis document" in capsys.readouterr().out
+
+
 def test_get_document_text_resolves_legacy_session_paths(tmp_path: Path, monkeypatch) -> None:
     session_dir = tmp_path / "data" / "raw" / "2025" / "09" / "2025-09-18_Rat_901"
     pdf_path = session_dir / "session-documents" / "protokoll.pdf"
@@ -562,6 +649,43 @@ def test_main_reconciles_orphaned_vectors_even_when_nothing_is_new(
     output = capsys.readouterr().out
     assert "Nothing to index" in output
     assert "Removing 1 orphaned vector(s)" in output
+
+
+def test_main_refreshes_snippet_payload_for_existing_vectors(
+    monkeypatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    current_doc = _doc("1", "https://example.org/doc-1.pdf")
+    current_id = build_vector_index._stable_qdrant_id(
+        current_doc["session_id"], current_doc["url"], current_doc["agenda_item"]
+    )
+    vector_store = _FakeVectorStore(indexed_ids={current_id}, count=1)
+    vector_store.payload_ids.clear()
+    _install_fake_modules(monkeypatch, vector_store)
+    monkeypatch.setattr(
+        build_vector_index,
+        "_validate_runtime_dependencies",
+        lambda: (
+            sys.modules["src.analysis.embeddings"].HarrierEmbedder,
+            sys.modules["src.analysis.vector_store"].DocumentVectorStore,
+        ),
+    )
+    monkeypatch.setattr(
+        build_vector_index,
+        "_load_documents",
+        lambda _db_path, limit=None: [current_doc],
+    )
+    db_path = tmp_path / "local_index.sqlite"
+    db_path.write_text("", encoding="utf-8")
+
+    build_vector_index.main(["--db", str(db_path), "--qdrant-dir", str(tmp_path / "qdrant")])
+
+    assert len(vector_store.updated_payloads) == 1
+    assert vector_store.updated_payloads[0][0]["id"] == current_id
+    assert vector_store.updated_payloads[0][0]["payload"]["snippet"] == "Doc 1 protokoll"
+    assert vector_store.upserted_batches == []
+    assert "Refreshing snippet payloads for 1 existing document" in capsys.readouterr().out
 
 
 def test_main_skips_orphan_cleanup_for_limit_runs(

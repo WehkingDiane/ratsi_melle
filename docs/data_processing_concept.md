@@ -201,7 +201,7 @@ python scripts/build_landkreis_publications_db.py
 
 Alternativ akzeptieren Fetch-, DB-Build- und Vektor-Build-Skript `--data-dir`; alle drei sollten dieselbe Landkreis-Datenwurzel verwenden, weil `local_path` relativ dazu gespeichert wird. Die Datenbank kann separat mit `RATSI_LANDKREIS_DB` oder `--db` gesetzt werden.
 
-Der Landkreis-Vektorindex bleibt von `ratsi_documents` getrennt. `build_landkreis_vector_index.py` liest `data/db/landkreis_publications.sqlite`, verwendet `extracted_texts.extracted_text` als Primaertext und faellt bei fehlendem Text auf Veroeffentlichungs- und Dokumenttitel zurueck. Indexiert werden nur Dokumentzeilen mit lokalem Pfad. Stabile Qdrant-IDs entstehen aus `landkreis`, `publication_id` und Dokument-URL. Vollstaendige Laeufe entfernen verwaiste Punkte; bei `--limit` ist diese Bereinigung deaktiviert. Lokale Payload-Pfade werden gegen `RATSI_LANDKREIS_DATA_DIR` oder `--data-dir` aufgeloest. Fuer den Embedding-Schritt werden standardmaessig hoechstens 6000 Zeichen pro Dokument verwendet; bei knappem XPU/GPU-Speicher kann `--max-text-chars` niedriger gesetzt werden.
+Der Landkreis-Vektorindex bleibt von `ratsi_documents` getrennt. `build_landkreis_vector_index.py` liest `data/db/landkreis_publications.sqlite`, verwendet `extracted_texts.extracted_text` als Primaertext und faellt bei fehlendem Text auf Veroeffentlichungs- und Dokumenttitel zurueck. Indexiert werden nur Dokumentzeilen mit lokalem Pfad. Stabile Qdrant-IDs entstehen aus `landkreis`, `publication_id` und Dokument-URL. Regulaere Laeufe ergaenzen fehlende `snippet`-Payloads bestehender Punkte direkt, ohne deren Vektoren neu zu berechnen. Vollstaendige Laeufe entfernen zudem verwaiste Punkte; bei `--limit` ist diese Bereinigung deaktiviert. Lokale Payload-Pfade werden gegen `RATSI_LANDKREIS_DATA_DIR` oder `--data-dir` aufgeloest. Fuer den Embedding-Schritt werden standardmaessig hoechstens 6000 Zeichen pro Dokument verwendet; bei knappem XPU/GPU-Speicher kann `--max-text-chars` niedriger gesetzt werden.
 
 ### Wichtige Metadaten
 
@@ -332,6 +332,7 @@ Der angezeigte Score ist:
 
 ### `scripts/build_vector_index.py`
 - baut oder aktualisiert den Qdrant-Vektorindex
+- ergaenzt fehlende `snippet`-Payloads bereits indexierter Punkte ohne erneutes Embedding
 - `--limit N` baut hoechstens die naechsten `N` fehlenden Dokumentvektoren
 
 ## 11. Abhängigkeiten
@@ -344,7 +345,7 @@ Der angezeigte Score ist:
 
 ### Semantische Suche
 
-- `sentence-transformers`
+- `sentence-transformers` 5.x und `transformers` 5.x fuer das Harrier-Qwen3-Modell
 - `qdrant-client`
 - `fastembed`
 - `torch` separat fuer CPU oder XPU
@@ -353,7 +354,7 @@ Der angezeigte Score ist:
 
 - Bei Änderungen an Fetch-/Parsinglogik Rohdaten- und Indexpfade mitdenken
 - Bei Änderungen an Textextraktion, Embedding-Modell oder Stable-ID-Schema den Vektorindex vollständig neu aufbauen
-- Nach Einführung oder Änderung von Treffertext-Payloads den Vektorindex vollständig neu aufbauen, damit bestehende Punkte die neuen Ausschnitte erhalten
+- Nach Einführung oder Änderung von Treffertext-Payloads einen regulaeren Build-Lauf ausfuehren; fehlende Ausschnitte werden an bestehenden Punkten ohne erneutes Embedding ergaenzt
 - Zielsystem regelmäßig auf Änderungen an HTML, Parametern und Dokumenttypen prüfen
 - Aktive Oberflächen sollen diese Pipeline nutzen, nicht neu erfinden
 

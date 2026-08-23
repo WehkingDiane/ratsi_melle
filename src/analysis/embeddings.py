@@ -55,7 +55,7 @@ class HarrierEmbedder:
             self._model = SentenceTransformer(
                 _MODEL_NAME,
                 device=device,
-                model_kwargs={"torch_dtype": "auto"},
+                model_kwargs={"dtype": "auto"},
                 **auth_kwargs,
             )
         return self._model

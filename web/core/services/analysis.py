@@ -133,15 +133,20 @@ def execute_prepared_analysis(
         return None, ["Bitte einen KI-Provider für die Ausführung wählen."]
     if provider_id not in {option["value"] for option in provider_options()}:
         return None, ["Der KI-Provider ist ungültig."]
+    if str(job.get("db_source") or "") != "workflow" or not job.get("source_job_id"):
+        return None, [
+            "Dieser Legacy-Analysejob ist nicht mit dem Analyseworkflow verknüpft und "
+            "kann nicht automatisch ausgeführt werden."
+        ]
 
     session_id = str(job.get("session_id") or "")
     session = get_session(session_id)
     if not session:
         return None, ["Die zugehörige Sitzung ist nicht mehr im lokalen Index vorhanden."]
     try:
-        workflow_job_id = int(job.get("db_job_id") or job_id)
-        source_job_id = int(job.get("source_job_id") or workflow_job_id)
-    except (TypeError, ValueError):
+        workflow_job_id = int(job["db_job_id"])
+        source_job_id = int(job["source_job_id"])
+    except (KeyError, TypeError, ValueError):
         return None, ["Der Analysejob besitzt keine gültige interne Verknüpfung."]
 
     artifact_paths: dict[str, Path] = {}

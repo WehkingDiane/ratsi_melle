@@ -227,6 +227,26 @@ def main(argv: list[str] | None = None) -> None:
 
     current_ids = {d["_qdrant_id"] for d in all_docs}
     already_indexed = vector_store.get_indexed_ids()
+    snippet_ids = vector_store.get_ids_with_payload_field("snippet")
+    payload_docs = [
+        doc
+        for doc in all_docs
+        if doc["_qdrant_id"] in already_indexed and doc["_qdrant_id"] not in snippet_ids
+    ]
+    if payload_docs:
+        print(f"  Refreshing snippet payloads for {len(payload_docs)} existing document(s).")
+        vector_store.update_payloads(
+            [
+                {
+                    "id": doc["_qdrant_id"],
+                    "payload": build_document_payload(
+                        doc,
+                        search_text=_get_document_text(doc),
+                    ),
+                }
+                for doc in payload_docs
+            ]
+        )
     missing_docs = [d for d in all_docs if d["_qdrant_id"] not in already_indexed]
     docs_to_index = missing_docs[: args.limit] if args.limit is not None else missing_docs
     indexed_count = 0
