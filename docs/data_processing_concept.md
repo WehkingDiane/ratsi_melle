@@ -36,9 +36,9 @@ fetch_sessions.py
     ↓
 data/raw/YYYY/MM/<session>/
     ↓
-build_local_index.py / build_online_index_db.py
+build_local_index.py
     ↓
-SQLite-Indizes unter data/db/
+data/db/local_index.sqlite
     ↓
 build_vector_index.py
     ↓
@@ -125,6 +125,11 @@ Typischer Inhalt eines Sitzungsordners:
 - `manifest.json`
 - `agenda_summary.json`
 
+`session_detail.html` ist die kanonische Quelle fuer die Tagesordnung. Ist sie neuer als
+`agenda_summary.json`, parst `build_local_index.py` die HTML-Datei erneut und erneuert die
+Summary vor dem Datenbankimport. Dadurch koennen HTML, Summary und lokaler Index nicht
+dauerhaft unterschiedliche TOP-Staende behalten.
+
 Monatsordner enthalten zusaetzlich:
 
 - `YYYY-MM_overview.html`
@@ -151,6 +156,7 @@ Es gibt zwei gleich strukturierte Indexdatenbanken:
 - Skript: `scripts/build_online_index_db.py`
 - Quelle: SessionNet ohne Dokumentdownloads
 - Ziel: `data/db/online_session_index.sqlite`
+- schreibt weder Sitzungs-HTML noch andere Dateien nach `data/raw/`
 
 ### Zweck der Indizes
 
@@ -326,9 +332,11 @@ Der angezeigte Score ist:
 
 ### `scripts/build_local_index.py`
 - baut den lokalen SQLite-Index aus vorhandenen Rohdaten
+- erneuert eine veraltete `agenda_summary.json` aus einer neueren `session_detail.html`
 
 ### `scripts/build_online_index_db.py`
 - baut einen metadatenbasierten Online-Index ohne Dokumentdownloads
+- veraendert den lokalen Rohdatenbestand nicht
 
 ### `scripts/build_vector_index.py`
 - baut oder aktualisiert den Qdrant-Vektorindex

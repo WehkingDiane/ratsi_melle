@@ -50,6 +50,22 @@ def test_parse_session_detail_collects_documents(tmp_path):
     assert [doc.title for doc in second_item.documents] == ["Entwurf", "Anlage"]
 
 
+def test_fetch_session_can_parse_without_persisting_raw_html(tmp_path, monkeypatch):
+    html = Path("tests/fixtures/si0057_sample.html").read_text(encoding="utf-8")
+    storage_root = tmp_path / "raw"
+    client = SessionNetClient(storage_root=storage_root, persist_raw=False)
+
+    class _Response:
+        text = html
+
+    monkeypatch.setattr(SessionNetClient, "_get", lambda _self, _path: _Response())
+
+    detail = client.fetch_session(_sample_reference())
+
+    assert len(detail.agenda_items) == 3
+    assert not storage_root.exists()
+
+
 def test_parse_session_detail_does_not_duplicate_agenda_document_blocks_as_session_documents(tmp_path):
     html = """
     <html>

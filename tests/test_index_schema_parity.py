@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import sqlite3
 from dataclasses import dataclass
@@ -165,6 +166,71 @@ def test_index_schema_parity_and_time_format(tmp_path: Path) -> None:
     _assert_time_format(online_db)
     _assert_document_metadata(local_db)
     _assert_document_metadata(online_db)
+
+
+def test_local_build_refreshes_stale_agenda_summary_from_newer_html(tmp_path: Path) -> None:
+    data_root = tmp_path / "data" / "raw"
+    session_dir = data_root / "2025" / "06" / "2025-06-05_Rat_123"
+    session_dir.mkdir(parents=True)
+    summary_path = session_dir / "agenda_summary.json"
+    summary_path.write_text(
+        json.dumps(
+            {
+                "session": {"id": "123", "committee": "Rat", "meeting_name": "Ratssitzung", "date": "2025-06-05"},
+                "generated_at": "2025-06-05T10:00:00Z",
+                "agenda_items": [{"number": "Ö 1", "title": "Veralteter TOP"}],
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    (session_dir / "manifest.json").write_text(
+        json.dumps(
+            {
+                "session": {
+                    "id": "123",
+                    "committee": "Rat",
+                    "meeting_name": "Ratssitzung",
+                    "date": "2025-06-05",
+                    "detail_url": "https://example.org/si0057.asp?__ksinr=123",
+                },
+                "retrieved_at": "2025-06-05T10:00:00Z",
+                "documents": [
+                    {
+                        "title": "Dokument",
+                        "url": "https://example.org/document.pdf",
+                        "path": "session-documents/document.pdf",
+                    }
+                ],
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    detail_path = session_dir / "session_detail.html"
+    detail_path.write_text(Path("tests/fixtures/si0057_sample.html").read_text(encoding="utf-8"), encoding="utf-8")
+    os.utime(detail_path, (1_700_000_000, 1_700_000_000))
+    os.utime(summary_path, (1_700_000_100, 1_700_000_100))
+
+    output_path = tmp_path / "data" / "db" / "local_index.sqlite"
+    build_local_index.build_index(data_root, output_path, refresh_existing=False, only_refresh=False)
+    with sqlite3.connect(output_path) as conn:
+        assert conn.execute(
+            "SELECT title FROM agenda_items WHERE session_id = '123'"
+        ).fetchall() == [("Veralteter TOP",)]
+
+    os.utime(detail_path, (1_700_000_200, 1_700_000_200))
+    build_local_index.build_index(data_root, output_path, refresh_existing=False, only_refresh=False)
+
+    with sqlite3.connect(output_path) as conn:
+        agenda_items = conn.execute(
+            "SELECT number, title FROM agenda_items WHERE session_id = '123' ORDER BY id"
+        ).fetchall()
+    refreshed_summary = json.loads(summary_path.read_text(encoding="utf-8"))
+
+    assert [number for number, _title in agenda_items] == ["Ö 1", "Ö 2", "Ö 3"]
+    assert agenda_items[0][1] == "Genehmigung des Protokolls"
+    assert [item["number"] for item in refreshed_summary["agenda_items"]] == ["Ö 1", "Ö 2", "Ö 3"]
 
 
 def _assert_document_metadata(path: Path) -> None:

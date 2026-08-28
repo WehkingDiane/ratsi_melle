@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import UTC, date, datetime
 import json
 import re
 import sqlite3
@@ -18,6 +19,8 @@ if str(REPO_ROOT) not in sys.path:  # pragma: no branch - defensive
 
 from src.paths import LOCAL_INDEX_DB
 from src.data_layout import migrate_legacy_database_layout
+from src.fetching.models import SessionReference
+from src.fetching.sessionnet_client import SessionNetClient
 
 
 @dataclass(frozen=True)
@@ -100,10 +103,11 @@ def load_json(path: Path) -> object | None:
 
 def build_index(data_root: Path, output_path: Path, refresh_existing: bool, only_refresh: bool) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    agenda_client = SessionNetClient(storage_root=data_root, persist_raw=False)
     with sqlite3.connect(output_path) as conn:
         conn.execute("PRAGMA journal_mode=WAL;")
         _create_tables(conn)
-        _populate(conn, data_root, refresh_existing, only_refresh)
+        _populate(conn, data_root, refresh_existing, only_refresh, agenda_client)
 
 
 def _create_tables(conn: sqlite3.Connection) -> None:
@@ -160,7 +164,13 @@ def _create_tables(conn: sqlite3.Connection) -> None:
     _backfill_document_types(conn)
 
 
-def _populate(conn: sqlite3.Connection, data_root: Path, refresh_existing: bool, only_refresh: bool) -> None:
+def _populate(
+    conn: sqlite3.Connection,
+    data_root: Path,
+    refresh_existing: bool,
+    only_refresh: bool,
+    agenda_client: SessionNetClient,
+) -> None:
     session_count = 0
     agenda_count = 0
     doc_count = 0
@@ -184,7 +194,8 @@ def _populate(conn: sqlite3.Connection, data_root: Path, refresh_existing: bool,
     for session in iter_session_folders(data_root):
         is_existing = session.session_id in existing
         is_incomplete = session.session_id in incomplete
-        needs_refresh = refresh_existing or is_incomplete
+        has_stale_agenda = _agenda_summary_is_outdated(session.path)
+        needs_refresh = refresh_existing or is_incomplete or has_stale_agenda
         if is_existing and not needs_refresh:
             continue
         if not is_existing and only_refresh:
@@ -218,8 +229,7 @@ def _populate(conn: sqlite3.Connection, data_root: Path, refresh_existing: bool,
         )
         session_count += 1
 
-        agenda_summary = load_json(session.path / "agenda_summary.json")
-        agenda_items = _extract_list(agenda_summary, "agenda_items")
+        agenda_items = _load_agenda_items(session, manifest, agenda_client)
         if agenda_items is not None:
             agenda_count += _insert_agenda_items(conn, session.session_id, agenda_items)
 
@@ -234,6 +244,65 @@ def _populate(conn: sqlite3.Connection, data_root: Path, refresh_existing: bool,
             session_count, agenda_count, doc_count
         )
     )
+
+
+def _agenda_summary_is_outdated(session_path: Path) -> bool:
+    detail_path = session_path / "session_detail.html"
+    summary_path = session_path / "agenda_summary.json"
+    if not detail_path.exists():
+        return False
+    return not summary_path.exists() or detail_path.stat().st_mtime_ns > summary_path.stat().st_mtime_ns
+
+
+def _load_agenda_items(
+    session: SessionFolder,
+    manifest: object | None,
+    client: SessionNetClient,
+) -> list[dict] | None:
+    summary_path = session.path / "agenda_summary.json"
+    detail_path = session.path / "session_detail.html"
+    agenda_summary = load_json(summary_path)
+    existing_items = _extract_list(agenda_summary, "agenda_items")
+
+    if not detail_path.exists():
+        return existing_items
+    if summary_path.exists() and detail_path.stat().st_mtime_ns <= summary_path.stat().st_mtime_ns:
+        return existing_items
+
+    try:
+        html = detail_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        print(f"Warning: could not read {detail_path}: {exc}", file=sys.stderr)
+        return existing_items
+
+    if not client.contains_agenda_table(html):
+        print(
+            f"Warning: newer session HTML for {session.session_id} has no recognized agenda table; "
+            "keeping the existing agenda summary",
+            file=sys.stderr,
+        )
+        return existing_items
+
+    session_info = manifest.get("session") if isinstance(manifest, dict) else {}
+    if not isinstance(session_info, dict):
+        session_info = {}
+    reference = SessionReference(
+        committee=str(session_info.get("committee") or session.committee),
+        meeting_name=str(session_info.get("meeting_name") or session.committee),
+        session_id=session.session_id,
+        date=date.fromisoformat(session.date),
+        start_time=None,
+        detail_url=str(
+            session_info.get("detail_url")
+            or f"https://session.melle.info/bi/si0057.asp?__ksinr={session.session_id}"
+        ),
+        location=session_info.get("location"),
+    )
+    retrieved_at = datetime.fromtimestamp(detail_path.stat().st_mtime, tz=UTC)
+    detail = client.parse_session_detail(reference, html, retrieved_at=retrieved_at)
+    client.write_agenda_summary(session.path, detail)
+    refreshed_summary = load_json(summary_path)
+    return _extract_list(refreshed_summary, "agenda_items")
 
 
 def _insert_agenda_items(

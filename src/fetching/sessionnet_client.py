@@ -11,6 +11,7 @@ from itertools import count
 import re
 from pathlib import Path
 import shutil
+from tempfile import NamedTemporaryFile
 import time
 from typing import Dict, Iterable, List, Optional, Tuple
 from urllib.parse import parse_qs, urljoin, urlparse, unquote
@@ -53,6 +54,7 @@ class SessionNetClient:
     retry_backoff: float = 1.5
     max_document_bytes: int = _MAX_DOCUMENT_BYTES
     storage_root: Path = Path("data/raw")
+    persist_raw: bool = True
     _last_request_ts: float = field(default=0.0, init=False, repr=False)
     _document_cache: Dict[str, Tuple[bytes, Dict[str, str]]] = field(default_factory=dict, init=False, repr=False)
     _document_head_cache: Dict[str, Dict[str, str]] = field(default_factory=dict, init=False, repr=False)
@@ -63,8 +65,9 @@ class SessionNetClient:
         self.session.headers.update(DEFAULT_HEADERS)
         self.base_url = self.base_url.rstrip("/") + "/"
         self.storage_root = Path(self.storage_root)
-        self.storage_root.mkdir(parents=True, exist_ok=True)
-        self._migrate_legacy_storage_layout()
+        if self.persist_raw:
+            self.storage_root.mkdir(parents=True, exist_ok=True)
+            self._migrate_legacy_storage_layout()
 
     # ------------------------------------------------------------------
     # Public API
@@ -74,8 +77,9 @@ class SessionNetClient:
         LOGGER.info("Fetching session overview for %04d-%02d", year, month)
         response = self._get("si0040.asp", params=self._build_month_params(year, month))
         content = response.text
-        filename = self._build_month_filename(year, month)
-        self._write_raw(filename, content)
+        if self.persist_raw:
+            filename = self._build_month_filename(year, month)
+            self._write_raw(filename, content)
         sessions = self._parse_overview(content, year, month)
         LOGGER.info("Parsed %d session references", len(sessions))
         return sessions
@@ -86,9 +90,29 @@ class SessionNetClient:
         LOGGER.info("Fetching session detail for %s", reference.session_id)
         response = self._get(reference.detail_url)
         html = response.text
-        session_detail = self._parse_session_detail(reference, html)
-        self._write_raw(self._build_session_filename(reference), html)
+        session_detail = self.parse_session_detail(reference, html)
+        if self.persist_raw:
+            self._write_raw(self._build_session_filename(reference), html)
         return session_detail
+
+    def parse_session_detail(
+        self,
+        reference: SessionReference,
+        html: str,
+        *,
+        retrieved_at: datetime | None = None,
+    ) -> SessionDetail:
+        """Parse stored SessionNet HTML into a structured session detail."""
+
+        detail = self._parse_session_detail(reference, html)
+        if retrieved_at is not None:
+            detail.retrieved_at = retrieved_at
+        return detail
+
+    def contains_agenda_table(self, html: str) -> bool:
+        """Return whether stored HTML contains a recognized agenda table."""
+
+        return self._find_agenda_table(BeautifulSoup(html, "html.parser")) is not None
 
     def download_documents(self, detail: SessionDetail) -> None:
         """Download session-level and agenda documents into structured folders."""
@@ -157,7 +181,7 @@ class SessionNetClient:
                 _store_document(document, agenda_dir)
 
         self._write_manifest(target_dir, detail, manifest_entries)
-        self._write_agenda_summary(target_dir, detail)
+        self.write_agenda_summary(target_dir, detail)
 
     # ------------------------------------------------------------------
     # Parsing helpers
@@ -780,10 +804,11 @@ class SessionNetClient:
             "retrieved_at": self._format_timestamp(detail.retrieved_at),
             "documents": documents,
         }
-        manifest_path = session_dir / "manifest.json"
-        manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+        self._write_json(session_dir / "manifest.json", manifest)
 
-    def _write_agenda_summary(self, session_dir: Path, detail: SessionDetail) -> None:
+    def write_agenda_summary(self, session_dir: Path, detail: SessionDetail) -> None:
+        """Write the derived agenda summary for a parsed session detail."""
+
         agenda_entries = []
         for item in detail.agenda_items:
             title = self._normalise_whitespace(item.title or "") or "Tagesordnungspunkt"
@@ -809,11 +834,33 @@ class SessionNetClient:
             "agenda_items": agenda_entries,
         }
 
-        summary_path = session_dir / "agenda_summary.json"
-        summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+        self._write_json(session_dir / "agenda_summary.json", summary)
 
     def _write_raw(self, path: Path, content: str) -> None:
-        path.write_text(content, encoding="utf-8")
+        self._write_text_atomic(path, content)
+
+    @classmethod
+    def _write_json(cls, path: Path, payload: object) -> None:
+        cls._write_text_atomic(path, json.dumps(payload, indent=2, ensure_ascii=False))
+
+    @staticmethod
+    def _write_text_atomic(path: Path, content: str) -> None:
+        temporary_path: Path | None = None
+        try:
+            with NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=path.parent,
+                prefix=f".{path.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as temporary_file:
+                temporary_file.write(content)
+                temporary_path = Path(temporary_file.name)
+            temporary_path.replace(path)
+        finally:
+            if temporary_path is not None:
+                temporary_path.unlink(missing_ok=True)
 
     @staticmethod
     def _build_month_params(year: int, month: int) -> dict:
