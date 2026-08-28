@@ -125,10 +125,14 @@ Typischer Inhalt eines Sitzungsordners:
 - `manifest.json`
 - `agenda_summary.json`
 
-`session_detail.html` ist die kanonische Quelle fuer die Tagesordnung. Ist sie neuer als
-`agenda_summary.json`, parst `build_local_index.py` die HTML-Datei erneut und erneuert die
-Summary vor dem Datenbankimport. Dadurch koennen HTML, Summary und lokaler Index nicht
-dauerhaft unterschiedliche TOP-Staende behalten.
+`session_detail.html` ist die kanonische Quelle fuer Tagesordnung und Dokumentlinks. Ist sie
+neuer als `agenda_summary.json` oder `manifest.json`, parst `build_local_index.py` die
+HTML-Datei erneut und erneuert beide Ableitungen vor dem Datenbankimport. Bereits vorhandene
+Dateien werden ueber den stabilen URL-Hash im Dateinamen wieder zugeordnet. Dokumentlinks
+ohne lokale Datei bleiben als Metadaten erhalten, damit Dokumentanzahl und lokaler
+Verfuegbarkeitsstatus getrennt korrekt dargestellt werden. Beide JSON-Ableitungen speichern
+zusaetzlich `source_html_sha1`, damit Inhaltsabweichungen auch bei gleichen oder veraenderten
+Dateizeitstempeln erkannt werden.
 
 Monatsordner enthalten zusaetzlich:
 
@@ -150,6 +154,8 @@ Es gibt zwei gleich strukturierte Indexdatenbanken:
 - Skript: `scripts/build_local_index.py`
 - Quelle: bereits geladene Daten unter `data/raw/`
 - Ziel: `data/db/local_index.sqlite`
+- beruecksichtigt nur Sitzungsordner direkt unter `data/raw/YYYY/MM/`; die getrennte
+  Landkreis-Datenwurzel wird nicht als SessionNet-Bestand interpretiert
 
 ### Online-Index
 
@@ -332,7 +338,7 @@ Der angezeigte Score ist:
 
 ### `scripts/build_local_index.py`
 - baut den lokalen SQLite-Index aus vorhandenen Rohdaten
-- erneuert eine veraltete `agenda_summary.json` aus einer neueren `session_detail.html`
+- erneuert veraltete Agenda- und Dokumentmetadaten aus einer neueren `session_detail.html`
 
 ### `scripts/build_online_index_db.py`
 - baut einen metadatenbasierten Online-Index ohne Dokumentdownloads

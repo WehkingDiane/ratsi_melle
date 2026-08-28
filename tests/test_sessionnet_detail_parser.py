@@ -66,6 +66,36 @@ def test_fetch_session_can_parse_without_persisting_raw_html(tmp_path, monkeypat
     assert not storage_root.exists()
 
 
+def test_manifest_sync_recovers_existing_document_by_url_hash(tmp_path):
+    reference = _sample_reference()
+    document = DocumentReference(
+        title="Beschlussvorlage",
+        url="https://example.org/getfile.asp?id=3001&type=do",
+        on_agenda_item="Ö 7",
+    )
+    detail = SessionDetail(
+        reference=reference,
+        agenda_items=[AgendaItem(number="Ö 7", title="Feuerwehrhaus", documents=[document])],
+        session_documents=[],
+        retrieved_at=datetime(2025, 10, 1, 12, 0, 0),
+        raw_html="",
+    )
+    client = SessionNetClient(storage_root=tmp_path)
+    session_dir = client._build_session_directory(reference)
+    agenda_dir = session_dir / "agenda" / client._build_agenda_directory_name(detail.agenda_items[0])
+    agenda_dir.mkdir(parents=True)
+    filename = client._normalise_filename(document, index=3, extension=".pdf")
+    document_path = agenda_dir / filename
+    document_path.write_bytes(b"pdf")
+
+    client.synchronize_manifest_from_detail(session_dir, detail)
+
+    manifest = json.loads((session_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert len(manifest["documents"]) == 1
+    assert manifest["documents"][0]["path"] == document_path.relative_to(session_dir).as_posix()
+    assert manifest["documents"][0]["content_length"] == 3
+
+
 def test_parse_session_detail_does_not_duplicate_agenda_document_blocks_as_session_documents(tmp_path):
     html = """
     <html>

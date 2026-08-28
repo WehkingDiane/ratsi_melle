@@ -802,6 +802,7 @@ class SessionNetClient:
                 "location": detail.reference.location,
             },
             "retrieved_at": self._format_timestamp(detail.retrieved_at),
+            "source_html_sha1": self.source_html_sha1(detail.raw_html),
             "documents": documents,
         }
         self._write_json(session_dir / "manifest.json", manifest)
@@ -831,13 +832,109 @@ class SessionNetClient:
                 "date": detail.reference.date.isoformat(),
             },
             "generated_at": self._format_timestamp(detail.retrieved_at),
+            "source_html_sha1": self.source_html_sha1(detail.raw_html),
             "agenda_items": agenda_entries,
         }
 
         self._write_json(session_dir / "agenda_summary.json", summary)
 
+    def synchronize_manifest_from_detail(self, session_dir: Path, detail: SessionDetail) -> None:
+        """Synchronize document metadata with parsed HTML and reuse matching local files."""
+
+        existing_manifest = self._load_manifest(session_dir)
+        manifest_entries: list[dict] = []
+        documents = list(detail.session_documents)
+        for agenda_item in detail.agenda_items:
+            documents.extend(agenda_item.documents)
+
+        for document in documents:
+            existing_entry = self._find_manifest_entry_by_source(existing_manifest, document)
+            local_path = self._resolve_existing_document_path(session_dir, existing_entry)
+            if local_path is None:
+                local_path = self._find_local_document_by_url_hash(session_dir, document)
+
+            if local_path is None:
+                manifest_entries.append(
+                    {
+                        "title": document.title,
+                        "category": document.category,
+                        "agenda_item": document.on_agenda_item,
+                        "url": document.url,
+                        "path": None,
+                        "sha1": None,
+                        "content_type": None,
+                        "content_disposition": None,
+                        "content_length": None,
+                        "etag": None,
+                        "last_modified": None,
+                    }
+                )
+                continue
+
+            content_type = mimetypes.guess_type(local_path.name)[0]
+            headers = {
+                "Content-Type": content_type,
+                "Content-Length": str(local_path.stat().st_size),
+            }
+            manifest_entries.append(
+                self._build_manifest_entry(
+                    document=document,
+                    path=local_path,
+                    headers=headers,
+                    sha1=self._read_sha1(local_path, existing_entry),
+                    target_dir=session_dir,
+                )
+            )
+
+        self._write_manifest(session_dir, detail, manifest_entries)
+
+    def stamp_derived_source_hash(self, session_dir: Path, html: str) -> None:
+        """Mark retained summary and manifest data as derived from the given HTML."""
+
+        source_html_sha1 = self.source_html_sha1(html)
+        for filename in ("agenda_summary.json", "manifest.json"):
+            path = session_dir / filename
+            if not path.exists():
+                continue
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            if not isinstance(payload, dict):
+                continue
+            payload["source_html_sha1"] = source_html_sha1
+            self._write_json(path, payload)
+
+    @staticmethod
+    def _find_manifest_entry_by_source(
+        manifest_entries: list[dict], document: DocumentReference
+    ) -> dict | None:
+        for entry in manifest_entries:
+            if entry.get("url") == document.url and entry.get("agenda_item") == document.on_agenda_item:
+                return entry
+        return None
+
+    @staticmethod
+    def _find_local_document_by_url_hash(
+        session_dir: Path, document: DocumentReference
+    ) -> Path | None:
+        url_hash = sha1(document.url.encode("utf-8")).hexdigest()[:8]
+        matches = [
+            path
+            for path in session_dir.rglob(f"*-{url_hash}.*")
+            if path.is_file()
+        ]
+        return matches[0] if len(matches) == 1 else None
+
     def _write_raw(self, path: Path, content: str) -> None:
         self._write_text_atomic(path, content)
+
+    @staticmethod
+    def source_html_sha1(html: str) -> str:
+        """Return a stable digest independent of platform newline conversion."""
+
+        normalized_html = html.replace("\r\n", "\n").replace("\r", "\n")
+        return sha1(normalized_html.encode("utf-8")).hexdigest()
 
     @classmethod
     def _write_json(cls, path: Path, payload: object) -> None:

@@ -19,7 +19,7 @@ if str(REPO_ROOT) not in sys.path:  # pragma: no branch - defensive
 
 from src.paths import LOCAL_INDEX_DB
 from src.data_layout import migrate_legacy_database_layout
-from src.fetching.models import SessionReference
+from src.fetching.models import SessionDetail, SessionReference
 from src.fetching.sessionnet_client import SessionNetClient
 
 
@@ -62,14 +62,18 @@ def iter_session_folders(data_root: Path) -> Iterator[SessionFolder]:
     if not data_root.exists():
         return
 
-    for path in data_root.rglob("*"):
-        if not path.is_dir():
+    for year_path in data_root.iterdir():
+        if not year_path.is_dir() or not re.fullmatch(r"\d{4}", year_path.name):
             continue
-        if not _is_session_folder(path):
-            continue
-        session_info = _parse_session_folder(path)
-        if session_info:
-            yield session_info
+        for month_path in year_path.iterdir():
+            if not month_path.is_dir() or not re.fullmatch(r"\d{2}", month_path.name):
+                continue
+            for path in month_path.iterdir():
+                if not path.is_dir() or not _is_session_folder(path):
+                    continue
+                session_info = _parse_session_folder(path)
+                if session_info:
+                    yield session_info
 
 
 def _is_session_folder(path: Path) -> bool:
@@ -171,6 +175,7 @@ def _populate(
     only_refresh: bool,
     agenda_client: SessionNetClient,
 ) -> None:
+    _remove_non_sessionnet_rows(conn)
     session_count = 0
     agenda_count = 0
     doc_count = 0
@@ -195,13 +200,20 @@ def _populate(
         is_existing = session.session_id in existing
         is_incomplete = session.session_id in incomplete
         has_stale_agenda = _agenda_summary_is_outdated(session.path)
-        needs_refresh = refresh_existing or is_incomplete or has_stale_agenda
+        has_stale_manifest = _manifest_is_outdated(session.path)
+        needs_refresh = refresh_existing or is_incomplete or has_stale_agenda or has_stale_manifest
         if is_existing and not needs_refresh:
             continue
         if not is_existing and only_refresh:
             continue
         year, month = _split_date(session.date)
         manifest = load_json(session.path / "manifest.json")
+        if has_stale_manifest:
+            detail = _parse_stored_session_detail(session, manifest, agenda_client)
+            if detail is not None:
+                agenda_client.write_agenda_summary(session.path, detail)
+                agenda_client.synchronize_manifest_from_detail(session.path, detail)
+                manifest = load_json(session.path / "manifest.json")
         session_info = manifest.get("session") if isinstance(manifest, dict) else {}
         if not isinstance(session_info, dict):
             session_info = {}
@@ -246,12 +258,44 @@ def _populate(
     )
 
 
+def _remove_non_sessionnet_rows(conn: sqlite3.Connection) -> None:
+    invalid_session_ids = [
+        row[0]
+        for row in conn.execute(
+            "SELECT session_id FROM sessions "
+            "WHERE REPLACE(COALESCE(session_path, ''), '\\', '/') LIKE '%/landkreis/%'"
+        ).fetchall()
+    ]
+    for session_id in invalid_session_ids:
+        conn.execute("DELETE FROM agenda_items WHERE session_id = ?", (session_id,))
+        conn.execute("DELETE FROM documents WHERE session_id = ?", (session_id,))
+        conn.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
+
+
 def _agenda_summary_is_outdated(session_path: Path) -> bool:
+    return _derived_file_is_outdated(session_path, "agenda_summary.json")
+
+
+def _manifest_is_outdated(session_path: Path) -> bool:
+    return _derived_file_is_outdated(session_path, "manifest.json")
+
+
+def _derived_file_is_outdated(session_path: Path, filename: str) -> bool:
     detail_path = session_path / "session_detail.html"
-    summary_path = session_path / "agenda_summary.json"
+    derived_path = session_path / filename
     if not detail_path.exists():
         return False
-    return not summary_path.exists() or detail_path.stat().st_mtime_ns > summary_path.stat().st_mtime_ns
+    if not derived_path.exists() or detail_path.stat().st_mtime_ns > derived_path.stat().st_mtime_ns:
+        return True
+    derived_payload = load_json(derived_path)
+    stored_html_sha1 = derived_payload.get("source_html_sha1") if isinstance(derived_payload, dict) else None
+    if not isinstance(stored_html_sha1, str) or not stored_html_sha1:
+        return True
+    try:
+        html = detail_path.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    return stored_html_sha1 != SessionNetClient.source_html_sha1(html)
 
 
 def _load_agenda_items(
@@ -266,22 +310,37 @@ def _load_agenda_items(
 
     if not detail_path.exists():
         return existing_items
-    if summary_path.exists() and detail_path.stat().st_mtime_ns <= summary_path.stat().st_mtime_ns:
+    if not _agenda_summary_is_outdated(session.path):
         return existing_items
 
+    detail = _parse_stored_session_detail(session, manifest, client)
+    if detail is None:
+        return existing_items
+    client.write_agenda_summary(session.path, detail)
+    refreshed_summary = load_json(summary_path)
+    return _extract_list(refreshed_summary, "agenda_items")
+
+
+def _parse_stored_session_detail(
+    session: SessionFolder,
+    manifest: object | None,
+    client: SessionNetClient,
+) -> SessionDetail | None:
+    detail_path = session.path / "session_detail.html"
     try:
         html = detail_path.read_text(encoding="utf-8")
     except OSError as exc:
         print(f"Warning: could not read {detail_path}: {exc}", file=sys.stderr)
-        return existing_items
+        return None
 
     if not client.contains_agenda_table(html):
         print(
-            f"Warning: newer session HTML for {session.session_id} has no recognized agenda table; "
-            "keeping the existing agenda summary",
+            f"Warning: session HTML for {session.session_id} has no recognized agenda table; "
+            "keeping existing derived metadata",
             file=sys.stderr,
         )
-        return existing_items
+        client.stamp_derived_source_hash(session.path, html)
+        return None
 
     session_info = manifest.get("session") if isinstance(manifest, dict) else {}
     if not isinstance(session_info, dict):
@@ -299,10 +358,7 @@ def _load_agenda_items(
         location=session_info.get("location"),
     )
     retrieved_at = datetime.fromtimestamp(detail_path.stat().st_mtime, tz=UTC)
-    detail = client.parse_session_detail(reference, html, retrieved_at=retrieved_at)
-    client.write_agenda_summary(session.path, detail)
-    refreshed_summary = load_json(summary_path)
-    return _extract_list(refreshed_summary, "agenda_items")
+    return client.parse_session_detail(reference, html, retrieved_at=retrieved_at)
 
 
 def _insert_agenda_items(
