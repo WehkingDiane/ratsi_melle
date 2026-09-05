@@ -66,7 +66,7 @@ def test_fetch_session_can_parse_without_persisting_raw_html(tmp_path, monkeypat
     assert not storage_root.exists()
 
 
-def test_manifest_sync_recovers_existing_document_by_url_hash(tmp_path):
+def test_manifest_entries_recover_existing_document_by_url_hash_without_writing(tmp_path):
     reference = _sample_reference()
     document = DocumentReference(
         title="Beschlussvorlage",
@@ -88,12 +88,12 @@ def test_manifest_sync_recovers_existing_document_by_url_hash(tmp_path):
     document_path = agenda_dir / filename
     document_path.write_bytes(b"pdf")
 
-    client.synchronize_manifest_from_detail(session_dir, detail)
+    manifest_entries = client.manifest_entries_from_detail(session_dir, detail)
 
-    manifest = json.loads((session_dir / "manifest.json").read_text(encoding="utf-8"))
-    assert len(manifest["documents"]) == 1
-    assert manifest["documents"][0]["path"] == document_path.relative_to(session_dir).as_posix()
-    assert manifest["documents"][0]["content_length"] == 3
+    assert len(manifest_entries) == 1
+    assert manifest_entries[0]["path"] == document_path.relative_to(session_dir).as_posix()
+    assert manifest_entries[0]["content_length"] == 3
+    assert not (session_dir / "manifest.json").exists()
 
 
 def test_parse_session_detail_does_not_duplicate_agenda_document_blocks_as_session_documents(tmp_path):

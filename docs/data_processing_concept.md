@@ -126,13 +126,15 @@ Typischer Inhalt eines Sitzungsordners:
 - `agenda_summary.json`
 
 `session_detail.html` ist die kanonische Quelle fuer Tagesordnung und Dokumentlinks. Ist sie
-neuer als `agenda_summary.json` oder `manifest.json`, parst `build_local_index.py` die
-HTML-Datei erneut und erneuert beide Ableitungen vor dem Datenbankimport. Bereits vorhandene
-Dateien werden ueber den stabilen URL-Hash im Dateinamen wieder zugeordnet. Dokumentlinks
+neuer als `agenda_summary.json` oder `manifest.json` oder stimmt ein vorhandener
+`source_html_sha1` nicht ueberein, parst `build_local_index.py` die HTML-Datei erneut. Die
+daraus erzeugten TOP- und Dokumentmetadaten werden nur in den SQLite-Index geschrieben;
+die Rohdaten und ihre JSON-Ableitungen bleiben unveraendert. Bereits vorhandene Dateien
+werden im Index ueber den stabilen URL-Hash im Dateinamen wieder zugeordnet. Dokumentlinks
 ohne lokale Datei bleiben als Metadaten erhalten, damit Dokumentanzahl und lokaler
-Verfuegbarkeitsstatus getrennt korrekt dargestellt werden. Beide JSON-Ableitungen speichern
-zusaetzlich `source_html_sha1`, damit Inhaltsabweichungen auch bei gleichen oder veraenderten
-Dateizeitstempeln erkannt werden.
+Verfuegbarkeitsstatus getrennt korrekt dargestellt werden. Neue Fetches speichern in beiden
+JSON-Ableitungen `source_html_sha1`, um Inhaltsabweichungen unabhaengig vom Dateizeitstempel
+zu erkennen.
 
 Monatsordner enthalten zusaetzlich:
 
@@ -338,7 +340,8 @@ Der angezeigte Score ist:
 
 ### `scripts/build_local_index.py`
 - baut den lokalen SQLite-Index aus vorhandenen Rohdaten
-- erneuert veraltete Agenda- und Dokumentmetadaten aus einer neueren `session_detail.html`
+- uebernimmt veraltete Agenda- und Dokumentmetadaten aus einer neueren `session_detail.html` nur in den Index
+- veraendert dabei keine Dateien unter `data/raw/`
 
 ### `scripts/build_online_index_db.py`
 - baut einen metadatenbasierten Online-Index ohne Dokumentdownloads

@@ -810,19 +810,7 @@ class SessionNetClient:
     def write_agenda_summary(self, session_dir: Path, detail: SessionDetail) -> None:
         """Write the derived agenda summary for a parsed session detail."""
 
-        agenda_entries = []
-        for item in detail.agenda_items:
-            title = self._normalise_whitespace(item.title or "") or "Tagesordnungspunkt"
-            agenda_entries.append(
-                {
-                    "number": item.number,
-                    "title": title,
-                    "reporter": item.reporter,
-                    "status": item.status,
-                    "decision": self._derive_decision_outcome(item.status),
-                    "documents_present": bool(item.documents),
-                }
-            )
+        agenda_entries = self.agenda_entries_from_detail(detail)
 
         summary = {
             "session": {
@@ -838,10 +826,34 @@ class SessionNetClient:
 
         self._write_json(session_dir / "agenda_summary.json", summary)
 
-    def synchronize_manifest_from_detail(self, session_dir: Path, detail: SessionDetail) -> None:
-        """Synchronize document metadata with parsed HTML and reuse matching local files."""
+    def agenda_entries_from_detail(self, detail: SessionDetail) -> list[dict]:
+        """Return index-ready agenda metadata without writing derived files."""
 
-        existing_manifest = self._load_manifest(session_dir)
+        agenda_entries = []
+        for item in detail.agenda_items:
+            title = self._normalise_whitespace(item.title or "") or "Tagesordnungspunkt"
+            agenda_entries.append(
+                {
+                    "number": item.number,
+                    "title": title,
+                    "reporter": item.reporter,
+                    "status": item.status,
+                    "decision": self._derive_decision_outcome(item.status),
+                    "documents_present": bool(item.documents),
+                }
+            )
+        return agenda_entries
+
+    def manifest_entries_from_detail(
+        self,
+        session_dir: Path,
+        detail: SessionDetail,
+        existing_manifest: list[dict] | None = None,
+    ) -> list[dict]:
+        """Return document metadata from HTML while reusing matching local files."""
+
+        if existing_manifest is None:
+            existing_manifest = self._load_manifest(session_dir)
         manifest_entries: list[dict] = []
         documents = list(detail.session_documents)
         for agenda_item in detail.agenda_items:
@@ -886,24 +898,7 @@ class SessionNetClient:
                 )
             )
 
-        self._write_manifest(session_dir, detail, manifest_entries)
-
-    def stamp_derived_source_hash(self, session_dir: Path, html: str) -> None:
-        """Mark retained summary and manifest data as derived from the given HTML."""
-
-        source_html_sha1 = self.source_html_sha1(html)
-        for filename in ("agenda_summary.json", "manifest.json"):
-            path = session_dir / filename
-            if not path.exists():
-                continue
-            try:
-                payload = json.loads(path.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError):
-                continue
-            if not isinstance(payload, dict):
-                continue
-            payload["source_html_sha1"] = source_html_sha1
-            self._write_json(path, payload)
+        return manifest_entries
 
     @staticmethod
     def _find_manifest_entry_by_source(

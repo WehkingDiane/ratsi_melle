@@ -169,7 +169,7 @@ def test_index_schema_parity_and_time_format(tmp_path: Path) -> None:
     _assert_document_metadata(online_db)
 
 
-def test_local_build_refreshes_stale_agenda_summary_from_newer_html(tmp_path: Path) -> None:
+def test_local_build_indexes_newer_html_without_changing_raw_metadata(tmp_path: Path) -> None:
     data_root = tmp_path / "data" / "raw"
     session_dir = data_root / "2025" / "06" / "2025-06-05_Rat_123"
     session_dir.mkdir(parents=True)
@@ -226,6 +226,10 @@ def test_local_build_refreshes_stale_agenda_summary_from_newer_html(tmp_path: Pa
             "SELECT title FROM agenda_items WHERE session_id = '123'"
         ).fetchall() == [("Veralteter TOP",)]
 
+    summary_before = summary_path.read_bytes()
+    manifest_before = manifest_path.read_bytes()
+    summary_mtime_before = summary_path.stat().st_mtime_ns
+    manifest_mtime_before = manifest_path.stat().st_mtime_ns
     os.utime(detail_path, (1_700_000_200, 1_700_000_200))
     build_local_index.build_index(data_root, output_path, refresh_existing=False, only_refresh=False)
 
@@ -236,14 +240,13 @@ def test_local_build_refreshes_stale_agenda_summary_from_newer_html(tmp_path: Pa
         documents = conn.execute(
             "SELECT agenda_item, title, local_path FROM documents WHERE session_id = '123' ORDER BY id"
         ).fetchall()
-    refreshed_summary = json.loads(summary_path.read_text(encoding="utf-8"))
-    refreshed_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-
     assert [number for number, _title in agenda_items] == ["Ö 1", "Ö 2", "Ö 3"]
     assert agenda_items[0][1] == "Genehmigung des Protokolls"
-    assert [item["number"] for item in refreshed_summary["agenda_items"]] == ["Ö 1", "Ö 2", "Ö 3"]
     assert len(documents) == 5
-    assert len(refreshed_manifest["documents"]) == 5
+    assert summary_path.read_bytes() == summary_before
+    assert manifest_path.read_bytes() == manifest_before
+    assert summary_path.stat().st_mtime_ns == summary_mtime_before
+    assert manifest_path.stat().st_mtime_ns == manifest_mtime_before
 
 
 def test_local_session_discovery_excludes_separate_landkreis_raw_data(tmp_path: Path) -> None:
@@ -262,10 +265,11 @@ def test_local_session_discovery_excludes_separate_landkreis_raw_data(tmp_path: 
 
 def test_local_build_removes_historical_landkreis_rows(tmp_path: Path) -> None:
     output_path = _build_local_db(tmp_path)
+    excluded_path = tmp_path / "data" / "raw" / "landkreis" / "amtsblaetter" / "2026" / "example-2026"
     with sqlite3.connect(output_path) as conn:
         conn.execute(
             "INSERT INTO sessions (session_id, date, session_path) VALUES (?, ?, ?)",
-            ("2026", "2026-07-15", "data/raw/landkreis/amtsblaetter/2026/example-2026"),
+            ("2026", "2026-07-15", str(excluded_path)),
         )
         conn.execute("INSERT INTO agenda_items (session_id, number) VALUES (?, ?)", ("2026", "Ö 1"))
         conn.execute("INSERT INTO documents (session_id, title) VALUES (?, ?)", ("2026", "Amtsblatt"))
@@ -281,6 +285,18 @@ def test_local_build_removes_historical_landkreis_rows(tmp_path: Path) -> None:
         assert conn.execute("SELECT COUNT(*) FROM sessions WHERE session_id = '2026'").fetchone()[0] == 0
         assert conn.execute("SELECT COUNT(*) FROM agenda_items WHERE session_id = '2026'").fetchone()[0] == 0
         assert conn.execute("SELECT COUNT(*) FROM documents WHERE session_id = '2026'").fetchone()[0] == 0
+
+
+def test_local_build_keeps_sessions_when_data_root_parent_is_named_landkreis(tmp_path: Path) -> None:
+    data_root = tmp_path / "landkreis" / "sessionnet"
+    _write_local_fixture(data_root)
+    output_path = tmp_path / "data" / "db" / "local_index.sqlite"
+
+    build_local_index.build_index(data_root, output_path, refresh_existing=False, only_refresh=False)
+    build_local_index.build_index(data_root, output_path, refresh_existing=False, only_refresh=True)
+
+    with sqlite3.connect(output_path) as conn:
+        assert conn.execute("SELECT session_id FROM sessions").fetchall() == [("123",)]
 
 
 def _assert_document_metadata(path: Path) -> None:
