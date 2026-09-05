@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import UTC, date, datetime
 import json
 import re
 import sqlite3
@@ -18,6 +19,8 @@ if str(REPO_ROOT) not in sys.path:  # pragma: no branch - defensive
 
 from src.paths import LOCAL_INDEX_DB
 from src.data_layout import migrate_legacy_database_layout
+from src.fetching.models import SessionDetail, SessionReference
+from src.fetching.sessionnet_client import SessionNetClient
 
 
 @dataclass(frozen=True)
@@ -59,14 +62,18 @@ def iter_session_folders(data_root: Path) -> Iterator[SessionFolder]:
     if not data_root.exists():
         return
 
-    for path in data_root.rglob("*"):
-        if not path.is_dir():
+    for year_path in data_root.iterdir():
+        if not year_path.is_dir() or not re.fullmatch(r"\d{4}", year_path.name):
             continue
-        if not _is_session_folder(path):
-            continue
-        session_info = _parse_session_folder(path)
-        if session_info:
-            yield session_info
+        for month_path in year_path.iterdir():
+            if not month_path.is_dir() or not re.fullmatch(r"\d{2}", month_path.name):
+                continue
+            for path in month_path.iterdir():
+                if not path.is_dir() or not _is_session_folder(path):
+                    continue
+                session_info = _parse_session_folder(path)
+                if session_info:
+                    yield session_info
 
 
 def _is_session_folder(path: Path) -> bool:
@@ -100,10 +107,11 @@ def load_json(path: Path) -> object | None:
 
 def build_index(data_root: Path, output_path: Path, refresh_existing: bool, only_refresh: bool) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    agenda_client = SessionNetClient(storage_root=data_root, persist_raw=False)
     with sqlite3.connect(output_path) as conn:
         conn.execute("PRAGMA journal_mode=WAL;")
         _create_tables(conn)
-        _populate(conn, data_root, refresh_existing, only_refresh)
+        _populate(conn, data_root, refresh_existing, only_refresh, agenda_client)
 
 
 def _create_tables(conn: sqlite3.Connection) -> None:
@@ -160,7 +168,14 @@ def _create_tables(conn: sqlite3.Connection) -> None:
     _backfill_document_types(conn)
 
 
-def _populate(conn: sqlite3.Connection, data_root: Path, refresh_existing: bool, only_refresh: bool) -> None:
+def _populate(
+    conn: sqlite3.Connection,
+    data_root: Path,
+    refresh_existing: bool,
+    only_refresh: bool,
+    agenda_client: SessionNetClient,
+) -> None:
+    _remove_non_sessionnet_rows(conn, data_root)
     session_count = 0
     agenda_count = 0
     doc_count = 0
@@ -184,16 +199,40 @@ def _populate(conn: sqlite3.Connection, data_root: Path, refresh_existing: bool,
     for session in iter_session_folders(data_root):
         is_existing = session.session_id in existing
         is_incomplete = session.session_id in incomplete
-        needs_refresh = refresh_existing or is_incomplete
+        has_stale_agenda = _agenda_summary_is_outdated(session.path)
+        has_stale_manifest = _manifest_is_outdated(session.path)
+        needs_refresh = refresh_existing or is_incomplete or has_stale_agenda or has_stale_manifest
         if is_existing and not needs_refresh:
             continue
         if not is_existing and only_refresh:
             continue
         year, month = _split_date(session.date)
         manifest = load_json(session.path / "manifest.json")
+        agenda_summary = load_json(session.path / "agenda_summary.json")
+        agenda_items = _extract_list(agenda_summary, "agenda_items")
+        documents = _extract_list(manifest, "documents")
+        retrieved_at = manifest.get("retrieved_at") if isinstance(manifest, dict) else None
+        detail = None
+        if has_stale_agenda or has_stale_manifest:
+            detail = _parse_stored_session_detail(session, manifest, agenda_client)
+            if detail is not None:
+                agenda_items = agenda_client.agenda_entries_from_detail(detail)
+                documents = agenda_client.manifest_entries_from_detail(
+                    session.path,
+                    detail,
+                    existing_manifest=documents or [],
+                )
+                retrieved_at = _format_timestamp(detail.retrieved_at)
         session_info = manifest.get("session") if isinstance(manifest, dict) else {}
         if not isinstance(session_info, dict):
             session_info = {}
+        if detail is not None:
+            session_info = {
+                **session_info,
+                "meeting_name": detail.reference.meeting_name,
+                "location": detail.reference.location,
+                "detail_url": detail.reference.detail_url,
+            }
         if is_existing and needs_refresh:
             conn.execute("DELETE FROM agenda_items WHERE session_id = ?", (session.session_id,))
             conn.execute("DELETE FROM documents WHERE session_id = ?", (session.session_id,))
@@ -218,13 +257,9 @@ def _populate(conn: sqlite3.Connection, data_root: Path, refresh_existing: bool,
         )
         session_count += 1
 
-        agenda_summary = load_json(session.path / "agenda_summary.json")
-        agenda_items = _extract_list(agenda_summary, "agenda_items")
         if agenda_items is not None:
             agenda_count += _insert_agenda_items(conn, session.session_id, agenda_items)
 
-        documents = _extract_list(manifest, "documents")
-        retrieved_at = manifest.get("retrieved_at") if isinstance(manifest, dict) else None
         if documents is not None:
             doc_count += _insert_documents(conn, session.session_id, documents, retrieved_at)
 
@@ -234,6 +269,99 @@ def _populate(conn: sqlite3.Connection, data_root: Path, refresh_existing: bool,
             session_count, agenda_count, doc_count
         )
     )
+
+
+def _remove_non_sessionnet_rows(conn: sqlite3.Connection, data_root: Path) -> None:
+    excluded_root = (data_root / "landkreis").resolve(strict=False)
+    invalid_session_ids = []
+    for session_id, stored_path in conn.execute(
+        "SELECT session_id, session_path FROM sessions"
+    ).fetchall():
+        if not isinstance(stored_path, str) or not stored_path.strip():
+            continue
+        try:
+            session_path = Path(stored_path.replace("\\", "/")).resolve(strict=False)
+            session_path.relative_to(excluded_root)
+        except (OSError, RuntimeError, ValueError):
+            continue
+        invalid_session_ids.append(session_id)
+    for session_id in invalid_session_ids:
+        conn.execute("DELETE FROM agenda_items WHERE session_id = ?", (session_id,))
+        conn.execute("DELETE FROM documents WHERE session_id = ?", (session_id,))
+        conn.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
+
+
+def _agenda_summary_is_outdated(session_path: Path) -> bool:
+    return _derived_file_is_outdated(session_path, "agenda_summary.json")
+
+
+def _manifest_is_outdated(session_path: Path) -> bool:
+    return _derived_file_is_outdated(session_path, "manifest.json")
+
+
+def _derived_file_is_outdated(session_path: Path, filename: str) -> bool:
+    detail_path = session_path / "session_detail.html"
+    derived_path = session_path / filename
+    if not detail_path.exists():
+        return False
+    if not derived_path.exists() or detail_path.stat().st_mtime_ns > derived_path.stat().st_mtime_ns:
+        return True
+    derived_payload = load_json(derived_path)
+    stored_html_sha1 = derived_payload.get("source_html_sha1") if isinstance(derived_payload, dict) else None
+    if not isinstance(stored_html_sha1, str) or not stored_html_sha1:
+        return False
+    try:
+        html = detail_path.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    return stored_html_sha1 != SessionNetClient.source_html_sha1(html)
+
+
+def _parse_stored_session_detail(
+    session: SessionFolder,
+    manifest: object | None,
+    client: SessionNetClient,
+) -> SessionDetail | None:
+    detail_path = session.path / "session_detail.html"
+    try:
+        html = detail_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        print(f"Warning: could not read {detail_path}: {exc}", file=sys.stderr)
+        return None
+
+    if not client.contains_agenda_table(html):
+        print(
+            f"Warning: session HTML for {session.session_id} has no recognized agenda table; "
+            "keeping existing derived metadata",
+            file=sys.stderr,
+        )
+        return None
+
+    session_info = manifest.get("session") if isinstance(manifest, dict) else {}
+    if not isinstance(session_info, dict):
+        session_info = {}
+    reference = SessionReference(
+        committee=str(session_info.get("committee") or session.committee),
+        meeting_name=str(session_info.get("meeting_name") or session.committee),
+        session_id=session.session_id,
+        date=date.fromisoformat(session.date),
+        start_time=None,
+        detail_url=str(
+            session_info.get("detail_url")
+            or f"https://session.melle.info/bi/si0057.asp?__ksinr={session.session_id}"
+        ),
+        location=session_info.get("location"),
+    )
+    retrieved_at = datetime.fromtimestamp(detail_path.stat().st_mtime, tz=UTC)
+    return client.parse_session_detail(reference, html, retrieved_at=retrieved_at)
+
+
+def _format_timestamp(value: datetime) -> str:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC)
+    else:
+        value = value.astimezone(UTC)
+    return value.isoformat().replace("+00:00", "Z")
 
 
 def _insert_agenda_items(

@@ -55,6 +55,8 @@ git config core.hooksPath .githooks
 
 `fetch_session_from_index.py` nutzt `data/db/online_session_index.sqlite` als Auswahlquelle. Damit kann eine einzelne Sitzung anhand ihrer `session_id` nach `data/raw/` geladen werden, ohne die Monatsübersicht erneut komplett abzuarbeiten.
 
+Der lokale Index-Build behandelt `session_detail.html` als kanonische Quelle und übernimmt daraus abweichende TOP- und Dokumentmetadaten direkt in den SQLite-Index. `agenda_summary.json`, `manifest.json` und andere Rohdaten bleiben dabei unverändert; bereits vorhandene Dateien werden im Index wieder ihren Dokumentlinks zugeordnet. Berücksichtigt werden nur SessionNet-Sitzungsordner unter `data/raw/YYYY/MM/`; Landkreis-Rohdaten bleiben getrennt. Auch der Online-Index-Build verändert keine Dateien unter `data/raw/`.
+
 Die Django-Weboberfläche startet lokal mit:
 
 ```bash

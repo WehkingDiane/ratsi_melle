@@ -428,7 +428,7 @@ def main() -> None:
     args = parse_args()
     migrate_legacy_database_layout()
     logging.basicConfig(level=getattr(logging, args.log_level.upper(), logging.INFO))
-    client = SessionNetClient(base_url=args.base_url)
+    client = SessionNetClient(base_url=args.base_url, persist_raw=False)
     refresh_existing = args.refresh_existing or args.only_refresh
     build_session_db(
         client,
