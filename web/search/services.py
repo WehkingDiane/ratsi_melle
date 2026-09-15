@@ -227,7 +227,13 @@ def _create_vector_store(qdrant_dir: Path, collection_name: str = RATSINFO_COLLE
 
     from src.analysis.vector_store import DocumentVectorStore
 
-    return DocumentVectorStore(qdrant_dir, collection_name=collection_name)
+    store = DocumentVectorStore(qdrant_dir, collection_name=collection_name)
+    try:
+        store.prefer_passages()
+    except Exception:
+        store.close()
+        raise
+    return store
 
 
 def _semantic_source_config(source: str) -> dict[str, str]:

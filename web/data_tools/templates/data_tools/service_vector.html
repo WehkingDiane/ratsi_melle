@@ -7,6 +7,7 @@
   <p class="eyebrow">Daten</p>
   <h1>Vektorindex</h1>
   <p>Semantischen Suchindex aus lokal indexierten Dokumenten aufbauen.</p>
+  <p>Ratsinfo wird mit Harrier abschnittsweise über alle PDF-Seiten indexiert. Bei Scans werden installierte OCR-Werkzeuge genutzt. Der bisherige Suchindex bleibt aktiv, bis alle Dokumente im neuen Abschnittsindex aufgebaut sind.</p>
 </section>
 
 {% include "core/partials/service_result.html" %}
@@ -42,8 +43,8 @@
         <div><dt>SQLite-Dokumente</dt><dd>{{ vector_status.sqlite_document_count|default_if_none:"-" }}</dd></div>
         <div><dt>Indexierbare Dokumente</dt><dd>{{ vector_status.indexable_document_count|default_if_none:"-" }}</dd></div>
         <div><dt>Indexierte Vektoren</dt><dd>{{ vector_status.indexed_vector_count|default_if_none:"-" }}</dd></div>
-        <div><dt>Fehlende Vektoren</dt><dd>{{ vector_status.missing_vector_count|default_if_none:"-" }}</dd></div>
-        <div><dt>Verwaiste Vektoren</dt><dd>{{ vector_status.orphaned_vector_count|default_if_none:"-" }}</dd></div>
+        <div><dt>Dokumente ohne vollständigen Index</dt><dd>{{ vector_status.missing_vector_count|default_if_none:"-" }}</dd></div>
+        <div><dt>Verwaiste Dokumente im Index</dt><dd>{{ vector_status.orphaned_vector_count|default_if_none:"-" }}</dd></div>
         <div><dt>Abdeckung</dt><dd>{% if vector_status.coverage_percent is not None %}{{ vector_status.coverage_percent }} %{% else %}-{% endif %}</dd></div>
         <div><dt>Neueste Sitzung</dt><dd>{{ vector_status.latest_session_date|default_if_none:"-" }}</dd></div>
       </dl>

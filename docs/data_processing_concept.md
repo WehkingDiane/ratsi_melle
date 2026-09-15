@@ -278,7 +278,9 @@ Dokumente sollen nicht nur ueber exakte Schlagwoerter, sondern auch inhaltlich a
 | Embedding-Service | `src/analysis/embeddings.py` | Harrier laden, Dense-Vektoren erzeugen |
 | Sparse-Encoder | `src/analysis/bm25_sparse.py` | BM25-Sparse-Vektoren ueber `fastembed` |
 | Vector Store | `src/analysis/vector_store.py` | Qdrant-Wrapper |
-| Index-CLI | `scripts/build_vector_index.py` | SQLite lesen, PDF-Text extrahieren, Qdrant befuellen |
+| Index-CLI | `scripts/build_vector_index.py` | Vollstaendigen Ratsinfo-Abschnittsindex aufbauen |
+| Abschnittsaufbau | `src/indexing/passage_builder.py` | Quellen-Hashes, inkrementelle Generationen und Umschaltung |
+| Extraktion und Aufteilung | `src/indexing/passages.py` | Alle PDF-Seiten, optionale OCR und tokenbegrenzte Abschnitte |
 | ID-Strategie | `src/indexing/id_strategy.py` | stabile Qdrant-IDs aus Dokumentmetadaten erzeugen |
 | Payload-Building | `src/indexing/payload_builder.py` | Qdrant-Payloads und absolute lokale Pfade bauen |
 | Hybrid-Vectorizer | `src/indexing/vectorizer.py` | Dense- und Sparse-Vektoren je Dokument koordinieren |
@@ -291,7 +293,9 @@ SQLite (local_index.sqlite)
     ↓
 session_path + local_path → absoluter Dokumentpfad
     ↓
-PDF-Text / Fallback-Metadaten
+Alle PDF-Seiten / optionale OCR / Fallback-Metadaten
+    ↓
+Seitenbezogene Abschnitte mit maximal 768 Tokens
     ↓
 Dense Embeddings (Harrier)
     + Sparse BM25-Vektoren
@@ -306,32 +310,36 @@ Die fachlichen Indexing-Schritte fuer stabile IDs, Payload-Aufbau, Hybrid-Vektor
 ### Speicherort
 
 - Qdrant lokal unter `data/db/qdrant/`
-- Collections: `ratsi_documents` fuer Ratsinfo, `landkreis_publications` fuer Landkreis-Veröffentlichungen
+- Collections: `ratsi_passages` fuer Ratsinfo-Abschnitte, `ratsi_documents` als erhaltener Legacy-Index, `landkreis_publications` fuer Landkreis-Veröffentlichungen
 
 ### Stabile IDs und Reconciliation
 
-- Qdrant-Punkte werden nicht ueber SQLite-Autoincrement, sondern ueber einen stabilen Hash aus `session_id`, `url` und `agenda_item` identifiziert.
-- Bei vollständigen Läufen werden verwaiste Punkte entfernt.
-- Bei `--limit`-Läufen wird die Anzahl der neu zu bauenden fehlenden Dokumentvektoren begrenzt, nicht die Menge der geprueften SQLite-Dokumente.
+- Dokumente werden ueber einen stabilen Hash aus `session_id`, `url` und `agenda_item` identifiziert. Abschnitts-IDs beziehen zusaetzlich den Quellen-/Konfigurationsfingerprint und die Abschnittsnummer ein.
+- Nach vollstaendigen fehlerfreien Laeufen werden verwaiste Dokumentabschnitte entfernt.
+- Bei `--limit`-Laeufen wird die Anzahl geaenderter oder fehlender Dokumente begrenzt; alle Abschnitte eines ausgewaehlten Dokuments werden verarbeitet.
 - Bei `--limit`-Läufen ist Orphan-Reconciliation bewusst deaktiviert.
 - Ein optionaler Hugging-Face-Token kann sicher im OS-Schlüsselring hinterlegt werden und wird beim Laden des Embedding-Modells als `HF_TOKEN` bereitgestellt.
 
 ## 8. Textextraktion fuer Suche und Analyse
 
-Reihenfolge fuer Suchindexierung:
+Reihenfolge fuer Ratsinfo-Suchindexierung:
 
 1. lokale PDF-Datei aufloesen
-2. PDF-Text per `pypdf` extrahieren, begrenzt auf die ersten Seiten
-3. wenn kein brauchbarer Text vorliegt:
+2. PDF-Text per `pypdf` auf allen Seiten extrahieren, bei leeren Seiten optional OCR versuchen
+3. Text seitenweise in ueberlappende Abschnitte zerlegen
+4. wenn kein brauchbarer Text vorliegt:
    - Fallback auf `Titel + Dokumenttyp`
 
 Wichtige Konsequenzen:
 
 - Scan-PDFs ohne Textebene fallen auf Fallbacks zurueck
-- Der Ratsinfo-Vektorindex liest fuer das Embedding hoechstens die ersten zehn PDF-Seiten; gelingt das nicht, nutzt er Titel und Dokumenttyp als Fallback
+- Der neue Ratsinfo-Abschnittsindex liest alle Seiten von Dateien bis einschliesslich 100 MiB. Nur der explizite Legacy-Build mit `--legacy-document-index` bleibt auf zehn Seiten begrenzt
 - Die lokale Extraktionspipeline verarbeitet nur Dateien bis einschliesslich 25 MiB und kennzeichnet groessere Dateien als `file_too_large`
 - Die lokale Extraktionspipeline versucht bei PDFs ohne lesbare Textebene optional OCR, wenn `pdftoppm` und `tesseract` mit den Sprachdaten `deu` und `eng` installiert sind; andernfalls lautet der Status `ocr_needed`
 - Provider koennen PDF-Anhaenge nativ verarbeiten oder Text ueber `pypdf` auslesen; diese Pfade verwenden nicht die 25-MiB-Grenze der lokalen Extraktionspipeline
+
+Aufbau, Umschaltung, OCR-Grenzen und Recherche-Benchmark sind in
+[search_quality.md](search_quality.md) beschrieben.
 
 ## 9. Semantische Suche in der Oberfläche
 
@@ -339,7 +347,7 @@ Die semantische Suche:
 
 - arbeitet derzeit auf dem lokalen Index
 - nutzt Hybrid-Retrieval
-- zeigt Treffer mit Metadaten, TOP-Bezug, Dokumentlink und einem beim Indexaufbau gespeicherten kurzen Textausschnitt
+- zeigt Treffer mit Metadaten, TOP-Bezug und Textausschnitt; der Abschnittsindex liefert zusaetzlich PDF-Seite und direkten Fundstellenlink
 - filtert die aktuelle Trefferliste nach Datum sowie bei Ratsinfo nach Gremium und Dokumenttyp
 - verwendet **RRF-Rangfusion**
 
@@ -368,9 +376,14 @@ Der angezeigte Score ist:
 - veraendert den lokalen Rohdatenbestand nicht
 
 ### `scripts/build_vector_index.py`
-- baut oder aktualisiert den Qdrant-Vektorindex
-- ergaenzt fehlende `snippet`-Payloads bereits indexierter Punkte ohne erneutes Embedding
-- `--limit N` baut hoechstens die naechsten `N` fehlenden Dokumentvektoren
+- baut oder aktualisiert `ratsi_passages` mit Harrier und BM25
+- erkennt geaenderte Quellen und Konfigurationen per Fingerprint
+- `--limit N` verarbeitet hoechstens die naechsten `N` geaenderten Dokumente
+- aktiviert den Abschnittsindex erst nach vollstaendigem Erstaufbau
+
+### `scripts/evaluate_search.py`
+- validiert 30 Recherchefragen mit Original-URL, PDF-Seite und Beleg
+- misst bekannte Quellentreffer, Fundstellentreffer und Suchdauer fuer Legacy- oder Abschnittsindex
 
 ## 11. Abhängigkeiten
 
@@ -392,7 +405,7 @@ Der angezeigte Score ist:
 
 - Bei Änderungen an Fetch-/Parsinglogik Rohdaten- und Indexpfade mitdenken
 - Bei Änderungen an Textextraktion, Embedding-Modell oder Stable-ID-Schema den Vektorindex vollständig neu aufbauen
-- Nach Einführung oder Änderung von Treffertext-Payloads einen regulaeren Build-Lauf ausfuehren; fehlende Ausschnitte werden an bestehenden Punkten ohne erneutes Embedding ergaenzt
+- Regulaere Ratsinfo-Builds aktualisieren geaenderte Quellen und Abschnittskonfigurationen; beim Landkreis-Dokumentindex werden fehlende Treffertext-Payloads weiterhin ohne erneutes Embedding ergaenzt
 - Zielsystem regelmäßig auf Änderungen an HTML, Parametern und Dokumenttypen prüfen
 - Aktive Oberflächen sollen diese Pipeline nutzen, nicht neu erfinden
 

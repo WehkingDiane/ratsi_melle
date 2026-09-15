@@ -1,14 +1,12 @@
-"""Build or update the Qdrant vector index from local_index.sqlite.
+"""Build the page-aware Harrier passage index from local_index.sqlite.
 
 Usage
 -----
     python scripts/build_vector_index.py [--db PATH] [--qdrant-dir PATH] [--limit N]
 
-The script reads all documents from the ``documents`` table, skips those
-already present in the vector store, optionally limits the number of missing
-documents to build, extracts text from local PDF files (up to 10 pages) or
-falls back to title + document_type, and upserts batches of embeddings into the
-Qdrant collection.
+The default builds ``ratsi_passages`` from all PDF pages, with optional OCR.
+``--legacy-document-index`` explicitly selects the former ten-page,
+one-vector-per-document builder for baseline comparisons.
 """
 
 from __future__ import annotations
@@ -175,7 +173,7 @@ def _positive_int(value: str) -> int:
 # Main
 # ---------------------------------------------------------------------------
 
-def main(argv: list[str] | None = None) -> None:
+def legacy_main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         description="Build or update the Qdrant semantic vector index."
     )
@@ -325,6 +323,17 @@ def main(argv: list[str] | None = None) -> None:
 
     total_now = vector_store.count()
     print(f"\nIndexed {indexed_count} new documents. Total: {total_now}")
+
+
+def main(argv: list[str] | None = None) -> None:
+    """Build passages by default; retain explicit legacy build for evaluation."""
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    if "--legacy-document-index" in arguments:
+        arguments.remove("--legacy-document-index")
+        legacy_main(arguments)
+        return
+    from src.indexing.passage_builder import main as build_passages
+    build_passages(arguments)
 
 
 if __name__ == "__main__":

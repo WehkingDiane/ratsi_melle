@@ -26,6 +26,7 @@ Diese Datei buendelt die offene Arbeitsliste des Projekts. Sie ersetzt die frueh
 
 - Logging, Monitoring und Fehlerdiagnose ausbauen
 - Testabdeckung fuer Datenpipeline, Analysefluesse und Suchpfade erweitern
+- Den vorhandenen Katalog von 30 belegten Recherchefragen um weitere Zeitraeume, Protokolle und echte Nutzerfragen erweitern; Abschnitts- und Legacy-Index mit `scripts/evaluate_search.py` vergleichen
 - Dokumentation regelmaessig gegen den aktuellen Stand pruefen
 
 ## 2. Analysemodul

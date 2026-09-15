@@ -44,6 +44,7 @@ python scripts/fetch_session_from_index.py --session-id 7128
 python scripts/build_local_index.py
 python scripts/build_online_index_db.py 2024 --months 5 6
 python scripts/build_vector_index.py
+python scripts/evaluate_search.py --validate-only
 python scripts/fetch_landkreis_publications.py --source all
 python scripts/build_landkreis_publications_db.py
 python scripts/build_landkreis_vector_index.py
@@ -75,7 +76,7 @@ Sie ist danach standardmäßig unter `http://127.0.0.1:8000/` erreichbar. Detail
 - Lokaler SQLite-Index: `data/db/local_index.sqlite`
 - Online-Index: `data/db/online_session_index.sqlite`
 - Landkreis-Veröffentlichungen: `data/db/landkreis_publications.sqlite`
-- Lokaler Vektorindex: `data/db/qdrant/` mit getrennten Collections fuer Ratsinfo (`ratsi_documents`) und Landkreis (`landkreis_publications`); regulaere Build-Laeufe ergaenzen fehlende Treffertext-Payloads bestehender Punkte ohne erneutes Embedding
+- Lokaler Vektorindex: `data/db/qdrant/`; Ratsinfo verwendet den neuen Abschnittsindex `ratsi_passages` mit Harrier und BM25. Der bisherige Index `ratsi_documents` bleibt bis zum vollstaendigen Erstaufbau aktiv. Landkreis nutzt weiterhin `landkreis_publications`.
 - Django-Datenpflege unter `/daten/`: SessionNet- und Landkreis-Fetch-, SQLite-Build- und Vektorindex-Jobs starten; die Vektorseite zeigt Status fuer Ratsinfo und Landkreis
 - Django-Suche unter `/suche/`: semantische Dokumentensuche ueber den lokalen Qdrant-Vektorindex; Standard ist Ratsinfo. Fuer Landkreis-Treffer zuerst `python scripts/build_landkreis_vector_index.py` oder `/daten/vektor/` nutzen; fuer Ratsinfo `python scripts/build_vector_index.py` oder `/daten/vektor/`
 - Analyse-Workflow und v2-Ausgaben: [docs/analysis_outputs.md](docs/analysis_outputs.md)
@@ -131,6 +132,7 @@ Die gemeinsame Grundlagen-Doku für Zielsystem, Fetching, Datenhaltung, Vektorin
 
 ## Weitere Dokumentation
 
+- Abschnittsindex und Recherche-Benchmark: [docs/search_quality.md](docs/search_quality.md)
 - Projekt- und Arbeitsregeln: [AGENTS.md](AGENTS.md)
 - Repository-Regeln: [docs/repository_guidelines.md](docs/repository_guidelines.md)
 - Architekturdiagramm: [docs/architecture_overview.puml](docs/architecture_overview.puml)

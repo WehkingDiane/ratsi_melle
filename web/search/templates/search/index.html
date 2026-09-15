@@ -74,6 +74,10 @@
         </h3>
       </header>
       {% if document.snippet %}<p class="search-snippet">{{ document.snippet }}</p>{% endif %}
+      {% if document.page_start %}<p>Fundstelle: Seite {{ document.page_start }}</p>{% endif %}
+      {% if selected_source != "landkreis" and document.sqlite_document_id and document.page_start %}
+      <a class="button secondary small" href="{% url 'analysis:document_pdf' document.session_id document.sqlite_document_id %}#page={{ document.page_start }}" target="_blank" rel="noopener">Fundstelle öffnen</a>
+      {% endif %}
       <dl class="search-result-facts">
         {% if selected_source == "landkreis" %}
         <div><dt>Veröffentlichung</dt><dd>{{ document.title|default:"-" }}</dd></div>

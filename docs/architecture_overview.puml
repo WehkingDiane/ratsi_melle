@@ -58,7 +58,7 @@ package "Lokale Daten" as Data {
   database "data/db/online_session_index.sqlite\nOnline-Auswahlindex" as OnlineIndex
   database "data/db/analysis_workflow.sqlite\nAnalysejobs und\nOutput-Verweise" as WorkflowDb
   database "data/db/service_jobs.sqlite\nletzte Datenjobs und\nbegrenzte Ausgaben" as ServiceJobsDb
-  database "data/db/qdrant/\nlokaler Vektorindex" as Qdrant
+  database "data/db/qdrant/\nratsi_passages (Abschnitte)\nratsi_documents (Legacy)\nlandkreis_publications" as Qdrant
   folder "data/analysis_outputs/\nJSON- und Markdown-Artefakte" as AnalysisOutputs
   folder "data/private/\nPrompt-Vorlagen,\nPrompt-Snapshots" as PrivateData
   folder "docs/examples/\nBeispielkonfigurationen" as Configs

@@ -1,0 +1,336 @@
+{
+  "schema_version": 1,
+  "description": "30 aus lokalen öffentlichen Vorlagen abgeleitete Recherchefragen. Belege sind gegen Original-PDFs validierbar. Kein Nutzerprotokoll; keine vollständigen Relevanzurteile über alle Dokumente. Schwerpunkt Juni 2025, inklusive Fundstellen nach Seite 10.",
+  "queries": [
+    {
+      "id": "melle-01",
+      "query": "Welche Gesellschaft betrifft die Stimmführerschaft zum Jahresabschluss 2024 in Vorlage 01/2025/0151?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=123360&type=do",
+          "page": 1,
+          "evidence": "Melle Netze GmbH & Co. KG."
+        }
+      ]
+    },
+    {
+      "id": "melle-02",
+      "query": "Welches Organ soll den Geschäftsführer der Wirtschaftsbetriebe für 2024 entlasten?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=123367&type=do",
+          "page": 1,
+          "evidence": "durch den Aufsichtsrat die Entlastung zu erteilen."
+        }
+      ]
+    },
+    {
+      "id": "melle-03",
+      "query": "Welche Haushaltsjahre und welchen mittelfristigen Zeitraum deckt das Zielsystem 2025 ab?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=123342&type=do",
+          "page": 1,
+          "evidence": "mittelfristigen Ergebnis- und Finanzplanung 2026 bis 2030"
+        }
+      ]
+    },
+    {
+      "id": "melle-04",
+      "query": "Wo und wann beriet der Rat 2025 in einer Strategieklausur das Zielsystem?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=123342&type=do",
+          "page": 3,
+          "evidence": "25.04.2025 und 26.04.2025 in Ankum"
+        }
+      ]
+    },
+    {
+      "id": "melle-05",
+      "query": "Wann hat Melle sein Leitbild beschlossen?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=123342&type=do",
+          "page": 3,
+          "evidence": "17.04.2014"
+        }
+      ]
+    },
+    {
+      "id": "melle-06",
+      "query": "Warum soll beim Feuerwehrhaus Bruchmühlen auf einen Generalunternehmer verzichtet werden?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=122737&type=do",
+          "page": 11,
+          "evidence": "örtlichen Betriebe nicht berücksichtigt werden"
+        }
+      ]
+    },
+    {
+      "id": "melle-07",
+      "query": "Warum ist für Bruchmühlens neues Feuerwehrhaus keine externe Projektsteuerung vorgesehen?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=122737&type=do",
+          "page": 11,
+          "evidence": "Projektverantwortlichen im Gebäudemanagement"
+        }
+      ]
+    },
+    {
+      "id": "melle-08",
+      "query": "Wie sollen die Planungsleistungen für das Feuerwehrhaus Bruchmühlen ausgeschrieben werden?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=122737&type=do",
+          "page": 11,
+          "evidence": "Verhandlungsverfahren mit Teilnahmewettbewerb"
+        }
+      ]
+    },
+    {
+      "id": "melle-09",
+      "query": "Wann soll die Politik erneut an der Planung des Feuerwehrhauses Bruchmühlen beteiligt werden?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=122737&type=do",
+          "page": 12,
+          "evidence": "Mai/Juni 2026"
+        }
+      ]
+    },
+    {
+      "id": "melle-10",
+      "query": "Welchen Baustandard setzt die Kostenermittlung für das Feuerwehrhaus Bruchmühlen voraus?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=122737&type=do",
+          "page": 12,
+          "evidence": "mittlerer Standard"
+        }
+      ]
+    },
+    {
+      "id": "melle-11",
+      "query": "Wie hoch ist der Sicherheitszuschlag bei den Kosten des Feuerwehrhauses Bruchmühlen?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=122737&type=do",
+          "page": 12,
+          "evidence": "20 %"
+        }
+      ]
+    },
+    {
+      "id": "melle-12",
+      "query": "Welches Amt stimmt die Nachnutzung des Feuerwehrhauses Bennien ab?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=122737&type=do",
+          "page": 13,
+          "evidence": "Liegenschaftsamt"
+        }
+      ]
+    },
+    {
+      "id": "melle-13",
+      "query": "Welches Gesamtbudget steht laut Planungsvorlage zunächst für das Feuerwehrhaus Bruchmühlen bereit?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=122737&type=do",
+          "page": 14,
+          "evidence": "99.200,00"
+        }
+      ]
+    },
+    {
+      "id": "melle-14",
+      "query": "Welche weiteren Baukosten sind für das Feuerwehrhaus Bruchmühlen von 2026 bis 2028 eingeplant?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=122737&type=do",
+          "page": 14,
+          "evidence": "weitere 3 Mio."
+        }
+      ]
+    },
+    {
+      "id": "melle-15",
+      "query": "Wie funktioniert das Ampelsystem der kommunalen Gebäudeprioritätenliste?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=123652&type=do",
+          "page": 3,
+          "evidence": "Umsetzung/Planung befinden (grün)"
+        }
+      ]
+    },
+    {
+      "id": "melle-16",
+      "query": "Was bedeutet ein fehlendes Aufnahmedatum in der Gebäudeprioritätenliste?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=123652&type=do",
+          "page": 3,
+          "evidence": "Einführung der Prioritätenliste im Jahr 2017"
+        }
+      ]
+    },
+    {
+      "id": "melle-17",
+      "query": "Welche Sporthallen sind als Nächstes für eine Beleuchtungssanierung vorgesehen?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=123652&type=do",
+          "page": 3,
+          "evidence": "Westerhausen (neu) und Eicken-Bruche"
+        }
+      ]
+    },
+    {
+      "id": "melle-18",
+      "query": "Welchen Überschuss weist das Meller Wasserwerk für 2024 aus?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=122602&type=do",
+          "page": 1,
+          "evidence": "625.228,64"
+        }
+      ]
+    },
+    {
+      "id": "melle-19",
+      "query": "Wie soll der Jahresüberschuss 2024 des Wasserwerks verwendet werden?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=122602&type=do",
+          "page": 1,
+          "evidence": "auf neue Rechnung vorzutragen"
+        }
+      ]
+    },
+    {
+      "id": "melle-20",
+      "query": "Gab es bei der Prüfung des Wasserwerk-Jahresabschlusses 2024 Einwendungen?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=122602&type=do",
+          "page": 3,
+          "evidence": "hat zu keinen Einwendungen geführt"
+        }
+      ]
+    },
+    {
+      "id": "melle-21",
+      "query": "Wie hoch sind die geplanten Kreditaufnahmen des Wasserwerks im ersten Nachtrag 2025?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=122361&type=do",
+          "page": 1,
+          "evidence": "1.693.000 EUR"
+        }
+      ]
+    },
+    {
+      "id": "melle-22",
+      "query": "Wie hoch ist der Mittelbedarf im Vermögensplan des Wasserwerks nach dem ersten Nachtrag 2025?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=122361&type=do",
+          "page": 1,
+          "evidence": "2.902.000 EUR"
+        }
+      ]
+    },
+    {
+      "id": "melle-23",
+      "query": "Unter welcher Mindestbeteiligung des Landkreises soll Lütti 2026 weitergeführt werden?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=125098&type=do",
+          "page": 1,
+          "evidence": "mindestens 20%"
+        }
+      ]
+    },
+    {
+      "id": "melle-24",
+      "query": "Wann endet Lütti in seiner bisherigen Form ohne neue Vereinbarung?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=125098&type=do",
+          "page": 1,
+          "evidence": "31.12.2025"
+        }
+      ]
+    },
+    {
+      "id": "melle-25",
+      "query": "Welches Betriebsszenario ist für die Fortführung von Lütti 2026 vorgesehen?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=125098&type=do",
+          "page": 1,
+          "evidence": "Szenario 2 (reduzierte Betriebszeiten)"
+        }
+      ]
+    },
+    {
+      "id": "melle-26",
+      "query": "Welche Änderung des Flächennutzungsplans betrifft die Tennissportanlage Hörstenweg?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=122564&type=do",
+          "page": 1,
+          "evidence": "36. Änderung"
+        }
+      ]
+    },
+    {
+      "id": "melle-27",
+      "query": "Wer soll die Flächennutzungsplanänderung zum Nahversorgungsmarkt Gesmold genehmigen?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=123789&type=do",
+          "page": 1,
+          "evidence": "Genehmigung nach § 6 BauGB beim Landkreis Osnabrück"
+        }
+      ]
+    },
+    {
+      "id": "melle-28",
+      "query": "Welche Rechtsform soll der Bebauungsplan Nahversorgungsmarkt Gesmold erhalten?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=123764&type=do",
+          "page": 1,
+          "evidence": "als Satzung beschlossen"
+        }
+      ]
+    },
+    {
+      "id": "melle-29",
+      "query": "Warum soll das Baugebiet Auf der Plecke in Gesmold aufgegeben werden?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=124116&type=do",
+          "page": 3,
+          "evidence": "Trinkwasserbrunnen Gesmold"
+        }
+      ]
+    },
+    {
+      "id": "melle-30",
+      "query": "Wann begannen die Bohrungen zur Untersuchung des Baugebiets Auf der Plecke?",
+      "relevant": [
+        {
+          "url": "https://session.melle.info/bi/getfile.asp?id=124116&type=do",
+          "page": 3,
+          "evidence": "Jahr 2022"
+        }
+      ]
+    }
+  ]
+}
