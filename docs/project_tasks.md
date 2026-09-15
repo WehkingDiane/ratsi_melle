@@ -13,8 +13,8 @@ Diese Datei buendelt die offene Arbeitsliste des Projekts. Sie ersetzt die frueh
 ### Analyse und KI
 
 - Analyseziele, Ausgabeformate und Qualitaetskriterien verbindlich machen
-- mehrere Analysemodi fuer Dokumente, TOPs und ganze Sitzungen umsetzen
-- Volltext- oder PDF-Uebergabe an KI-Provider pro TOP vervollstaendigen
+- bestehende Sitzungs- und TOP-Analyse um einen dokumentzentrierten UI-Workflow ergaenzen
+- Volltext-, PDF- und OCR-Randfaelle im produktiven Analysepfad robuster behandeln
 - Quellenbezug, Review und Reproduzierbarkeit in der Analyseoberflaeche sichtbar machen
 
 ### Oberflaechen
@@ -120,8 +120,8 @@ Vorhanden unter `src/analysis/providers/`:
 
 Offen:
 
-- Volltext- oder PDF-Uebergabe im produktiven Analysepfad
-- gemeinsame Antwortstruktur fuer spaetere UI- und API-Nutzung
+- gemeinsames Antwortschema weiter validieren und bei neuen Analysezwecken versionieren
+- Providerfehler, Kontextgrenzen und PDF-/OCR-Randfaelle weiter absichern
 
 ### Reproduzierbarkeit und Review
 
@@ -143,6 +143,7 @@ Zusätzlich benoetigt der Analysepfad:
 
 ## 3. Naechste sinnvolle Schritte
 
-- Django-Oberflaeche in einzelne Seiten und Apps aufteilen
-- TOP-basierte KI-Analyse als ersten belastbaren End-to-End-Pfad fertigstellen
+- Quellenpruefung und Review fuer bestehende Sitzungs- und TOP-Analysen ausbauen
+- dokumentzentrierte Analyse und Dokumentvorschau als naechsten End-to-End-Pfad umsetzen
+- optionale OCR-Installation und Verhalten bei grossen Dateien betrieblich absichern
 - Aufgabenliste regelmaessig bereinigen und erledigte Punkte streichen oder verschieben

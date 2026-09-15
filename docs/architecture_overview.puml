@@ -25,6 +25,7 @@ actor "Lokale Nutzerin" as User
 cloud "SessionNet Melle\nhttps://session.melle.info/bi/" as SessionNet
 cloud "KI-Provider\nCodex / Claude / Ollama / none" as KiProviders
 cloud "Hugging Face\nEmbedding-Modell" as HuggingFace
+database "OS-Schluesselring\nAPI-Keys / Token" as Keyring
 
 package "Einstiegspunkte" as Entrypoints {
   component "CLI-Skripte\nscripts/" as Scripts
@@ -56,6 +57,7 @@ package "Lokale Daten" as Data {
   database "data/db/local_index.sqlite\nlokaler Sitzungs- und\nDokumentindex" as LocalIndex
   database "data/db/online_session_index.sqlite\nOnline-Auswahlindex" as OnlineIndex
   database "data/db/analysis_workflow.sqlite\nAnalysejobs und\nOutput-Verweise" as WorkflowDb
+  database "data/db/service_jobs.sqlite\nletzte Datenjobs und\nbegrenzte Ausgaben" as ServiceJobsDb
   database "data/db/qdrant/\nlokaler Vektorindex" as Qdrant
   folder "data/analysis_outputs/\nJSON- und Markdown-Artefakte" as AnalysisOutputs
   folder "data/private/\nPrompt-Vorlagen,\nPrompt-Snapshots" as PrivateData
@@ -95,7 +97,7 @@ Analysis --> Config : API-Keys / Tokens
 Analysis --> Paths
 
 Analysis --> HuggingFace : Embedding-Modell laden
-Config --> PrivateData : lokale private Dateien
+Config --> Keyring : Secrets lesen / schreiben
 
 Web --> WebCore
 Web --> WebAnalysis
@@ -107,6 +109,7 @@ Web --> WebPublishing
 WebCore --> SharedInterfaces
 WebCore --> LocalIndex
 WebCore --> WorkflowDb
+WebCore --> ServiceJobsDb
 WebCore --> AnalysisOutputs
 WebCore --> PrivateData
 
@@ -124,7 +127,7 @@ Tests ..> Src : Fachmodule
 Tests ..> Web : Web-Services und Views
 
 Configs ..> Analysis : Beispiel-Prompts
-Logs <- WebDataTools : Job-Ausgaben
+WebDataTools --> ServiceJobsDb : Jobstatus und\nbegrenzte Konsolenausgaben
 
 note right of Web
   Aktiver UI-Pfad.

@@ -2,6 +2,10 @@
 
 Hinweis: Dieses Dokument beschreibt das Ziel- und Konzeptbild der Django-Oberfläche. Den aktuellen implementierten Stand der lokalen Weboberfläche beschreibt [docs/web_ui.md](web_ui.md).
 
+Das Grundgeruest und die fachlich getrennten Apps sind inzwischen unter `web/`
+umgesetzt. Die Phasen in diesem Dokument beschreiben deshalb die weitere
+Produktreife, nicht mehr den erstmaligen Projektaufbau.
+
 Ziel:
 - Die produktartige Oberflaeche wird als Django-Anwendung unter `web/` weiterentwickelt.
 - Aktive UI-Entwicklung konzentriert sich ausschliesslich auf diesen Django-Pfad.
@@ -109,25 +113,17 @@ Diese Objekte können in Django anfangs auch ohne vollständige neue DB-Modelle 
 ## 6. Empfohlene Django-Projektstruktur
 
 ```text
-django_ui/
+web/
   manage.py
-  config/
+  web/
     settings.py
     urls.py
-  apps/
-    dashboard/
-    research/
-    search/
-    analysis/
-    documents/
-    settings_ui/
-  templates/
-    base.html
-    components/
-  static/
-    css/
-    js/
-    images/
+  core/
+  analysis/
+  data_tools/
+  publishing/
+  search/
+  settings_ui/
 ```
 
 ## 7. Trennung von Verantwortung
@@ -153,24 +149,21 @@ Das heißt:
 ## 8. Priorisierte Reihenfolge für die Umsetzung
 
 ### Phase 1: Grundgerüst
-- Django-Projekt anlegen
-- Basislayout mit Header, linker Navigation, Content-Bereich
-- Platzhalterseiten für Dashboard, Recherche, Suche, Analyse, Einstellungen
+- umgesetzt: Django-Projekt und Basislayout
+- umgesetzt: getrennte Bereiche fuer Dashboard, Analyse, Datenpflege, Suche, Veröffentlichung und Einstellungen
+- weiterzufuehren: gemeinsame Komponenten, Barrierefreiheit und responsive Nutzerfuehrung
 
 ### Phase 2: Recherchefluss
-- Gremienfilter
-- Sitzungsliste
-- Sitzungsdetailseite
-- Dokumentlisten
+- umgesetzt: Gremienfilter, Sitzungsliste, Sitzungsdetailseite und Dokumentlisten
+- weiterzufuehren: dokumentzentrierte Recherche und Vorschau ausbauen
 
 ### Phase 3: Analysefluss
-- Analyseauftrag aus Sitzung/TOP/Dokumenten erzeugen
-- Provider- und Prompt-Konfiguration
-- Ergebnisansicht
+- umgesetzt: Analyseauftraege fuer Sitzungen und TOPs, Provider-/Prompt-Auswahl und Ergebnisansicht
+- weiterzufuehren: dokumentbezogene Auswahl, Review und Quellenpruefung verbessern
 
 ### Phase 4: Suche
-- semantische Suche in eigener Django-Seite integriert
-- Verlinkung zu Sitzung/TOP/Dokument
+- umgesetzt: semantische Suche in eigener Django-Seite mit Quellenwahl und Metadatenfiltern
+- weiterzufuehren: Verlinkung und Uebergang zu Sitzung, TOP und Dokument vertiefen
 
 ### Phase 5: Design und Nutzerführung
 - visuelle Gestaltung

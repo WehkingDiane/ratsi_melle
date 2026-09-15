@@ -60,7 +60,9 @@ build_landkreis_publications_db.py
     ↓
 data/db/landkreis_publications.sqlite
     ↓
-search_landkreis_publications.py
+search_landkreis_publications.py oder build_landkreis_vector_index.py
+    ↓
+SQLite-FTS oder getrennte Qdrant-Collection landkreis_publications
 ```
 
 ## 3. Datenerfassung aus SessionNet
@@ -107,7 +109,22 @@ Dieser Einzelsitzungs-Abruf liest `session_id`, Datum, Gremium und `detail_url` 
 - Standardmaessig begrenzte Anfragefrequenz
 - exponentielle Retries bei Fehlern
 - Caching identischer Dokument-URLs innerhalb eines Laufs
-- Dokumentdownloads geben ab 25 MiB einen Hinweis aus und sind standardmaessig auf 100 MiB pro Dokument begrenzt
+- SessionNet-Dokumentdownloads geben oberhalb von 25 MiB einen Hinweis aus und brechen oberhalb von 100 MiB pro Dokument ab
+- Ist eine verwertbare `Content-Length` vorhanden, wird ein zu grosses SessionNet-Dokument vor dem Body-Download abgewiesen; andernfalls wird die Groesse beim Streaming in 64-KiB-Bloecken geprueft
+- Ein wegen seiner Groesse abgebrochenes Dokument wird nicht gespeichert; weitere Dokumente und Sitzungen des Laufs werden weiterverarbeitet
+
+Die Dateigroessenlimits sind je Verarbeitungspfad getrennt:
+
+| Verarbeitungspfad | Warnung | Harte Grenze | Verhalten bei Ueberschreitung |
+| --- | ---: | ---: | --- |
+| SessionNet-Download | mehr als 25 MiB | mehr als 100 MiB | Dokument ueberspringen, Lauf fortsetzen |
+| Landkreis-Dokumentdownload | keine separate Warnschwelle | mehr als 25 MiB | Download mit Fehler abbrechen |
+| Lokale Extraktionspipeline | keine separate Warnschwelle | mehr als 25 MiB | Ergebnisstatus `file_too_large`, kein extrahierter Text |
+
+Das 25-MiB-Limit der lokalen Extraktionspipeline ist kein nachtraegliches
+Downloadlimit. Eine SessionNet-Datei zwischen 25 und 100 MiB kann daher lokal
+gespeichert werden, wird aber von Verarbeitungspfaden, die diese Pipeline nutzen,
+nicht extrahiert.
 
 ## 4. Rohdatenablage
 
@@ -311,7 +328,10 @@ Reihenfolge fuer Suchindexierung:
 Wichtige Konsequenzen:
 
 - Scan-PDFs ohne Textebene fallen auf Fallbacks zurueck
-- OCR ist perspektivisch moeglich, aber aktuell kein Standardpfad
+- Der Ratsinfo-Vektorindex liest fuer das Embedding hoechstens die ersten zehn PDF-Seiten; gelingt das nicht, nutzt er Titel und Dokumenttyp als Fallback
+- Die lokale Extraktionspipeline verarbeitet nur Dateien bis einschliesslich 25 MiB und kennzeichnet groessere Dateien als `file_too_large`
+- Die lokale Extraktionspipeline versucht bei PDFs ohne lesbare Textebene optional OCR, wenn `pdftoppm` und `tesseract` mit den Sprachdaten `deu` und `eng` installiert sind; andernfalls lautet der Status `ocr_needed`
+- Provider koennen PDF-Anhaenge nativ verarbeiten oder Text ueber `pypdf` auslesen; diese Pfade verwenden nicht die 25-MiB-Grenze der lokalen Extraktionspipeline
 
 ## 9. Semantische Suche in der Oberfläche
 
@@ -359,6 +379,7 @@ Der angezeigte Score ist:
 - `beautifulsoup4`
 - `requests`
 - `pypdf`
+- optional fuer OCR: `pdftoppm` aus Poppler sowie `tesseract` mit den Sprachdaten `deu` und `eng`
 
 ### Semantische Suche
 
@@ -377,6 +398,6 @@ Der angezeigte Score ist:
 
 ## 13. Offene Punkte
 
-- OCR fuer Scan-PDFs ist noch kein Standardbestandteil
+- Die optionale OCR fuer Scan-PDFs benoetigt externe Systemwerkzeuge und ist noch nicht als verpflichtender Installationsbestandteil abgesichert
 - Dateibenennung ueber HTTP-Header kann noch verbessert werden
 - bei dauerhaft nicht erreichbaren Quellen sollten Scheduler-faehige Fehlerpfade weiter geschaerft werden

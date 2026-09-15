@@ -30,6 +30,11 @@ Unter WSL sollte die virtuelle Umgebung `.venv-wsl` verwendet werden; wenn `pyth
 in der Shell fehlt, funktionieren die Projektbefehle nach Aktivierung oder direkt
 mit `.venv-wsl/bin/python`.
 
+Die lokale Extraktionspipeline kann Scan-PDFs optional per OCR verarbeiten. Dafuer
+muessen `pdftoppm` (Poppler) und `tesseract` mit den Sprachdaten `deu` und `eng`
+als Systemwerkzeuge verfuegbar sein. Ohne diese Werkzeuge bleiben Scan-PDFs mit
+dem Status `ocr_needed` gekennzeichnet.
+
 ## Wichtige Befehle
 
 ```bash
@@ -63,7 +68,7 @@ Die Django-Weboberfläche startet lokal mit:
 python scripts/run_web.py
 ```
 
-Sie ist danach standardmäßig unter `http://127.0.0.1:8000/` erreichbar. Details stehen in [docs/web_ui.md](/mnt/c/users/diane/git/ratsi_melle/docs/web_ui.md:1).
+Sie ist danach standardmäßig unter `http://127.0.0.1:8000/` erreichbar. Details stehen in [docs/web_ui.md](docs/web_ui.md).
 
 ## Daten und Suche
 
@@ -73,7 +78,7 @@ Sie ist danach standardmäßig unter `http://127.0.0.1:8000/` erreichbar. Detail
 - Lokaler Vektorindex: `data/db/qdrant/` mit getrennten Collections fuer Ratsinfo (`ratsi_documents`) und Landkreis (`landkreis_publications`); regulaere Build-Laeufe ergaenzen fehlende Treffertext-Payloads bestehender Punkte ohne erneutes Embedding
 - Django-Datenpflege unter `/daten/`: SessionNet- und Landkreis-Fetch-, SQLite-Build- und Vektorindex-Jobs starten; die Vektorseite zeigt Status fuer Ratsinfo und Landkreis
 - Django-Suche unter `/suche/`: semantische Dokumentensuche ueber den lokalen Qdrant-Vektorindex; Standard ist Ratsinfo. Fuer Landkreis-Treffer zuerst `python scripts/build_landkreis_vector_index.py` oder `/daten/vektor/` nutzen; fuer Ratsinfo `python scripts/build_vector_index.py` oder `/daten/vektor/`
-- Analyse-Workflow und v2-Ausgaben: [docs/analysis_outputs.md](/mnt/c/users/diane/git/ratsi_melle/docs/analysis_outputs.md:1)
+- Analyse-Workflow und v2-Ausgaben: [docs/analysis_outputs.md](docs/analysis_outputs.md)
 - Analyse-Start unter `/analyse/starten/`: Sitzung vorbereiten, TOPs kritisch analysieren oder Prompt/Grundlage für manuelle ChatGPT-Nutzung erzeugen; vorbereitete Jobs lassen sich anschließend auf derselben Jobseite an einen API-Provider absenden
 - Antwort-Leseansicht unter `/analyse/antworten/`: fertig ausgeführte Analysen ohne technische Job- und Promptdetails lesen
 - Private Prompt-Vorlagen: `data/private/prompt_templates.json`
@@ -118,16 +123,17 @@ Echte Prompt-Vorlagen und gerenderte Prompt-Snapshots gehören nicht ins Reposit
 
 - Lokale Dokumentpfade werden nur akzeptiert, wenn sie unter einer zulässigen `data/raw/`-Wurzel liegen.
 - `manifest.json`-Pfade bleiben auf das jeweilige Sitzungspaket begrenzt; Traversal per `../` wird verworfen.
-- Dokumentdownloads und lokale Text-/PDF-Extraktion sind aktuell auf 25 MiB pro Datei begrenzt, um Speicher- und Plattenplatz-DoS zu begrenzen.
-- API-Keys und der optionale Hugging-Face-Token werden ueber den OS-Schluesselring gespeichert; Secrets gehoeren nicht in Repository-Dateien.
+- SessionNet-Dokumentdownloads warnen bei mehr als 25 MiB und werden bei mehr als 100 MiB abgebrochen. Liefert der Server keine verwertbare `Content-Length`, erfolgt die Pruefung waehrend des Streamings; das betroffene Dokument wird nicht gespeichert, der restliche Sitzungslauf wird fortgesetzt.
+- Downloads von Landkreis-Amtsblaettern sowie Dateien in der lokalen Extraktionspipeline sind auf jeweils 25 MiB begrenzt. Das Extraktionslimit ist vom SessionNet-Downloadlimit unabhaengig.
+- Provider-Keys werden aus dem OS-Schluesselring oder aus `OPENAI_API_KEY` beziehungsweise `ANTHROPIC_API_KEY` gelesen. Der optionale Hugging-Face-Token kann unter `/einstellungen/` im OS-Schluesselring verwaltet werden; `HF_TOKEN` und `HUGGING_FACE_HUB_TOKEN` bleiben als Fallback moeglich. Secrets gehoeren nicht in Repository-Dateien.
 
-Die gemeinsame Grundlagen-Doku für Zielsystem, Fetching, Datenhaltung, Vektorindex und semantische Suche steht in [docs/data_processing_concept.md](/mnt/c/users/diane/git/ratsi_melle/docs/data_processing_concept.md:1).
+Die gemeinsame Grundlagen-Doku für Zielsystem, Fetching, Datenhaltung, Vektorindex und semantische Suche steht in [docs/data_processing_concept.md](docs/data_processing_concept.md).
 
 ## Weitere Dokumentation
 
-- Projekt- und Arbeitsregeln: [AGENTS.md](/mnt/c/users/diane/git/ratsi_melle/AGENTS.md:1)
-- Repository-Regeln: [docs/repository_guidelines.md](/mnt/c/users/diane/git/ratsi_melle/docs/repository_guidelines.md:1)
-- Architekturdiagramm: [docs/architecture_overview.puml](/mnt/c/users/diane/git/ratsi_melle/docs/architecture_overview.puml:1)
-- Aktueller Stand der Django-Weboberfläche: [docs/web_ui.md](/mnt/c/users/diane/git/ratsi_melle/docs/web_ui.md:1)
-- Django-Zielkonzept: [docs/django_ui_concept.md](/mnt/c/users/diane/git/ratsi_melle/docs/django_ui_concept.md:1)
-- Offene Aufgaben und Ausbaupfade: [docs/project_tasks.md](/mnt/c/users/diane/git/ratsi_melle/docs/project_tasks.md:1)
+- Projekt- und Arbeitsregeln: [AGENTS.md](AGENTS.md)
+- Repository-Regeln: [docs/repository_guidelines.md](docs/repository_guidelines.md)
+- Architekturdiagramm: [docs/architecture_overview.puml](docs/architecture_overview.puml)
+- Aktueller Stand der Django-Weboberfläche: [docs/web_ui.md](docs/web_ui.md)
+- Django-Zielkonzept: [docs/django_ui_concept.md](docs/django_ui_concept.md)
+- Offene Aufgaben und Ausbaupfade: [docs/project_tasks.md](docs/project_tasks.md)
