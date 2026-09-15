@@ -279,7 +279,7 @@ def _read_qdrant_ids(
         while True:
             records, next_offset = client.scroll(
                 collection_name=collection_name,
-                with_payload=["document_id", "chunk_count", "fingerprint"] if passage_mode else False,
+                with_payload=["document_id", "chunk_count", "fingerprint", "generation", "committed"] if passage_mode else False,
                 with_vectors=False,
                 limit=1000,
                 offset=offset,
@@ -289,7 +289,7 @@ def _read_qdrant_ids(
                     parent = (record.payload or {}).get("document_id")
                     if isinstance(parent, int):
                         payload = record.payload or {}
-                        passage_groups.setdefault((parent, payload.get("fingerprint", "")), []).append(payload)
+                        passage_groups.setdefault((parent, payload.get("generation", payload.get("fingerprint", ""))), []).append(payload)
                 elif isinstance(record.id, int):
                     indexed_ids.add(record.id)
             if next_offset is None:
@@ -297,7 +297,7 @@ def _read_qdrant_ids(
             offset = next_offset
         if passage_mode:
             indexed_ids = {parent for (parent, _), parts in passage_groups.items()
-                           if len(parts) == parts[0].get("chunk_count")}
+                           if len(parts) == parts[0].get("chunk_count") and all(p.get("committed") for p in parts)}
             status["incomplete_document_count"] = len({parent for parent, _ in passage_groups} - indexed_ids)
             if status["incomplete_document_count"]:
                 warnings.append("Abschnittsindex enthaelt unvollstaendige Dokumente; Build erneut starten.")

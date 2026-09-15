@@ -76,6 +76,9 @@ def main(argv=None):
     store = DocumentVectorStore(args.qdrant_dir, collection_name=args.collection)
     embedder, sparse = HarrierEmbedder(), BM25Encoder()
     try:
+        indexed_points = store.count()
+        if not indexed_points:
+            parser.error(f"Collection {args.collection} is empty or unavailable")
         # Exclude model startup from query timings, and report it separately.
         import time
         start = time.perf_counter()
@@ -84,7 +87,9 @@ def main(argv=None):
         startup = time.perf_counter() - start
         report = evaluate(queries, lambda text, k: store.search(
             query_dense=embedder.embed_query(text), query_sparse=sparse.encode_query(text), limit=k), k=args.k)
-        report.update(collection=args.collection, model=MODEL, pipeline_version=PIPELINE_VERSION,
+        report.update(collection=args.collection, model=MODEL,
+                      pipeline_version=PIPELINE_VERSION if args.collection == "ratsi_passages" else "legacy-10-pages",
+                      indexed_points=indexed_points,
                       benchmark_sha256=file_digest(args.benchmark), model_startup_seconds=startup,
                       generated_at=datetime.now(timezone.utc).isoformat())
         output = args.output or ROOT / "data/processed/search_evaluation" / f"{args.collection}-{datetime.now():%Y%m%d-%H%M%S}.json"

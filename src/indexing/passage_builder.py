@@ -7,6 +7,7 @@ from hashlib import sha256
 import json
 from pathlib import Path
 import shutil
+from uuid import uuid4
 
 from src.fetching.storage_layout import resolve_local_file_path
 from src.indexing.id_strategy import stable_document_id
@@ -19,6 +20,8 @@ from src.paths import LOCAL_INDEX_DB, QDRANT_DIR
 def build_passage_index(documents, store, tokenizer, vectorizer_factory, *, limit=None,
                         tokens=768, overlap=96, use_ocr=True, batch_size=4, refresh=False):
     """Replace changed documents only after all their new passages are stored."""
+    if not 32 <= tokens <= 8192 or not 0 <= overlap < tokens or batch_size < 1:
+        raise ValueError("Require 32..8192 chunk tokens, smaller nonnegative overlap and positive batch size")
     indexed = store.get_point_payloads()
     groups = {}
     for point_id, payload in indexed.items():
@@ -45,9 +48,14 @@ def build_passage_index(documents, store, tokenizer, vectorizer_factory, *, limi
                 "tokenizer_revision": getattr(tokenizer, "init_kwargs", {}).get("_commit_hash"),
             }, sort_keys=True).encode()).hexdigest()
             old = groups.get(parent, {})
-            complete = [p for p in old.values() if p.get("fingerprint") == fingerprint]
-            if not refresh and complete and len(complete) == complete[0].get("chunk_count"):
-                store.delete_ids({pid for pid, p in old.items() if p.get("fingerprint") != fingerprint})
+            generations = {}
+            for pid, payload in old.items():
+                if payload.get("fingerprint") == fingerprint and payload.get("committed"):
+                    generations.setdefault(payload.get("generation", fingerprint), {})[pid] = payload
+            complete = next((parts for parts in generations.values()
+                             if len(parts) == next(iter(parts.values())).get("chunk_count")), None)
+            if not refresh and complete:
+                store.delete_ids(set(old) - set(complete))
                 continue
             changed += 1
             pages = extract_pages(path, use_ocr=use_ocr) if source_hash != "missing" else []
@@ -59,13 +67,15 @@ def build_passage_index(documents, store, tokenizer, vectorizer_factory, *, limi
             if unreadable:
                 print(f"WARNING {parent}: pages without text: {unreadable}", flush=True)
             points = []
+            # Forced OCR retries must not overwrite the still-searchable generation.
+            generation = f"{fingerprint}:{uuid4().hex}" if refresh else fingerprint
             for number, chunk in enumerate(chunks):
-                point_id = int.from_bytes(sha256(f"{parent}:{fingerprint}:{number}".encode()).digest()[:8], "big")
+                point_id = int.from_bytes(sha256(f"{parent}:{generation}:{number}".encode()).digest()[:8], "big")
                 payload = {**metadata, **chunk, "snippet": chunk["text"][:500], "document_id": parent,
                            "sqlite_document_id": document.get("id"), "chunk_index": number,
-                           "chunk_count": len(chunks), "fingerprint": fingerprint,
+                           "chunk_count": len(chunks), "fingerprint": fingerprint, "generation": generation,
                            "source_hash": source_hash, "model": MODEL, "pipeline_version": PIPELINE_VERSION,
-                           "unreadable_pages": unreadable}
+                           "unreadable_pages": unreadable, "committed": False}
                 points.append({"id": point_id, "payload": payload})
             if vectorizer is None:
                 vectorizer = vectorizer_factory()
@@ -73,6 +83,7 @@ def build_passage_index(documents, store, tokenizer, vectorizer_factory, *, limi
                 batch = points[start:start + batch_size]
                 vectors = vectorizer.encode_documents([p["payload"]["text"] for p in batch])
                 store.upsert_batch([{**point, **vector} for point, vector in zip(batch, vectors, strict=True)])
+            store.commit_passages({p["id"] for p in points})
             store.delete_ids(set(old) - {p["id"] for p in points})
             print(f"Indexed {parent}: {len(chunks)} passages, {len(pages)} pages", flush=True)
         except Exception as exc:
@@ -100,8 +111,8 @@ def main(argv=None):
     parser.add_argument("--no-ocr", action="store_true")
     parser.add_argument("--refresh", action="store_true", help="Retry extraction even for unchanged files")
     args = parser.parse_args(argv)
-    if args.chunk_tokens < 32 or not 0 <= args.overlap_tokens < args.chunk_tokens:
-        parser.error("Require chunk-tokens >= 32 and 0 <= overlap-tokens < chunk-tokens")
+    if not 32 <= args.chunk_tokens <= 8192 or not 0 <= args.overlap_tokens < args.chunk_tokens:
+        parser.error("Require 32..8192 chunk tokens and 0 <= overlap-tokens < chunk-tokens")
     if not args.db.is_file():
         parser.error(f"Database not found: {args.db}")
     from transformers import AutoTokenizer
@@ -122,8 +133,9 @@ def main(argv=None):
                                        str(d.get("agenda_item") or "")) for d in _load_documents(args.db)}
         generations = {}
         for payload in store.get_point_payloads().values():
-            generations.setdefault((payload.get("document_id"), payload.get("fingerprint")), []).append(payload)
-        complete = {parent for (parent, _), chunks in generations.items() if len(chunks) == chunks[0].get("chunk_count")}
+            generations.setdefault((payload.get("document_id"), payload.get("generation", payload.get("fingerprint"))), []).append(payload)
+        complete = {parent for (parent, _), chunks in generations.items()
+                    if len(chunks) == chunks[0].get("chunk_count") and all(c.get("committed") for c in chunks)}
         if expected <= complete and not result["failures"]:
             marker = args.qdrant_dir / "ratsi_passages.ready.json"
             temporary = marker.with_suffix(".tmp")

@@ -34,6 +34,10 @@ class Store:
         for key in ids:
             self.points.pop(key, None)
 
+    def commit_passages(self, ids):
+        for key in ids:
+            self.points[key]["payload"]["committed"] = True
+
 
 class Vectorizer:
     def encode_documents(self, texts):
@@ -111,6 +115,28 @@ def test_limit_preserves_unprocessed_and_deleted_sources(tmp_path):
     assert not store.points
 
 
+def test_failed_forced_refresh_preserves_committed_generation(tmp_path):
+    doc, _ = document(tmp_path)
+    store = Store()
+    build_passage_index([doc], store, Tokenizer(), Vectorizer, tokens=32, overlap=8)
+    original = set(store.points)
+    upsert = store.upsert_batch
+    calls = []
+    def interrupt(points):
+        if calls:
+            raise RuntimeError("interrupted after first batch")
+        calls.append(True)
+        upsert(points)
+    store.upsert_batch = interrupt
+    result = build_passage_index([doc], store, Tokenizer(), Vectorizer,
+                                 tokens=32, overlap=8, batch_size=1, refresh=True)
+    assert result["failures"]
+    assert all(store.points[pid]["payload"]["committed"] for pid in original)
+    store.upsert_batch = upsert
+    build_passage_index([doc], store, Tokenizer(), Vectorizer, tokens=32, overlap=8)
+    assert set(store.points) == original
+
+
 def test_metadata_fallback_without_local_file(tmp_path):
     doc, path = document(tmp_path)
     doc["local_path"] = "missing.pdf"
@@ -160,3 +186,36 @@ def test_default_cli_dispatches_to_passages(monkeypatch):
     monkeypatch.setattr("src.indexing.passage_builder.main", lambda argv: calls.append(argv))
     build_vector_index.main(["--limit", "2"])
     assert calls == [["--limit", "2"]]
+
+
+def test_incomplete_generation_is_not_searchable(tmp_path):
+    from src.analysis.vector_store import DocumentVectorStore
+    store = DocumentVectorStore(tmp_path / "qdrant", collection_name=passages.COLLECTION)
+    try:
+        store.ensure_collection()
+        vector = Vectorizer().encode_documents(["text"])[0]
+        store.upsert_batch([{"id": 123, **vector, "payload": {"text": "partial", "committed": False}}])
+        assert store.search(vector["dense_vector"], vector["sparse_vector"]) == []
+        store.commit_passages({123})
+        assert store.search(vector["dense_vector"], vector["sparse_vector"])[0]["text"] == "partial"
+    finally:
+        store.close()
+
+
+def test_passage_activation_requires_readiness_marker(tmp_path):
+    from src.analysis.vector_store import DocumentVectorStore
+    directory = tmp_path / "qdrant"
+    passage_store = DocumentVectorStore(directory, collection_name=passages.COLLECTION)
+    passage_store.ensure_collection()
+    vector = Vectorizer().encode_documents(["text"])[0]
+    passage_store.upsert_batch([{"id": 1, **vector, "payload": {"committed": True}}])
+    passage_store.close()
+    store = DocumentVectorStore(directory)
+    try:
+        store.prefer_passages()
+        assert store.collection_name == "ratsi_documents"
+        (directory / "ratsi_passages.ready.json").write_text("{}")
+        store.prefer_passages()
+        assert store.collection_name == passages.COLLECTION
+    finally:
+        store.close()

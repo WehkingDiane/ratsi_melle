@@ -42,7 +42,8 @@ Aufbau fort. `--no-ocr` deaktiviert die optionale OCR. Aenderungen von Dateiinha
 Metadaten oder Chunk-Konfiguration loesen eine erneute Verarbeitung aus. Fuer
 unveraenderte Quellen werden vorhandene Vektoren wiederverwendet.
 
-Neue Abschnitte werden vor dem Entfernen der alten Generation geschrieben.
+Neue Abschnitte werden vor dem Entfernen der alten Generation geschrieben und
+erst nach vollstaendigem Schreiben des Dokuments fuer die Suche freigeschaltet.
 Abgebrochene Generationen lassen sich beim naechsten Lauf vervollstaendigen.
 Verwaiste Dokumente werden nur nach einem vollstaendigen fehlerfreien Lauf
 bereinigt; bei `--limit` bleibt diese Bereinigung aus.

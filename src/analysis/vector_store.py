@@ -63,6 +63,11 @@ class DocumentVectorStore:
             if offset is None:
                 return result
 
+    def commit_passages(self, ids: set[int]) -> None:
+        """Make a completely written document generation searchable."""
+        self._get_client().set_payload(collection_name=self.collection_name,
+                                       points=list(ids), payload={"committed": True})
+
     def prefer_passages(self) -> None:
         """Select the passage collection when available, retaining legacy fallback."""
         if self.collection_name != _COLLECTION_NAME:
@@ -186,6 +191,8 @@ class DocumentVectorStore:
         client = self._get_client()
 
         filter_conditions = []
+        if self.collection_name == "ratsi_passages":
+            filter_conditions.append(FieldCondition(key="committed", match=MatchValue(value=True)))
         if session_id is not None:
             filter_conditions.append(
                 FieldCondition(

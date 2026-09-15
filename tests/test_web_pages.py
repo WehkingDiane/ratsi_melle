@@ -380,6 +380,22 @@ def test_search_page_renders_document_results(client, monkeypatch) -> None:
     assert '<option value="ratsinfo" selected>Ratsinfo</option>' in content
 
 
+def test_search_passage_links_to_original_pdf_page(client, monkeypatch) -> None:
+    from search import views
+
+    monkeypatch.setattr(views.services, "search_semantic_documents", lambda *args, **kwargs: {
+        "results": [{"session_id": "6739", "sqlite_document_id": 42,
+                     "title": "Feuerwehrhaus", "date": "2025-06-18",
+                     "page_start": 14, "snippet": "Baukosten"}],
+        "error": "", "warning": "",
+    })
+    response = client.get("/suche/?q=Feuerwehrhaus")
+    content = response.content.decode("utf-8")
+    assert response.status_code == 200
+    assert "/analyse/sitzungen/6739/dokumente/42/pdf/#page=14" in content
+    assert "Fundstelle: Seite 14" in content
+
+
 def test_search_page_renders_landkreis_results_without_session_links(client, monkeypatch) -> None:
     from search import views
 
