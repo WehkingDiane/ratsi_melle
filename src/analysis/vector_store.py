@@ -50,6 +50,36 @@ class DocumentVectorStore:
         if client is not None:
             client.close()
 
+    def get_point_payloads(self) -> dict[int, dict]:
+        """Read passage metadata; propagate failures to prevent unsafe cleanup."""
+        client = self._get_client()
+        result = {}
+        offset = None
+        while True:
+            records, offset = client.scroll(collection_name=self.collection_name,
+                                            with_payload=True, with_vectors=False,
+                                            limit=256, offset=offset)
+            result.update({record.id: record.payload or {} for record in records})
+            if offset is None:
+                return result
+
+    def commit_passages(self, ids: set[int]) -> None:
+        """Make a completely written document generation searchable."""
+        self._get_client().set_payload(collection_name=self.collection_name,
+                                       points=list(ids), payload={"committed": True})
+
+    def prefer_passages(self) -> None:
+        """Select the passage collection when available, retaining legacy fallback."""
+        if self.collection_name != _COLLECTION_NAME:
+            return
+        from src.indexing.passages import COLLECTION
+        if not (self._path / "ratsi_passages.ready.json").is_file():
+            return
+        client = self._get_client()
+        if COLLECTION in {item.name for item in client.get_collections().collections}:
+            if client.get_collection(COLLECTION).points_count:
+                self.collection_name = COLLECTION
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -161,6 +191,8 @@ class DocumentVectorStore:
         client = self._get_client()
 
         filter_conditions = []
+        if self.collection_name == "ratsi_passages":
+            filter_conditions.append(FieldCondition(key="committed", match=MatchValue(value=True)))
         if session_id is not None:
             filter_conditions.append(
                 FieldCondition(
@@ -236,6 +268,12 @@ class DocumentVectorStore:
                     "source": payload.get("source", ""),
                     "document_title": payload.get("document_title", ""),
                     "snippet": payload.get("snippet", ""),
+                    "document_id": payload.get("document_id", hit.id),
+                    "sqlite_document_id": payload.get("sqlite_document_id"),
+                    "page_start": payload.get("page_start"),
+                    "page_end": payload.get("page_end"),
+                    "chunk_index": payload.get("chunk_index"),
+                    "text": payload.get("text", ""),
                 }
             )
         return results

@@ -598,7 +598,7 @@ def test_main_rejects_non_positive_limit(value: str, tmp_path: Path, capsys) -> 
     db_path.write_text("", encoding="utf-8")
 
     with pytest.raises(SystemExit) as excinfo:
-        build_vector_index.main(
+        build_vector_index.legacy_main(
             [
                 "--db",
                 str(db_path),
@@ -642,7 +642,7 @@ def test_main_reconciles_orphaned_vectors_even_when_nothing_is_new(
     db_path = tmp_path / "local_index.sqlite"
     db_path.write_text("", encoding="utf-8")
 
-    build_vector_index.main(["--db", str(db_path), "--qdrant-dir", str(tmp_path / "qdrant")])
+    build_vector_index.legacy_main(["--db", str(db_path), "--qdrant-dir", str(tmp_path / "qdrant")])
 
     assert vector_store.deleted_ids == [{orphan_id}]
     assert vector_store.upserted_batches == []
@@ -679,7 +679,7 @@ def test_main_refreshes_snippet_payload_for_existing_vectors(
     db_path = tmp_path / "local_index.sqlite"
     db_path.write_text("", encoding="utf-8")
 
-    build_vector_index.main(["--db", str(db_path), "--qdrant-dir", str(tmp_path / "qdrant")])
+    build_vector_index.legacy_main(["--db", str(db_path), "--qdrant-dir", str(tmp_path / "qdrant")])
 
     assert len(vector_store.updated_payloads) == 1
     assert vector_store.updated_payloads[0][0]["id"] == current_id
@@ -717,7 +717,7 @@ def test_main_skips_orphan_cleanup_for_limit_runs(
     db_path = tmp_path / "local_index.sqlite"
     db_path.write_text("", encoding="utf-8")
 
-    build_vector_index.main(
+    build_vector_index.legacy_main(
         [
             "--db",
             str(db_path),
@@ -804,7 +804,7 @@ def test_limit_applies_to_missing_documents_not_first_sqlite_rows(
     db_path = tmp_path / "local_index.sqlite"
     db_path.write_text("", encoding="utf-8")
 
-    build_vector_index.main(
+    build_vector_index.legacy_main(
         [
             "--db",
             str(db_path),

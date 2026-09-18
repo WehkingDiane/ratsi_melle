@@ -10,6 +10,9 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 │   ├── db/                # SQLite-Infrastrukturdatenbanken
 │   ├── analysis_requests/ # Reproduzierbare Analyse-Eingabebatches (JSON)
 │   ├── analysis_outputs/  # Analyse-Ergebnisse (Markdown/JSON/Prompts)
+│   ├── private/           # Nicht versionierte Prompt-Vorlagen und Snapshots
+│   ├── archive/           # Nicht versionierte, wiederherstellbare Sicherungen
+│   ├── models/            # Lokale Modellartefakte
 │   └── processed/         # Interne Normalisierungen/Ableitungen (ohne DBs)
 ├── docs/                  # Projektweite Dokumentation und Recherchen
 │   └── examples/          # Versionierte Beispielkonfigurationen
@@ -25,13 +28,13 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 ```
 
 - Leere Verzeichnisse werden mit `.gitkeep` vorgehalten.
-- Temporäre Dateien und große Artefakte gehören nicht in das Repository. Sie werden über `.gitignore` ausgeschlossen, sobald diese Datei erstellt ist.
+- Temporäre Dateien und große Artefakte gehören nicht in das Repository und werden über `.gitignore` ausgeschlossen.
 
 ## Namenskonventionen
 
 - Python-Module verwenden `snake_case.py`. Andere Sprachen sollen sich an idiomatische Konventionen halten (z. B. `kebab-case` für JavaScript-Dateien, `UpperCamelCase` für Klassen).
 - Verzeichnisse nutzen konsequent `snake_case`.
-- Datenordner verwenden das Muster `YYYY-MM-DD_gremium/` für Sitzungspakete und `NN_kurztitel/` für Vorlagenunterordner.
+- Datenordner verwenden das Muster `YYYY-MM-DD_gremium_sitzungs-id/` für Sitzungspakete und `NN_kurztitel/` für Vorlagenunterordner.
 - Konfigurationsdateien enthalten sprechende Präfixe, z. B. `config.production.json`, `secrets.template.env`.
 
 ## Dokumentationsstandards
@@ -44,7 +47,7 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 
 - Ein Modul pro Verantwortlichkeit; umfangreiche Komponenten werden in Unterpakete zerlegt.
 - Öffentliche Funktionen dokumentieren Eingabeparameter, Rückgabewerte und Ausnahmen mittels Docstrings oder vergleichbarer Mechanismen.
-- Logging verwendet spätere zentrale Logger-Hilfen unter `src/` und schreibt ausschließlich in `logs/`.
+- Laufzeitcode nutzt strukturierte Python-Logger. CLI-Ausgaben gehen standardmaessig an die Konsole; die Weboberflaeche speichert die begrenzten Ausgaben ihrer letzten Datenjobs in `data/db/service_jobs.sqlite`. Dauerhafte Logdateien gehoeren unter `logs/` und werden nicht eingecheckt.
 - UI-spezifisch: Oberflaechenarbeit erfolgt unter `web/`. Gemeinsam genutzte Integrationslogik bleibt in klar abgegrenzten Modulen unter `src/`.
 
 ## Datenhaltung
@@ -66,7 +69,7 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 - Das Projekt arbeitet gegen eine öffentliche SessionNet-Installation der Stadt Melle.
 - Abrufe müssen robots.txt, öffentliche Nutzungsbedingungen und Datenschutzanforderungen respektieren.
 - Abruflogik soll immer mit Rate-Limits, Retries und Caching umgesetzt werden, um die Zielinfrastruktur nicht unnötig zu belasten.
-- Dokumentdownloads und lokale Extraktionspfade sollen mit defensiven Dateigroessenlimits arbeiten; derzeit gilt ein Standardlimit von 25 MiB pro Datei.
+- Dokumentdownloads und lokale Extraktionspfade arbeiten mit getrennten defensiven Dateigroessenlimits: SessionNet warnt oberhalb von 25 MiB und bricht oberhalb von 100 MiB ab; Landkreis-Downloads und die lokale Extraktionspipeline brechen oberhalb von 25 MiB ab. Details stehen in `docs/data_processing_concept.md`.
 - Fachliche und technische Details zum Zielsystem und zur Datenverarbeitung stehen in `docs/data_processing_concept.md`; ältere Vorprüfungen liegen im Archiv unter `docs/archive/`.
 
 ## Workflow-Erwartungen
@@ -85,6 +88,7 @@ Diese Regeln bilden das Fundament für den weiteren Projektverlauf und können b
 - `scripts/fetch_landkreis_publications.py` erfasst Landkreis-Bekanntmachungen und Amtsblätter als Rohdaten. `scripts/build_landkreis_publications_db.py` baut daraus die getrennte SQLite-DB. `scripts/search_landkreis_publications.py` durchsucht diese DB per SQLite-FTS, z. B. nach `Melle Genehmigung`.
 - Die beiden SessionNet-Indexe enthalten in `documents` ein normalisiertes Feld `document_type` (`vorlage`, `beschlussvorlage`, `protokoll`, `bekanntmachung`, `sonstiges`) sowie Metadatenfelder `sha1` und `retrieved_at`.
 - Der fruehere Export-CLI-Pfad wurde archiviert und liegt unter `old/scripts/export_analysis_batch.py`.
+- Der Ratsinfo-Vektorbuild erzeugt `ratsi_passages` aus allen PDF-Seiten mit maximal 768 Tokens je Abschnitt. `ratsi_documents` bleibt als Legacy-Index erhalten. Die eigene Suchextraktion erlaubt 100 MiB pro Datei; der aeltere Extraktionspfad bleibt bei 25 MiB. Migration und der belegte Recherche-Benchmark stehen in `docs/search_quality.md`.
 
 ## WSL-Setup (kurz)
 

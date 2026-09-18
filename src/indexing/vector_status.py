@@ -262,6 +262,10 @@ def _read_qdrant_ids(
     try:
         client = QdrantClient(path=str(qdrant_dir))
         collections = [collection.name for collection in client.get_collections().collections]
+        passage_mode = collection_name == COLLECTION_NAME and "ratsi_passages" in collections
+        if passage_mode:
+            collection_name = "ratsi_passages"
+        status["collection_name"] = collection_name
         if collection_name not in collections:
             warnings.append(f"Qdrant-Collection fehlt: {collection_name}")
             status["indexed_vector_count"] = 0
@@ -270,19 +274,34 @@ def _read_qdrant_ids(
         info = client.get_collection(collection_name=collection_name)
         status["indexed_vector_count"] = int(info.points_count or 0)
         indexed_ids: set[int] = set()
+        passage_groups: dict[tuple[int, str], list[dict]] = {}
         offset: int | None = None
         while True:
             records, next_offset = client.scroll(
                 collection_name=collection_name,
-                with_payload=False,
+                with_payload=["document_id", "chunk_count", "fingerprint", "generation", "committed"] if passage_mode else False,
                 with_vectors=False,
                 limit=1000,
                 offset=offset,
             )
-            indexed_ids.update(record.id for record in records if isinstance(record.id, int))
+            for record in records:
+                if passage_mode:
+                    parent = (record.payload or {}).get("document_id")
+                    if isinstance(parent, int):
+                        payload = record.payload or {}
+                        passage_groups.setdefault((parent, payload.get("generation", payload.get("fingerprint", ""))), []).append(payload)
+                elif isinstance(record.id, int):
+                    indexed_ids.add(record.id)
             if next_offset is None:
                 break
             offset = next_offset
+        if passage_mode:
+            indexed_ids = {parent for (parent, _), parts in passage_groups.items()
+                           if len(parts) == parts[0].get("chunk_count") and all(p.get("committed") for p in parts)}
+            status["incomplete_document_count"] = len({parent for parent, _ in passage_groups} - indexed_ids)
+            if status["incomplete_document_count"]:
+                warnings.append("Abschnittsindex enthaelt unvollstaendige Dokumente; Build erneut starten.")
+        status["indexed_document_count"] = len(indexed_ids)
         return indexed_ids
     except Exception as exc:  # noqa: BLE001 - Qdrant can fail for locks/schema/runtime issues.
         warnings.append(f"Qdrant/Vektorindex konnte nicht gelesen werden: {exc}")

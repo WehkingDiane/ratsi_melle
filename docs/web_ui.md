@@ -66,7 +66,7 @@ web/
     templates/settings_ui/
 ```
 
-`core` enthält das gemeinsame Layout, das Dashboard, zentrale CSS-Dateien und gemeinsam genutzte Helfer. `analysis` enthält die Analyse-Navigation, Views und Service-Fassade für Sitzungen, Analysejobs, Prompt-Vorlagen und den Analyse-Start. `data_tools` enthält die Views und Service-Fassade für technische Fetch-, Build- und Servicejob-Funktionen. `search` enthält die semantische Dokumentensuche über den lokalen Qdrant-Vektorindex. `publishing` und `settings_ui` sind als eigene Bereiche angelegt und enthalten derzeit Platzhalterseiten.
+`core` enthält das gemeinsame Layout, das Dashboard, zentrale CSS-Dateien und gemeinsam genutzte Helfer. `analysis` enthält die Analyse-Navigation, Views und Service-Fassade für Sitzungen, Analysejobs, Prompt-Vorlagen und den Analyse-Start. `data_tools` enthält die Views und Service-Fassade für technische Fetch-, Build- und Servicejob-Funktionen. `search` enthält die semantische Dokumentensuche über den lokalen Qdrant-Vektorindex. `publishing` ist derzeit ein Platzhalter; `settings_ui` verwaltet bereits den optionalen Hugging-Face-Token.
 
 Analyse-Seitentemplates und fachliche Analyse-Partials liegen ausschließlich unter `web/analysis/templates/analysis/`. Daten-Templates liegen ausschließlich unter `web/data_tools/templates/data_tools/`. `web/core/templates/` bleibt auf `base.html`, das Dashboard und gemeinsam nutzbare Core-Partials beschränkt.
 
@@ -119,6 +119,7 @@ Buttons folgen einem funktionsbezogenen Farbschema: `primary` ist auslösenden H
 - `/daten/status/` liefert den frisch berechneten Rohdaten-, Datenbank- und Vektorindexstatus als JSON für die manuelle Aktualisierung.
 - `/veroeffentlichung/` ist ein Platzhalter für Publikations- und Reviewfunktionen.
 - `/suche/` durchsucht lokal indexierte Dokumentinhalte semantisch über den Qdrant-Vektorindex. Die Suche nutzt Harrier-Dense-Embeddings, BM25-Sparse-Vektoren und RRF-Rangfusion. Bei aktiven Datums-, Gremiums- oder Dokumenttypfiltern werden bis zu 100 semantische Kandidaten geladen, anschließend gefiltert und erst danach auf 20 sichtbare Treffer begrenzt. Dadurch können relevante gefilterte Dokumente auch dann erscheinen, wenn sie im ungefilterten Ranking hinter Platz 20 liegen. Neu aufgebaute Vektorindizes liefern außerdem kurze Textausschnitte. Die Quellen-Auswahl bietet Ratsinfo als Standard und Landkreis als getrennte Collection `landkreis_publications`; beim Wechsel zu Landkreis werden die dort nicht anwendbaren Ratsinfo-Filter Gremium und Dokumenttyp verworfen.
+- Ratsinfo nutzt nach vollstaendigem Erstaufbau `ratsi_passages`. Die Treffer zeigen einzelne Abschnitte, Seitenzahlen und Links zur lokalen PDF-Fundstelle. Bis zur Umschaltung bleibt `ratsi_documents` aktiv. Details zu Migration und Messung stehen in [search_quality.md](search_quality.md).
 - `/einstellungen/` verwaltet lokale Einstellungen, darunter die sichere Ablage eines Hugging-Face-Tokens im OS-Schlüsselring.
 
 Alte Service-URLs unter `/analyse/service/` werden auf den Datenbereich umgeleitet, damit technische Datenpflege nicht mehr im Analysebereich hängt.
