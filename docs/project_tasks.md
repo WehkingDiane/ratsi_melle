@@ -86,6 +86,7 @@ Jeder offene Punkt kann eine grobe Aufwandseinstufung und eine Modell-Empfehlung
 - Fortschrittsanzeige für `scripts/build_vector_index.py` ergänzen: Gesamtzahl, bereits indexierte und noch ausstehende Dokumente sowie laufender Fortschritt `[Mittel · GPT-6 Sol / Low]`
 - Datei-Logging für Build-Skripte ergänzen, insbesondere für `scripts/build_vector_index.py`, damit Dokument-ID, Fehlerdetails und Stacktrace nach einem langen Lauf ausgewertet werden können `[Leicht · GPT-6 Luna / Medium]`
 - Dauerhaften Zwischenstand für lange Indexläufe speichern, einschließlich erledigter, offener und fehlgeschlagener Dokumente, damit Abbrüche nachvollziehbar sind und Läufe gezielt fortgesetzt werden können `[Schwer · GPT-6 Astra / Medium]`
+- Qdrant-Local-Modus für große Collections durch einen lokalen Docker-Server ersetzen: Windows-/WSL-Voraussetzungen und Volume dokumentieren, alle Build-, Such- und Statuspfade auf eine konfigurierbare Verbindung umstellen, vorhandene Collections sicher migrieren und Rückweg prüfen `[Schwer · GPT-6 Astra / Medium]`
 - Recherchekatalog über weitere Zeiträume, Protokolle und echte Nutzerfragen erweitern; Abschnitts- und Legacy-Index mit `scripts/evaluate_search.py` vergleichen `[Mittel · GPT-6 Sol / Medium]`
 
 ### 3.4 Analyse und Artefakte
