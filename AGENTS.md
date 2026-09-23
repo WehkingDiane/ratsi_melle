@@ -43,6 +43,7 @@
 - Rohdaten bleiben unveraendert unter `data/raw/`, abgeleitete Daten unter `data/processed/`.
 - Aktualisiere `docs/`, wenn sich Datenformate oder Crawl-Verhalten aendern.
 - Nach Aenderungen an GUI, Workflows, Exporten, Datenformaten oder Nutzerfuehrung muessen die betroffenen Dokumente geprueft und bei Bedarf aktualisiert werden, insbesondere `README.md`, aktive Dateien unter `docs/` sowie bei Legacy-Pfaden die passenden Dateien unter `docs/archive/`.
+- Konkrete Aufgaben in `docs/project_tasks.md` stehen unter `#### Konkrete Aufgaben`; allgemeine Beschreibungen kommen in einen getrennten Kontextabschnitt. Schwierigkeit, empfohlenes GPT-Modell und Reasoning-Aufwand können als Orientierung für Diane ergänzt werden, z. B. `[Leicht · GPT-6 Luna / Low]`. Sie sind keine Vorgabe für Agenten; der Pre-Commit-Hook gibt bei fehlenden Angaben nur einen Hinweis und blockiert keinen Commit. Die Modellübersicht am Anfang der Aufgabenliste wird einmal monatlich anhand der offiziellen OpenAI-Empfehlungen aktualisiert.
 - Zeilenenden werden ueber `.gitattributes` und `.editorconfig` vereinheitlicht:
   - Quell- und Konfigurationsdateien (u. a. `*.py`, `*.json`, `*.yml`) werden im Repository mit `LF` gefuehrt.
   - Windows-Skripte (`*.bat`, `*.cmd`, `*.ps1`) werden mit `CRLF` gefuehrt.

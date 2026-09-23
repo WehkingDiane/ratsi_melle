@@ -1,150 +1,137 @@
-# Projektaufgaben und Ausbaupfade
+# Architektur und Projektaufgaben
 
-Diese Datei buendelt die offene Arbeitsliste des Projekts. Sie ersetzt die fruehere Mischung aus Lang-README und `README_TASK4.md`.
+Diese Datei beschreibt die wesentlichen Systemschichten, ihre Beziehungen und die offenen Arbeiten. Die Aufgaben sind nach den Architekturkomponenten geordnet, damit sichtbar wird, wo Änderungen an Schnittstellen oder Zuständigkeiten nötig werden könnten.
 
-## 1. Projektweit offene Aufgaben
+## Aktuelle GPT-Modellreihe
 
-### Datengewinnung und Datenhaltung
+Stand: **23.09.2026**. Diese Übersicht wird einmal im Monat anhand der [offiziellen OpenAI-Modellübersicht](https://developers.openai.com/api/docs/models) und der [Modellauswahl-Empfehlungen](https://developers.openai.com/api/docs/guides/model-selection) geprüft. Nächste Prüfung: **bis 23.10.2026**.
 
-- Fetch- und Build-Workflows weiter robust halten und bei SessionNet-Aenderungen anpassen
-- inkrementelle Download-Strategie fuer geaenderte oder fehlende Dokumente weiter verbessern
-- Datenqualitaet und Metadatenkonsistenz ueber Regressionstests absichern
+| Modell | Orientierung für Aufgaben in dieser Liste | Typischer Reasoning-Aufwand |
+| --- | --- | --- |
+| GPT-6 Luna (`gpt-6-luna`) | Kleine, klar abgegrenzte Änderungen und einfache Wartungsaufgaben | Low |
+| GPT-6 Sol (`gpt-6-sol`) | Alltägliche Coding-Aufgaben mit Abwägungen und normalem Integrationsumfang | Low–Medium |
+| GPT-6 Astra (`gpt-6-astra`) | Komplexe, mehrschichtige Änderungen und anspruchsvolle Analyse | Medium–High |
 
-### Analyse und KI
+Die Modellverfügbarkeit und Nutzungslimits können sich je nach Codex-/ChatGPT-Produkt unterscheiden. Die Zuordnung ist eine Orientierung, keine Garantie für Ergebnisqualität oder Verbrauch.
 
-- Analyseziele, Ausgabeformate und Qualitaetskriterien verbindlich machen
-- bestehende Sitzungs- und TOP-Analyse um einen dokumentzentrierten UI-Workflow ergaenzen
-- Volltext-, PDF- und OCR-Randfaelle im produktiven Analysepfad robuster behandeln
-- Quellenbezug, Review und Reproduzierbarkeit in der Analyseoberflaeche sichtbar machen
+## 1. Architekturüberblick
 
-### Oberflaechen
+Der Datenfluss verläuft von externen Quellen bis zu den Analyseergebnissen und ihrer Darstellung:
 
-- Django-Hauptoberflaeche unter `web/` modular nach dem Grundkonzept ausbauen
-- `scripts/run_web.py` als primaeren UI-Startpunkt stabil halten
+```text
+SessionNet / Landkreis-Angebote
+        │
+        ▼
+Fetch-Clients ──► unveränderte Rohdaten unter data/raw/
+        │
+        ▼
+Build-Skripte ──► lokale SQLite-Datenbanken und Metadaten
+        │
+        ├──► Extraktion und OCR ──► Vektorindizes und Suche
+        │
+        └──► Analyse-Service ──► versionierte Analyseartefakte
+                                      │
+                                      ▼
+                              Django-Oberfläche
+```
 
-### Betrieb und Qualitaet
+| Schicht | Verantwortlichkeit | Zentrale Bereiche |
+| --- | --- | --- |
+| Datenzufuhr | Externe Angebote abrufen und Rohdaten lokal ablegen | `src/fetching/`, `scripts/fetch_*.py`, `data/raw/` |
+| Datenhaltung | Rohdaten in lokale Datenbanken überführen und Metadaten konsistent halten | `scripts/build_*db.py`, `data/db/` |
+| Extraktion und Suche | PDF-Text und OCR gewinnen, Dokumente aufteilen und durchsuchbar machen | `src/analysis/extraction_pipeline.py`, `src/indexing/`, Qdrant |
+| Analyse | Dokumente, TOPs und Sitzungen analysieren und Ergebnisse nachvollziehbar speichern | `src/analysis/`, `data/analysis_outputs/` |
+| Oberfläche | Analyse-, Such- und Datenpflege-Workflows bereitstellen | `web/` |
+| Betrieb und Qualität | Laufzeit, Fehler, Verhalten und Datenqualität über alle Schichten nachvollziehbar halten | Logging, Tests, Jobs und Dokumentation |
 
-- Logging, Monitoring und Fehlerdiagnose ausbauen
-- Testabdeckung fuer Datenpipeline, Analysefluesse und Suchpfade erweitern
-- Den vorhandenen Katalog von 30 belegten Recherchefragen um weitere Zeitraeume, Protokolle und echte Nutzerfragen erweitern; Abschnitts- und Legacy-Index mit `scripts/evaluate_search.py` vergleichen
-- Dokumentation regelmaessig gegen den aktuellen Stand pruefen
+SQLite-Datenbanken und Qdrant-Indizes sind abgeleitete lokale Daten. `data/raw/` bleibt die Quelle für reproduzierbare Builds und wird von den Build-Schritten nicht verändert.
 
-## 2. Analysemodul
+## 2. Architekturfragen bei Änderungen
 
-Dieser Abschnitt uebernimmt den Kern aus der frueheren `README_TASK4.md`.
+Vor größeren Umbauten sollte für die betroffene Schicht geklärt werden:
 
-### Zielbild
+- Bleiben Rohdaten, lokale Datenbank und Suchindex klar getrennte Zuständigkeiten?
+- Ist das Datenformat an einer dokumentierten Schnittstelle versioniert, und können abgeleitete Daten reproduzierbar neu aufgebaut werden?
+- Ändert sich ein Vertrag zwischen Fetching, Speicherung, Extraktion, Analyse oder Oberfläche?
+- Können Fehler und Fortschritt auf der betroffenen Schicht erkannt werden, ohne Geheimnisse oder unnötige Dokumentinhalte zu protokollieren?
+- Sind Auswirkungen auf lokale Daten, Indizes, bestehende Analyseartefakte und Nutzerabläufe dokumentiert?
 
-Das Analysemodul soll:
+## 3. Offene Aufgaben nach Architekturschicht
 
-- Dokumente, TOPs und ganze Sitzungen verarbeiten
-- KI fuer die eigentliche Inhaltsanalyse nutzen
-- Regeln fuer Vorstrukturierung, Qualitaetskontrolle und Reproduzierbarkeit verwenden
-- Ergebnisse als nachvollziehbare, pruefbare Analyseartefakte ausgeben
+Jeder offene Punkt kann eine grobe Aufwandseinstufung und eine Modell-Empfehlung enthalten. `Low`, `Medium` oder `High` bezeichnet den Reasoning-Aufwand. Die Empfehlungen sind eine Orientierung für Diane und keine Vorgabe für den Agenten. Die Modellübersicht am Anfang dieser Datei wird monatlich aktualisiert; zwischen den Prüfungen muss nicht für jede einzelne Aufgabe erneut recherchiert werden. Der Pre-Commit-Hook erinnert bei neu ergänzten Aufgaben ohne Einstufung lediglich daran; ein Commit wird dadurch nicht verhindert.
 
-### Analyseziele
+### 3.1 Datenzufuhr
 
-- Kernaussagen aus Dokumenten und TOPs erfassen
-- Beschlusslagen und moegliche Verfahrensschritte sichtbar machen
-- finanzielle und politische Relevanz kenntlich machen
-- sitzungsweite Verdichtungen aus einzelnen TOP-Analysen ableiten
+#### Konkrete Aufgaben
 
-### Qualitaetskriterien
+- Fetch-Workflows bei Änderungen an SessionNet robust halten und anpassen `[Mittel · GPT-6 Sol / Medium]`
+- Inkrementelle Downloads geänderter oder fehlender Dokumente weiter verbessern `[Mittel · GPT-6 Sol / Medium]`
+- Landkreis-PDFs, Detailseiten und Manifeste atomar schreiben und vorhandene Dateien auf Vollständigkeit prüfen, damit abgebrochene Downloads nicht als erfolgreich gelten `[Mittel · GPT-6 Sol / Medium]`
+- Datei-Logging in Fetch-Skripten um Laufzeit, Fortschritt und Fehler ergänzen `[Leicht · GPT-6 Luna / Low]`
 
-- Faktentreue
-- Quellenbezug
-- Nachvollziehbarkeit
-- sichtbare Unsicherheit statt Scheingenauigkeit
-- reproduzierbare Ein- und Ausgaben
+### 3.2 Datenhaltung und Builds
 
-### Ausgabeformate
+#### Konkrete Aufgaben
 
-- Markdown-Bericht fuer Sichtung und Review
-- strukturierte JSON-Ausgabe
-- Quellenliste mit Dokumentreferenzen
-- spaeter nutzbare Artefakte fuer UI oder API
+- Datenqualität und Metadatenkonsistenz mit Regressionstests absichern `[Mittel · GPT-6 Sol / Low]`
+- Build-Workflows robust halten und Änderungen am Quellformat kontrolliert übernehmen `[Mittel · GPT-6 Sol / Medium]`
+- Vorschau-Modus für Build-Skripte ergänzen, der geplante Änderungen, fehlende Quelldateien und mögliche Bereinigungen vor dem Schreiben ausgibt `[Mittel · GPT-6 Sol / Medium]`
+- Datei-Logging für Datenbank-Builds ausbauen `[Leicht · GPT-6 Luna / Low]`
 
-### Analyseebenen
+### 3.3 Extraktion, OCR und Suche
 
-#### Dokument
+#### Konkrete Aufgaben
 
-- kurzes Inhaltsprofil
-- Hinweise auf Beschluss, Finanzierung, Zustaendigkeit oder offene Fragen
-- Einschaetzung der Extraktionsqualitaet
+- Volltext-, PDF- und OCR-Randfälle im Analyse- und Suchpfad robuster behandeln `[Schwer · GPT-6 Astra / Medium]`
+- Optionale OCR-Werkzeuge und das Verhalten bei großen Dateien betrieblich absichern `[Mittel · GPT-6 Sol / Low]`
+- Standardlauf von `scripts/build_vector_index.py` auf 100 Dokumente begrenzen; einen vollständigen Durchlauf nur mit einem ausdrücklichen Parameter wie `--all` starten `[Leicht · GPT-6 Luna / Low]`
+- Fortschrittsanzeige für `scripts/build_vector_index.py` ergänzen: Gesamtzahl, bereits indexierte und noch ausstehende Dokumente sowie laufender Fortschritt `[Mittel · GPT-6 Sol / Low]`
+- Datei-Logging für Build-Skripte ergänzen, insbesondere für `scripts/build_vector_index.py`, damit Dokument-ID, Fehlerdetails und Stacktrace nach einem langen Lauf ausgewertet werden können `[Leicht · GPT-6 Luna / Low]`
+- Dauerhaften Zwischenstand für lange Indexläufe speichern, einschließlich erledigter, offener und fehlgeschlagener Dokumente, damit Abbrüche nachvollziehbar sind und Läufe gezielt fortgesetzt werden können `[Schwer · GPT-6 Astra / Medium]`
+- Recherchekatalog über weitere Zeiträume, Protokolle und echte Nutzerfragen erweitern; Abschnitts- und Legacy-Index mit `scripts/evaluate_search.py` vergleichen `[Mittel · GPT-6 Sol / Medium]`
 
-#### Tagesordnungspunkt
+### 3.4 Analyse und Artefakte
 
-Standardpfad fuer die KI-Analyse:
+#### Konkrete Aufgaben
 
-- ein TOP
-- alle zugeordneten Dokumente
-- eine belastbare Zusammenfassung mit Quellenbezug
+- Analyseziele, Ausgabeformate und Qualitätskriterien verbindlich festlegen `[Mittel · GPT-6 Sol / Medium]`
+- Dokumentzentrierten Analyseablauf in der Weboberfläche als End-to-End-Pfad ergänzen; lokale PDFs können bereits in der Vorschau geöffnet werden `[Schwer · GPT-6 Astra / Medium]`
+- Quellenbezug, Unsicherheit, Review und Reproduzierbarkeit in Analyseartefakten und Oberfläche sichtbar machen `[Schwer · GPT-6 Astra / Medium]`
+- Gemeinsames Antwortschema weiter validieren und bei neuen Analysezwecken versionieren `[Mittel · GPT-6 Sol / Medium]`
+- Providerfehler und Kontextgrenzen robuster behandeln `[Mittel · GPT-6 Sol / Medium]`
 
-Typische Ergebnisfelder:
+#### Kontext und Zielbild
 
-- `top_summary`
-- `decision_signal`
-- `financial_signal`
-- `public_relevance`
-- `open_questions`
-- `source_citations`
-- `confidence`
+Das fachliche Zielbild umfasst Analysen auf drei Ebenen:
 
-#### Sitzung
+- **Dokument:** Kernaussagen, Beschluss- und Finanzierungsbezug sowie Extraktionsqualität
+- **Tagesordnungspunkt:** zugeordnete Dokumente zusammenführen, Aussagen belegen und offene Fragen kenntlich machen
+- **Sitzung:** Ergebnisse einzelner TOPs zu einer nachvollziehbaren Sitzungsübersicht verdichten
 
-- zuerst einzelne TOPs analysieren
-- danach daraus eine uebergeordnete Sitzungsverdichtung ableiten
+Analyseartefakte sollen Eingabekontext, verwendete Dokumente und Hashes, Prompt-Version, Provider und Modell sowie Parameter und Zeitstempel festhalten. Markdown und strukturiertes JSON sollen Quellenangaben und sichtbare Unsicherheit unterstützen. Draft- und Review-Status sollen unterscheidbar bleiben.
 
-### KI- und Regelanteile
+### 3.5 Oberfläche und Anwendungsworkflows
 
-#### Regelbasiert
+#### Konkrete Aufgaben
 
-- Metadatenstruktur
-- Dokumenttyp-Erkennung
-- Qualitaetspruefung der Extraktion
-- Hashing, Logging und Artefaktablage
+- Django-Anwendungen unter `web/` entlang fachlicher Zuständigkeiten modular weiterentwickeln `[Schwer · GPT-6 Astra / Medium]`
+- Dokumentauswahl, Analyse, Quellenprüfung und Review als zusammenhängenden Arbeitsablauf gestalten `[Schwer · GPT-6 Astra / Medium]`
+- Bestehende Fetch-, Build-, Such- und Analysefunktionen über stabile Service-Schnittstellen einbinden `[Schwer · GPT-6 Astra / Medium]`
 
-#### KI-basiert
+### 3.6 Betrieb und Qualität (schichtübergreifend)
 
-- Inhaltszusammenfassung von Dokumenten
-- Zusammenfuehrung mehrerer Dokumente pro TOP
-- Erkennen politischer Relevanz
-- Formulierung verstaendlicher Ausgaben
+#### Konkrete Aufgaben
 
-### Provider-Infrastruktur
+- Logging, Monitoring und Fehlerdiagnose schichtübergreifend vereinheitlichen `[Mittel · GPT-6 Sol / Medium]`
+- Parallele Builds derselben lokalen Qdrant-Collection erkennen und mit einer verständlichen Meldung verhindern `[Mittel · GPT-6 Sol / Medium]`
+- Testabdeckung für Datenpipeline, Analyseflüsse und Suchpfade erweitern `[Mittel · GPT-6 Sol / Low]`
+- Dokumentation regelmäßig gegen Implementierung, Datenformate und tatsächliche Abläufe prüfen `[Leicht · GPT-6 Luna / Low]`
+- Aufgabenliste nach Architektur- oder Funktionsänderungen aktualisieren und erledigte Punkte entfernen `[Leicht · GPT-6 Luna / Low]`
 
-Vorhanden unter `src/analysis/providers/`:
+## 4. Abhängigkeiten und sinnvolle Reihenfolge
 
-- `claude`
-- `codex`
-- `ollama`
-
-Offen:
-
-- gemeinsames Antwortschema weiter validieren und bei neuen Analysezwecken versionieren
-- Providerfehler, Kontextgrenzen und PDF-/OCR-Randfaelle weiter absichern
-
-### Reproduzierbarkeit und Review
-
-Zu jeder Analyse sollen mindestens gespeichert werden:
-
-- Analysemodus
-- Eingabekontext
-- verwendete Dokumente
-- Dokument-Hashes
-- Prompt oder Prompt-Version
-- Provider und Modell
-- Parameter und Zeitstempel
-
-Zusätzlich benoetigt der Analysepfad:
-
-- Draft-Status fuer neue Analysen
-- sichtbare Unsicherheitsmarker
-- Review- und Freigabemoeglichkeit
-
-## 3. Naechste sinnvolle Schritte
-
-- Quellenpruefung und Review fuer bestehende Sitzungs- und TOP-Analysen ausbauen
-- dokumentzentrierte Analyse und Dokumentvorschau als naechsten End-to-End-Pfad umsetzen
-- optionale OCR-Installation und Verhalten bei grossen Dateien betrieblich absichern
-- Aufgabenliste regelmaessig bereinigen und erledigte Punkte streichen oder verschieben
+1. Datenverträge und Metadaten zwischen Fetching, SQLite-Builds und Extraktion stabilisieren.
+2. Extraktion, OCR und Suchindex mit Fortschritt, Fehlerdiagnose und Regressionstests absichern.
+3. Analyseartefakte und Quellenverweise konsistent versionieren.
+4. Dokumentzentrierten Analyse- und Review-Ablauf darauf aufbauend in der Oberfläche vervollständigen.
+5. Recherchequalität mit erweitertem Katalog messen und die Dokumentation nachführen.
