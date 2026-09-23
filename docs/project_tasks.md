@@ -50,12 +50,14 @@ Vor größeren Umbauten sollte für die betroffene Schicht geklärt werden:
 
 - Fetch-Workflows bei Änderungen an SessionNet robust halten und anpassen
 - Inkrementelle Downloads geänderter oder fehlender Dokumente weiter verbessern
+- Landkreis-PDFs, Detailseiten und Manifeste atomar schreiben und vorhandene Dateien auf Vollständigkeit prüfen, damit abgebrochene Downloads nicht als erfolgreich gelten
 - Datei-Logging in Fetch-Skripten um Laufzeit, Fortschritt und Fehler ergänzen
 
 ### 3.2 Datenhaltung und Builds
 
 - Datenqualität und Metadatenkonsistenz mit Regressionstests absichern
 - Build-Workflows robust halten und Änderungen am Quellformat kontrolliert übernehmen
+- Vorschau-Modus für Build-Skripte ergänzen, der geplante Änderungen, fehlende Quelldateien und mögliche Bereinigungen vor dem Schreiben ausgibt
 - Datei-Logging für Datenbank-Builds ausbauen
 
 ### 3.3 Extraktion, OCR und Suche
@@ -64,6 +66,8 @@ Vor größeren Umbauten sollte für die betroffene Schicht geklärt werden:
 - Optionale OCR-Werkzeuge und das Verhalten bei großen Dateien betrieblich absichern
 - Standardlauf von `scripts/build_vector_index.py` auf 100 Dokumente begrenzen; einen vollständigen Durchlauf nur mit einem ausdrücklichen Parameter wie `--all` starten
 - Fortschrittsanzeige für `scripts/build_vector_index.py` ergänzen: Gesamtzahl, bereits indexierte und noch ausstehende Dokumente sowie laufender Fortschritt
+- Datei-Logging für Build-Skripte ergänzen, insbesondere für `scripts/build_vector_index.py`, damit Dokument-ID, Fehlerdetails und Stacktrace nach einem langen Lauf ausgewertet werden können
+- Dauerhaften Zwischenstand für lange Indexläufe speichern, einschließlich erledigter, offener und fehlgeschlagener Dokumente, damit Abbrüche nachvollziehbar sind und Läufe gezielt fortgesetzt werden können
 - Recherchekatalog über weitere Zeiträume, Protokolle und echte Nutzerfragen erweitern; Abschnitts- und Legacy-Index mit `scripts/evaluate_search.py` vergleichen
 
 ### 3.4 Analyse und Artefakte
@@ -91,6 +95,7 @@ Analyseartefakte sollen Eingabekontext, verwendete Dokumente und Hashes, Prompt-
 ### 3.6 Betrieb und Qualität (schichtübergreifend)
 
 - Logging, Monitoring und Fehlerdiagnose schichtübergreifend vereinheitlichen
+- Parallele Builds derselben lokalen Qdrant-Collection erkennen und mit einer verständlichen Meldung verhindern
 - Testabdeckung für Datenpipeline, Analyseflüsse und Suchpfade erweitern
 - Dokumentation regelmäßig gegen Implementierung, Datenformate und tatsächliche Abläufe prüfen
 - Aufgabenliste nach Architektur- oder Funktionsänderungen aktualisieren und erledigte Punkte entfernen
