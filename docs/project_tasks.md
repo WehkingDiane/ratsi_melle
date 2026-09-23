@@ -62,6 +62,7 @@ Vor größeren Umbauten sollte für die betroffene Schicht geklärt werden:
 
 - Volltext-, PDF- und OCR-Randfälle im Analyse- und Suchpfad robuster behandeln
 - Optionale OCR-Werkzeuge und das Verhalten bei großen Dateien betrieblich absichern
+- Standardlauf von `scripts/build_vector_index.py` auf 100 Dokumente begrenzen; einen vollständigen Durchlauf nur mit einem ausdrücklichen Parameter wie `--all` starten
 - Fortschrittsanzeige für `scripts/build_vector_index.py` ergänzen: Gesamtzahl, bereits indexierte und noch ausstehende Dokumente sowie laufender Fortschritt
 - Recherchekatalog über weitere Zeiträume, Protokolle und echte Nutzerfragen erweitern; Abschnitts- und Legacy-Index mit `scripts/evaluate_search.py` vergleichen
 
