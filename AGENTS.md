@@ -43,6 +43,7 @@
 - Rohdaten bleiben unveraendert unter `data/raw/`, abgeleitete Daten unter `data/processed/`.
 - Aktualisiere `docs/`, wenn sich Datenformate oder Crawl-Verhalten aendern.
 - Nach Aenderungen an GUI, Workflows, Exporten, Datenformaten oder Nutzerfuehrung muessen die betroffenen Dokumente geprueft und bei Bedarf aktualisiert werden, insbesondere `README.md`, aktive Dateien unter `docs/` sowie bei Legacy-Pfaden die passenden Dateien unter `docs/archive/`.
+- Jeder neu eingetragene umsetzbare Punkt in `docs/project_tasks.md` muss Schwierigkeit, empfohlenes GPT-Modell und Reasoning-Aufwand enthalten, z. B. `[Leicht · GPT-6 Luna / Low]`. Die Modellübersicht am Anfang der Aufgabenliste wird einmal monatlich anhand der offiziellen OpenAI-Empfehlungen aktualisiert; zwischen diesen Prüfungen dient sie als Referenz und muss nicht für jede Aufgabe neu recherchiert werden. Die Zuordnung ist eine Orientierung, keine Garantie für Ergebnisqualität oder Verbrauchslimits.
 - Zeilenenden werden ueber `.gitattributes` und `.editorconfig` vereinheitlicht:
   - Quell- und Konfigurationsdateien (u. a. `*.py`, `*.json`, `*.yml`) werden im Repository mit `LF` gefuehrt.
   - Windows-Skripte (`*.bat`, `*.cmd`, `*.ps1`) werden mit `CRLF` gefuehrt.

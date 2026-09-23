@@ -2,6 +2,18 @@
 
 Diese Datei beschreibt die wesentlichen Systemschichten, ihre Beziehungen und die offenen Arbeiten. Die Aufgaben sind nach den Architekturkomponenten geordnet, damit sichtbar wird, wo Änderungen an Schnittstellen oder Zuständigkeiten nötig werden könnten.
 
+## Aktuelle GPT-Modellreihe
+
+Stand: **23.09.2026**. Diese Übersicht wird einmal im Monat anhand der [offiziellen OpenAI-Modellübersicht](https://developers.openai.com/api/docs/models) und der [Modellauswahl-Empfehlungen](https://developers.openai.com/api/docs/guides/model-selection) geprüft. Nächste Prüfung: **bis 23.10.2026**.
+
+| Modell | Orientierung für Aufgaben in dieser Liste | Typischer Reasoning-Aufwand |
+| --- | --- | --- |
+| GPT-6 Luna (`gpt-6-luna`) | Kleine, klar abgegrenzte Änderungen und einfache Wartungsaufgaben | Low |
+| GPT-6 Sol (`gpt-6-sol`) | Alltägliche Coding-Aufgaben mit Abwägungen und normalem Integrationsumfang | Low–Medium |
+| GPT-6 Astra (`gpt-6-astra`) | Komplexe, mehrschichtige Änderungen und anspruchsvolle Analyse | Medium–High |
+
+Die Modellverfügbarkeit und Nutzungslimits können sich je nach Codex-/ChatGPT-Produkt unterscheiden. Die Zuordnung ist eine Orientierung, keine Garantie für Ergebnisqualität oder Verbrauch.
+
 ## 1. Architekturüberblick
 
 Der Datenfluss verläuft von externen Quellen bis zu den Analyseergebnissen und ihrer Darstellung:
@@ -46,37 +58,39 @@ Vor größeren Umbauten sollte für die betroffene Schicht geklärt werden:
 
 ## 3. Offene Aufgaben nach Architekturschicht
 
+Jeder offene Punkt hat eine grobe Aufwandseinstufung und eine Modell-Empfehlung. `Low`, `Medium` oder `High` bezeichnet den Reasoning-Aufwand. Die Empfehlungen folgen der Modellübersicht am Anfang dieser Datei. Diese wird monatlich aktualisiert; zwischen den Prüfungen muss nicht für jede einzelne Aufgabe erneut recherchiert werden.
+
 ### 3.1 Datenzufuhr
 
-- Fetch-Workflows bei Änderungen an SessionNet robust halten und anpassen
-- Inkrementelle Downloads geänderter oder fehlender Dokumente weiter verbessern
-- Landkreis-PDFs, Detailseiten und Manifeste atomar schreiben und vorhandene Dateien auf Vollständigkeit prüfen, damit abgebrochene Downloads nicht als erfolgreich gelten
-- Datei-Logging in Fetch-Skripten um Laufzeit, Fortschritt und Fehler ergänzen
+- Fetch-Workflows bei Änderungen an SessionNet robust halten und anpassen `[Mittel · GPT-6 Sol / Medium]`
+- Inkrementelle Downloads geänderter oder fehlender Dokumente weiter verbessern `[Mittel · GPT-6 Sol / Medium]`
+- Landkreis-PDFs, Detailseiten und Manifeste atomar schreiben und vorhandene Dateien auf Vollständigkeit prüfen, damit abgebrochene Downloads nicht als erfolgreich gelten `[Mittel · GPT-6 Sol / Medium]`
+- Datei-Logging in Fetch-Skripten um Laufzeit, Fortschritt und Fehler ergänzen `[Leicht · GPT-6 Luna / Low]`
 
 ### 3.2 Datenhaltung und Builds
 
-- Datenqualität und Metadatenkonsistenz mit Regressionstests absichern
-- Build-Workflows robust halten und Änderungen am Quellformat kontrolliert übernehmen
-- Vorschau-Modus für Build-Skripte ergänzen, der geplante Änderungen, fehlende Quelldateien und mögliche Bereinigungen vor dem Schreiben ausgibt
-- Datei-Logging für Datenbank-Builds ausbauen
+- Datenqualität und Metadatenkonsistenz mit Regressionstests absichern `[Mittel · GPT-6 Sol / Low]`
+- Build-Workflows robust halten und Änderungen am Quellformat kontrolliert übernehmen `[Mittel · GPT-6 Sol / Medium]`
+- Vorschau-Modus für Build-Skripte ergänzen, der geplante Änderungen, fehlende Quelldateien und mögliche Bereinigungen vor dem Schreiben ausgibt `[Mittel · GPT-6 Sol / Medium]`
+- Datei-Logging für Datenbank-Builds ausbauen `[Leicht · GPT-6 Luna / Low]`
 
 ### 3.3 Extraktion, OCR und Suche
 
-- Volltext-, PDF- und OCR-Randfälle im Analyse- und Suchpfad robuster behandeln
-- Optionale OCR-Werkzeuge und das Verhalten bei großen Dateien betrieblich absichern
-- Standardlauf von `scripts/build_vector_index.py` auf 100 Dokumente begrenzen; einen vollständigen Durchlauf nur mit einem ausdrücklichen Parameter wie `--all` starten
-- Fortschrittsanzeige für `scripts/build_vector_index.py` ergänzen: Gesamtzahl, bereits indexierte und noch ausstehende Dokumente sowie laufender Fortschritt
-- Datei-Logging für Build-Skripte ergänzen, insbesondere für `scripts/build_vector_index.py`, damit Dokument-ID, Fehlerdetails und Stacktrace nach einem langen Lauf ausgewertet werden können
-- Dauerhaften Zwischenstand für lange Indexläufe speichern, einschließlich erledigter, offener und fehlgeschlagener Dokumente, damit Abbrüche nachvollziehbar sind und Läufe gezielt fortgesetzt werden können
-- Recherchekatalog über weitere Zeiträume, Protokolle und echte Nutzerfragen erweitern; Abschnitts- und Legacy-Index mit `scripts/evaluate_search.py` vergleichen
+- Volltext-, PDF- und OCR-Randfälle im Analyse- und Suchpfad robuster behandeln `[Schwer · GPT-6 Astra / Medium]`
+- Optionale OCR-Werkzeuge und das Verhalten bei großen Dateien betrieblich absichern `[Mittel · GPT-6 Sol / Low]`
+- Standardlauf von `scripts/build_vector_index.py` auf 100 Dokumente begrenzen; einen vollständigen Durchlauf nur mit einem ausdrücklichen Parameter wie `--all` starten `[Leicht · GPT-6 Luna / Low]`
+- Fortschrittsanzeige für `scripts/build_vector_index.py` ergänzen: Gesamtzahl, bereits indexierte und noch ausstehende Dokumente sowie laufender Fortschritt `[Mittel · GPT-6 Sol / Low]`
+- Datei-Logging für Build-Skripte ergänzen, insbesondere für `scripts/build_vector_index.py`, damit Dokument-ID, Fehlerdetails und Stacktrace nach einem langen Lauf ausgewertet werden können `[Leicht · GPT-6 Luna / Low]`
+- Dauerhaften Zwischenstand für lange Indexläufe speichern, einschließlich erledigter, offener und fehlgeschlagener Dokumente, damit Abbrüche nachvollziehbar sind und Läufe gezielt fortgesetzt werden können `[Schwer · GPT-6 Astra / Medium]`
+- Recherchekatalog über weitere Zeiträume, Protokolle und echte Nutzerfragen erweitern; Abschnitts- und Legacy-Index mit `scripts/evaluate_search.py` vergleichen `[Mittel · GPT-6 Sol / Medium]`
 
 ### 3.4 Analyse und Artefakte
 
-- Analyseziele, Ausgabeformate und Qualitätskriterien verbindlich festlegen
-- Dokumentzentrierten Analyseablauf in der Weboberfläche als End-to-End-Pfad ergänzen; lokale PDFs können bereits in der Vorschau geöffnet werden
-- Quellenbezug, Unsicherheit, Review und Reproduzierbarkeit in Analyseartefakten und Oberfläche sichtbar machen
-- Gemeinsames Antwortschema weiter validieren und bei neuen Analysezwecken versionieren
-- Providerfehler und Kontextgrenzen robuster behandeln
+- Analyseziele, Ausgabeformate und Qualitätskriterien verbindlich festlegen `[Mittel · GPT-6 Sol / Medium]`
+- Dokumentzentrierten Analyseablauf in der Weboberfläche als End-to-End-Pfad ergänzen; lokale PDFs können bereits in der Vorschau geöffnet werden `[Schwer · GPT-6 Astra / Medium]`
+- Quellenbezug, Unsicherheit, Review und Reproduzierbarkeit in Analyseartefakten und Oberfläche sichtbar machen `[Schwer · GPT-6 Astra / Medium]`
+- Gemeinsames Antwortschema weiter validieren und bei neuen Analysezwecken versionieren `[Mittel · GPT-6 Sol / Medium]`
+- Providerfehler und Kontextgrenzen robuster behandeln `[Mittel · GPT-6 Sol / Medium]`
 
 Das fachliche Zielbild umfasst Analysen auf drei Ebenen:
 
@@ -88,17 +102,17 @@ Analyseartefakte sollen Eingabekontext, verwendete Dokumente und Hashes, Prompt-
 
 ### 3.5 Oberfläche und Anwendungsworkflows
 
-- Django-Anwendungen unter `web/` entlang fachlicher Zuständigkeiten modular weiterentwickeln
-- Dokumentauswahl, Analyse, Quellenprüfung und Review als zusammenhängenden Arbeitsablauf gestalten
-- Bestehende Fetch-, Build-, Such- und Analysefunktionen über stabile Service-Schnittstellen einbinden
+- Django-Anwendungen unter `web/` entlang fachlicher Zuständigkeiten modular weiterentwickeln `[Schwer · GPT-6 Astra / Medium]`
+- Dokumentauswahl, Analyse, Quellenprüfung und Review als zusammenhängenden Arbeitsablauf gestalten `[Schwer · GPT-6 Astra / Medium]`
+- Bestehende Fetch-, Build-, Such- und Analysefunktionen über stabile Service-Schnittstellen einbinden `[Schwer · GPT-6 Astra / Medium]`
 
 ### 3.6 Betrieb und Qualität (schichtübergreifend)
 
-- Logging, Monitoring und Fehlerdiagnose schichtübergreifend vereinheitlichen
-- Parallele Builds derselben lokalen Qdrant-Collection erkennen und mit einer verständlichen Meldung verhindern
-- Testabdeckung für Datenpipeline, Analyseflüsse und Suchpfade erweitern
-- Dokumentation regelmäßig gegen Implementierung, Datenformate und tatsächliche Abläufe prüfen
-- Aufgabenliste nach Architektur- oder Funktionsänderungen aktualisieren und erledigte Punkte entfernen
+- Logging, Monitoring und Fehlerdiagnose schichtübergreifend vereinheitlichen `[Mittel · GPT-6 Sol / Medium]`
+- Parallele Builds derselben lokalen Qdrant-Collection erkennen und mit einer verständlichen Meldung verhindern `[Mittel · GPT-6 Sol / Medium]`
+- Testabdeckung für Datenpipeline, Analyseflüsse und Suchpfade erweitern `[Mittel · GPT-6 Sol / Low]`
+- Dokumentation regelmäßig gegen Implementierung, Datenformate und tatsächliche Abläufe prüfen `[Leicht · GPT-6 Luna / Low]`
+- Aufgabenliste nach Architektur- oder Funktionsänderungen aktualisieren und erledigte Punkte entfernen `[Leicht · GPT-6 Luna / Low]`
 
 ## 4. Abhängigkeiten und sinnvolle Reihenfolge
 

@@ -15,6 +15,10 @@ AGENT_BRANCH_RE = re.compile(r"^(codex|claude|gemini|gpt)/(feature|fix|security|
 DESTRUCTIVE_COMMAND_RE = re.compile(r"(^|\s)(rm\s+-|git\s+(reset\s+--hard|checkout\s+--|clean\s+-))")
 DOC_TOUCH_RE = re.compile(r"(web/|src/(analysis|fetching|parsing|indexing)/|scripts/)")
 DOC_PATH_RE = re.compile(r"^(README\.md|docs/)")
+PROJECT_TASKS_PATH = "docs/project_tasks.md"
+PROJECT_TASKS_SECTION = "## 3. Offene Aufgaben nach Architekturschicht"
+PROJECT_TASKS_SECTION_END = "## 4. Abhängigkeiten und sinnvolle Reihenfolge"
+TASK_MODEL_LABEL_RE = re.compile(r"`?\[(Leicht|Mittel|Schwer)\s+·\s+GPT-[^/\]]+\s*/\s*(Low|Medium|High)\]`?\s*$")
 
 
 def main(argv: list[str]) -> int:
@@ -42,6 +46,9 @@ def git_pre_commit() -> int:
         )
 
     staged = staged_changes()
+    if any(PROJECT_TASKS_PATH in change.paths for change in staged):
+        errors.extend(unlabeled_added_project_tasks())
+
     deleted_py = [change.display_path for change in staged if change.removes_python_file]
     old_blocked = [change.display_path for change in staged if change.touches_existing_old_path]
     old_added = [change.display_path for change in staged if change.adds_old_path]
@@ -69,6 +76,46 @@ def git_pre_commit() -> int:
         )
 
     return report("pre-commit", errors, warnings)
+
+
+def unlabeled_added_project_tasks() -> list[str]:
+    """Require effort and model labels on newly added backlog bullets."""
+    diff = run_git(["diff", "--cached", "--unified=0", "--", PROJECT_TASKS_PATH])
+    staged_file = run_git(["show", f":{PROJECT_TASKS_PATH}"])
+    if diff.returncode != 0 or staged_file.returncode != 0:
+        return []
+
+    added_lines: dict[int, str] = {}
+    new_line_number = 0
+    for line in diff.stdout.splitlines():
+        if line.startswith("@@"):
+            match = re.search(r"\+(\d+)(?:,\d+)?\s+@@", line)
+            new_line_number = int(match.group(1)) if match else 0
+        elif line.startswith("+++"):
+            continue
+        elif line.startswith("+"):
+            if new_line_number:
+                added_lines[new_line_number] = line[1:]
+                new_line_number += 1
+        elif line.startswith(" ") and new_line_number:
+            new_line_number += 1
+
+    task_section = False
+    errors: list[str] = []
+    for line_number, line in enumerate(staged_file.stdout.splitlines(), start=1):
+        if line == PROJECT_TASKS_SECTION:
+            task_section = True
+            continue
+        if line == PROJECT_TASKS_SECTION_END:
+            task_section = False
+        if not task_section or line_number not in added_lines:
+            continue
+        if re.match(r"^\s*[-*]\s+\S", line) and not TASK_MODEL_LABEL_RE.search(line):
+            errors.append(
+                f"{PROJECT_TASKS_PATH}:{line_number} braucht Aufwand, empfohlenes GPT-Modell "
+                "und Reasoning-Aufwand, z. B. [Mittel · GPT-6 Sol / Medium]."
+            )
+    return errors
 
 
 def git_pre_push() -> int:
