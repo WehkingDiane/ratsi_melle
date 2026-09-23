@@ -67,7 +67,6 @@ Jeder offene Punkt kann eine grobe Aufwandseinstufung und eine Modell-Empfehlung
 - Fetch-Workflows bei Änderungen an SessionNet robust halten und anpassen `[Mittel · GPT-6 Sol / Medium]`
 - Inkrementelle Downloads geänderter oder fehlender Dokumente weiter verbessern `[Mittel · GPT-6 Sol / Medium]`
 - Landkreis-PDFs, Detailseiten und Manifeste atomar schreiben und vorhandene Dateien auf Vollständigkeit prüfen, damit abgebrochene Downloads nicht als erfolgreich gelten `[Mittel · GPT-6 Sol / Medium]`
-- Datei-Logging in Fetch-Skripten um Laufzeit, Fortschritt und Fehler ergänzen `[Leicht · GPT-6 Luna / Low]`
 
 ### 3.2 Datenhaltung und Builds
 
@@ -76,7 +75,6 @@ Jeder offene Punkt kann eine grobe Aufwandseinstufung und eine Modell-Empfehlung
 - Datenqualität und Metadatenkonsistenz mit Regressionstests absichern `[Mittel · GPT-6 Sol / Low]`
 - Build-Workflows robust halten und Änderungen am Quellformat kontrolliert übernehmen `[Mittel · GPT-6 Sol / Medium]`
 - Vorschau-Modus für Build-Skripte ergänzen, der geplante Änderungen, fehlende Quelldateien und mögliche Bereinigungen vor dem Schreiben ausgibt `[Mittel · GPT-6 Sol / Medium]`
-- Datei-Logging für Datenbank-Builds ausbauen `[Leicht · GPT-6 Luna / Low]`
 
 ### 3.3 Extraktion, OCR und Suche
 

@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from src.analysis.extraction_pipeline import extract_text_for_analysis
 from src.fetching.landkreis.database import LandkreisPublicationStore
 from src.fetching.landkreis.storage import LandkreisStorage
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 def build_landkreis_publications_db(
@@ -32,8 +36,11 @@ def build_landkreis_publications_db(
         store.upsert_publication(publication)
         publication_count += 1
         document_count += len(publication.documents)
+        if publication_count % 100 == 0:
+            LOGGER.info("Build progress: publications=%d documents=%d", publication_count, document_count)
 
     rows = store.document_rows()
+    LOGGER.info("Build progress: publications=%d documents=%d; extracting local documents", publication_count, len(rows))
     extracted_publication_ids: set[str] = set()
     for row in rows:
         local_path = row.get("local_path")
@@ -55,6 +62,8 @@ def build_landkreis_publications_db(
         if publication_id:
             extracted_publication_ids.add(publication_id)
         extracted_count += 1
+        if extracted_count % 100 == 0:
+            LOGGER.info("Build progress: extracted_documents=%d/%d", extracted_count, len(rows))
 
     store.refresh_publication_fts(extracted_publication_ids)
     return publication_count, document_count, extracted_count

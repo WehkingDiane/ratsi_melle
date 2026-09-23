@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 import sys
+from time import gmtime
 
 
 def configure_file_logging(script_name: str, log_level: str = "INFO") -> Path:
@@ -18,6 +19,7 @@ def configure_file_logging(script_name: str, log_level: str = "INFO") -> Path:
         "%(asctime)sZ %(levelname)s %(name)s: %(message)s",
         datefmt="%Y-%m-%dT%H:%M:%S",
     )
+    formatter.converter = gmtime
     root = logging.getLogger()
     root.setLevel(level)
     # Replace handlers so repeated main() calls do not duplicate log records.

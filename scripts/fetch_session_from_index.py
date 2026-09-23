@@ -261,6 +261,9 @@ def main() -> None:
     except Exception:
         logging.exception("Indexed session workflow failed")
         raise
+    except SystemExit as exc:
+        logging.error("Indexed session workflow failed: %s", exc)
+        raise
     finally:
         logging.info("Indexed session workflow runtime: %.2f seconds", perf_counter() - started)
 
