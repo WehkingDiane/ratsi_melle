@@ -132,9 +132,10 @@ def unlabeled_added_project_tasks() -> list[str]:
                 f"{PROJECT_TASKS_PATH}:{line_number} braucht Aufwand, empfohlenes GPT-Modell "
                 "und Reasoning-Aufwand, z. B. [Mittel · GPT-6 Sol / Medium]."
             )
-        elif line.strip() and task_list:
+        elif line.strip() and task_list and not line[0].isspace():
             # Only the initial list under each architecture heading contains backlog tasks.
-            # Later lists may explain concepts and should not be treated as actionable tasks.
+            # Indented Markdown continuations belong to their bullet; unindented prose ends
+            # the backlog list, after which later lists may explain concepts instead.
             task_list = False
             task_list_closed = True
     return errors
