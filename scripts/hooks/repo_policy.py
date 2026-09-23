@@ -18,6 +18,7 @@ DOC_PATH_RE = re.compile(r"^(README\.md|docs/)")
 PROJECT_TASKS_PATH = "docs/project_tasks.md"
 PROJECT_TASKS_SECTION = "## 3. Offene Aufgaben nach Architekturschicht"
 PROJECT_TASKS_SECTION_END = "## 4. Abhängigkeiten und sinnvolle Reihenfolge"
+PROJECT_TASKS_LIST_HEADING = "#### Konkrete Aufgaben"
 TASK_MODEL_LABEL_RE = re.compile(r"`?\[(Leicht|Mittel|Schwer)\s+·\s+GPT-[^/\]]+\s*/\s*(Low|Medium|High)\]`?\s*$")
 
 
@@ -47,7 +48,7 @@ def git_pre_commit() -> int:
 
     staged = staged_changes()
     if any(PROJECT_TASKS_PATH in change.paths for change in staged):
-        errors.extend(unlabeled_added_project_tasks())
+        warnings.extend(task_metadata_reminders())
 
     deleted_py = [change.display_path for change in staged if change.removes_python_file]
     old_blocked = [change.display_path for change in staged if change.touches_existing_old_path]
@@ -78,8 +79,8 @@ def git_pre_commit() -> int:
     return report("pre-commit", errors, warnings)
 
 
-def unlabeled_added_project_tasks() -> list[str]:
-    """Require effort and model labels on newly added backlog bullets."""
+def task_metadata_reminders() -> list[str]:
+    """Remind about optional effort and model labels on added backlog bullets."""
     diff = run_git(["diff", "--cached", "--unified=0", "--", PROJECT_TASKS_PATH])
     staged_file = run_git(["show", f":{PROJECT_TASKS_PATH}"])
     if diff.returncode != 0 or staged_file.returncode != 0:
@@ -101,44 +102,34 @@ def unlabeled_added_project_tasks() -> list[str]:
             new_line_number += 1
 
     task_section = False
-    task_subsection = False
     task_list = False
-    task_list_closed = False
-    errors: list[str] = []
+    reminders: list[str] = []
     for line_number, line in enumerate(staged_file.stdout.splitlines(), start=1):
         if line == PROJECT_TASKS_SECTION:
             task_section = True
             continue
         if line == PROJECT_TASKS_SECTION_END:
             task_section = False
-            task_subsection = False
             task_list = False
-            task_list_closed = False
             continue
-        if task_section and re.match(r"^### 3\.\d+\s", line):
-            task_subsection = True
-            task_list = False
-            task_list_closed = False
+        if not task_section:
             continue
-        if not task_section or not task_subsection:
-            continue
-        if re.match(r"^\s*[-*]\s+\S", line):
-            if task_list_closed:
-                continue
+        if line == PROJECT_TASKS_LIST_HEADING:
             task_list = True
-            if line_number not in added_lines or TASK_MODEL_LABEL_RE.search(line):
-                continue
-            errors.append(
-                f"{PROJECT_TASKS_PATH}:{line_number} braucht Aufwand, empfohlenes GPT-Modell "
-                "und Reasoning-Aufwand, z. B. [Mittel · GPT-6 Sol / Medium]."
-            )
-        elif line.strip() and task_list and not line[0].isspace():
-            # Only the initial list under each architecture heading contains backlog tasks.
-            # Indented Markdown continuations belong to their bullet; unindented prose ends
-            # the backlog list, after which later lists may explain concepts instead.
+            continue
+        if line.startswith("###"):
             task_list = False
-            task_list_closed = True
-    return errors
+            continue
+        if line.startswith("####"):
+            task_list = False
+            continue
+        if task_list and re.match(r"^[-*]\s+\S", line):
+            if line_number in added_lines and not TASK_MODEL_LABEL_RE.search(line):
+                reminders.append(
+                    f"{PROJECT_TASKS_PATH}:{line_number}: optionale Aufwand-/Modell-Empfehlung "
+                    "ergänzen, z. B. [Mittel · GPT-6 Sol / Medium]. Dieser Hinweis blockiert keinen Commit."
+                )
+    return reminders
 
 
 def git_pre_push() -> int:

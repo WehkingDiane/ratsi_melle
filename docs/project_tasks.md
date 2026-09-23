@@ -58,9 +58,11 @@ Vor größeren Umbauten sollte für die betroffene Schicht geklärt werden:
 
 ## 3. Offene Aufgaben nach Architekturschicht
 
-Jeder offene Punkt hat eine grobe Aufwandseinstufung und eine Modell-Empfehlung. `Low`, `Medium` oder `High` bezeichnet den Reasoning-Aufwand. Die Empfehlungen folgen der Modellübersicht am Anfang dieser Datei. Diese wird monatlich aktualisiert; zwischen den Prüfungen muss nicht für jede einzelne Aufgabe erneut recherchiert werden.
+Jeder offene Punkt kann eine grobe Aufwandseinstufung und eine Modell-Empfehlung enthalten. `Low`, `Medium` oder `High` bezeichnet den Reasoning-Aufwand. Die Empfehlungen sind eine Orientierung für Diane und keine Vorgabe für den Agenten. Die Modellübersicht am Anfang dieser Datei wird monatlich aktualisiert; zwischen den Prüfungen muss nicht für jede einzelne Aufgabe erneut recherchiert werden. Der Pre-Commit-Hook erinnert bei neu ergänzten Aufgaben ohne Einstufung lediglich daran; ein Commit wird dadurch nicht verhindert.
 
 ### 3.1 Datenzufuhr
+
+#### Konkrete Aufgaben
 
 - Fetch-Workflows bei Änderungen an SessionNet robust halten und anpassen `[Mittel · GPT-6 Sol / Medium]`
 - Inkrementelle Downloads geänderter oder fehlender Dokumente weiter verbessern `[Mittel · GPT-6 Sol / Medium]`
@@ -69,12 +71,16 @@ Jeder offene Punkt hat eine grobe Aufwandseinstufung und eine Modell-Empfehlung.
 
 ### 3.2 Datenhaltung und Builds
 
+#### Konkrete Aufgaben
+
 - Datenqualität und Metadatenkonsistenz mit Regressionstests absichern `[Mittel · GPT-6 Sol / Low]`
 - Build-Workflows robust halten und Änderungen am Quellformat kontrolliert übernehmen `[Mittel · GPT-6 Sol / Medium]`
 - Vorschau-Modus für Build-Skripte ergänzen, der geplante Änderungen, fehlende Quelldateien und mögliche Bereinigungen vor dem Schreiben ausgibt `[Mittel · GPT-6 Sol / Medium]`
 - Datei-Logging für Datenbank-Builds ausbauen `[Leicht · GPT-6 Luna / Low]`
 
 ### 3.3 Extraktion, OCR und Suche
+
+#### Konkrete Aufgaben
 
 - Volltext-, PDF- und OCR-Randfälle im Analyse- und Suchpfad robuster behandeln `[Schwer · GPT-6 Astra / Medium]`
 - Optionale OCR-Werkzeuge und das Verhalten bei großen Dateien betrieblich absichern `[Mittel · GPT-6 Sol / Low]`
@@ -86,11 +92,15 @@ Jeder offene Punkt hat eine grobe Aufwandseinstufung und eine Modell-Empfehlung.
 
 ### 3.4 Analyse und Artefakte
 
+#### Konkrete Aufgaben
+
 - Analyseziele, Ausgabeformate und Qualitätskriterien verbindlich festlegen `[Mittel · GPT-6 Sol / Medium]`
 - Dokumentzentrierten Analyseablauf in der Weboberfläche als End-to-End-Pfad ergänzen; lokale PDFs können bereits in der Vorschau geöffnet werden `[Schwer · GPT-6 Astra / Medium]`
 - Quellenbezug, Unsicherheit, Review und Reproduzierbarkeit in Analyseartefakten und Oberfläche sichtbar machen `[Schwer · GPT-6 Astra / Medium]`
 - Gemeinsames Antwortschema weiter validieren und bei neuen Analysezwecken versionieren `[Mittel · GPT-6 Sol / Medium]`
 - Providerfehler und Kontextgrenzen robuster behandeln `[Mittel · GPT-6 Sol / Medium]`
+
+#### Kontext und Zielbild
 
 Das fachliche Zielbild umfasst Analysen auf drei Ebenen:
 
@@ -102,11 +112,15 @@ Analyseartefakte sollen Eingabekontext, verwendete Dokumente und Hashes, Prompt-
 
 ### 3.5 Oberfläche und Anwendungsworkflows
 
+#### Konkrete Aufgaben
+
 - Django-Anwendungen unter `web/` entlang fachlicher Zuständigkeiten modular weiterentwickeln `[Schwer · GPT-6 Astra / Medium]`
 - Dokumentauswahl, Analyse, Quellenprüfung und Review als zusammenhängenden Arbeitsablauf gestalten `[Schwer · GPT-6 Astra / Medium]`
 - Bestehende Fetch-, Build-, Such- und Analysefunktionen über stabile Service-Schnittstellen einbinden `[Schwer · GPT-6 Astra / Medium]`
 
 ### 3.6 Betrieb und Qualität (schichtübergreifend)
+
+#### Konkrete Aufgaben
 
 - Logging, Monitoring und Fehlerdiagnose schichtübergreifend vereinheitlichen `[Mittel · GPT-6 Sol / Medium]`
 - Parallele Builds derselben lokalen Qdrant-Collection erkennen und mit einer verständlichen Meldung verhindern `[Mittel · GPT-6 Sol / Medium]`
