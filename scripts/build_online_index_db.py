@@ -8,6 +8,7 @@ import logging
 import sqlite3
 import sys
 from pathlib import Path
+from time import perf_counter
 from typing import Iterable
 
 
@@ -18,6 +19,7 @@ if str(REPO_ROOT) not in sys.path:  # pragma: no branch - defensive
 from src.fetching import SessionNetClient  # noqa: E402  (import after sys.path manipulation)
 from src.data_layout import migrate_legacy_database_layout  # noqa: E402
 from src.paths import LOCAL_INDEX_DB, ONLINE_INDEX_DB  # noqa: E402
+from scripts._logging_utils import configure_file_logging  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -156,9 +158,14 @@ def _populate(
         if row and row[0]
     }
 
-    for month in months:
+    months = tuple(months)
+    total_references = 0
+    for month_index, month in enumerate(months, start=1):
+        logging.info("Build progress: fetching month %04d-%02d (%d/%d)", year, month, month_index, len(months))
         references = client.fetch_month(year=year, month=month)
-        for reference in references:
+        total_references += len(references)
+        logging.info("Found %d sessions for %04d-%02d", len(references), year, month)
+        for reference_index, reference in enumerate(references, start=1):
             if reference.session_id in seen_sessions:
                 continue
             if reference.session_id in existing and not refresh_existing:
@@ -166,6 +173,7 @@ def _populate(
             if reference.session_id not in existing and only_refresh:
                 continue
             seen_sessions.add(reference.session_id)
+            logging.info("Build progress: %d/%d sessions in %04d-%02d; indexing %s", reference_index, len(references), year, month, reference.session_id)
             detail = client.fetch_session(reference)
 
             if reference.session_id in existing and refresh_existing:
@@ -197,6 +205,7 @@ def _populate(
             doc_count += _insert_documents(conn, reference.session_id, detail)
 
     conn.commit()
+    logging.info("Build complete: indexed_sessions=%d agenda_items=%d documents=%d discovered_sessions=%d", session_count, agenda_count, doc_count, total_references)
     print(
         "Indexed sessions={0} agenda_items={1} documents={2}".format(
             session_count, agenda_count, doc_count
@@ -426,19 +435,27 @@ def _maybe_migrate_database(output_path: Path, migrate_from: Path) -> None:
 
 def main() -> None:
     args = parse_args()
-    migrate_legacy_database_layout()
-    logging.basicConfig(level=getattr(logging, args.log_level.upper(), logging.INFO))
-    client = SessionNetClient(base_url=args.base_url, persist_raw=False)
-    refresh_existing = args.refresh_existing or args.only_refresh
-    build_session_db(
-        client,
-        args.year,
-        args.months,
-        args.output,
-        refresh_existing,
-        args.only_refresh,
-        args.migrate_from,
-    )
+    log_path = configure_file_logging(Path(__file__).stem, args.log_level)
+    started = perf_counter()
+    logging.info("Starting online index build: year=%d output=%s log_file=%s", args.year, args.output, log_path)
+    try:
+        migrate_legacy_database_layout()
+        client = SessionNetClient(base_url=args.base_url, persist_raw=False)
+        refresh_existing = args.refresh_existing or args.only_refresh
+        build_session_db(
+            client,
+            args.year,
+            args.months,
+            args.output,
+            refresh_existing,
+            args.only_refresh,
+            args.migrate_from,
+        )
+    except Exception:
+        logging.exception("Online index build failed")
+        raise
+    finally:
+        logging.info("Online index build runtime: %.2f seconds", perf_counter() - started)
 
 
 if __name__ == "__main__":  # pragma: no cover

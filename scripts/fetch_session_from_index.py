@@ -9,6 +9,7 @@ import logging
 import sqlite3
 import sys
 from pathlib import Path
+from time import perf_counter
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -17,6 +18,7 @@ if str(REPO_ROOT) not in sys.path:  # pragma: no branch - defensive
 
 from src.fetching import SessionNetClient, SessionReference  # noqa: E402
 from src.paths import ONLINE_INDEX_DB  # noqa: E402
+from scripts._logging_utils import configure_file_logging  # noqa: E402
 
 
 REQUIRED_INDEX_TABLES = frozenset({"sessions"})
@@ -230,26 +232,37 @@ def fetch_single_session(client: SessionNetClient, indexed_session: IndexedSessi
 
 def main() -> None:
     args = parse_args()
-    logging.basicConfig(level=getattr(logging, args.log_level.upper(), logging.INFO))
+    log_path = configure_file_logging(Path(__file__).stem, args.log_level)
+    started = perf_counter()
+    logging.info("Starting indexed session workflow: log_file=%s", log_path)
 
-    if args.list:
-        sessions = list_sessions(
-            args.db,
-            committee=args.committee,
-            from_date=args.from_date,
-            to_date=args.to_date,
-            limit=args.limit,
-        )
-        print_session_list(sessions)
-        return
+    try:
+        if args.list:
+            sessions = list_sessions(
+                args.db,
+                committee=args.committee,
+                from_date=args.from_date,
+                to_date=args.to_date,
+                limit=args.limit,
+            )
+            logging.info("Listed %d sessions from %s", len(sessions), args.db)
+            print_session_list(sessions)
+            return
 
-    if not args.session_id:
-        raise SystemExit("Either --session-id or --list is required.")
+        if not args.session_id:
+            raise SystemExit("Either --session-id or --list is required.")
 
-    indexed_session = load_session_from_index(args.db, args.session_id)
-    client = SessionNetClient(base_url=args.base_url)
-    session_dir = fetch_single_session(client, indexed_session)
-    print(f"Downloaded session {indexed_session.session_id} to {session_dir}")
+        indexed_session = load_session_from_index(args.db, args.session_id)
+        logging.info("Fetching session %s (%s)", indexed_session.session_id, indexed_session.date)
+        client = SessionNetClient(base_url=args.base_url)
+        session_dir = fetch_single_session(client, indexed_session)
+        logging.info("Fetch complete: session=%s path=%s", indexed_session.session_id, session_dir)
+        print(f"Downloaded session {indexed_session.session_id} to {session_dir}")
+    except Exception:
+        logging.exception("Indexed session workflow failed")
+        raise
+    finally:
+        logging.info("Indexed session workflow runtime: %.2f seconds", perf_counter() - started)
 
 
 if __name__ == "__main__":  # pragma: no cover
