@@ -1,150 +1,103 @@
-# Projektaufgaben und Ausbaupfade
+# Architektur und Projektaufgaben
 
-Diese Datei buendelt die offene Arbeitsliste des Projekts. Sie ersetzt die fruehere Mischung aus Lang-README und `README_TASK4.md`.
+Diese Datei beschreibt die wesentlichen Systemschichten, ihre Beziehungen und die offenen Arbeiten. Die Aufgaben sind nach den Architekturkomponenten geordnet, damit sichtbar wird, wo Änderungen an Schnittstellen oder Zuständigkeiten nötig werden könnten.
 
-## 1. Projektweit offene Aufgaben
+## 1. Architekturüberblick
 
-### Datengewinnung und Datenhaltung
+Der Datenfluss verläuft von externen Quellen bis zu den Analyseergebnissen und ihrer Darstellung:
 
-- Fetch- und Build-Workflows weiter robust halten und bei SessionNet-Aenderungen anpassen
-- inkrementelle Download-Strategie fuer geaenderte oder fehlende Dokumente weiter verbessern
-- Datenqualitaet und Metadatenkonsistenz ueber Regressionstests absichern
+```text
+SessionNet / Landkreis-Angebote
+        │
+        ▼
+Fetch-Clients ──► unveränderte Rohdaten unter data/raw/
+        │
+        ▼
+Build-Skripte ──► lokale SQLite-Datenbanken und Metadaten
+        │
+        ├──► Extraktion und OCR ──► Vektorindizes und Suche
+        │
+        └──► Analyse-Service ──► versionierte Analyseartefakte
+                                      │
+                                      ▼
+                              Django-Oberfläche
+```
 
-### Analyse und KI
+| Schicht | Verantwortlichkeit | Zentrale Bereiche |
+| --- | --- | --- |
+| Datenzufuhr | Externe Angebote abrufen und Rohdaten lokal ablegen | `src/fetching/`, `scripts/fetch_*.py`, `data/raw/` |
+| Datenhaltung | Rohdaten in lokale Datenbanken überführen und Metadaten konsistent halten | `scripts/build_*db.py`, `data/db/` |
+| Extraktion und Suche | PDF-Text und OCR gewinnen, Dokumente aufteilen und durchsuchbar machen | `src/analysis/extraction_pipeline.py`, `src/indexing/`, Qdrant |
+| Analyse | Dokumente, TOPs und Sitzungen analysieren und Ergebnisse nachvollziehbar speichern | `src/analysis/`, `data/analysis_outputs/` |
+| Oberfläche | Analyse-, Such- und Datenpflege-Workflows bereitstellen | `web/` |
+| Betrieb und Qualität | Laufzeit, Fehler, Verhalten und Datenqualität über alle Schichten nachvollziehbar halten | Logging, Tests, Jobs und Dokumentation |
 
-- Analyseziele, Ausgabeformate und Qualitaetskriterien verbindlich machen
-- bestehende Sitzungs- und TOP-Analyse um einen dokumentzentrierten UI-Workflow ergaenzen
-- Volltext-, PDF- und OCR-Randfaelle im produktiven Analysepfad robuster behandeln
-- Quellenbezug, Review und Reproduzierbarkeit in der Analyseoberflaeche sichtbar machen
+SQLite-Datenbanken und Qdrant-Indizes sind abgeleitete lokale Daten. `data/raw/` bleibt die Quelle für reproduzierbare Builds und wird von den Build-Schritten nicht verändert.
 
-### Oberflaechen
+## 2. Architekturfragen bei Änderungen
 
-- Django-Hauptoberflaeche unter `web/` modular nach dem Grundkonzept ausbauen
-- `scripts/run_web.py` als primaeren UI-Startpunkt stabil halten
+Vor größeren Umbauten sollte für die betroffene Schicht geklärt werden:
 
-### Betrieb und Qualitaet
+- Bleiben Rohdaten, lokale Datenbank und Suchindex klar getrennte Zuständigkeiten?
+- Ist das Datenformat an einer dokumentierten Schnittstelle versioniert, und können abgeleitete Daten reproduzierbar neu aufgebaut werden?
+- Ändert sich ein Vertrag zwischen Fetching, Speicherung, Extraktion, Analyse oder Oberfläche?
+- Können Fehler und Fortschritt auf der betroffenen Schicht erkannt werden, ohne Geheimnisse oder unnötige Dokumentinhalte zu protokollieren?
+- Sind Auswirkungen auf lokale Daten, Indizes, bestehende Analyseartefakte und Nutzerabläufe dokumentiert?
 
-- Logging, Monitoring und Fehlerdiagnose ausbauen
-- Testabdeckung fuer Datenpipeline, Analysefluesse und Suchpfade erweitern
-- Den vorhandenen Katalog von 30 belegten Recherchefragen um weitere Zeitraeume, Protokolle und echte Nutzerfragen erweitern; Abschnitts- und Legacy-Index mit `scripts/evaluate_search.py` vergleichen
-- Dokumentation regelmaessig gegen den aktuellen Stand pruefen
+## 3. Offene Aufgaben nach Architekturschicht
 
-## 2. Analysemodul
+### 3.1 Datenzufuhr
 
-Dieser Abschnitt uebernimmt den Kern aus der frueheren `README_TASK4.md`.
+- Fetch-Workflows bei Änderungen an SessionNet robust halten und anpassen
+- Inkrementelle Downloads geänderter oder fehlender Dokumente weiter verbessern
+- Datei-Logging in Fetch-Skripten um Laufzeit, Fortschritt und Fehler ergänzen
 
-### Zielbild
+### 3.2 Datenhaltung und Builds
 
-Das Analysemodul soll:
+- Datenqualität und Metadatenkonsistenz mit Regressionstests absichern
+- Build-Workflows robust halten und Änderungen am Quellformat kontrolliert übernehmen
+- Datei-Logging für Datenbank-Builds ausbauen
 
-- Dokumente, TOPs und ganze Sitzungen verarbeiten
-- KI fuer die eigentliche Inhaltsanalyse nutzen
-- Regeln fuer Vorstrukturierung, Qualitaetskontrolle und Reproduzierbarkeit verwenden
-- Ergebnisse als nachvollziehbare, pruefbare Analyseartefakte ausgeben
+### 3.3 Extraktion, OCR und Suche
 
-### Analyseziele
+- Volltext-, PDF- und OCR-Randfälle im Analyse- und Suchpfad robuster behandeln
+- Optionale OCR-Werkzeuge und das Verhalten bei großen Dateien betrieblich absichern
+- Fortschrittsanzeige für `scripts/build_vector_index.py` ergänzen: Gesamtzahl, bereits indexierte und noch ausstehende Dokumente sowie laufender Fortschritt
+- Recherchekatalog über weitere Zeiträume, Protokolle und echte Nutzerfragen erweitern; Abschnitts- und Legacy-Index mit `scripts/evaluate_search.py` vergleichen
 
-- Kernaussagen aus Dokumenten und TOPs erfassen
-- Beschlusslagen und moegliche Verfahrensschritte sichtbar machen
-- finanzielle und politische Relevanz kenntlich machen
-- sitzungsweite Verdichtungen aus einzelnen TOP-Analysen ableiten
+### 3.4 Analyse und Artefakte
 
-### Qualitaetskriterien
+- Analyseziele, Ausgabeformate und Qualitätskriterien verbindlich festlegen
+- Dokumentzentrierten Analyseablauf in der Weboberfläche als End-to-End-Pfad ergänzen; lokale PDFs können bereits in der Vorschau geöffnet werden
+- Quellenbezug, Unsicherheit, Review und Reproduzierbarkeit in Analyseartefakten und Oberfläche sichtbar machen
+- Gemeinsames Antwortschema weiter validieren und bei neuen Analysezwecken versionieren
+- Providerfehler und Kontextgrenzen robuster behandeln
 
-- Faktentreue
-- Quellenbezug
-- Nachvollziehbarkeit
-- sichtbare Unsicherheit statt Scheingenauigkeit
-- reproduzierbare Ein- und Ausgaben
+Das fachliche Zielbild umfasst Analysen auf drei Ebenen:
 
-### Ausgabeformate
+- **Dokument:** Kernaussagen, Beschluss- und Finanzierungsbezug sowie Extraktionsqualität
+- **Tagesordnungspunkt:** zugeordnete Dokumente zusammenführen, Aussagen belegen und offene Fragen kenntlich machen
+- **Sitzung:** Ergebnisse einzelner TOPs zu einer nachvollziehbaren Sitzungsübersicht verdichten
 
-- Markdown-Bericht fuer Sichtung und Review
-- strukturierte JSON-Ausgabe
-- Quellenliste mit Dokumentreferenzen
-- spaeter nutzbare Artefakte fuer UI oder API
+Analyseartefakte sollen Eingabekontext, verwendete Dokumente und Hashes, Prompt-Version, Provider und Modell sowie Parameter und Zeitstempel festhalten. Markdown und strukturiertes JSON sollen Quellenangaben und sichtbare Unsicherheit unterstützen. Draft- und Review-Status sollen unterscheidbar bleiben.
 
-### Analyseebenen
+### 3.5 Oberfläche und Anwendungsworkflows
 
-#### Dokument
+- Django-Anwendungen unter `web/` entlang fachlicher Zuständigkeiten modular weiterentwickeln
+- Dokumentauswahl, Analyse, Quellenprüfung und Review als zusammenhängenden Arbeitsablauf gestalten
+- Bestehende Fetch-, Build-, Such- und Analysefunktionen über stabile Service-Schnittstellen einbinden
 
-- kurzes Inhaltsprofil
-- Hinweise auf Beschluss, Finanzierung, Zustaendigkeit oder offene Fragen
-- Einschaetzung der Extraktionsqualitaet
+### 3.6 Betrieb und Qualität (schichtübergreifend)
 
-#### Tagesordnungspunkt
+- Logging, Monitoring und Fehlerdiagnose schichtübergreifend vereinheitlichen
+- Testabdeckung für Datenpipeline, Analyseflüsse und Suchpfade erweitern
+- Dokumentation regelmäßig gegen Implementierung, Datenformate und tatsächliche Abläufe prüfen
+- Aufgabenliste nach Architektur- oder Funktionsänderungen aktualisieren und erledigte Punkte entfernen
 
-Standardpfad fuer die KI-Analyse:
+## 4. Abhängigkeiten und sinnvolle Reihenfolge
 
-- ein TOP
-- alle zugeordneten Dokumente
-- eine belastbare Zusammenfassung mit Quellenbezug
-
-Typische Ergebnisfelder:
-
-- `top_summary`
-- `decision_signal`
-- `financial_signal`
-- `public_relevance`
-- `open_questions`
-- `source_citations`
-- `confidence`
-
-#### Sitzung
-
-- zuerst einzelne TOPs analysieren
-- danach daraus eine uebergeordnete Sitzungsverdichtung ableiten
-
-### KI- und Regelanteile
-
-#### Regelbasiert
-
-- Metadatenstruktur
-- Dokumenttyp-Erkennung
-- Qualitaetspruefung der Extraktion
-- Hashing, Logging und Artefaktablage
-
-#### KI-basiert
-
-- Inhaltszusammenfassung von Dokumenten
-- Zusammenfuehrung mehrerer Dokumente pro TOP
-- Erkennen politischer Relevanz
-- Formulierung verstaendlicher Ausgaben
-
-### Provider-Infrastruktur
-
-Vorhanden unter `src/analysis/providers/`:
-
-- `claude`
-- `codex`
-- `ollama`
-
-Offen:
-
-- gemeinsames Antwortschema weiter validieren und bei neuen Analysezwecken versionieren
-- Providerfehler, Kontextgrenzen und PDF-/OCR-Randfaelle weiter absichern
-
-### Reproduzierbarkeit und Review
-
-Zu jeder Analyse sollen mindestens gespeichert werden:
-
-- Analysemodus
-- Eingabekontext
-- verwendete Dokumente
-- Dokument-Hashes
-- Prompt oder Prompt-Version
-- Provider und Modell
-- Parameter und Zeitstempel
-
-Zusätzlich benoetigt der Analysepfad:
-
-- Draft-Status fuer neue Analysen
-- sichtbare Unsicherheitsmarker
-- Review- und Freigabemoeglichkeit
-
-## 3. Naechste sinnvolle Schritte
-
-- Quellenpruefung und Review fuer bestehende Sitzungs- und TOP-Analysen ausbauen
-- dokumentzentrierte Analyse und Dokumentvorschau als naechsten End-to-End-Pfad umsetzen
-- optionale OCR-Installation und Verhalten bei grossen Dateien betrieblich absichern
-- Aufgabenliste regelmaessig bereinigen und erledigte Punkte streichen oder verschieben
+1. Datenverträge und Metadaten zwischen Fetching, SQLite-Builds und Extraktion stabilisieren.
+2. Extraktion, OCR und Suchindex mit Fortschritt, Fehlerdiagnose und Regressionstests absichern.
+3. Analyseartefakte und Quellenverweise konsistent versionieren.
+4. Dokumentzentrierten Analyse- und Review-Ablauf darauf aufbauend in der Oberfläche vervollständigen.
+5. Recherchequalität mit erweitertem Katalog messen und die Dokumentation nachführen.
