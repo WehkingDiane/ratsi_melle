@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import argparse
 from datetime import date
+import logging
 from pathlib import Path
 import sys
+from time import perf_counter
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -14,6 +16,7 @@ if str(REPO_ROOT) not in sys.path:  # pragma: no branch - direct CLI execution
 
 from src.fetching.landkreis import LandkreisClient, LandkreisStorage
 from src.paths import LANDKREIS_DATA_DIR
+from scripts._logging_utils import configure_file_logging
 
 
 def parse_args() -> argparse.Namespace:
@@ -40,27 +43,38 @@ def parse_args() -> argparse.Namespace:
         default=LANDKREIS_DATA_DIR,
         help="Raw file storage root (default: RATSI_LANDKREIS_DATA_DIR or %(default)s).",
     )
+    parser.add_argument("--log-level", default="INFO", help="Python logging level.")
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    storage = LandkreisStorage(args.data_dir)
-    client = LandkreisClient(storage=storage)
-    publications = client.crawl(
-        source=args.source,
-        from_date=args.from_date,
-        to_date=args.to_date,
-        query=args.query,
-        limit=args.limit,
-        dry_run=args.dry_run,
-        refresh_existing=args.refresh_existing,
-    )
-    action = "Matched" if args.dry_run else "Fetched raw data for"
-    print(f"{action} {len(publications)} Landkreis publication(s).")
-    if args.dry_run:
-        for publication in publications:
-            print(f"{publication.date or '-'} {publication.source}: {publication.title}")
+    log_path = configure_file_logging(Path(__file__).stem, args.log_level)
+    started = perf_counter()
+    logging.info("Starting Landkreis fetch: source=%s dry_run=%s log_file=%s", args.source, args.dry_run, log_path)
+    try:
+        storage = LandkreisStorage(args.data_dir)
+        client = LandkreisClient(storage=storage)
+        publications = client.crawl(
+            source=args.source,
+            from_date=args.from_date,
+            to_date=args.to_date,
+            query=args.query,
+            limit=args.limit,
+            dry_run=args.dry_run,
+            refresh_existing=args.refresh_existing,
+        )
+        action = "Matched" if args.dry_run else "Fetched raw data for"
+        logging.info("Landkreis fetch complete: publications=%d", len(publications))
+        print(f"{action} {len(publications)} Landkreis publication(s).")
+        if args.dry_run:
+            for publication in publications:
+                print(f"{publication.date or '-'} {publication.source}: {publication.title}")
+    except Exception:
+        logging.exception("Landkreis fetch failed")
+        raise
+    finally:
+        logging.info("Landkreis fetch runtime: %.2f seconds", perf_counter() - started)
 
 
 def _parse_date(value: str) -> date:

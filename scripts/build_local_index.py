@@ -5,12 +5,14 @@ from __future__ import annotations
 import argparse
 from datetime import UTC, date, datetime
 import json
+import logging
 import re
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Iterator
 import sys
+from time import perf_counter
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -21,6 +23,7 @@ from src.paths import LOCAL_INDEX_DB
 from src.data_layout import migrate_legacy_database_layout
 from src.fetching.models import SessionDetail, SessionReference
 from src.fetching.sessionnet_client import SessionNetClient
+from scripts._logging_utils import configure_file_logging
 
 
 @dataclass(frozen=True)
@@ -55,6 +58,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Only refresh existing sessions; do not insert new ones.",
     )
+    parser.add_argument("--log-level", default="INFO", help="Python logging level.")
     return parser.parse_args()
 
 
@@ -175,6 +179,7 @@ def _populate(
     only_refresh: bool,
     agenda_client: SessionNetClient,
 ) -> None:
+    sessions = list(iter_session_folders(data_root))
     _remove_non_sessionnet_rows(conn, data_root)
     session_count = 0
     agenda_count = 0
@@ -196,16 +201,19 @@ def _populate(
         if row and row[0]
     }
 
-    for session in iter_session_folders(data_root):
+    for session_index, session in enumerate(sessions, start=1):
         is_existing = session.session_id in existing
         is_incomplete = session.session_id in incomplete
         has_stale_agenda = _agenda_summary_is_outdated(session.path)
         has_stale_manifest = _manifest_is_outdated(session.path)
         needs_refresh = refresh_existing or is_incomplete or has_stale_agenda or has_stale_manifest
         if is_existing and not needs_refresh:
+            logging.info("Build progress: %d/%d sessions; skipped up-to-date session %s", session_index, len(sessions), session.session_id)
             continue
         if not is_existing and only_refresh:
+            logging.info("Build progress: %d/%d sessions; skipped new session %s (--only-refresh)", session_index, len(sessions), session.session_id)
             continue
+        logging.info("Build progress: %d/%d sessions; indexing session %s", session_index, len(sessions), session.session_id)
         year, month = _split_date(session.date)
         manifest = load_json(session.path / "manifest.json")
         agenda_summary = load_json(session.path / "agenda_summary.json")
@@ -264,6 +272,7 @@ def _populate(
             doc_count += _insert_documents(conn, session.session_id, documents, retrieved_at)
 
     conn.commit()
+    logging.info("Build complete: indexed_sessions=%d agenda_items=%d documents=%d", session_count, agenda_count, doc_count)
     print(
         "Indexed sessions={0} agenda_items={1} documents={2}".format(
             session_count, agenda_count, doc_count
@@ -326,15 +335,11 @@ def _parse_stored_session_detail(
     try:
         html = detail_path.read_text(encoding="utf-8")
     except OSError as exc:
-        print(f"Warning: could not read {detail_path}: {exc}", file=sys.stderr)
+        logging.warning("Could not read %s: %s", detail_path, exc)
         return None
 
     if not client.contains_agenda_table(html):
-        print(
-            f"Warning: session HTML for {session.session_id} has no recognized agenda table; "
-            "keeping existing derived metadata",
-            file=sys.stderr,
-        )
+        logging.warning("Session HTML for %s has no recognized agenda table; keeping existing derived metadata", session.session_id)
         return None
 
     session_info = manifest.get("session") if isinstance(manifest, dict) else {}
@@ -559,9 +564,18 @@ def _split_date(date_str: str) -> tuple[int | None, int | None]:
 
 def main() -> None:
     args = parse_args()
-    migrate_legacy_database_layout()
-    refresh_existing = args.refresh_existing or args.only_refresh
-    build_index(args.data_root, args.output, refresh_existing, args.only_refresh)
+    log_path = configure_file_logging(Path(__file__).stem, args.log_level)
+    started = perf_counter()
+    logging.info("Starting local index build: data_root=%s output=%s log_file=%s", args.data_root, args.output, log_path)
+    try:
+        migrate_legacy_database_layout()
+        refresh_existing = args.refresh_existing or args.only_refresh
+        build_index(args.data_root, args.output, refresh_existing, args.only_refresh)
+    except Exception:
+        logging.exception("Local index build failed")
+        raise
+    finally:
+        logging.info("Local index build runtime: %.2f seconds", perf_counter() - started)
 
 
 if __name__ == "__main__":

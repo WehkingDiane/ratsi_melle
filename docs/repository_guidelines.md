@@ -47,7 +47,7 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 
 - Ein Modul pro Verantwortlichkeit; umfangreiche Komponenten werden in Unterpakete zerlegt.
 - Öffentliche Funktionen dokumentieren Eingabeparameter, Rückgabewerte und Ausnahmen mittels Docstrings oder vergleichbarer Mechanismen.
-- Laufzeitcode nutzt strukturierte Python-Logger. CLI-Ausgaben gehen standardmaessig an die Konsole; die Weboberflaeche speichert die begrenzten Ausgaben ihrer letzten Datenjobs in `data/db/service_jobs.sqlite`. Dauerhafte Logdateien gehoeren unter `logs/` und werden nicht eingecheckt.
+- Laufzeitcode nutzt strukturierte Python-Logger. CLI-Ausgaben gehen standardmaessig an die Konsole; Fetch- und SQLite-Build-Skripte schreiben zusätzlich Laufzeitlogs nach `logs/<skriptname>.log`, einschließlich Fortschritt, Abschlusszählern und Fehlerdetails. Die Weboberflaeche speichert die begrenzten Ausgaben ihrer letzten Datenjobs in `data/db/service_jobs.sqlite`. Dauerhafte Logdateien gehoeren unter `logs/` und werden nicht eingecheckt.
 - UI-spezifisch: Oberflaechenarbeit erfolgt unter `web/`. Gemeinsam genutzte Integrationslogik bleibt in klar abgegrenzten Modulen unter `src/`.
 
 ## Datenhaltung
