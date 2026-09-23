@@ -178,6 +178,61 @@ def test_git_pre_push_allows_non_main_remote_ref_from_stdin(tmp_path: Path) -> N
     assert result.stderr == ""
 
 
+def test_git_pre_commit_ignores_explanatory_lists_in_project_tasks(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path)
+    project_tasks = repo / "docs" / "project_tasks.md"
+    project_tasks.parent.mkdir()
+    project_tasks.write_text(
+        "## 3. Offene Aufgaben nach Architekturschicht\n\n"
+        "### 3.4 Analyse und Artefakte\n"
+        "- Analyseziele verbindlich festlegen `[Mittel · GPT-6 Sol / Medium]`\n\n"
+        "Das fachliche Zielbild umfasst drei Ebenen:\n\n"
+        "- **Dokument:** Kernaussagen\n"
+        "- **Sitzung:** Ergebnisse verdichten\n\n"
+        "## 4. Abhängigkeiten und sinnvolle Reihenfolge\n",
+        encoding="utf-8",
+    )
+    git(repo, "add", "docs/project_tasks.md")
+    git(repo, "commit", "-m", "Add project task guidance")
+    updated = project_tasks.read_text(encoding="utf-8").replace(
+        "- **Dokument:** Kernaussagen", "- **Dokument:** Kernaussagen und Beschlussbezug"
+    )
+    project_tasks.write_text(updated, encoding="utf-8")
+    git(repo, "add", "docs/project_tasks.md")
+
+    result = run_policy("git-pre-commit", cwd=repo)
+
+    assert result.returncode == 0
+    assert "braucht Aufwand" not in result.stderr
+
+
+def test_git_pre_commit_requires_labels_on_new_backlog_task(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path)
+    project_tasks = repo / "docs" / "project_tasks.md"
+    project_tasks.parent.mkdir()
+    project_tasks.write_text(
+        "## 3. Offene Aufgaben nach Architekturschicht\n\n"
+        "### 3.1 Datenzufuhr\n"
+        "- Neue Aufgabe ohne Einstufung\n\n"
+        "## 4. Abhängigkeiten und sinnvolle Reihenfolge\n",
+        encoding="utf-8",
+    )
+    git(repo, "add", "docs/project_tasks.md")
+    git(repo, "commit", "-m", "Add initial task list")
+    updated = project_tasks.read_text(encoding="utf-8").replace(
+        "## 4. Abhängigkeiten und sinnvolle Reihenfolge\n",
+        "- Weitere neue Aufgabe ohne Einstufung\n\n"
+        "## 4. Abhängigkeiten und sinnvolle Reihenfolge\n",
+    )
+    project_tasks.write_text(updated, encoding="utf-8")
+    git(repo, "add", "docs/project_tasks.md")
+
+    result = run_policy("git-pre-commit", cwd=repo)
+
+    assert result.returncode == 1
+    assert "braucht Aufwand" in result.stderr
+
+
 def test_codex_pre_tool_use_warns_about_destructive_python_delete(tmp_path: Path) -> None:
     repo = init_repo(tmp_path)
     payload = {

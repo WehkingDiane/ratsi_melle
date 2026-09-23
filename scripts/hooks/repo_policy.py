@@ -101,6 +101,9 @@ def unlabeled_added_project_tasks() -> list[str]:
             new_line_number += 1
 
     task_section = False
+    task_subsection = False
+    task_list = False
+    task_list_closed = False
     errors: list[str] = []
     for line_number, line in enumerate(staged_file.stdout.splitlines(), start=1):
         if line == PROJECT_TASKS_SECTION:
@@ -108,13 +111,32 @@ def unlabeled_added_project_tasks() -> list[str]:
             continue
         if line == PROJECT_TASKS_SECTION_END:
             task_section = False
-        if not task_section or line_number not in added_lines:
+            task_subsection = False
+            task_list = False
+            task_list_closed = False
             continue
-        if re.match(r"^\s*[-*]\s+\S", line) and not TASK_MODEL_LABEL_RE.search(line):
+        if task_section and re.match(r"^### 3\.\d+\s", line):
+            task_subsection = True
+            task_list = False
+            task_list_closed = False
+            continue
+        if not task_section or not task_subsection:
+            continue
+        if re.match(r"^\s*[-*]\s+\S", line):
+            if task_list_closed:
+                continue
+            task_list = True
+            if line_number not in added_lines or TASK_MODEL_LABEL_RE.search(line):
+                continue
             errors.append(
                 f"{PROJECT_TASKS_PATH}:{line_number} braucht Aufwand, empfohlenes GPT-Modell "
                 "und Reasoning-Aufwand, z. B. [Mittel · GPT-6 Sol / Medium]."
             )
+        elif line.strip() and task_list:
+            # Only the initial list under each architecture heading contains backlog tasks.
+            # Later lists may explain concepts and should not be treated as actionable tasks.
+            task_list = False
+            task_list_closed = True
     return errors
 
 
