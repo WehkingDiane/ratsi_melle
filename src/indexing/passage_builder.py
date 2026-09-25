@@ -15,6 +15,7 @@ from src.indexing.payload_builder import build_document_payload
 from src.indexing.passages import COLLECTION, MODEL, PIPELINE_VERSION, chunk_pages, extract_pages, file_digest
 from src.indexing.vectorizer import HybridVectorizer
 from src.paths import LOCAL_INDEX_DB, QDRANT_DIR
+from src.config.settings import INDEXER_ALLOW_MODEL_DOWNLOADS
 
 
 def build_passage_index(documents, store, tokenizer, vectorizer_factory, *, limit=None,
@@ -124,7 +125,10 @@ def main(argv=None):
     try:
         store.connection.clear_readiness()
         store.ensure_collection()
-        tokenizer = AutoTokenizer.from_pretrained(MODEL)
+        tokenizer = AutoTokenizer.from_pretrained(
+            MODEL,
+            local_files_only=not INDEXER_ALLOW_MODEL_DOWNLOADS,
+            )
         result = build_passage_index(
             _load_documents(args.db), store, tokenizer,
             lambda: HybridVectorizer(HarrierEmbedder(), BM25Encoder()),

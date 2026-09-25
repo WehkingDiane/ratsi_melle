@@ -6,6 +6,7 @@ import os
 from typing import TYPE_CHECKING
 
 from src.config.secrets import configure_huggingface_token_env
+from src.config.settings import INDEXER_ALLOW_MODEL_DOWNLOADS
 
 # Suppress HuggingFace Hub unauthenticated-request warning – no token needed
 # for public models and we don't want to prompt users to create an account.
@@ -56,6 +57,7 @@ class HarrierEmbedder:
                 _MODEL_NAME,
                 device=device,
                 model_kwargs={"dtype": "auto"},
+                local_files_only=not INDEXER_ALLOW_MODEL_DOWNLOADS,
                 **auth_kwargs,
             )
         return self._model
