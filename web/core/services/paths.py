@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from src.paths import QDRANT_DIR
+
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PRIVATE_DATA_DIR = Path(os.environ.get("RATSI_PRIVATE_DATA_DIR", REPO_ROOT / "data" / "private")).expanduser()
@@ -14,7 +16,6 @@ LANDKREIS_PUBLICATIONS_DB = Path(
 ).expanduser()
 ANALYSIS_WORKFLOW_DB = REPO_ROOT / "data" / "db" / "analysis_workflow.sqlite"
 SERVICE_JOBS_DB = REPO_ROOT / "data" / "db" / "service_jobs.sqlite"
-QDRANT_DIR = REPO_ROOT / "data" / "db" / "qdrant"
 ANALYSIS_OUTPUTS_DIR = REPO_ROOT / "data" / "analysis_outputs"
 ANALYSIS_PROMPTS_DIR = PRIVATE_DATA_DIR / "analysis_prompts"
 PROMPT_TEMPLATES_EXAMPLE = REPO_ROOT / "docs" / "examples" / "prompt_templates.example.json"

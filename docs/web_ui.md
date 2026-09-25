@@ -66,7 +66,7 @@ web/
     templates/settings_ui/
 ```
 
-`core` enthält das gemeinsame Layout, das Dashboard, zentrale CSS-Dateien und gemeinsam genutzte Helfer. `analysis` enthält die Analyse-Navigation, Views und Service-Fassade für Sitzungen, Analysejobs, Prompt-Vorlagen und den Analyse-Start. `data_tools` enthält die Views und Service-Fassade für technische Fetch-, Build- und Servicejob-Funktionen. `search` enthält die semantische Dokumentensuche über den lokalen Qdrant-Vektorindex. `publishing` ist derzeit ein Platzhalter; `settings_ui` verwaltet bereits den optionalen Hugging-Face-Token.
+`core` enthält das gemeinsame Layout, das Dashboard, zentrale CSS-Dateien und gemeinsam genutzte Helfer. `analysis` enthält die Analyse-Navigation, Views und Service-Fassade für Sitzungen, Analysejobs, Prompt-Vorlagen und den Analyse-Start. `data_tools` enthält die Views und Service-Fassade für technische Fetch-, Build- und Servicejob-Funktionen. `search` enthält die semantische Dokumentensuche über den konfigurierten lokalen Qdrant-Vektorindex oder Qdrant-Server. `publishing` ist derzeit ein Platzhalter; `settings_ui` verwaltet bereits den optionalen Hugging-Face-Token.
 
 Analyse-Seitentemplates und fachliche Analyse-Partials liegen ausschließlich unter `web/analysis/templates/analysis/`. Daten-Templates liegen ausschließlich unter `web/data_tools/templates/data_tools/`. `web/core/templates/` bleibt auf `base.html`, das Dashboard und gemeinsam nutzbare Core-Partials beschränkt.
 
@@ -212,3 +212,21 @@ Gerenderte Prompt-Snapshots und private Prompt-Artefakte werden nicht als normal
 - `data/private/prompt_snapshots/` für gerenderte Prompt-Snapshots
 
 Fehlende Datenquellen führen nicht zu Fehlern. Die Oberfläche zeigt stattdessen leere Listen oder Hinweise. Eine fehlerhafte private Prompt-Vorlagen-Datei blockiert die Analyse- und Vorlagenseiten nicht; die UI zeigt dann keine Vorlagen an, bis die private Datei repariert ist.
+
+### Qdrant-Verbindung und Status
+
+Django und seine Build-Unterprozesse nutzen standardmäßig denselben Qdrant-Server
+`http://127.0.0.1:6333` wie die CLI. `RATSI_QDRANT_URL` wählt einen anderen Server.
+Mit `RATSI_QDRANT_MODE=local` und ohne URL wird der lokale Index verwendet. Nach einer Änderung der
+Umgebung Django neu starten. Auf `/daten/vektor/` wird das konfigurierte Ziel
+angezeigt. Dashboard und Vektorstatus prüfen die Verbindung und die Collection;
+sie unterscheiden fehlende Collection, unvollständigen Index, unerreichbaren
+Server und ungültige Konfiguration. Die Suche lädt bei diesen Fehlern keine
+Embedding-Modelle nach. URL-Zugangsdaten und URL-Pfade erscheinen nicht in
+Statusanzeigen oder Suchfehlern.
+
+Ein vorhandener, noch nicht freigegebener Passage-Index wird als unvollständig
+angezeigt. Bis zur Freigabe kann die Suche den bisherigen `ratsi_documents`-Index
+verwenden. Servermarker sind an die URL gebunden und müssen für Web und Build
+zugänglich sein; Einzelheiten stehen in
+[Suchqualität](search_quality.md#qdrant-serverbetrieb).

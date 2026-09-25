@@ -39,7 +39,8 @@
     <h2>Ratsinfo-Vektorstatus</h2>
     {% if vector_status %}
       <dl class="facts">
-        <div><dt>Status</dt><dd class="{% if vector_status.status == 'ok' %}status-ok{% elif vector_status.status == 'needs_update' or vector_status.status == 'missing_qdrant' or vector_status.status == 'missing_local_index' or vector_status.status == 'warning' %}status-warning{% else %}status-muted{% endif %}">{{ vector_status.status }}</dd></div>
+        <div><dt>Status</dt><dd class="{% if vector_status.status == 'ok' %}status-ok{% elif vector_status.status == 'needs_update' or vector_status.status == 'missing_qdrant' or vector_status.status == 'missing_local_index' or vector_status.status == 'warning' or vector_status.status == 'server_unreachable' or vector_status.status == 'missing_collection' or vector_status.status == 'incomplete' %}status-warning{% else %}status-muted{% endif %}">{{ vector_status.status }}</dd></div>
+        <div><dt>Qdrant-Ziel</dt><dd>{{ vector_status.qdrant_target }}</dd></div>
         <div><dt>SQLite-Dokumente</dt><dd>{{ vector_status.sqlite_document_count|default_if_none:"-" }}</dd></div>
         <div><dt>Indexierbare Dokumente</dt><dd>{{ vector_status.indexable_document_count|default_if_none:"-" }}</dd></div>
         <div><dt>Indexierte Vektoren</dt><dd>{{ vector_status.indexed_vector_count|default_if_none:"-" }}</dd></div>
@@ -62,7 +63,8 @@
     <h2>Landkreis-Vektorstatus</h2>
     {% if landkreis_vector_status %}
       <dl class="facts">
-        <div><dt>Status</dt><dd class="{% if landkreis_vector_status.status == 'ok' %}status-ok{% elif landkreis_vector_status.status == 'needs_update' or landkreis_vector_status.status == 'missing_qdrant' or landkreis_vector_status.status == 'missing_local_index' or landkreis_vector_status.status == 'warning' %}status-warning{% else %}status-muted{% endif %}">{{ landkreis_vector_status.status }}</dd></div>
+        <div><dt>Status</dt><dd class="{% if landkreis_vector_status.status == 'ok' %}status-ok{% elif landkreis_vector_status.status == 'needs_update' or landkreis_vector_status.status == 'missing_qdrant' or landkreis_vector_status.status == 'missing_local_index' or landkreis_vector_status.status == 'warning' or landkreis_vector_status.status == 'server_unreachable' or landkreis_vector_status.status == 'missing_collection' or landkreis_vector_status.status == 'incomplete' %}status-warning{% else %}status-muted{% endif %}">{{ landkreis_vector_status.status }}</dd></div>
+        <div><dt>Qdrant-Ziel</dt><dd>{{ landkreis_vector_status.qdrant_target }}</dd></div>
         <div><dt>SQLite-Dokumente</dt><dd>{{ landkreis_vector_status.sqlite_document_count|default_if_none:"-" }}</dd></div>
         <div><dt>Indexierbare Dokumente</dt><dd>{{ landkreis_vector_status.indexable_document_count|default_if_none:"-" }}</dd></div>
         <div><dt>Indexierte Vektoren</dt><dd>{{ landkreis_vector_status.indexed_vector_count|default_if_none:"-" }}</dd></div>

@@ -48,3 +48,4 @@ data/models/*
 .claude/
 
 tmp/
+archive/

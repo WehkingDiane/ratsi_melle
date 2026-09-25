@@ -7,7 +7,7 @@ Dieses Projekt sammelt öffentliche Sitzungs- und Dokumentdaten aus dem Ratsinfo
 - Sitzungen, Tagesordnungspunkte und Dokumente aus SessionNet erfassen
 - lokale und online-basierte Indizes für Recherche aufbauen
 - Dokumente für KI-gestützte Sitzungsbriefings und TOP-Analysen vorbereiten
-- semantische Suche über einen lokalen Qdrant-Index bereitstellen
+- semantische Suche über einen lokalen Qdrant-Index oder Qdrant-Server bereitstellen
 
 ## Oberflächen
 
@@ -78,7 +78,7 @@ Sie ist danach standardmäßig unter `http://127.0.0.1:8000/` erreichbar. Detail
 - Landkreis-Veröffentlichungen: `data/db/landkreis_publications.sqlite`
 - Lokaler Vektorindex: `data/db/qdrant/`; Ratsinfo verwendet den neuen Abschnittsindex `ratsi_passages` mit Harrier und BM25. Der bisherige Index `ratsi_documents` bleibt bis zum vollstaendigen Erstaufbau aktiv. Landkreis nutzt weiterhin `landkreis_publications`.
 - Django-Datenpflege unter `/daten/`: SessionNet- und Landkreis-Fetch-, SQLite-Build- und Vektorindex-Jobs starten; die Vektorseite zeigt Status fuer Ratsinfo und Landkreis
-- Django-Suche unter `/suche/`: semantische Dokumentensuche ueber den lokalen Qdrant-Vektorindex; Standard ist Ratsinfo. Fuer Landkreis-Treffer zuerst `python scripts/build_landkreis_vector_index.py` oder `/daten/vektor/` nutzen; fuer Ratsinfo `python scripts/build_vector_index.py` oder `/daten/vektor/`
+- Django-Suche unter `/suche/`: semantische Dokumentensuche ueber den konfigurierten Qdrant-Vektorindex; Standard ist Ratsinfo. Fuer Landkreis-Treffer zuerst `python scripts/build_landkreis_vector_index.py` oder `/daten/vektor/` nutzen; fuer Ratsinfo `python scripts/build_vector_index.py` oder `/daten/vektor/`
 - Analyse-Workflow und v2-Ausgaben: [docs/analysis_outputs.md](docs/analysis_outputs.md)
 - Analyse-Start unter `/analyse/starten/`: Sitzung vorbereiten, TOPs kritisch analysieren oder Prompt/Grundlage für manuelle ChatGPT-Nutzung erzeugen; vorbereitete Jobs lassen sich anschließend auf derselben Jobseite an einen API-Provider absenden
 - Antwort-Leseansicht unter `/analyse/antworten/`: fertig ausgeführte Analysen ohne technische Job- und Promptdetails lesen
@@ -139,3 +139,46 @@ Die gemeinsame Grundlagen-Doku für Zielsystem, Fetching, Datenhaltung, Vektorin
 - Aktueller Stand der Django-Weboberfläche: [docs/web_ui.md](docs/web_ui.md)
 - Django-Zielkonzept: [docs/django_ui_concept.md](docs/django_ui_concept.md)
 - Offene Aufgaben und Ausbaupfade: [docs/project_tasks.md](docs/project_tasks.md)
+
+## Qdrant: lokaler Speicher oder Server
+
+Standardmäßig verwenden Vektorbuilds, Evaluation, Websuche und Statusanzeigen den
+Qdrant-Server unter `http://127.0.0.1:6333`. Das gilt auch für
+`python scripts/build_vector_index.py`, ohne dass eine Variable gesetzt werden
+muss. `RATSI_QDRANT_URL` kann einen anderen Server angeben. Bei Serverfehlern
+gibt es keinen automatischen lokalen Rückfall.
+
+Vor dem ersten Vektor-Build einen lokalen Qdrant-Server starten. Dafür wird
+Docker Desktop oder Docker Engine benötigt. Die folgenden Befehle funktionieren
+in PowerShell und unter WSL; das benannte Docker-Volume erhält die Daten auch
+nach einem Neustart des Containers:
+
+```text
+docker volume create ratsi-qdrant-storage
+docker run -d --name ratsi-qdrant -p 127.0.0.1:6333:6333 -v ratsi-qdrant-storage:/qdrant/storage qdrant/qdrant:v1.19.1
+```
+
+Mit `curl http://127.0.0.1:6333/healthz` (WSL) oder
+`Invoke-RestMethod http://127.0.0.1:6333/healthz` (PowerShell) prüfen,
+ob der Server erreichbar ist. Später mit `docker stop ratsi-qdrant` anhalten
+und mit `docker start ratsi-qdrant` wieder starten. Der Server ist nur an
+`127.0.0.1` des Docker-Hosts gebunden. Weitere Optionen stehen in der
+[Qdrant-Installationsanleitung](https://qdrant.tech/documentation/installation/).
+
+Für den bisherigen lokalen Speicher `data/db/qdrant/` `RATSI_QDRANT_URL` entfernen
+und `RATSI_QDRANT_MODE=local` setzen. Erst dann wirkt `--qdrant-dir` für einen
+abweichenden lokalen Pfad. CLI und Django müssen dieselben Einstellungen nutzen.
+Ungültige Modi und Serveradressen werden als nicht verfügbar gemeldet. Enthält die
+Serveradresse Zugangsdaten oder einen URL-Pfad, zeigt die Oberfläche nur Schema,
+Host und Port; Verbindungsfehler geben keine Zugangsdaten aus.
+
+```powershell
+python scripts/build_vector_index.py
+```
+
+Für die Standardadresse ist diese Einstellung nicht mehr nötig. Ein anderer
+Server wird unter WSL mit `export RATSI_QDRANT_URL=...` gewählt. Änderungen an der
+Umgebung werden nach einem Neustart der betroffenen Prozesse wirksam. Die
+Einstellung kopiert keine Daten. Die vorhandenen Collections müssen vor der echten Umschaltung gesondert
+migriert und geprüft werden. Details zu Freigabe, Betrieb und Rückweg stehen in
+[Suchqualität](docs/search_quality.md#qdrant-serverbetrieb).
