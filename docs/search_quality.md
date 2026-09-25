@@ -99,9 +99,9 @@ Qualitaetsgewinne oder Laufzeiten ableiten.
 
 ## Qdrant-Serverbetrieb
 
-`src/qdrant_connection.py` entscheidet zentral: Eine nicht leere
+`src/config/settings.py` liest und validiert Modus, URL und Statuspfad.
 Ohne zusätzliche Einstellung wird der Server `http://127.0.0.1:6333` genutzt.
-`RATSI_QDRANT_URL` (HTTP oder HTTPS) wählt einen anderen Server. Das gilt auch für
+Eine nicht leere `RATSI_QDRANT_URL` (HTTP oder HTTPS) wählt einen anderen Server. Das gilt auch für
 `--legacy-document-index`, den Landkreis-Build und `evaluate_search.py`, damit
 Build und Suche dasselbe Ziel sehen. Für den bisherigen lokalen Pfad
 `RATSI_QDRANT_URL` entfernen und `RATSI_QDRANT_MODE=local` setzen. `--qdrant-dir`
@@ -135,7 +135,9 @@ Vor jedem Passage-Build wird dessen Freigabe zurückgenommen. Erst ein fehlerfre
 Lauf mit vollständigen, bestätigten Generationen aller aktuellen Dokumente und
 ohne ausstehende Änderungen schreibt den Marker atomar. Auch `--limit` prüft die
 Fingerprints aller Dokumente; die Grenze beschränkt nur die neu aufgebauten
-Dokumente. Der Servermarker enthält zusätzlich URL und exakte Punktzahl. Die
+Dokumente. Der Servermarker enthält nur den SHA-256-Hash der URL und die exakte Punktzahl.
+Bisherige Marker mit Klartext-URL werden nicht mehr akzeptiert; ein vollständiger
+Passage-Build schreibt einen neuen Marker. Die
 Suche prüft, dass Punktzahl und Anzahl der `committed`-Punkte dazu passen.
 Ein kopierter lokaler Marker oder die bloße Existenz einer migrierten Collection
 aktiviert die Passage-Suche nicht. Beim Ersetzen oder Wiederherstellen einer

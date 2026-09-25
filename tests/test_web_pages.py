@@ -62,6 +62,21 @@ def test_analysis_pages_load(path: str, client) -> None:
     assert response.status_code == 200
 
 
+@pytest.mark.parametrize("name,value", [
+    ("RATSI_QDRANT_MODE", "unknown"),
+    ("RATSI_QDRANT_URL", "http://user:secret@example.test:invalid"),
+])
+def test_invalid_qdrant_settings_keep_status_and_search_pages_available(client, monkeypatch, name, value):
+    from search import services as search_services
+
+    monkeypatch.setenv(name, value)
+    monkeypatch.setattr(search_services, "_semantic_search_dependency_error", lambda: "")
+    for path in ("/daten/status/", "/daten/vektor/", "/suche/?q=Schule"):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert "secret" not in response.content.decode("utf-8")
+
+
 def test_nested_pages_use_absolute_static_urls(client) -> None:
     response = client.get("/analyse/starten/")
     content = response.content.decode("utf-8")

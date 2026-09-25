@@ -7,6 +7,7 @@ import json
 import pytest
 
 from src.analysis.vector_store import DocumentVectorStore
+from src.config.settings import QdrantSettingsError, load_qdrant_settings
 from src.qdrant_connection import QdrantConnection, collection_state, probe_qdrant
 
 # Capture the real factory before the autouse isolation fixture replaces it.
@@ -81,6 +82,60 @@ def test_explicit_local_mode_uses_path_without_server_url(tmp_path, monkeypatch)
     assert QdrantConnection.from_env(tmp_path / "local").url == ""
 
 
+@pytest.mark.parametrize("name,value", [
+    ("RATSI_QDRANT_MODE", "other"),
+    ("RATSI_QDRANT_URL", "ftp://example.test"),
+    ("RATSI_QDRANT_URL", "http://example.test:invalid"),
+    ("RATSI_QDRANT_URL", "http://example.test/?token=secret"),
+    ("RATSI_QDRANT_STATE_DIR", ""),
+])
+def test_invalid_qdrant_settings_do_not_echo_values(monkeypatch, name, value):
+    monkeypatch.setenv(name, value)
+    with pytest.raises(QdrantSettingsError) as error:
+        load_qdrant_settings()
+    if value:
+        assert value not in str(error.value)
+
+
+def test_credential_url_is_used_only_for_connection_and_hashed_marker(tmp_path, monkeypatch):
+    secret = "test-password"
+    url = f"https://user:{secret}@example.test:6333/prefix"
+    monkeypatch.setenv("RATSI_QDRANT_URL", url)
+    config = QdrantConnection.from_env(tmp_path / "absent")
+    factory = Mock()
+    monkeypatch.setattr("qdrant_client.QdrantClient", factory)
+    factory.return_value.get_collections.side_effect = OSError(url)
+
+    with pytest.raises(RuntimeError) as error:
+        CREATE_CLIENT(config)
+    factory.assert_called_once_with(url=url, timeout=10)
+    assert secret not in config.target
+    assert secret not in repr(config)
+    assert secret not in repr(load_qdrant_settings())
+    assert "/prefix" not in config.target
+    assert secret not in str(error.value)
+
+    client = Mock()
+    client.count.return_value.count = 1
+    config.write_readiness(client, {})
+    marker = config.ready_path.read_text(encoding="utf-8")
+    assert secret not in marker
+    assert "url_sha256" in marker
+
+
+def test_invalid_qdrant_configuration_is_unavailable_in_vector_status(tmp_path, monkeypatch):
+    from src.indexing.vector_status import landkreis_vector_index_status, vector_index_status
+
+    monkeypatch.setenv("RATSI_QDRANT_MODE", "invalid")
+    for status_fn in (vector_index_status, landkreis_vector_index_status):
+        status = status_fn(tmp_path / "absent.sqlite", tmp_path / "absent")
+        assert status["status"] == "unavailable"
+        assert status["qdrant_exists"] is False
+        assert "RATSI_QDRANT_MODE" in status["warnings"][0] or any(
+            "RATSI_QDRANT_MODE" in warning for warning in status["warnings"]
+        )
+
+
 def test_default_vector_build_targets_server(tmp_path, monkeypatch):
     from qdrant_client import QdrantClient
     from scripts import build_vector_index
@@ -97,7 +152,7 @@ def test_default_vector_build_targets_server(tmp_path, monkeypatch):
     monkeypatch.setattr(QdrantConnection, "create_client", test_client)
     monkeypatch.setattr(build_vector_index, "_load_documents", lambda db: [])
     monkeypatch.setitem(__import__("sys").modules, "transformers", SimpleNamespace(
-        AutoTokenizer=SimpleNamespace(from_pretrained=lambda model: Mock())))
+        AutoTokenizer=SimpleNamespace(from_pretrained=lambda model, **kwargs: Mock())))
     db = tmp_path / "documents.sqlite"
     db.touch()
     build_vector_index.main(["--db", str(db), "--qdrant-dir", str(tmp_path / "unused")])
@@ -163,6 +218,19 @@ def test_server_status_unreachable_is_distinct(tmp_path, monkeypatch):
     assert status["status"] == "server_unreachable"
     assert not status["qdrant_exists"]
     assert probe_qdrant(QdrantConnection.from_env(tmp_path / "absent"))["state"] == "server_unreachable"
+
+
+def test_status_survives_client_cleanup_failure(tmp_path, monkeypatch):
+    monkeypatch.setenv("RATSI_QDRANT_URL", "http://test.invalid:6333")
+    client = Mock()
+    client.get_collections.side_effect = OSError("offline")
+    client.close.side_effect = OSError("cleanup failed")
+    monkeypatch.setattr(QdrantConnection, "create_client", lambda self: client)
+
+    status = probe_qdrant(QdrantConnection.from_env(tmp_path / "absent"))
+
+    assert status["state"] == "server_unreachable"
+    assert status["available"] is False
 
 
 def test_explicit_evaluation_collection_is_preserved(tmp_path, remote):
@@ -236,7 +304,7 @@ def test_passage_build_only_marks_complete_current_documents(tmp_path, monkeypat
     docs = [doc, {**doc, 'id': 2, 'url': 'https://example.org/second'}]
     monkeypatch.setattr(build_vector_index, '_load_documents', lambda db: docs)
     monkeypatch.setitem(sys.modules, 'transformers', SimpleNamespace(
-        AutoTokenizer=SimpleNamespace(from_pretrained=lambda model: Tokenizer())))
+        AutoTokenizer=SimpleNamespace(from_pretrained=lambda model, **kwargs: Tokenizer())))
     monkeypatch.setattr(passage_builder, 'HybridVectorizer', lambda *args: Vectorizer())
     args = ['--db', str(db), '--qdrant-dir', str(tmp_path / 'absent')]
     passage_builder.main(args)

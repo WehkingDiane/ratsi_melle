@@ -8,6 +8,7 @@ from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
 
+from src.config.settings import QdrantSettingsError
 from core.services import paths
 from core.services.db import rows
 
@@ -117,7 +118,12 @@ def search_semantic_documents(
     qdrant_dir = Path(paths.QDRANT_DIR)
     from src.qdrant_connection import QdrantConnection
 
-    if not QdrantConnection.from_env(qdrant_dir).url and not qdrant_dir.exists():
+    try:
+        connection = QdrantConnection.from_env(qdrant_dir)
+    except QdrantSettingsError as exc:
+        return {"results": [], "error": f"Qdrant-Konfiguration ungültig: {exc}", "warning": ""}
+
+    if not connection.url and not qdrant_dir.exists():
         return {
             "results": [],
             "error": (
@@ -147,7 +153,8 @@ def search_semantic_documents(
             return {"results": [], "error": missing_collection_text, "warning": ""}
         return {
             "results": [],
-            "error": f"Fehler bei der Vektorsuche: {exc}",
+            "error": ("Qdrant-Server nicht erreichbar" if connection.url
+                      else f"Fehler bei der Vektorsuche: {exc}"),
             "warning": "",
         }
     finally:

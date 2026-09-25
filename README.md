@@ -151,6 +151,9 @@ gibt es keinen automatischen lokalen Rückfall.
 Für den bisherigen lokalen Speicher `data/db/qdrant/` `RATSI_QDRANT_URL` entfernen
 und `RATSI_QDRANT_MODE=local` setzen. Erst dann wirkt `--qdrant-dir` für einen
 abweichenden lokalen Pfad. CLI und Django müssen dieselben Einstellungen nutzen.
+Ungültige Modi und Serveradressen werden als nicht verfügbar gemeldet. Enthält die
+Serveradresse Zugangsdaten oder einen URL-Pfad, zeigt die Oberfläche nur Schema,
+Host und Port; Verbindungsfehler geben keine Zugangsdaten aus.
 
 ```powershell
 python scripts/build_vector_index.py

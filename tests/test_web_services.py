@@ -2575,3 +2575,48 @@ def test_dashboard_reports_server_collection_state(tmp_path, monkeypatch):
     client.get_collections.return_value = SimpleNamespace(collections=[SimpleNamespace(name="ratsi_documents")])
     client.get_collection.return_value = SimpleNamespace(points_count=1)
     assert status_service.service_status()["qdrant_summary"] == "bereit"
+
+
+@pytest.mark.parametrize("name,value", [
+    ("RATSI_QDRANT_MODE", "invalid"),
+    ("RATSI_QDRANT_URL", "http://example.test:invalid"),
+])
+def test_invalid_qdrant_configuration_is_reported_without_server_error(tmp_path, monkeypatch, name, value):
+    from core.services import status as status_service
+
+    monkeypatch.setenv(name, value)
+    monkeypatch.setattr(status_service.paths, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(status_service.paths, "LOCAL_INDEX_DB", tmp_path / "absent.sqlite")
+    monkeypatch.setattr(status_service.paths, "QDRANT_DIR", tmp_path / "absent")
+    monkeypatch.setattr(search_services, "QDRANT_DIR", tmp_path / "absent")
+    monkeypatch.setattr(search_services, "_semantic_search_dependency_error", lambda: "")
+
+    status = status_service.service_status()
+    search = search_services.search_semantic_documents("Schule")
+    assert status["qdrant_state"] == "unavailable"
+    assert status["qdrant_exists"] is False
+    assert "Qdrant-Konfiguration ungültig" in status["qdrant_summary"]
+    assert "Qdrant-Konfiguration ungültig" in search["error"]
+    assert value not in status["qdrant_summary"] + search["error"]
+
+
+def test_credential_url_is_not_exposed_by_status_or_search(tmp_path, monkeypatch):
+    from core.services import status as status_service
+    from src.qdrant_connection import QdrantConnection
+    from unittest.mock import Mock
+
+    secret = "private-password"
+    url = f"https://user:{secret}@example.test:6333/prefix"
+    monkeypatch.setenv("RATSI_QDRANT_URL", url)
+    monkeypatch.setattr(status_service.paths, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(status_service.paths, "LOCAL_INDEX_DB", tmp_path / "absent.sqlite")
+    monkeypatch.setattr(status_service.paths, "QDRANT_DIR", tmp_path / "absent")
+    monkeypatch.setattr(search_services, "QDRANT_DIR", tmp_path / "absent")
+    monkeypatch.setattr(search_services, "_semantic_search_dependency_error", lambda: "")
+    monkeypatch.setattr(QdrantConnection, "create_client", Mock(side_effect=OSError(url)))
+
+    status = status_service.service_status()
+    search = search_services.search_semantic_documents("Schule")
+    assert secret not in str(status)
+    assert secret not in str(search)
+    assert status["qdrant_path"] == "https://example.test:6333"

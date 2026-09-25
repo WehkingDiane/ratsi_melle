@@ -2,45 +2,37 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from hashlib import sha256
 import json
-import os
 from pathlib import Path
 from urllib.parse import urlsplit
 
 from src import paths
-
-DEFAULT_QDRANT_URL = "http://127.0.0.1:6333"
+from src.config.settings import load_qdrant_settings
 
 
 @dataclass(frozen=True)
 class QdrantConnection:
-    """Resolve the environment once per operation; a URL takes precedence."""
+    """Use validated settings for a Qdrant operation."""
 
     path: Path
-    url: str = ""
+    url: str = field(default="", repr=False)
     state_dir: Path = paths.DB_DIR / "qdrant_server_state"
 
     @classmethod
     def from_env(cls, path: Path = paths.QDRANT_DIR) -> QdrantConnection:
         """Use the configured server unless local mode is selected."""
-        mode = os.environ.get("RATSI_QDRANT_MODE", "server").strip().lower()
-        if mode not in {"server", "local"}:
-            raise ValueError("RATSI_QDRANT_MODE muss 'server' oder 'local' sein.")
-        configured_url = os.environ.get("RATSI_QDRANT_URL", "").strip()
-        url = (configured_url or (DEFAULT_QDRANT_URL if mode == "server" else "")).rstrip("/")
-        if url:
-            parsed = urlsplit(url)
-            if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.query or parsed.fragment:
-                raise ValueError("RATSI_QDRANT_URL muss eine HTTP(S)-Serveradresse sein.")
-        state = Path(os.environ.get("RATSI_QDRANT_STATE_DIR", paths.DB_DIR / "qdrant_server_state")).expanduser()
-        return cls(Path(path), url, state)
+        settings = load_qdrant_settings()
+        return cls(Path(path), settings.url, settings.state_dir)
 
     @property
     def target(self) -> str:
-        """Return the configured storage destination."""
-        return self.url or str(self.path)
+        """Return a public destination without credentials or URL paths."""
+        if not self.url:
+            return str(self.path)
+        parsed = urlsplit(self.url)
+        return f"{parsed.scheme}://{parsed.netloc.rsplit('@', 1)[-1]}"
 
     @property
     def ready_path(self) -> Path:
@@ -53,12 +45,17 @@ class QdrantConnection:
         from qdrant_client import QdrantClient
 
         if self.url:
-            client = QdrantClient(url=self.url, timeout=10)
+            client = None
             try:
+                client = QdrantClient(url=self.url, timeout=10)
                 client.get_collections()
-            except Exception as exc:
-                client.close()
-                raise RuntimeError(f"Qdrant-Server nicht erreichbar: {self.url}: {exc}") from exc
+            except Exception:
+                if client is not None:
+                    try:
+                        client.close()
+                    except Exception:
+                        pass
+                raise RuntimeError("Qdrant-Server nicht erreichbar.") from None
             return client
         return QdrantClient(path=str(self.path))
 
@@ -72,7 +69,7 @@ class QdrantConnection:
             return False
         if not self.url:
             return True  # Preserve existing local marker format.
-        if marker.get("url") != self.url or not marker.get("points_count"):
+        if marker.get("url_sha256") != sha256(self.url.encode()).hexdigest() or not marker.get("points_count"):
             return False
         from qdrant_client.models import FieldCondition, Filter, MatchValue
 
@@ -90,7 +87,8 @@ class QdrantConnection:
         """Atomically record the completed build for the selected backend."""
         marker = dict(metadata)
         if self.url:
-            marker.update(url=self.url, points_count=client.count("ratsi_passages", exact=True).count)
+            marker.update(url_sha256=sha256(self.url.encode()).hexdigest(),
+                          points_count=client.count("ratsi_passages", exact=True).count)
         path = self.ready_path
         path.parent.mkdir(parents=True, exist_ok=True)
         temporary = path.with_suffix(".tmp")
@@ -130,7 +128,10 @@ def probe_qdrant(connection: QdrantConnection) -> dict:
     except Exception as exc:
         label = "Server nicht erreichbar" if connection.url else "Vektorindex nicht lesbar"
         return {"state": "server_unreachable" if connection.url else "warning",
-                "message": f"{label}: {exc}", "available": False}
+                "message": label if connection.url else f"{label}: {exc}", "available": False}
     finally:
         if client is not None:
-            client.close()
+            try:
+                client.close()
+            except Exception:
+                pass  # A cleanup error must not turn a status response into HTTP 500.

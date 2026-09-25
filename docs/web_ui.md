@@ -220,8 +220,10 @@ Django und seine Build-Unterprozesse nutzen standardmäßig denselben Qdrant-Ser
 Mit `RATSI_QDRANT_MODE=local` und ohne URL wird der lokale Index verwendet. Nach einer Änderung der
 Umgebung Django neu starten. Auf `/daten/vektor/` wird das konfigurierte Ziel
 angezeigt. Dashboard und Vektorstatus prüfen die Verbindung und die Collection;
-sie unterscheiden fehlende Collection, unvollständigen Index und unerreichbaren
-Server. Die Suche lädt bei diesen Fehlern keine Embedding-Modelle nach.
+sie unterscheiden fehlende Collection, unvollständigen Index, unerreichbaren
+Server und ungültige Konfiguration. Die Suche lädt bei diesen Fehlern keine
+Embedding-Modelle nach. URL-Zugangsdaten und URL-Pfade erscheinen nicht in
+Statusanzeigen oder Suchfehlern.
 
 Ein vorhandener, noch nicht freigegebener Passage-Index wird als unvollständig
 angezeigt. Bis zur Freigabe kann die Suche den bisherigen `ratsi_documents`-Index

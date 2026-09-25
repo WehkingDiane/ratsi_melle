@@ -74,6 +74,7 @@ Jeder offene Punkt kann eine grobe Aufwandseinstufung und eine Modell-Empfehlung
 
 #### Konkrete Aufgaben
 
+- Qdrant-Zugangsdaten aus der Verbindungs-URL in einen getrennten Secret-Wert überführen (z. B. API-Key über `src/config/secrets.py`); dabei CLI-Ausgaben, Job-Logs, Fehlerketten und Bibliotheks-Logging auf Offenlegung prüfen. `[Mittel · GPT-6 Sol / Medium]`
 - Speicher- und Datenbankzugriffe auf Entkopplung prüfen: Repository auf fest codierte Datenbankpfade, Qdrant-Pfade/-URLs und sonstige Speicherorte untersuchen; feststellen, ob fachlicher Code physische Speicherorte oder konkrete Speichertechnologien direkt kennt. Problemstellen dokumentieren und prüfen, ob Verbindungen und Pfade zentral konfigurierbar bzw. über klar definierte Storage-/Service-Schnittstellen gekapselt sind. Zunächst keine Implementierungsänderungen vornehmen. `[Mittel · GPT-6 Sol / Medium]`
 - Datenqualität und Metadatenkonsistenz mit Regressionstests absichern `[Mittel · GPT-6 Sol / Low]`
 - Build-Workflows robust halten und Änderungen am Quellformat kontrolliert übernehmen `[Mittel · GPT-6 Sol / Medium]`

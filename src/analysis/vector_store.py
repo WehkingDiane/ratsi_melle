@@ -84,7 +84,8 @@ class DocumentVectorStore:
                                      prefer_passages=prefer_passages)
         except Exception as exc:
             label = "Qdrant-Server nicht erreichbar" if self.connection.url else "Qdrant nicht lesbar"
-            raise RuntimeError(f"{label}: {exc}") from exc
+            message = label if self.connection.url else f"{label}: {exc}"
+            raise RuntimeError(message) from (None if self.connection.url else exc)
         if not state["searchable"]:
             raise RuntimeError(state["message"])
         self.collection_name = state["collection_name"]
@@ -294,7 +295,10 @@ class DocumentVectorStore:
             info = client.get_collection(collection_name=self.collection_name)
             return info.points_count or 0
         except Exception as exc:
-            raise RuntimeError(f"Qdrant-Collection nicht lesbar: {self.collection_name}: {exc}") from exc
+            message = f"Qdrant-Collection nicht lesbar: {self.collection_name}"
+            if not self.connection.url:
+                message = f"{message}: {exc}"
+            raise RuntimeError(message) from (None if self.connection.url else exc)
 
     def get_indexed_ids(self) -> set[int]:
         """Return the set of all document IDs that have already been indexed."""
@@ -318,7 +322,10 @@ class DocumentVectorStore:
                 offset = next_offset
             return ids
         except Exception as exc:
-            raise RuntimeError(f"Qdrant-Collection nicht lesbar: {self.collection_name}: {exc}") from exc
+            message = f"Qdrant-Collection nicht lesbar: {self.collection_name}"
+            if not self.connection.url:
+                message = f"{message}: {exc}"
+            raise RuntimeError(message) from (None if self.connection.url else exc)
 
     def get_ids_with_payload_field(self, field: str) -> set[int]:
         """Return indexed integer IDs whose payload contains the requested field."""
@@ -343,7 +350,10 @@ class DocumentVectorStore:
                 offset = next_offset
             return ids
         except Exception as exc:
-            raise RuntimeError(f"Qdrant-Collection nicht lesbar: {self.collection_name}: {exc}") from exc
+            message = f"Qdrant-Collection nicht lesbar: {self.collection_name}"
+            if not self.connection.url:
+                message = f"{message}: {exc}"
+            raise RuntimeError(message) from (None if self.connection.url else exc)
 
     def update_payloads(self, points: list[dict]) -> None:
         """Merge point-specific payload fields without replacing stored vectors."""

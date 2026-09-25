@@ -5,6 +5,7 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
+from src.config.settings import QdrantSettingsError
 from src.qdrant_connection import QdrantConnection, probe_qdrant
 
 from . import paths
@@ -25,8 +26,14 @@ def service_status() -> dict[str, Any]:
     local_document_count = _table_count(paths.LOCAL_INDEX_DB, "documents")
     online_session_count = _table_count(online_index_db, "sessions")
     raw_session_count = _raw_session_directory_count(raw_data_root)
-    connection = QdrantConnection.from_env(paths.QDRANT_DIR)
-    qdrant = probe_qdrant(connection)
+    try:
+        connection = QdrantConnection.from_env(paths.QDRANT_DIR)
+    except QdrantSettingsError as exc:
+        qdrant = {"state": "unavailable", "message": f"Qdrant-Konfiguration ungültig: {exc}", "available": False}
+        qdrant_target = "Qdrant-Konfiguration ungültig"
+    else:
+        qdrant = probe_qdrant(connection)
+        qdrant_target = connection.target
 
     return {
         "local_index_exists": local_session_count is not None or local_document_count is not None,
@@ -36,7 +43,7 @@ def service_status() -> dict[str, Any]:
         "raw_data_exists": raw_session_count is not None,
         "local_index_path": "data/db/local_index.sqlite",
         "online_index_path": "data/db/online_session_index.sqlite",
-        "qdrant_path": connection.target,
+        "qdrant_path": qdrant_target,
         "raw_data_path": "data/raw/",
         "raw_session_count": raw_session_count,
         "raw_data_summary": _count_label(raw_session_count, "Sitzungsordner"),

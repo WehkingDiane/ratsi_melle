@@ -6,6 +6,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from src.config.settings import QdrantSettingsError
 from src.indexing.id_strategy import stable_document_id
 from src.qdrant_connection import QdrantConnection, collection_state
 from src.paths import LANDKREIS_PUBLICATIONS_DB, LOCAL_INDEX_DB, QDRANT_DIR
@@ -22,13 +23,18 @@ def vector_index_status(
 
     db_path = Path(local_index_db)
     qdrant_path = Path(qdrant_dir)
-    connection = QdrantConnection.from_env(qdrant_path)
+    try:
+        connection = QdrantConnection.from_env(qdrant_path)
+        config_error = None
+    except QdrantSettingsError as exc:
+        connection = None
+        config_error = str(exc)
     warnings: list[str] = []
     status: dict[str, Any] = {
         "local_index_exists": db_path.is_file(),
-        "qdrant_exists": bool(connection.url) or qdrant_path.exists(),
-        "qdrant_target": connection.target,
-        "qdrant_mode": "server" if connection.url else "local",
+        "qdrant_exists": (bool(connection.url) or qdrant_path.exists()) if connection else False,
+        "qdrant_target": connection.target if connection else "Qdrant-Konfiguration ungültig",
+        "qdrant_mode": ("server" if connection.url else "local") if connection else "unavailable",
         "sqlite_document_count": None,
         "indexable_document_count": None,
         "indexed_vector_count": None,
@@ -47,6 +53,11 @@ def vector_index_status(
         status["status"] = "missing_local_index"
     else:
         current_ids = _read_sqlite_document_ids(db_path, status, warnings)
+
+    if config_error:
+        warnings.append(f"Qdrant-Konfiguration ungültig: {config_error}")
+        status["status"] = "unavailable"
+        return status
 
     indexed_ids: set[int] | None = None
     if not status["qdrant_exists"]:
@@ -87,13 +98,18 @@ def landkreis_vector_index_status(
 
     db_path = Path(landkreis_db)
     qdrant_path = Path(qdrant_dir)
-    connection = QdrantConnection.from_env(qdrant_path)
+    try:
+        connection = QdrantConnection.from_env(qdrant_path)
+        config_error = None
+    except QdrantSettingsError as exc:
+        connection = None
+        config_error = str(exc)
     warnings: list[str] = []
     status: dict[str, Any] = {
         "local_index_exists": db_path.is_file(),
-        "qdrant_exists": bool(connection.url) or qdrant_path.exists(),
-        "qdrant_target": connection.target,
-        "qdrant_mode": "server" if connection.url else "local",
+        "qdrant_exists": (bool(connection.url) or qdrant_path.exists()) if connection else False,
+        "qdrant_target": connection.target if connection else "Qdrant-Konfiguration ungültig",
+        "qdrant_mode": ("server" if connection.url else "local") if connection else "unavailable",
         "sqlite_document_count": None,
         "indexable_document_count": None,
         "indexed_vector_count": None,
@@ -112,6 +128,11 @@ def landkreis_vector_index_status(
         status["status"] = "missing_local_index"
     else:
         current_ids = _read_landkreis_document_ids(db_path, status, warnings)
+
+    if config_error:
+        warnings.append(f"Qdrant-Konfiguration ungültig: {config_error}")
+        status["status"] = "unavailable"
+        return status
 
     indexed_ids: set[int] | None = None
     if not status["qdrant_exists"]:
@@ -312,7 +333,7 @@ def _read_qdrant_ids(
         return indexed_ids
     except Exception as exc:  # noqa: BLE001 - Qdrant can fail for locks/schema/runtime issues.
         label = "Qdrant-Server nicht erreichbar" if connection.url else "Qdrant/Vektorindex konnte nicht gelesen werden"
-        warnings.append(f"{label}: {exc}")
+        warnings.append(label if connection.url else f"{label}: {exc}")
         status["status"] = "server_unreachable" if connection.url else "warning"
         status["qdrant_exists"] = False
         return None
@@ -321,5 +342,6 @@ def _read_qdrant_ids(
             try:
                 client.close()
             except Exception as exc:  # noqa: BLE001 - Report cleanup failures in the status.
-                warnings.append(f"Qdrant-Verbindung konnte nicht geschlossen werden: {exc}")
+                warnings.append("Qdrant-Verbindung konnte nicht geschlossen werden" if connection.url
+                                else f"Qdrant-Verbindung konnte nicht geschlossen werden: {exc}")
                 status["status"] = "warning"
