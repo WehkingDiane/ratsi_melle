@@ -55,6 +55,7 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 - Rohdaten bleiben unverändert in `data/raw/`. Eine Reproduzierbarkeit der Verarbeitungsschritte ist sicherzustellen.
 - Verarbeitete Daten in `data/processed/` enthalten nur interne Normalisierungen/Ableitungen ohne SQLite-Infrastruktur.
 - SQLite-Datenbanken liegen unter `data/db/`.
+- Qdrant verwendet ohne `RATSI_QDRANT_URL` den lokalen Pfad `data/db/qdrant/`, andernfalls den konfigurierten Server. Dessen Freigabemarker liegen URL-bezogen unter `data/db/qdrant_server_state/` oder `RATSI_QDRANT_STATE_DIR`; lokale Marker werden nicht auf Server übertragen. Tests verwenden ausschließlich temporäre Stores oder kontrollierte Testserver.
 - Landkreis-Veröffentlichungen nutzen eine getrennte Datenbank `data/db/landkreis_publications.sqlite` und eine eigene Rohdatenwurzel. Standard ist `data/raw/landkreis/`; fuer grosse lokale Datenbestaende kann `RATSI_LANDKREIS_DATA_DIR` oder `--data-dir` auf einen externen Speicherort zeigen. Gespeichert werden relative Pfade innerhalb dieser Wurzel.
 - Analyse-Eingaben liegen unter `data/analysis_requests/`, Analyse-Ausgaben unter `data/analysis_outputs/`.
 - Wiederherstellbare lokale Sicherungen vor einem Jobreset liegen unter `data/archive/` und werden nicht eingecheckt.

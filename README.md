@@ -7,7 +7,7 @@ Dieses Projekt sammelt öffentliche Sitzungs- und Dokumentdaten aus dem Ratsinfo
 - Sitzungen, Tagesordnungspunkte und Dokumente aus SessionNet erfassen
 - lokale und online-basierte Indizes für Recherche aufbauen
 - Dokumente für KI-gestützte Sitzungsbriefings und TOP-Analysen vorbereiten
-- semantische Suche über einen lokalen Qdrant-Index bereitstellen
+- semantische Suche über einen lokalen Qdrant-Index oder Qdrant-Server bereitstellen
 
 ## Oberflächen
 
@@ -78,7 +78,7 @@ Sie ist danach standardmäßig unter `http://127.0.0.1:8000/` erreichbar. Detail
 - Landkreis-Veröffentlichungen: `data/db/landkreis_publications.sqlite`
 - Lokaler Vektorindex: `data/db/qdrant/`; Ratsinfo verwendet den neuen Abschnittsindex `ratsi_passages` mit Harrier und BM25. Der bisherige Index `ratsi_documents` bleibt bis zum vollstaendigen Erstaufbau aktiv. Landkreis nutzt weiterhin `landkreis_publications`.
 - Django-Datenpflege unter `/daten/`: SessionNet- und Landkreis-Fetch-, SQLite-Build- und Vektorindex-Jobs starten; die Vektorseite zeigt Status fuer Ratsinfo und Landkreis
-- Django-Suche unter `/suche/`: semantische Dokumentensuche ueber den lokalen Qdrant-Vektorindex; Standard ist Ratsinfo. Fuer Landkreis-Treffer zuerst `python scripts/build_landkreis_vector_index.py` oder `/daten/vektor/` nutzen; fuer Ratsinfo `python scripts/build_vector_index.py` oder `/daten/vektor/`
+- Django-Suche unter `/suche/`: semantische Dokumentensuche ueber den konfigurierten Qdrant-Vektorindex; Standard ist Ratsinfo. Fuer Landkreis-Treffer zuerst `python scripts/build_landkreis_vector_index.py` oder `/daten/vektor/` nutzen; fuer Ratsinfo `python scripts/build_vector_index.py` oder `/daten/vektor/`
 - Analyse-Workflow und v2-Ausgaben: [docs/analysis_outputs.md](docs/analysis_outputs.md)
 - Analyse-Start unter `/analyse/starten/`: Sitzung vorbereiten, TOPs kritisch analysieren oder Prompt/Grundlage für manuelle ChatGPT-Nutzung erzeugen; vorbereitete Jobs lassen sich anschließend auf derselben Jobseite an einen API-Provider absenden
 - Antwort-Leseansicht unter `/analyse/antworten/`: fertig ausgeführte Analysen ohne technische Job- und Promptdetails lesen
@@ -139,3 +139,21 @@ Die gemeinsame Grundlagen-Doku für Zielsystem, Fetching, Datenhaltung, Vektorin
 - Aktueller Stand der Django-Weboberfläche: [docs/web_ui.md](docs/web_ui.md)
 - Django-Zielkonzept: [docs/django_ui_concept.md](docs/django_ui_concept.md)
 - Offene Aufgaben und Ausbaupfade: [docs/project_tasks.md](docs/project_tasks.md)
+
+## Qdrant: lokaler Speicher oder Server
+
+Ohne `RATSI_QDRANT_URL` bleibt `data/db/qdrant/` der lokale Speicher. Eine gesetzte
+URL hat für sämtliche Vektorbuilds, Evaluation, Websuche und Statusanzeigen Vorrang
+vor `--qdrant-dir`. Bei Serverfehlern gibt es keinen automatischen lokalen Rückfall.
+
+```powershell
+$env:RATSI_QDRANT_URL = "http://127.0.0.1:6333"
+python web/manage.py runserver
+```
+
+Unter WSL entsprechend `export RATSI_QDRANT_URL=http://127.0.0.1:6333` setzen.
+CLI und Django müssen aus einer Umgebung mit derselben URL gestartet werden;
+bereits laufende Prozesse anschließend neu starten. Die Einstellung kopiert keine
+Daten. Die vorhandenen Collections müssen vor der echten Umschaltung gesondert
+migriert und geprüft werden. Details zu Freigabe, Betrieb und Rückweg stehen in
+[Suchqualität](docs/search_quality.md#qdrant-serverbetrieb).

@@ -115,7 +115,9 @@ def search_semantic_documents(
         return {"results": [], "error": dependency_error, "warning": ""}
 
     qdrant_dir = Path(paths.QDRANT_DIR)
-    if not qdrant_dir.exists():
+    from src.qdrant_connection import QdrantConnection
+
+    if not QdrantConnection.from_env(qdrant_dir).url and not qdrant_dir.exists():
         return {
             "results": [],
             "error": (
@@ -127,8 +129,8 @@ def search_semantic_documents(
 
     store = None
     try:
-        embedder, bm25 = _get_semantic_resources()
         store = _create_vector_store(qdrant_dir, source_config["collection_name"])
+        embedder, bm25 = _get_semantic_resources()
         result_limit = max(1, min(int(limit), MAX_SEMANTIC_SEARCH_RESULTS))
         results = store.search(
             query_dense=embedder.embed_query(normalized_query),
@@ -229,7 +231,7 @@ def _create_vector_store(qdrant_dir: Path, collection_name: str = RATSINFO_COLLE
 
     store = DocumentVectorStore(qdrant_dir, collection_name=collection_name)
     try:
-        store.prefer_passages()
+        store.require_available(prefer_passages=True)
     except Exception:
         store.close()
         raise

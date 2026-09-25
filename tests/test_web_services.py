@@ -472,13 +472,14 @@ def test_service_status_summarizes_content_counts(workspace_tmp: Path, monkeypat
 
     monkeypatch.setattr(status_service.paths, "REPO_ROOT", workspace_tmp)
     monkeypatch.setattr(status_service.paths, "LOCAL_INDEX_DB", local_db)
+    monkeypatch.setattr(status_service.paths, "QDRANT_DIR", qdrant_dir)
 
     status = status_service.service_status()
 
     assert status["raw_data_summary"] == "4 Sitzungsordner"
     assert status["local_index_summary"] == "1 Sitzungen / 2 Dokumente"
     assert status["online_index_summary"] == "2 Sitzungen"
-    assert status["qdrant_summary"] == "vorhanden"
+    assert status["qdrant_summary"] == "Collection fehlt: ratsi_documents"
 
 
 def test_service_status_marks_raw_data_file_missing(workspace_tmp: Path, monkeypatch) -> None:
@@ -2523,3 +2524,54 @@ def test_running_service_job_is_marked_interrupted_after_reload(monkeypatch, wor
     assert reloaded.status == "error"
     assert "Serverneustart unterbrochen" in reloaded.summary
     assert reloaded.finished_at
+
+
+def test_semantic_server_search_does_not_require_local_directory(tmp_path, monkeypatch):
+    monkeypatch.setenv("RATSI_QDRANT_URL", "http://test.invalid:6333")
+    monkeypatch.setattr(search_services, "QDRANT_DIR", tmp_path / "absent")
+    monkeypatch.setattr(search_services, "_semantic_search_dependency_error", lambda: "")
+    from unittest.mock import Mock
+    store = Mock()
+    store.search.return_value = []
+    monkeypatch.setattr(search_services, "_create_vector_store", lambda *args: store)
+    monkeypatch.setattr(search_services, "_get_semantic_resources", lambda: (Mock(), Mock()))
+    result = search_services.search_semantic_documents("Schule")
+    assert not result["error"]
+    store.search.assert_called_once()
+    store.close.assert_called_once()
+    assert not (tmp_path / "absent").exists()
+
+
+def test_semantic_server_failure_is_reported_before_model_loading(tmp_path, monkeypatch):
+    from unittest.mock import Mock
+    from src.qdrant_connection import QdrantConnection
+    monkeypatch.setenv("RATSI_QDRANT_URL", "http://test.invalid:6333")
+    monkeypatch.setattr(search_services, "QDRANT_DIR", tmp_path / "absent")
+    monkeypatch.setattr(search_services, "_semantic_search_dependency_error", lambda: "")
+    monkeypatch.setattr(QdrantConnection, "create_client", Mock(side_effect=OSError("offline")))
+    resources = Mock()
+    monkeypatch.setattr(search_services, "_get_semantic_resources", resources)
+    result = search_services.search_semantic_documents("Schule")
+    assert "Server nicht erreichbar" in result["error"]
+    resources.assert_not_called()
+
+
+def test_dashboard_reports_server_collection_state(tmp_path, monkeypatch):
+    from core.services import status as status_service
+    from src.qdrant_connection import QdrantConnection
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+    monkeypatch.setenv("RATSI_QDRANT_URL", "http://test.invalid:6333")
+    monkeypatch.setattr(status_service.paths, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(status_service.paths, "LOCAL_INDEX_DB", tmp_path / "absent.sqlite")
+    monkeypatch.setattr(status_service.paths, "QDRANT_DIR", tmp_path / "absent")
+    client = Mock()
+    client.get_collections.return_value = SimpleNamespace(collections=[])
+    monkeypatch.setattr(QdrantConnection, "create_client", lambda self: client)
+    status = status_service.service_status()
+    assert status["qdrant_state"] == "missing_collection"
+    assert status["qdrant_path"] == "http://test.invalid:6333"
+    assert not status["qdrant_exists"]
+    client.get_collections.return_value = SimpleNamespace(collections=[SimpleNamespace(name="ratsi_documents")])
+    client.get_collection.return_value = SimpleNamespace(points_count=1)
+    assert status_service.service_status()["qdrant_summary"] == "bereit"

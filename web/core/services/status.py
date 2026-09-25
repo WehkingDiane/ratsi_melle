@@ -5,6 +5,8 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
+from src.qdrant_connection import QdrantConnection, probe_qdrant
+
 from . import paths
 from .outputs import list_analysis_outputs
 from .sessions import list_sessions
@@ -23,16 +25,18 @@ def service_status() -> dict[str, Any]:
     local_document_count = _table_count(paths.LOCAL_INDEX_DB, "documents")
     online_session_count = _table_count(online_index_db, "sessions")
     raw_session_count = _raw_session_directory_count(raw_data_root)
-    qdrant_dir = paths.REPO_ROOT / "data" / "db" / "qdrant"
+    connection = QdrantConnection.from_env(paths.QDRANT_DIR)
+    qdrant = probe_qdrant(connection)
 
     return {
         "local_index_exists": local_session_count is not None or local_document_count is not None,
         "online_index_exists": online_session_count is not None,
-        "qdrant_exists": qdrant_dir.exists(),
+        "qdrant_exists": qdrant["available"],
+        "qdrant_state": qdrant["state"],
         "raw_data_exists": raw_session_count is not None,
         "local_index_path": "data/db/local_index.sqlite",
         "online_index_path": "data/db/online_session_index.sqlite",
-        "qdrant_path": "data/db/qdrant/",
+        "qdrant_path": connection.target,
         "raw_data_path": "data/raw/",
         "raw_session_count": raw_session_count,
         "raw_data_summary": _count_label(raw_session_count, "Sitzungsordner"),
@@ -41,7 +45,7 @@ def service_status() -> dict[str, Any]:
         "local_index_summary": _local_index_label(local_session_count, local_document_count),
         "online_session_count": online_session_count,
         "online_index_summary": _count_label(online_session_count, "Sitzungen"),
-        "qdrant_summary": "vorhanden" if qdrant_dir.exists() else "fehlt",
+        "qdrant_summary": qdrant["message"],
     }
 
 

@@ -42,7 +42,7 @@ data/db/local_index.sqlite
     ↓
 build_vector_index.py
     ↓
-Qdrant-Vektorindex unter data/db/qdrant/
+Qdrant-Vektorindex: lokaler Pfad oder RATSI_QDRANT_URL
     ↓
 Recherche, Analyse und semantische Suche in den Oberflächen
 ```
@@ -300,7 +300,7 @@ Seitenbezogene Abschnitte mit maximal 768 Tokens
 Dense Embeddings (Harrier)
     + Sparse BM25-Vektoren
     ↓
-Qdrant Local Store
+Qdrant Local Store / Server
     ↓
 Hybrid-Suche mit RRF-Rangfusion
 ```
@@ -309,7 +309,7 @@ Die fachlichen Indexing-Schritte fuer stabile IDs, Payload-Aufbau, Hybrid-Vektor
 
 ### Speicherort
 
-- Qdrant lokal unter `data/db/qdrant/`
+- Qdrant lokal unter `data/db/qdrant/` oder zentral über `RATSI_QDRANT_URL`; die URL hat Vorrang vor CLI-Pfaden. Servermarker liegen getrennt unter `data/db/qdrant_server_state/`. Konfiguration, Freigabe und Rückweg: [Suchqualität](search_quality.md#qdrant-serverbetrieb).
 - Collections: `ratsi_passages` fuer Ratsinfo-Abschnitte, `ratsi_documents` als erhaltener Legacy-Index, `landkreis_publications` fuer Landkreis-Veröffentlichungen
 
 ### Stabile IDs und Reconciliation

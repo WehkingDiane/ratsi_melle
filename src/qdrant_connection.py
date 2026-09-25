@@ -102,10 +102,12 @@ def collection_state(connection: QdrantConnection, client, collection: str = "ra
         else:
             incomplete = True
     exists = collection in names
-    if exists and not client.get_collection(collection).points_count:
+    searchable = exists and bool(client.get_collection(collection).points_count)
+    if exists and not searchable:
         incomplete = True
     state = "incomplete" if incomplete else "ready" if exists else "missing_collection"
     return {"state": state, "collection_name": collection, "collection_exists": exists,
+            "searchable": searchable,
             "message": {"incomplete": "Index unvollständig: Collection leer oder Abschnittsindex noch nicht freigegeben.",
                         "ready": "bereit", "missing_collection": f"Collection fehlt: {collection}"}[state]}
 
@@ -118,7 +120,7 @@ def probe_qdrant(connection: QdrantConnection) -> dict:
     try:
         client = connection.create_client()
         result = collection_state(connection, client)
-        return {**result, "available": result["collection_exists"]}
+        return {**result, "available": result["searchable"]}
     except Exception as exc:
         label = "Server nicht erreichbar" if connection.url else "Vektorindex nicht lesbar"
         return {"state": "server_unreachable" if connection.url else "warning",

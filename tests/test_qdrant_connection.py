@@ -217,3 +217,36 @@ def test_runtime_read_failures_are_not_reported_as_empty_index(tmp_path):
     for read in (store.count, store.get_indexed_ids, lambda: store.get_ids_with_payload_field('snippet')):
         with pytest.raises(RuntimeError, match='Collection nicht lesbar'):
             read()
+
+
+def test_empty_collection_is_incomplete(tmp_path, remote):
+    store = DocumentVectorStore(tmp_path / 'absent')
+    store.ensure_collection()
+    with pytest.raises(RuntimeError, match='Index unvollständig'):
+        store.require_available(prefer_passages=True)
+    assert probe_qdrant(store.connection)['state'] == 'incomplete'
+
+
+def test_evaluation_cli_uses_server_without_local_storage(tmp_path, monkeypatch, remote):
+    from scripts import evaluate_search, build_vector_index
+    store = DocumentVectorStore(tmp_path / 'absent', 'ratsi_passages')
+    store.ensure_collection()
+    store.upsert_batch([point()])
+    db = tmp_path / 'input.sqlite'
+    db.touch()
+    benchmark = tmp_path / 'benchmark.json'
+    benchmark.write_text(json.dumps({'queries': [{'id': 'q', 'query': 'Test',
+        'relevant': [{'url': '', 'page': None, 'evidence': 'Test'}]}]}))
+    monkeypatch.setattr(build_vector_index, '_load_documents', lambda db: [])
+    monkeypatch.setattr(evaluate_search, 'validate_sources', lambda *args: [])
+    monkeypatch.setattr('src.analysis.embeddings.HarrierEmbedder', lambda: SimpleNamespace(
+        embed_query=lambda text: point()['dense_vector']))
+    monkeypatch.setattr('src.analysis.bm25_sparse.BM25Encoder', lambda: SimpleNamespace(
+        encode_query=lambda text: point()['sparse_vector']))
+    output = tmp_path / 'report.json'
+    evaluate_search.main(['--db', str(db), '--benchmark', str(benchmark),
+                          '--qdrant-dir', str(tmp_path / 'absent'), '--output', str(output)])
+    report = json.loads(output.read_text())
+    assert report['indexed_points'] == 1
+    assert report['metrics']['hit_at_k'] == 1
+    assert not (tmp_path / 'absent').exists()

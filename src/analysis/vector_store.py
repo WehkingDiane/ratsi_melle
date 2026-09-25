@@ -85,7 +85,7 @@ class DocumentVectorStore:
         except Exception as exc:
             label = "Qdrant-Server nicht erreichbar" if self.connection.url else "Qdrant nicht lesbar"
             raise RuntimeError(f"{label}: {exc}") from exc
-        if not state["collection_exists"]:
+        if not state["searchable"]:
             raise RuntimeError(state["message"])
         self.collection_name = state["collection_name"]
 
