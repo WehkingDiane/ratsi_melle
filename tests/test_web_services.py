@@ -2556,6 +2556,50 @@ def test_semantic_server_failure_is_reported_before_model_loading(tmp_path, monk
     resources.assert_not_called()
 
 
+def test_semantic_server_model_error_is_not_reported_as_connection_error(tmp_path, monkeypatch):
+    from unittest.mock import Mock
+
+    monkeypatch.setenv("RATSI_QDRANT_URL", "http://test.invalid:6333")
+    monkeypatch.setattr(search_services, "QDRANT_DIR", tmp_path / "absent")
+    monkeypatch.setattr(search_services, "_semantic_search_dependency_error", lambda: "")
+    store = Mock()
+    monkeypatch.setattr(search_services, "_create_vector_store", lambda *args: store)
+    embedder = Mock()
+    embedder.embed_query.side_effect = RuntimeError("Harrier-Modell fehlt im lokalen Cache")
+    monkeypatch.setattr(search_services, "_get_semantic_resources", lambda: (embedder, Mock()))
+
+    result = search_services.search_semantic_documents("Schule")
+
+    assert "Suchmodell" in result["error"]
+    assert "Harrier-Modell fehlt" in result["error"]
+    assert "Server nicht erreichbar" not in result["error"]
+    store.close.assert_called_once()
+
+
+@pytest.mark.parametrize("failure,expected", [
+    ("Ungültiger Qdrant-Filter", "Ungültiger Qdrant-Filter"),
+    ("https://user:private-password@test.invalid:6333/prefix ist fehlgeschlagen", "RuntimeError"),
+])
+def test_semantic_server_query_error_keeps_safe_diagnostics(tmp_path, monkeypatch, failure, expected):
+    from unittest.mock import Mock
+
+    monkeypatch.setenv("RATSI_QDRANT_URL", "https://user:private-password@test.invalid:6333/prefix")
+    monkeypatch.setattr(search_services, "QDRANT_DIR", tmp_path / "absent")
+    monkeypatch.setattr(search_services, "_semantic_search_dependency_error", lambda: "")
+    store = Mock()
+    store.search.side_effect = RuntimeError(failure)
+    monkeypatch.setattr(search_services, "_create_vector_store", lambda *args: store)
+    monkeypatch.setattr(search_services, "_get_semantic_resources", lambda: (Mock(), Mock()))
+
+    result = search_services.search_semantic_documents("Schule")
+
+    assert "Fehler bei der Vektorsuche" in result["error"]
+    assert expected in result["error"]
+    assert "Server nicht erreichbar" not in result["error"]
+    assert "private-password" not in result["error"]
+    store.close.assert_called_once()
+
+
 def test_dashboard_reports_server_collection_state(tmp_path, monkeypatch):
     from core.services import status as status_service
     from src.qdrant_connection import QdrantConnection

@@ -99,6 +99,9 @@ Qualitaetsgewinne oder Laufzeiten ableiten.
 
 ## Qdrant-Serverbetrieb
 
+Die Befehle zum Starten und Prüfen des lokalen Servers stehen im
+[README](../README.md#qdrant-lokaler-speicher-oder-server).
+
 `src/config/settings.py` liest und validiert Modus, URL und Statuspfad.
 Ohne zusätzliche Einstellung wird der Server `http://127.0.0.1:6333` genutzt.
 Eine nicht leere `RATSI_QDRANT_URL` (HTTP oder HTTPS) wählt einen anderen Server. Das gilt auch für

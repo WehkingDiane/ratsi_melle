@@ -148,6 +148,23 @@ Qdrant-Server unter `http://127.0.0.1:6333`. Das gilt auch für
 muss. `RATSI_QDRANT_URL` kann einen anderen Server angeben. Bei Serverfehlern
 gibt es keinen automatischen lokalen Rückfall.
 
+Vor dem ersten Vektor-Build einen lokalen Qdrant-Server starten. Dafür wird
+Docker Desktop oder Docker Engine benötigt. Die folgenden Befehle funktionieren
+in PowerShell und unter WSL; das benannte Docker-Volume erhält die Daten auch
+nach einem Neustart des Containers:
+
+```text
+docker volume create ratsi-qdrant-storage
+docker run -d --name ratsi-qdrant -p 127.0.0.1:6333:6333 -v ratsi-qdrant-storage:/qdrant/storage qdrant/qdrant:v1.19.1
+```
+
+Mit `curl http://127.0.0.1:6333/healthz` (WSL) oder
+`Invoke-RestMethod http://127.0.0.1:6333/healthz` (PowerShell) prüfen,
+ob der Server erreichbar ist. Später mit `docker stop ratsi-qdrant` anhalten
+und mit `docker start ratsi-qdrant` wieder starten. Der Server ist nur an
+`127.0.0.1` des Docker-Hosts gebunden. Weitere Optionen stehen in der
+[Qdrant-Installationsanleitung](https://qdrant.tech/documentation/installation/).
+
 Für den bisherigen lokalen Speicher `data/db/qdrant/` `RATSI_QDRANT_URL` entfernen
 und `RATSI_QDRANT_MODE=local` setzen. Erst dann wirkt `--qdrant-dir` für einen
 abweichenden lokalen Pfad. CLI und Django müssen dieselben Einstellungen nutzen.
