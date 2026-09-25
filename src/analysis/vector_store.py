@@ -1,10 +1,12 @@
-"""Qdrant local file-based vector store for ratsi_melle documents."""
+"""Qdrant local or server vector store for ratsi_melle documents."""
 
 from __future__ import annotations
 
 from datetime import date
 from pathlib import Path
 from typing import Any
+
+from src.qdrant_connection import QdrantConnection, collection_state
 
 _COLLECTION_NAME = "ratsi_documents"
 LANDKREIS_COLLECTION_NAME = "landkreis_publications"
@@ -14,7 +16,7 @@ _EMBEDDING_DIM = 1024
 
 
 class DocumentVectorStore:
-    """Manages a local Qdrant vector store persisted on disk.
+    """Manages the configured local or server Qdrant vector store.
 
     The collection uses two named vector fields:
     - ``harrier``: 1024-dim dense vectors from microsoft/harrier-oss-v1-0.6b
@@ -28,6 +30,7 @@ class DocumentVectorStore:
 
     def __init__(self, qdrant_path: Path, collection_name: str = _COLLECTION_NAME) -> None:
         self._path = qdrant_path
+        self.connection = QdrantConnection.from_env(qdrant_path)
         self.collection_name = collection_name
         self._client: Any = None
 
@@ -37,14 +40,11 @@ class DocumentVectorStore:
 
     def _get_client(self) -> Any:
         if self._client is None:
-            from qdrant_client import QdrantClient
-
-            self._path.mkdir(parents=True, exist_ok=True)
-            self._client = QdrantClient(path=str(self._path))
+            self._client = self.connection.create_client()
         return self._client
 
     def close(self) -> None:
-        """Close the embedded Qdrant client and release its storage lock."""
+        """Close the Qdrant client and release any local storage lock."""
         client = self._client
         self._client = None
         if client is not None:
@@ -66,19 +66,28 @@ class DocumentVectorStore:
     def commit_passages(self, ids: set[int]) -> None:
         """Make a completely written document generation searchable."""
         self._get_client().set_payload(collection_name=self.collection_name,
-                                       points=list(ids), payload={"committed": True})
+                                       points=list(ids), payload={"committed": True}, wait=True)
 
     def prefer_passages(self) -> None:
         """Select the passage collection when available, retaining legacy fallback."""
         if self.collection_name != _COLLECTION_NAME:
             return
-        from src.indexing.passages import COLLECTION
-        if not (self._path / "ratsi_passages.ready.json").is_file():
-            return
-        client = self._get_client()
-        if COLLECTION in {item.name for item in client.get_collections().collections}:
-            if client.get_collection(COLLECTION).points_count:
-                self.collection_name = COLLECTION
+        state = collection_state(self.connection, self._get_client())
+        self.collection_name = state["collection_name"]
+
+    def require_available(self, *, prefer_passages: bool = False) -> None:
+        """Check the selected collection before loading embedding models."""
+        if not self.connection.url and not self._path.exists():
+            raise RuntimeError("Vektorindex fehlt.")
+        try:
+            state = collection_state(self.connection, self._get_client(), self.collection_name,
+                                     prefer_passages=prefer_passages)
+        except Exception as exc:
+            label = "Qdrant-Server nicht erreichbar" if self.connection.url else "Qdrant nicht lesbar"
+            raise RuntimeError(f"{label}: {exc}") from exc
+        if not state["collection_exists"]:
+            raise RuntimeError(state["message"])
+        self.collection_name = state["collection_name"]
 
     # ------------------------------------------------------------------
     # Public API
@@ -143,7 +152,7 @@ class DocumentVectorStore:
             )
             for p in points
         ]
-        client.upsert(collection_name=self.collection_name, points=qdrant_points)
+        client.upsert(collection_name=self.collection_name, points=qdrant_points, wait=True)
 
     def search(
         self,
@@ -284,8 +293,8 @@ class DocumentVectorStore:
         try:
             info = client.get_collection(collection_name=self.collection_name)
             return info.points_count or 0
-        except Exception:
-            return 0
+        except Exception as exc:
+            raise RuntimeError(f"Qdrant-Collection nicht lesbar: {self.collection_name}: {exc}") from exc
 
     def get_indexed_ids(self) -> set[int]:
         """Return the set of all document IDs that have already been indexed."""
@@ -308,8 +317,8 @@ class DocumentVectorStore:
                     break
                 offset = next_offset
             return ids
-        except Exception:
-            return set()
+        except Exception as exc:
+            raise RuntimeError(f"Qdrant-Collection nicht lesbar: {self.collection_name}: {exc}") from exc
 
     def get_ids_with_payload_field(self, field: str) -> set[int]:
         """Return indexed integer IDs whose payload contains the requested field."""
@@ -333,8 +342,8 @@ class DocumentVectorStore:
                     break
                 offset = next_offset
             return ids
-        except Exception:
-            return set()
+        except Exception as exc:
+            raise RuntimeError(f"Qdrant-Collection nicht lesbar: {self.collection_name}: {exc}") from exc
 
     def update_payloads(self, points: list[dict]) -> None:
         """Merge point-specific payload fields without replacing stored vectors."""
@@ -344,6 +353,7 @@ class DocumentVectorStore:
                 collection_name=self.collection_name,
                 points=[point["id"]],
                 payload=point["payload"],
+                wait=True,
             )
 
     def delete_ids(self, ids: set[int]) -> None:
@@ -356,4 +366,5 @@ class DocumentVectorStore:
         client.delete(
             collection_name=self.collection_name,
             points_selector=PointIdsList(points=list(ids)),
+            wait=True,
         )

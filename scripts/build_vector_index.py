@@ -188,7 +188,7 @@ def legacy_main(argv: list[str] | None = None) -> None:
         type=Path,
         default=QDRANT_DIR,
         dest="qdrant_dir",
-        help="Directory for Qdrant local storage (default: %(default)s)",
+        help="Local storage; ignored when RATSI_QDRANT_URL is set (default: %(default)s)",
     )
     parser.add_argument(
         "--limit",

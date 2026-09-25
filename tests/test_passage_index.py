@@ -219,3 +219,17 @@ def test_passage_activation_requires_readiness_marker(tmp_path):
         assert store.collection_name == passages.COLLECTION
     finally:
         store.close()
+
+
+def test_limited_build_does_not_treat_outdated_generations_as_ready(tmp_path):
+    doc, path = document(tmp_path)
+    second = {**doc, "id": 2, "url": "https://example.org/2.pdf"}
+    store = Store()
+    build_passage_index([doc, second], store, Tokenizer(), Vectorizer)
+    path.write_text("Updated source text")
+    result = build_passage_index([doc, second], store, Tokenizer(), Vectorizer, limit=1)
+    assert result["processed_documents"] == 1
+    assert result["pending_documents"] == 1
+    result = build_passage_index([doc, second], store, Tokenizer(), Vectorizer, limit=1)
+    assert result["processed_documents"] == 1
+    assert result["pending_documents"] == 0

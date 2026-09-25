@@ -48,7 +48,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--benchmark", type=Path, default=ROOT / "docs/examples/search_benchmark.json")
     parser.add_argument("--db", type=Path, default=LOCAL_INDEX_DB)
-    parser.add_argument("--qdrant-dir", type=Path, default=QDRANT_DIR)
+    parser.add_argument("--qdrant-dir", type=Path, default=QDRANT_DIR,
+                        help="Local storage; ignored when RATSI_QDRANT_URL is set")
     parser.add_argument("--collection", choices=["ratsi_documents", "ratsi_passages"], default="ratsi_passages")
     parser.add_argument("--validate-only", action="store_true")
     parser.add_argument("--k", type=_positive_int, default=10)
@@ -71,11 +72,10 @@ def main(argv=None):
     from src.analysis.vector_store import DocumentVectorStore
     from src.indexing.passages import MODEL, PIPELINE_VERSION, file_digest
 
-    if not args.qdrant_dir.is_dir():
-        parser.error("Qdrant index is missing")
     store = DocumentVectorStore(args.qdrant_dir, collection_name=args.collection)
     embedder, sparse = HarrierEmbedder(), BM25Encoder()
     try:
+        store.require_available()
         indexed_points = store.count()
         if not indexed_points:
             parser.error(f"Collection {args.collection} is empty or unavailable")

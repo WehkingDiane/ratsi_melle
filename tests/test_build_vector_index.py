@@ -142,6 +142,7 @@ def test_document_vector_store_reads_and_updates_point_payloads(tmp_path: Path) 
         "collection_name": "ratsi_documents",
         "points": [2],
         "payload": {"snippet": "ergänzt"},
+        "wait": True,
     }
 
 

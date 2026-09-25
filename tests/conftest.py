@@ -10,6 +10,20 @@ import pytest
 def isolate_analysis_runtime_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep analysis side effects from tests inside pytest's temp directory."""
 
+    monkeypatch.delenv("RATSI_QDRANT_URL", raising=False)
+    monkeypatch.setenv("RATSI_QDRANT_STATE_DIR", str(tmp_path / "qdrant_server_state"))
+    from src.qdrant_connection import QdrantConnection
+    original_client = QdrantConnection.create_client
+
+    def isolated_client(connection):
+        if connection.url:
+            raise AssertionError("Tests must mock remote clients or use a dedicated test server")
+        allowed = (tmp_path.resolve(), Path(__file__).resolve().parent / "_runtime_tmp")
+        if not any(connection.path.resolve().is_relative_to(path) for path in allowed):
+            raise AssertionError("Tests must use a temporary Qdrant directory")
+        return original_client(connection)
+
+    monkeypatch.setattr(QdrantConnection, "create_client", isolated_client)
     data_dir = tmp_path / "data"
     private_dir = data_dir / "private"
     outputs_dir = data_dir / "analysis_outputs"

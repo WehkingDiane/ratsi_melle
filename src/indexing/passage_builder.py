@@ -28,14 +28,13 @@ def build_passage_index(documents, store, tokenizer, vectorizer_factory, *, limi
         groups.setdefault(payload.get("document_id"), {})[point_id] = payload
     current = set()
     changed = 0
+    pending = 0
     failures = []
     vectorizer = None
     for document in documents:
         parent = stable_document_id(str(document.get("session_id") or ""),
                                     str(document.get("url") or ""), str(document.get("agenda_item") or ""))
         current.add(parent)
-        if limit is not None and changed >= limit:
-            continue
         path = resolve_local_file_path(session_path=document.get("session_path"), local_path=document.get("local_path"))
         try:
             source_hash = file_digest(path) if path is not None and path.is_file() else "missing"
@@ -56,6 +55,9 @@ def build_passage_index(documents, store, tokenizer, vectorizer_factory, *, limi
                              if len(parts) == next(iter(parts.values())).get("chunk_count")), None)
             if not refresh and complete:
                 store.delete_ids(set(old) - set(complete))
+                continue
+            if limit is not None and changed >= limit:
+                pending += 1
                 continue
             changed += 1
             pages = extract_pages(path, use_ocr=use_ocr) if source_hash != "missing" else []
@@ -91,7 +93,7 @@ def build_passage_index(documents, store, tokenizer, vectorizer_factory, *, limi
             print(f"ERROR {parent}: {exc}", flush=True)
     if limit is None and not failures:
         store.delete_ids({pid for parent, points in groups.items() if parent not in current for pid in points})
-    return {"processed_documents": changed, "failures": failures, "collection": COLLECTION}
+    return {"processed_documents": changed, "pending_documents": pending, "failures": failures, "collection": COLLECTION}
 
 
 def main(argv=None):
@@ -103,7 +105,8 @@ def main(argv=None):
 
     parser = argparse.ArgumentParser(description=__doc__, epilog="Use --legacy-document-index on build_vector_index.py to build the old document baseline.")
     parser.add_argument("--db", type=Path, default=LOCAL_INDEX_DB)
-    parser.add_argument("--qdrant-dir", type=Path, default=QDRANT_DIR)
+    parser.add_argument("--qdrant-dir", type=Path, default=QDRANT_DIR,
+                        help="Local storage; ignored when RATSI_QDRANT_URL is set")
     parser.add_argument("--limit", type=_positive_int, help="Maximum changed documents per run")
     parser.add_argument("--chunk-tokens", type=_positive_int, default=768)
     parser.add_argument("--overlap-tokens", type=int, default=96)
@@ -117,10 +120,11 @@ def main(argv=None):
         parser.error(f"Database not found: {args.db}")
     from transformers import AutoTokenizer
 
-    tokenizer = AutoTokenizer.from_pretrained(MODEL)
     store = DocumentVectorStore(args.qdrant_dir, collection_name=COLLECTION)
     try:
+        store.connection.clear_readiness()
         store.ensure_collection()
+        tokenizer = AutoTokenizer.from_pretrained(MODEL)
         result = build_passage_index(
             _load_documents(args.db), store, tokenizer,
             lambda: HybridVectorizer(HarrierEmbedder(), BM25Encoder()),
@@ -136,12 +140,9 @@ def main(argv=None):
             generations.setdefault((payload.get("document_id"), payload.get("generation", payload.get("fingerprint"))), []).append(payload)
         complete = {parent for (parent, _), chunks in generations.items()
                     if len(chunks) == chunks[0].get("chunk_count") and all(c.get("committed") for c in chunks)}
-        if expected <= complete and not result["failures"]:
-            marker = args.qdrant_dir / "ratsi_passages.ready.json"
-            temporary = marker.with_suffix(".tmp")
-            temporary.write_text(json.dumps({"pipeline_version": PIPELINE_VERSION, "model": MODEL}), encoding="utf-8")
-            temporary.replace(marker)
-        result["ready"] = (args.qdrant_dir / "ratsi_passages.ready.json").is_file()
+        if expected and expected <= complete and not result["failures"] and not result["pending_documents"]:
+            store.connection.write_readiness(store._get_client(), {"pipeline_version": PIPELINE_VERSION, "model": MODEL})
+        result["ready"] = store.connection.passages_ready(store._get_client())
         print(json.dumps(result, ensure_ascii=False))
         if result["failures"]:
             raise SystemExit(1)
