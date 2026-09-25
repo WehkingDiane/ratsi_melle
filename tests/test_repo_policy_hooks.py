@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -68,7 +69,7 @@ def test_git_pre_commit_blocks_python_deletion(tmp_path: Path) -> None:
     assert "Python-Dateien" in result.stderr
 
 
-def test_git_pre_commit_warns_about_new_old_files(tmp_path: Path) -> None:
+def test_git_pre_commit_does_not_restrict_new_old_files(tmp_path: Path) -> None:
     repo = init_repo(tmp_path)
     old_file = repo / "old" / "legacy.txt"
     old_file.parent.mkdir()
@@ -78,10 +79,10 @@ def test_git_pre_commit_warns_about_new_old_files(tmp_path: Path) -> None:
     result = run_policy("git-pre-commit", cwd=repo)
 
     assert result.returncode == 0
-    assert "Neue Dateien unter old/" in result.stderr
+    assert "old/" not in result.stderr
 
 
-def test_git_pre_commit_blocks_existing_old_file_changes(tmp_path: Path) -> None:
+def test_git_pre_commit_allows_existing_old_file_changes(tmp_path: Path) -> None:
     repo = init_repo(tmp_path)
     old_file = repo / "old" / "legacy.txt"
     old_file.parent.mkdir()
@@ -93,8 +94,8 @@ def test_git_pre_commit_blocks_existing_old_file_changes(tmp_path: Path) -> None
 
     result = run_policy("git-pre-commit", cwd=repo)
 
-    assert result.returncode == 1
-    assert "Bestehende Dateien unter old/" in result.stderr
+    assert result.returncode == 0
+    assert "old/" not in result.stderr
 
 
 def test_git_pre_commit_allows_python_archive_move(tmp_path: Path) -> None:
@@ -104,29 +105,52 @@ def test_git_pre_commit_allows_python_archive_move(tmp_path: Path) -> None:
     (repo / "src" / "module.py").write_text("print('x')\n", encoding="utf-8")
     git(repo, "add", "src/module.py")
     git(repo, "commit", "-m", "Add module")
-    (repo / "old").mkdir()
-    git(repo, "mv", "src/module.py", "old/module.py")
+    archived = repo / "archive/src/module.py"
+    archived.parent.mkdir(parents=True)
+    shutil.copy2(repo / "src/module.py", archived)
+    (repo / "src/module.py").unlink()
+    git(repo, "add", "-u")
 
     result = run_policy("git-pre-commit", cwd=repo)
 
     assert result.returncode == 0
     assert "Python-Dateien" not in result.stderr
-    assert "Neue Dateien unter old/" in result.stderr
 
 
-def test_git_pre_commit_blocks_python_archive_move_with_renamed_file(tmp_path: Path) -> None:
+def test_git_pre_commit_blocks_python_archive_with_wrong_path(tmp_path: Path) -> None:
     repo = init_repo(tmp_path)
     (repo / "src").mkdir()
     (repo / "src" / "module.py").write_text("print('x')\n", encoding="utf-8")
     git(repo, "add", "src/module.py")
     git(repo, "commit", "-m", "Add module")
-    (repo / "old").mkdir()
-    git(repo, "mv", "src/module.py", "old/renamed.py")
+    archived = repo / "archive/src/renamed.py"
+    archived.parent.mkdir(parents=True)
+    shutil.copy2(repo / "src/module.py", archived)
+    (repo / "src/module.py").unlink()
+    git(repo, "add", "-u")
 
     result = run_policy("git-pre-commit", cwd=repo)
 
     assert result.returncode == 1
-    assert "src/module.py -> old/renamed.py" in result.stderr
+    assert "src/module.py" in result.stderr
+
+
+def test_git_pre_commit_blocks_changed_archive_copy(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path)
+    source = repo / "module.py"
+    source.write_text("print('original')\n", encoding="utf-8")
+    git(repo, "add", "module.py")
+    git(repo, "commit", "-m", "Add module")
+    archived = repo / "archive/module.py"
+    archived.parent.mkdir()
+    archived.write_text("print('changed')\n", encoding="utf-8")
+    source.unlink()
+    git(repo, "add", "-u")
+
+    result = run_policy("git-pre-commit", cwd=repo)
+
+    assert result.returncode == 1
+    assert "module.py" in result.stderr
 
 
 def test_git_pre_commit_blocks_python_rename_to_non_python(tmp_path: Path) -> None:
@@ -142,7 +166,7 @@ def test_git_pre_commit_blocks_python_rename_to_non_python(tmp_path: Path) -> No
     assert "module.py -> module.txt" in result.stderr
 
 
-def test_git_pre_commit_blocks_moving_existing_old_file_out(tmp_path: Path) -> None:
+def test_git_pre_commit_allows_python_rename_from_old(tmp_path: Path) -> None:
     repo = init_repo(tmp_path)
     old_file = repo / "old" / "legacy.py"
     old_file.parent.mkdir()
@@ -154,8 +178,48 @@ def test_git_pre_commit_blocks_moving_existing_old_file_out(tmp_path: Path) -> N
 
     result = run_policy("git-pre-commit", cwd=repo)
 
+    assert result.returncode == 0
+
+
+def test_git_pre_commit_blocks_edited_python_rename_without_archive(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path)
+    source = repo / "module.py"
+    original = "".join(f"VALUE_{index} = {index}\n" for index in range(30))
+    source.write_text(original, encoding="utf-8")
+    git(repo, "add", "module.py")
+    git(repo, "commit", "-m", "Add module")
+    git(repo, "mv", "module.py", "renamed.py")
+    (repo / "renamed.py").write_text(original.replace("VALUE_29 = 29", "VALUE_29 = 99"), encoding="utf-8")
+    git(repo, "add", "renamed.py")
+
+    assert git(repo, "diff", "--cached", "--name-status", "-M").stdout.startswith("R")
+    result = run_policy("git-pre-commit", cwd=repo)
+
     assert result.returncode == 1
-    assert "old/legacy.py -> src/legacy.py" in result.stderr
+    assert "module.py -> renamed.py" in result.stderr
+
+
+def test_git_pre_commit_allows_edited_python_rename_with_archive(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path)
+    source = repo / "module.py"
+    original = "".join(f"VALUE_{index} = {index}\n" for index in range(30))
+    source.write_text(original, encoding="utf-8")
+    git(repo, "add", "module.py")
+    git(repo, "commit", "-m", "Add module")
+    archived = repo / "archive" / "module.py"
+    archived.parent.mkdir()
+    shutil.copy2(source, archived)
+    git(repo, "mv", "module.py", "renamed.py")
+    (repo / "renamed.py").write_text(
+        original.replace("VALUE_29 = 29", "VALUE_29 = 99"),
+        encoding="utf-8",
+    )
+    git(repo, "add", "renamed.py")
+
+    assert git(repo, "diff", "--cached", "--name-status", "-M").stdout.startswith("R")
+    result = run_policy("git-pre-commit", cwd=repo)
+
+    assert result.returncode == 0
 
 
 def test_git_pre_push_blocks_remote_main_ref_from_stdin(tmp_path: Path) -> None:

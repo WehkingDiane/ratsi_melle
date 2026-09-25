@@ -7,7 +7,9 @@ from functools import lru_cache
 from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote, urlsplit
 
+from src.config.settings import QdrantSettingsError
 from core.services import paths
 from core.services.db import rows
 
@@ -115,7 +117,14 @@ def search_semantic_documents(
         return {"results": [], "error": dependency_error, "warning": ""}
 
     qdrant_dir = Path(paths.QDRANT_DIR)
-    if not qdrant_dir.exists():
+    from src.qdrant_connection import QdrantConnection
+
+    try:
+        connection = QdrantConnection.from_env(qdrant_dir)
+    except QdrantSettingsError as exc:
+        return {"results": [], "error": f"Qdrant-Konfiguration ungültig: {exc}", "warning": ""}
+
+    if not connection.url and not qdrant_dir.exists():
         return {
             "results": [],
             "error": (
@@ -127,27 +136,42 @@ def search_semantic_documents(
 
     store = None
     try:
-        embedder, bm25 = _get_semantic_resources()
-        store = _create_vector_store(qdrant_dir, source_config["collection_name"])
-        result_limit = max(1, min(int(limit), MAX_SEMANTIC_SEARCH_RESULTS))
-        results = store.search(
-            query_dense=embedder.embed_query(normalized_query),
-            query_sparse=bm25.encode_query(normalized_query),
-            limit=result_limit,
-            date_from=date_from or None,
-            date_to=date_to or None,
-            committee=committee or None,
-            document_type=document_type or None,
-        )
-    except Exception as exc:  # noqa: BLE001
-        missing_collection_text = source_config["missing_collection_text"]
-        if "doesn't exist" in str(exc) or "not found" in str(exc).lower():
-            return {"results": [], "error": missing_collection_text, "warning": ""}
-        return {
-            "results": [],
-            "error": f"Fehler bei der Vektorsuche: {exc}",
-            "warning": "",
-        }
+        try:
+            store = _create_vector_store(qdrant_dir, source_config["collection_name"])
+        except Exception as exc:  # noqa: BLE001 - Preflight reports unavailable indexes.
+            detail = _safe_search_error_detail(exc, connection.url)
+            if "doesn't exist" in str(exc) or "not found" in str(exc).lower() or "Collection fehlt" in str(exc):
+                error = source_config["missing_collection_text"]
+            elif connection.url and "Server nicht erreichbar" in str(exc):
+                error = "Qdrant-Server nicht erreichbar"
+            else:
+                error = f"Vektorindex nicht verfügbar: {detail}"
+            return {"results": [], "error": error, "warning": ""}
+
+        try:
+            embedder, bm25 = _get_semantic_resources()
+            query_dense = embedder.embed_query(normalized_query)
+            query_sparse = bm25.encode_query(normalized_query)
+        except Exception as exc:  # noqa: BLE001 - Model loading can fail independently of Qdrant.
+            return {"results": [], "error": f"Fehler beim Suchmodell: {_safe_search_error_detail(exc, connection.url)}",
+                    "warning": ""}
+
+        try:
+            result_limit = max(1, min(int(limit), MAX_SEMANTIC_SEARCH_RESULTS))
+            results = store.search(
+                query_dense=query_dense,
+                query_sparse=query_sparse,
+                limit=result_limit,
+                date_from=date_from or None,
+                date_to=date_to or None,
+                committee=committee or None,
+                document_type=document_type or None,
+            )
+        except Exception as exc:  # noqa: BLE001 - Preserve safe query diagnostics.
+            if "doesn't exist" in str(exc) or "not found" in str(exc).lower():
+                return {"results": [], "error": source_config["missing_collection_text"], "warning": ""}
+            return {"results": [], "error": f"Fehler bei der Vektorsuche: {_safe_search_error_detail(exc, connection.url)}",
+                    "warning": ""}
     finally:
         if store is not None:
             try:
@@ -179,6 +203,19 @@ def search_semantic_documents(
             "(Harrier + BM25, RRF-Rangfusion)."
         ),
     }
+
+
+def _safe_search_error_detail(exc: Exception, qdrant_url: str) -> str:
+    """Keep useful errors unless they contain Qdrant URL credentials or paths."""
+
+    detail = str(exc)
+    if qdrant_url:
+        parsed = urlsplit(qdrant_url)
+        sensitive = {qdrant_url, parsed.username, parsed.password, parsed.path.strip("/")}
+        sensitive |= {unquote(part) for part in sensitive if part}
+        if any(part and part in detail for part in sensitive):
+            return exc.__class__.__name__
+    return detail or exc.__class__.__name__
 
 
 def filter_semantic_results(
@@ -229,7 +266,7 @@ def _create_vector_store(qdrant_dir: Path, collection_name: str = RATSINFO_COLLE
 
     store = DocumentVectorStore(qdrant_dir, collection_name=collection_name)
     try:
-        store.prefer_passages()
+        store.require_available(prefer_passages=True)
     except Exception:
         store.close()
         raise

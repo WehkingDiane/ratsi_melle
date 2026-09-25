@@ -89,22 +89,20 @@
 ### Aenderungsdisziplin
 
 - Vermeide "nur-Format"-Commits (z. B. Zeilenenden/Whitespace), ausser auf Anfrage.
-- Dateien unter `old/` nicht aendern, ausser explizit angefordert.
 
 ## Regeln zu Entfernen & Refactoring (verpflichtend)
 
-- Python-Dateien (`*.py`) duerfen NICHT geloescht werden.
-- Wenn eine Datei ungenutzt/obsolet wird oder beim Refactoring ersetzt wird:
-  - Datei in `/old` verschieben statt loeschen.
-  - Originaldateiname bleibt erhalten.
-  - Inhalte der nach `/old` verschobenen Datei nicht aendern, ausser explizit angefordert.
+- Dateien bei Refactorings oder Ablösung nicht ersatzlos entfernen. Sicherungen liegen unter `archive/` im Repository-Stamm; `old/` wird nicht mehr als Sicherungsziel verwendet.
+- Eine obsolete oder ersetzte Datei vor dem Entfernen aus dem versionierten Pfad mit ihrer relativen Pfadstruktur nach `archive/` kopieren, z. B. `src/modul.py` nach `archive/src/modul.py`. Originaldateiname und Inhalt bleiben erhalten.
+- Vor dem Commit die Archivkopie Byte für Byte beziehungsweise per SHA-256 mit dem Stand vor der Änderung vergleichen. Archivkopien nicht nachträglich ändern, außer auf ausdrücklichen Wunsch.
+- Python-Dateien (`*.py`) nur mit einer nachweislich bytegleichen Archivkopie aus dem versionierten Pfad entfernen. Ein ersatzloses Löschen ist nur erlaubt, wenn der User es ausdrücklich verlangt.
+- `archive/` ist von Git ignoriert. Die lokale Archivkopie separat sichern, wenn sie über den eigenen Rechner hinaus erhalten bleiben soll; Git enthält weiterhin die frühere Version.
+- Implementierungsdetails des Refactorings können nach fachlichem Bedarf gewählt werden, solange diese Sicherungsregeln eingehalten werden.
 
-- Typische Faelle:
-  - Aufteilen einer grossen Datei in mehrere kleinere Module
-  - Ersetzen einer Implementierung durch neue Architektur
-  - Ablosen von Legacy-Logik
-
-- Loeschen von Python-Dateien ist nur erlaubt, wenn der User explizit danach fragt.
+- Typische Fälle:
+  - Aufteilen einer großen Datei in mehrere kleinere Module
+  - Ersetzen einer Implementierung durch eine neue Architektur
+  - Ablösen von Legacy-Logik
 
 ## WSL-spezifische Python-Umgebung (optional)
 

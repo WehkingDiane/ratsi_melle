@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+from hashlib import sha256
 import os
 import re
 import subprocess
@@ -50,23 +51,12 @@ def git_pre_commit() -> int:
     if any(PROJECT_TASKS_PATH in change.paths for change in staged):
         warnings.extend(task_metadata_reminders())
 
-    deleted_py = [change.display_path for change in staged if change.removes_python_file]
-    old_blocked = [change.display_path for change in staged if change.touches_existing_old_path]
-    old_added = [change.display_path for change in staged if change.adds_old_path]
+    deleted_py = [change.display_path for change in staged
+                  if change.removes_python_file and not has_identical_archive_copy(change.paths[0])]
     if deleted_py:
         errors.append(
-            "Python-Dateien duerfen nicht geloescht werden; nach old/ verschieben: "
+            "Python-Dateien vor dem Entfernen bytegleich unter archive/ mit gleicher Pfadstruktur sichern: "
             + ", ".join(deleted_py)
-        )
-    if old_blocked:
-        errors.append(
-            "Bestehende Dateien unter old/ duerfen nur auf explizite Anfrage geaendert werden: "
-            + ", ".join(old_blocked)
-        )
-    if old_added:
-        warnings.append(
-            "Neue Dateien unter old/ erkannt. Das ist nur fuer explizite Archivierung/Legacy-Verschiebung gedacht: "
-            + ", ".join(old_added)
         )
 
     touched = [path for change in staged for path in change.paths]
@@ -159,10 +149,8 @@ def codex_pre_tool_use() -> int:
 
     if command and DESTRUCTIVE_COMMAND_RE.search(command):
         messages.append("Repo-Regel: destruktive Shell-Kommandos nur nach expliziter Freigabe verwenden.")
-    if "old/" in matcher_text or "old\\" in matcher_text:
-        messages.append("Repo-Regel: Dateien unter old/ nicht aendern, ausser explizit angefordert.")
     if ("Delete File" in matcher_text and ".py" in matcher_text) or re.search(r"rm\s+[^\n]*\.py", matcher_text):
-        messages.append("Repo-Regel: Python-Dateien nicht loeschen; bei Obsoleszenz nach old/ verschieben.")
+        messages.append("Repo-Regel: Python-Dateien vor dem Entfernen bytegleich nach archive/ sichern.")
 
     if messages:
         print(json.dumps({"systemMessage": "\n".join(messages)}, ensure_ascii=False))
@@ -190,36 +178,11 @@ class StagedChange:
         if self.status.startswith("D"):
             return True
         if self.status.startswith("R"):
-            return not self.is_python_archive_move
+            return not (
+                self.paths[-1].endswith(".py")
+                and has_identical_staged_rename(self.paths[0], self.paths[-1])
+            )
         return False
-
-    @property
-    def is_python_archive_move(self) -> bool:
-        if not self.status.startswith("R") or len(self.paths) < 2:
-            return False
-        source, destination = self.paths[0], self.paths[-1]
-        return (
-            source.endswith(".py")
-            and _is_old_path(destination)
-            and destination.endswith(".py")
-            and Path(source).name == Path(destination).name
-        )
-
-    @property
-    def touches_existing_old_path(self) -> bool:
-        return any(_is_old_path(path) for path in self.existing_paths)
-
-    @property
-    def adds_old_path(self) -> bool:
-        return self.status.startswith(("A", "R")) and _is_old_path(self.paths[-1])
-
-    @property
-    def existing_paths(self) -> list[str]:
-        if self.status.startswith("A"):
-            return []
-        if self.status.startswith("R"):
-            return [self.paths[0]]
-        return self.paths
 
 
 def staged_changes() -> list[StagedChange]:
@@ -249,8 +212,25 @@ def pushed_remote_refs(stdin_text: str) -> list[str]:
 def _is_main_ref(ref: str) -> bool:
     return ref in {"main", "refs/heads/main"}
 
-def _is_old_path(path: str) -> bool:
-    return path == "old" or path.startswith("old/")
+
+def has_identical_staged_rename(source: str, destination: str) -> bool:
+    """Exempt a Python rename only if its staged bytes match the old file."""
+    previous = subprocess.run(["git", "show", f"HEAD:{source}"], capture_output=True, check=False)
+    staged = subprocess.run(["git", "show", f":{destination}"], capture_output=True, check=False)
+    return previous.returncode == staged.returncode == 0 and previous.stdout == staged.stdout
+
+
+def has_identical_archive_copy(path: str) -> bool:
+    """Allow a removed Python file only when its previous bytes survive locally."""
+    root = run_git(["rev-parse", "--show-toplevel"])
+    if root.returncode != 0:
+        return False
+    archive_root = Path(root.stdout.strip()) / "archive"
+    archived = archive_root / path
+    if not archived.is_file() or not archived.resolve().is_relative_to(archive_root.resolve()):
+        return False
+    previous = subprocess.run(["git", "show", f"HEAD:{path}"], capture_output=True, check=False)
+    return previous.returncode == 0 and sha256(previous.stdout).digest() == sha256(archived.read_bytes()).digest()
 
 def run_git(args: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["git", *args], cwd=str(cwd) if cwd else None, text=True, capture_output=True, check=False)

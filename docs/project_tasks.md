@@ -70,8 +70,12 @@ Jeder offene Punkt kann eine grobe Aufwandseinstufung und eine Modell-Empfehlung
 
 ### 3.2 Datenhaltung und Builds
 
+### 3.2 Datenhaltung und Builds
+
 #### Konkrete Aufgaben
 
+- Qdrant-Zugangsdaten aus der Verbindungs-URL in einen getrennten Secret-Wert überführen (z. B. API-Key über `src/config/secrets.py`); dabei CLI-Ausgaben, Job-Logs, Fehlerketten und Bibliotheks-Logging auf Offenlegung prüfen. `[Mittel · GPT-6 Sol / Medium]`
+- Speicher- und Datenbankzugriffe auf Entkopplung prüfen: Repository auf fest codierte Datenbankpfade, Qdrant-Pfade/-URLs und sonstige Speicherorte untersuchen; feststellen, ob fachlicher Code physische Speicherorte oder konkrete Speichertechnologien direkt kennt. Problemstellen dokumentieren und prüfen, ob Verbindungen und Pfade zentral konfigurierbar bzw. über klar definierte Storage-/Service-Schnittstellen gekapselt sind. Zunächst keine Implementierungsänderungen vornehmen. `[Mittel · GPT-6 Sol / Medium]`
 - Datenqualität und Metadatenkonsistenz mit Regressionstests absichern `[Mittel · GPT-6 Sol / Low]`
 - Build-Workflows robust halten und Änderungen am Quellformat kontrolliert übernehmen `[Mittel · GPT-6 Sol / Medium]`
 - Vorschau-Modus für Build-Skripte ergänzen, der geplante Änderungen, fehlende Quelldateien und mögliche Bereinigungen vor dem Schreiben ausgibt `[Mittel · GPT-6 Sol / Medium]`
@@ -129,8 +133,9 @@ Analyseartefakte sollen Eingabekontext, verwendete Dokumente und Hashes, Prompt-
 
 ## 4. Abhängigkeiten und sinnvolle Reihenfolge
 
-1. Datenverträge und Metadaten zwischen Fetching, SQLite-Builds und Extraktion stabilisieren.
-2. Extraktion, OCR und Suchindex mit Fortschritt, Fehlerdiagnose und Regressionstests absichern.
-3. Analyseartefakte und Quellenverweise konsistent versionieren.
-4. Dokumentzentrierten Analyse- und Review-Ablauf darauf aufbauend in der Oberfläche vervollständigen.
-5. Recherchequalität mit erweitertem Katalog messen und die Dokumentation nachführen.
+1. Speicher- und Datenbankzugriffe auf Entkopplung prüfen und bestehende Abhängigkeiten zwischen den Schichten dokumentieren.
+2. Datenverträge und Metadaten zwischen Fetching, SQLite-Builds und Extraktion stabilisieren.
+3. Extraktion, OCR und Suchindex mit Fortschritt, Fehlerdiagnose und Regressionstests absichern.
+4. Analyseartefakte und Quellenverweise konsistent versionieren.
+5. Dokumentzentrierten Analyse- und Review-Ablauf darauf aufbauend in der Oberfläche vervollständigen.
+6. Recherchequalität mit erweitertem Katalog messen und die Dokumentation nachführen.

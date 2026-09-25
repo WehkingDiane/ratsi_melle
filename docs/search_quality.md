@@ -52,8 +52,9 @@ Der bisherige Index `ratsi_documents` bleibt erhalten. Erst wenn alle im SQLite-
 enthaltenen Dokumente vollstaendig als Abschnitte oder Metadaten-Fallback vorliegen,
 schreibt der Builder `data/db/qdrant/ratsi_passages.ready.json`. Die Websuche nutzt
 anschliessend die neue Collection. Vorher greift sie auf den bisherigen Index zu.
-Der Status zeigt bereits den Aufbaufortschritt des neuen Index; Vektoranzahl und
-Dokumentanzahl sind deshalb unterschiedliche Groessen. Lokale Qdrant-Zugriffe
+Der Status verwendet dieselbe Collection-Auswahl wie die Suche und meldet einen
+noch nicht freigegebenen Abschnittsindex als unvollständig. Bei aktivem
+Abschnittsindex sind Vektoranzahl und Dokumentanzahl unterschiedliche Größen. Lokale Qdrant-Zugriffe
 muessen zeitlich koordiniert werden, da der eingebettete Store einen Dateilock nutzt.
 
 ## 30 Recherchefragen mit Belegen
@@ -95,3 +96,92 @@ Treffer. Vergleiche sollten dieselben Fragen, denselben Dokumentbestand, dasselb
 Collection und Modell. Ein fehlender Modellcache erfordert zunaechst den Download
 der lokalen Modellgewichte. Aus den Unit-Tests lassen sich keine realen
 Qualitaetsgewinne oder Laufzeiten ableiten.
+
+## Qdrant-Serverbetrieb
+
+Die Befehle zum Starten und Prüfen des lokalen Servers stehen im
+[README](../README.md#qdrant-lokaler-speicher-oder-server).
+
+`src/config/settings.py` liest und validiert Modus, URL und Statuspfad.
+Ohne zusätzliche Einstellung wird der Server `http://127.0.0.1:6333` genutzt.
+Eine nicht leere `RATSI_QDRANT_URL` (HTTP oder HTTPS) wählt einen anderen Server. Das gilt auch für
+`--legacy-document-index`, den Landkreis-Build und `evaluate_search.py`, damit
+Build und Suche dasselbe Ziel sehen. Für den bisherigen lokalen Pfad
+`RATSI_QDRANT_URL` entfernen und `RATSI_QDRANT_MODE=local` setzen. `--qdrant-dir`
+wirkt ausschließlich im lokalen Modus; im Servermodus werden dort keine
+Qdrant-Dateien angelegt. Der
+REST-Client verwendet 10 Sekunden Timeout je Anfrage. Verbindungs- und Lesefehler
+brechen den Vorgang ab und werden nicht als leerer Index ausgegeben.
+
+```powershell
+python scripts/build_vector_index.py
+python scripts/build_landkreis_vector_index.py
+python scripts/evaluate_search.py --collection ratsi_passages
+```
+
+Diese Befehle erst nach der gesonderten Datenmigration auf dem echten Server
+verwenden: Der Standardserver war bei der letzten Prüfung leer. Unter WSL ist
+für die Standardadresse keine Umgebungsvariable nötig. Die Adresse muss aus der
+jeweiligen Python-Laufzeit erreichbar sein. Django und seine Build-Unterprozesse
+erben die Umgebung; nach Änderungen Django neu starten.
+
+### Freigabe und Status
+
+Der lokale Marker bleibt `data/db/qdrant/ratsi_passages.ready.json`. Servermarker
+liegen unabhängig davon unter
+`data/db/qdrant_server_state/<SHA-256 der URL>/ratsi_passages.ready.json`.
+`RATSI_QDRANT_STATE_DIR` kann diese Statuswurzel verlegen; Build und Web müssen
+für dieselbe Serveradresse dieselbe Statuswurzel sehen. Ein abschließender Slash
+der URL wird entfernt. Andere URL-Schreibweisen erhalten getrennte Marker.
+
+Vor jedem Passage-Build wird dessen Freigabe zurückgenommen. Erst ein fehlerfreier
+Lauf mit vollständigen, bestätigten Generationen aller aktuellen Dokumente und
+ohne ausstehende Änderungen schreibt den Marker atomar. Auch `--limit` prüft die
+Fingerprints aller Dokumente; die Grenze beschränkt nur die neu aufgebauten
+Dokumente. Der Servermarker enthält nur den SHA-256-Hash der URL und die exakte Punktzahl.
+Bisherige Marker mit Klartext-URL werden nicht mehr akzeptiert; ein vollständiger
+Passage-Build schreibt einen neuen Marker. Die
+Suche prüft, dass Punktzahl und Anzahl der `committed`-Punkte dazu passen.
+Ein kopierter lokaler Marker oder die bloße Existenz einer migrierten Collection
+aktiviert die Passage-Suche nicht. Beim Ersetzen oder Wiederherstellen einer
+Server-Collection muss deren Marker entfernt und ein vollständiger Build zur
+erneuten Prüfung ausgeführt werden; der Marker ist kein Backup des Index.
+
+Während des Builds bleibt ein vorhandener `ratsi_documents`-Index als Rückweg
+für die Suche verfügbar. Fehlt er ebenfalls, meldet die Suche den unvollständigen
+Index. Nur einen Passage-Build je Ziel gleichzeitig ausführen. Das gilt auch im
+Servermodus, obwohl parallele Suchanfragen dort keinen lokalen Dateilock brauchen.
+
+Dashboard und Vektorseite unterscheiden „Server nicht erreichbar“, „Collection
+fehlt“, „Index unvollständig“ und „bereit“. Die Vektorseite zeigt außerdem das
+konfigurierte Ziel und die Abdeckung gegenüber SQLite. Die Evaluation respektiert
+eine ausdrücklich gewählte Collection, auch wenn der Passage-Index bereit ist.
+Collection-Namen, IDs, `harrier`-/`bm25`-Vektoren, Filter und Suchergebnisfelder
+bleiben unverändert; bestätigte Schreiboperationen werden abgewartet.
+
+### Rückweg und Prüfung
+
+Projektprozesse stoppen, die URL-Variable entfernen und den lokalen Modus
+setzen. In PowerShell:
+
+```powershell
+Remove-Item Env:RATSI_QDRANT_URL -ErrorAction SilentlyContinue
+$env:RATSI_QDRANT_MODE = "local"
+```
+
+Unter WSL: `unset RATSI_QDRANT_URL; export RATSI_QDRANT_MODE=local`. Danach die
+Prozesse neu starten; nun wird wieder der lokale Index genutzt. Neuere Serverdaten werden dabei nicht automatisch
+zurückkopiert; vor einem dauerhaften Rückwechsel die Datenstände abgleichen.
+
+Die automatisierten Tests entfernen eine geerbte Server-URL und sperren Zugriffe
+auf produktive Qdrant-Verzeichnisse. Migration und Rückmigration werden mit
+kleinen temporären Collections geprüft. Abschnitt B überträgt oder aktiviert
+keine vorhandenen Produktivdaten; die echte Migration gehört zu Abschnitt C.
+
+Prüfstand 25.09.2026: Die kleine HTTP-Probe mit Qdrant-Server 1.19.1 und
+Python-Client 1.17.1 bestand einschließlich Rückmigration. Beide vorhandenen
+Python-Umgebungen (Windows und WSL) verwenden Client 1.17.1. Dieser warnt vor dem
+Versionsabstand zum Server (mehr als eine Minor-Version); vor der produktiven
+Migration Client und Server auf kompatible Versionen abstimmen und erneut prüfen.
+Die Kompatibilitätsprüfung bleibt eingeschaltet. Der Produktivserver wurde bei
+dieser Implementierung nur lesend geprüft und enthielt keine Collections.
