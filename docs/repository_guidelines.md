@@ -11,7 +11,7 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 │   ├── analysis_requests/ # Reproduzierbare Analyse-Eingabebatches (JSON)
 │   ├── analysis_outputs/  # Analyse-Ergebnisse (Markdown/JSON/Prompts)
 │   ├── private/           # Nicht versionierte Prompt-Vorlagen und Snapshots
-│   ├── archive/           # Nicht versionierte, wiederherstellbare Sicherungen
+│   ├── archive/           # Ehemaliger Ablageort; Sicherungen unter archive/ im Stamm
 │   ├── models/            # Lokale Modellartefakte
 │   └── processed/         # Interne Normalisierungen/Ableitungen (ohne DBs)
 ├── docs/                  # Projektweite Dokumentation und Recherchen
@@ -55,10 +55,10 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 - Rohdaten bleiben unverändert in `data/raw/`. Eine Reproduzierbarkeit der Verarbeitungsschritte ist sicherzustellen.
 - Verarbeitete Daten in `data/processed/` enthalten nur interne Normalisierungen/Ableitungen ohne SQLite-Infrastruktur.
 - SQLite-Datenbanken liegen unter `data/db/`.
-- Qdrant verwendet ohne `RATSI_QDRANT_URL` den lokalen Pfad `data/db/qdrant/`, andernfalls den konfigurierten Server. Dessen Freigabemarker liegen URL-bezogen unter `data/db/qdrant_server_state/` oder `RATSI_QDRANT_STATE_DIR`; lokale Marker werden nicht auf Server übertragen. Tests verwenden ausschließlich temporäre Stores oder kontrollierte Testserver.
+- Qdrant verwendet standardmäßig den Server `http://127.0.0.1:6333`; `RATSI_QDRANT_URL` wählt einen anderen Server. Nur mit `RATSI_QDRANT_MODE=local` und ohne URL wird der lokale Pfad `data/db/qdrant/` verwendet. Server-Freigabemarker liegen URL-bezogen unter `data/db/qdrant_server_state/` oder `RATSI_QDRANT_STATE_DIR`; lokale Marker werden nicht auf Server übertragen. Tests verwenden ausschließlich temporäre Stores oder kontrollierte Testserver.
 - Landkreis-Veröffentlichungen nutzen eine getrennte Datenbank `data/db/landkreis_publications.sqlite` und eine eigene Rohdatenwurzel. Standard ist `data/raw/landkreis/`; fuer grosse lokale Datenbestaende kann `RATSI_LANDKREIS_DATA_DIR` oder `--data-dir` auf einen externen Speicherort zeigen. Gespeichert werden relative Pfade innerhalb dieser Wurzel.
 - Analyse-Eingaben liegen unter `data/analysis_requests/`, Analyse-Ausgaben unter `data/analysis_outputs/`.
-- Wiederherstellbare lokale Sicherungen vor einem Jobreset liegen unter `data/archive/` und werden nicht eingecheckt.
+- Wiederherstellbare lokale Sicherungen liegen unter `archive/` im Repository-Stamm. Dieser Ordner wird ignoriert und nicht eingecheckt; er muss auf jeder Installation gesondert gesichert werden.
 - Sensible Inhalte (personenbezogene Daten, API-Schlüssel) werden nicht eingecheckt. Für Beispiele wird auf `*.template`-Dateien zurückgegriffen.
 - Lokale Dokumentreferenzen aus SQLite, Exporten oder Suchindizes dürfen nur auf Dateien unter einer zulaessigen `data/raw/`-Wurzel zeigen; absolute Fremdpfade gelten als ungueltig.
 - Unterordner unter `data/raw/.../agenda/` bestehen ausschließlich aus der TOP-Nummer und dem offiziellen Titel; Zusätze wie „Berichterstatter …“ werden beim Sluggen entfernt, damit identische Punkte unabhängig vom Reporter gleich heißen.
@@ -88,7 +88,7 @@ Diese Regeln bilden das Fundament für den weiteren Projektverlauf und können b
 - `scripts/build_online_index_db.py` erzeugt einen Online-Index ohne Dokumentdownloads und ohne Änderungen unter `data/raw/`; Ziel ist standardmäßig `data/db/online_session_index.sqlite`. Mit `--refresh-existing` werden vorhandene Sitzungen neu eingelesen; `--only-refresh` aktualisiert ausschließlich bestehende Sitzungen.
 - `scripts/fetch_landkreis_publications.py` erfasst Landkreis-Bekanntmachungen und Amtsblätter als Rohdaten. `scripts/build_landkreis_publications_db.py` baut daraus die getrennte SQLite-DB. `scripts/search_landkreis_publications.py` durchsucht diese DB per SQLite-FTS, z. B. nach `Melle Genehmigung`.
 - Die beiden SessionNet-Indexe enthalten in `documents` ein normalisiertes Feld `document_type` (`vorlage`, `beschlussvorlage`, `protokoll`, `bekanntmachung`, `sonstiges`) sowie Metadatenfelder `sha1` und `retrieved_at`.
-- Der fruehere Export-CLI-Pfad wurde archiviert und liegt unter `old/scripts/export_analysis_batch.py`.
+- Die früher versionierten Dateien aus `old/` wurden bytegleich nach `archive/old/` verschoben. Dieses lokale Archiv wird nicht eingecheckt; historische Versionen sind über Git zugänglich.
 - Der Ratsinfo-Vektorbuild erzeugt `ratsi_passages` aus allen PDF-Seiten mit maximal 768 Tokens je Abschnitt. `ratsi_documents` bleibt als Legacy-Index erhalten. Die eigene Suchextraktion erlaubt 100 MiB pro Datei; der aeltere Extraktionspfad bleibt bei 25 MiB. Migration und der belegte Recherche-Benchmark stehen in `docs/search_quality.md`.
 
 ## WSL-Setup (kurz)
@@ -120,4 +120,4 @@ Diese Regeln bilden das Fundament für den weiteren Projektverlauf und können b
 ## .gitignore & lokale Daten
 
 - Lokale venvs, Agent-Konfigurationen, Caches und Logs werden ueber `.gitignore` ausgeschlossen.
-- Rohdaten verbleiben unter `data/raw/`; DBs, Analyse-Requests, Analyse-Outputs und lokale Sicherungen liegen unter `data/db/`, `data/analysis_requests/`, `data/analysis_outputs/` und `data/archive/` und werden nicht committet.
+- Rohdaten verbleiben unter `data/raw/`; DBs, Analyse-Requests, Analyse-Outputs und lokale Sicherungen liegen unter `data/db/`, `data/analysis_requests/`, `data/analysis_outputs/` und `archive/` und werden nicht committet.

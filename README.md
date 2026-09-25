@@ -142,18 +142,23 @@ Die gemeinsame Grundlagen-Doku für Zielsystem, Fetching, Datenhaltung, Vektorin
 
 ## Qdrant: lokaler Speicher oder Server
 
-Ohne `RATSI_QDRANT_URL` bleibt `data/db/qdrant/` der lokale Speicher. Eine gesetzte
-URL hat für sämtliche Vektorbuilds, Evaluation, Websuche und Statusanzeigen Vorrang
-vor `--qdrant-dir`. Bei Serverfehlern gibt es keinen automatischen lokalen Rückfall.
+Standardmäßig verwenden Vektorbuilds, Evaluation, Websuche und Statusanzeigen den
+Qdrant-Server unter `http://127.0.0.1:6333`. Das gilt auch für
+`python scripts/build_vector_index.py`, ohne dass eine Variable gesetzt werden
+muss. `RATSI_QDRANT_URL` kann einen anderen Server angeben. Bei Serverfehlern
+gibt es keinen automatischen lokalen Rückfall.
+
+Für den bisherigen lokalen Speicher `data/db/qdrant/` `RATSI_QDRANT_URL` entfernen
+und `RATSI_QDRANT_MODE=local` setzen. Erst dann wirkt `--qdrant-dir` für einen
+abweichenden lokalen Pfad. CLI und Django müssen dieselben Einstellungen nutzen.
 
 ```powershell
-$env:RATSI_QDRANT_URL = "http://127.0.0.1:6333"
-python web/manage.py runserver
+python scripts/build_vector_index.py
 ```
 
-Unter WSL entsprechend `export RATSI_QDRANT_URL=http://127.0.0.1:6333` setzen.
-CLI und Django müssen aus einer Umgebung mit derselben URL gestartet werden;
-bereits laufende Prozesse anschließend neu starten. Die Einstellung kopiert keine
-Daten. Die vorhandenen Collections müssen vor der echten Umschaltung gesondert
+Für die Standardadresse ist diese Einstellung nicht mehr nötig. Ein anderer
+Server wird unter WSL mit `export RATSI_QDRANT_URL=...` gewählt. Änderungen an der
+Umgebung werden nach einem Neustart der betroffenen Prozesse wirksam. Die
+Einstellung kopiert keine Daten. Die vorhandenen Collections müssen vor der echten Umschaltung gesondert
 migriert und geprüft werden. Details zu Freigabe, Betrieb und Rückweg stehen in
 [Suchqualität](docs/search_quality.md#qdrant-serverbetrieb).

@@ -64,6 +64,47 @@ def test_factory_local_fallback(tmp_path, monkeypatch):
     factory.assert_called_once_with(path=str(tmp_path / "local"))
 
 
+def test_default_connection_uses_server(tmp_path, monkeypatch):
+    monkeypatch.delenv("RATSI_QDRANT_MODE")
+    monkeypatch.delenv("RATSI_QDRANT_URL", raising=False)
+    factory = Mock()
+    monkeypatch.setattr("qdrant_client.QdrantClient", factory)
+    config = QdrantConnection.from_env(tmp_path / "not-created")
+    CREATE_CLIENT(config)
+    factory.assert_called_once_with(url="http://127.0.0.1:6333", timeout=10)
+    assert not config.path.exists()
+
+
+def test_explicit_local_mode_uses_path_without_server_url(tmp_path, monkeypatch):
+    monkeypatch.setenv("RATSI_QDRANT_MODE", "local")
+    monkeypatch.delenv("RATSI_QDRANT_URL", raising=False)
+    assert QdrantConnection.from_env(tmp_path / "local").url == ""
+
+
+def test_default_vector_build_targets_server(tmp_path, monkeypatch):
+    from qdrant_client import QdrantClient
+    from scripts import build_vector_index
+
+    monkeypatch.delenv("RATSI_QDRANT_MODE")
+    monkeypatch.delenv("RATSI_QDRANT_URL", raising=False)
+    client = QdrantClient(":memory:")
+    targets = []
+
+    def test_client(connection):
+        targets.append(connection.url)
+        return client
+
+    monkeypatch.setattr(QdrantConnection, "create_client", test_client)
+    monkeypatch.setattr(build_vector_index, "_load_documents", lambda db: [])
+    monkeypatch.setitem(__import__("sys").modules, "transformers", SimpleNamespace(
+        AutoTokenizer=SimpleNamespace(from_pretrained=lambda model: Mock())))
+    db = tmp_path / "documents.sqlite"
+    db.touch()
+    build_vector_index.main(["--db", str(db), "--qdrant-dir", str(tmp_path / "unused")])
+    assert targets == ["http://127.0.0.1:6333"]
+    assert not (tmp_path / "unused").exists()
+
+
 def test_marker_is_scoped_to_server_and_committed_data(tmp_path, monkeypatch, remote):
     local = tmp_path / "old"
     local.mkdir()

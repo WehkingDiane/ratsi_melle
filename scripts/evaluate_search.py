@@ -49,7 +49,7 @@ def main(argv=None):
     parser.add_argument("--benchmark", type=Path, default=ROOT / "docs/examples/search_benchmark.json")
     parser.add_argument("--db", type=Path, default=LOCAL_INDEX_DB)
     parser.add_argument("--qdrant-dir", type=Path, default=QDRANT_DIR,
-                        help="Local storage; ignored when RATSI_QDRANT_URL is set")
+                        help="Local storage when RATSI_QDRANT_MODE=local and RATSI_QDRANT_URL is unset")
     parser.add_argument("--collection", choices=["ratsi_documents", "ratsi_passages"], default="ratsi_passages")
     parser.add_argument("--validate-only", action="store_true")
     parser.add_argument("--k", type=_positive_int, default=10)

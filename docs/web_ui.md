@@ -215,8 +215,9 @@ Fehlende Datenquellen führen nicht zu Fehlern. Die Oberfläche zeigt stattdesse
 
 ### Qdrant-Verbindung und Status
 
-`RATSI_QDRANT_URL` wählt für Django und seine Build-Unterprozesse denselben Server
-wie für die CLI. Ohne URL bleibt der lokale Index aktiv. Nach einer Änderung der
+Django und seine Build-Unterprozesse nutzen standardmäßig denselben Qdrant-Server
+`http://127.0.0.1:6333` wie die CLI. `RATSI_QDRANT_URL` wählt einen anderen Server.
+Mit `RATSI_QDRANT_MODE=local` und ohne URL wird der lokale Index verwendet. Nach einer Änderung der
 Umgebung Django neu starten. Auf `/daten/vektor/` wird das konfigurierte Ziel
 angezeigt. Dashboard und Vektorstatus prüfen die Verbindung und die Collection;
 sie unterscheiden fehlende Collection, unvollständigen Index und unerreichbaren

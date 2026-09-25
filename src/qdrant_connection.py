@@ -11,6 +11,8 @@ from urllib.parse import urlsplit
 
 from src import paths
 
+DEFAULT_QDRANT_URL = "http://127.0.0.1:6333"
+
 
 @dataclass(frozen=True)
 class QdrantConnection:
@@ -22,8 +24,12 @@ class QdrantConnection:
 
     @classmethod
     def from_env(cls, path: Path = paths.QDRANT_DIR) -> QdrantConnection:
-        """Use RATSI_QDRANT_URL when set, otherwise the supplied local path."""
-        url = os.environ.get("RATSI_QDRANT_URL", "").strip().rstrip("/")
+        """Use the configured server unless local mode is selected."""
+        mode = os.environ.get("RATSI_QDRANT_MODE", "server").strip().lower()
+        if mode not in {"server", "local"}:
+            raise ValueError("RATSI_QDRANT_MODE muss 'server' oder 'local' sein.")
+        configured_url = os.environ.get("RATSI_QDRANT_URL", "").strip()
+        url = (configured_url or (DEFAULT_QDRANT_URL if mode == "server" else "")).rstrip("/")
         if url:
             parsed = urlsplit(url)
             if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.query or parsed.fragment:

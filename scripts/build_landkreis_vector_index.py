@@ -185,7 +185,7 @@ def main(argv: list[str] | None = None) -> None:
         type=Path,
         default=QDRANT_DIR,
         dest="qdrant_dir",
-        help="Local storage; ignored when RATSI_QDRANT_URL is set (default: %(default)s)",
+        help="Local storage when RATSI_QDRANT_MODE=local and RATSI_QDRANT_URL is unset (default: %(default)s)",
     )
     parser.add_argument(
         "--data-dir",

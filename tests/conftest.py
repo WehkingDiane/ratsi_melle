@@ -11,6 +11,7 @@ def isolate_analysis_runtime_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     """Keep analysis side effects from tests inside pytest's temp directory."""
 
     monkeypatch.delenv("RATSI_QDRANT_URL", raising=False)
+    monkeypatch.setenv("RATSI_QDRANT_MODE", "local")
     monkeypatch.setenv("RATSI_QDRANT_STATE_DIR", str(tmp_path / "qdrant_server_state"))
     from src.qdrant_connection import QdrantConnection
     original_client = QdrantConnection.create_client

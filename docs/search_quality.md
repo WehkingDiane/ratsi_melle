@@ -100,23 +100,25 @@ Qualitaetsgewinne oder Laufzeiten ableiten.
 ## Qdrant-Serverbetrieb
 
 `src/qdrant_connection.py` entscheidet zentral: Eine nicht leere
-`RATSI_QDRANT_URL` (HTTP oder HTTPS) wählt den Server; ohne URL wird der bisherige
-lokale Pfad verwendet. Das gilt auch für `--legacy-document-index`, den
-Landkreis-Build und `evaluate_search.py`. `--qdrant-dir` wirkt ausschließlich im
-lokalen Modus; im Servermodus werden dort keine Qdrant-Dateien angelegt. Der
+Ohne zusätzliche Einstellung wird der Server `http://127.0.0.1:6333` genutzt.
+`RATSI_QDRANT_URL` (HTTP oder HTTPS) wählt einen anderen Server. Das gilt auch für
+`--legacy-document-index`, den Landkreis-Build und `evaluate_search.py`, damit
+Build und Suche dasselbe Ziel sehen. Für den bisherigen lokalen Pfad
+`RATSI_QDRANT_URL` entfernen und `RATSI_QDRANT_MODE=local` setzen. `--qdrant-dir`
+wirkt ausschließlich im lokalen Modus; im Servermodus werden dort keine
+Qdrant-Dateien angelegt. Der
 REST-Client verwendet 10 Sekunden Timeout je Anfrage. Verbindungs- und Lesefehler
 brechen den Vorgang ab und werden nicht als leerer Index ausgegeben.
 
 ```powershell
-$env:RATSI_QDRANT_URL = "http://127.0.0.1:6333"
 python scripts/build_vector_index.py
 python scripts/build_landkreis_vector_index.py
 python scripts/evaluate_search.py --collection ratsi_passages
 ```
 
 Diese Befehle erst nach der gesonderten Datenmigration auf dem echten Server
-verwenden. Unter WSL wird die Variable mit
-`export RATSI_QDRANT_URL=http://127.0.0.1:6333` gesetzt. Die Adresse muss aus der
+verwenden: Der Standardserver war bei der letzten Prüfung leer. Unter WSL ist
+für die Standardadresse keine Umgebungsvariable nötig. Die Adresse muss aus der
 jeweiligen Python-Laufzeit erreichbar sein. Django und seine Build-Unterprozesse
 erben die Umgebung; nach Änderungen Django neu starten.
 
@@ -154,10 +156,16 @@ bleiben unverändert; bestätigte Schreiboperationen werden abgewartet.
 
 ### Rückweg und Prüfung
 
-Projektprozesse stoppen, in PowerShell
-`Remove-Item Env:RATSI_QDRANT_URL -ErrorAction SilentlyContinue` beziehungsweise
-unter WSL `unset RATSI_QDRANT_URL` ausführen und Prozesse neu starten. Danach wird
-wieder der lokale Index genutzt. Neuere Serverdaten werden dabei nicht automatisch
+Projektprozesse stoppen, die URL-Variable entfernen und den lokalen Modus
+setzen. In PowerShell:
+
+```powershell
+Remove-Item Env:RATSI_QDRANT_URL -ErrorAction SilentlyContinue
+$env:RATSI_QDRANT_MODE = "local"
+```
+
+Unter WSL: `unset RATSI_QDRANT_URL; export RATSI_QDRANT_MODE=local`. Danach die
+Prozesse neu starten; nun wird wieder der lokale Index genutzt. Neuere Serverdaten werden dabei nicht automatisch
 zurückkopiert; vor einem dauerhaften Rückwechsel die Datenstände abgleichen.
 
 Die automatisierten Tests entfernen eine geerbte Server-URL und sperren Zugriffe

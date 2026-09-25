@@ -106,7 +106,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, epilog="Use --legacy-document-index on build_vector_index.py to build the old document baseline.")
     parser.add_argument("--db", type=Path, default=LOCAL_INDEX_DB)
     parser.add_argument("--qdrant-dir", type=Path, default=QDRANT_DIR,
-                        help="Local storage; ignored when RATSI_QDRANT_URL is set")
+                        help="Local storage when RATSI_QDRANT_MODE=local and RATSI_QDRANT_URL is unset")
     parser.add_argument("--limit", type=_positive_int, help="Maximum changed documents per run")
     parser.add_argument("--chunk-tokens", type=_positive_int, default=768)
     parser.add_argument("--overlap-tokens", type=int, default=96)
