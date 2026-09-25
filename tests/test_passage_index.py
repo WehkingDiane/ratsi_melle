@@ -85,6 +85,7 @@ def test_missing_ocr_is_reported_and_other_pages_survive(tmp_path, monkeypatch):
     assert passages.extract_pages(path)[0]["method"] == "ocr_needed"
 
 
+@pytest.mark.integration
 def test_changed_sources_replace_chunks_and_failures_preserve_old(tmp_path):
     doc, path = document(tmp_path)
     store = Store()
@@ -104,6 +105,7 @@ def test_changed_sources_replace_chunks_and_failures_preserve_old(tmp_path):
     assert not old_ids.intersection(store.points)
 
 
+@pytest.mark.integration
 def test_limit_preserves_unprocessed_and_deleted_sources(tmp_path):
     doc, path = document(tmp_path)
     store = Store()
@@ -115,6 +117,7 @@ def test_limit_preserves_unprocessed_and_deleted_sources(tmp_path):
     assert not store.points
 
 
+@pytest.mark.integration
 def test_failed_forced_refresh_preserves_committed_generation(tmp_path):
     doc, _ = document(tmp_path)
     store = Store()
@@ -147,6 +150,7 @@ def test_metadata_fallback_without_local_file(tmp_path):
     assert payload["page_start"] is None
 
 
+@pytest.mark.integration
 def test_local_qdrant_passage_search_returns_page_and_source(tmp_path):
     from src.analysis.vector_store import DocumentVectorStore
     doc, path = document(tmp_path)

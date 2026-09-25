@@ -6,6 +6,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
+pytestmark = pytest.mark.integration
+
 
 ROOT = Path(__file__).resolve().parents[1]
 POLICY = ROOT / "scripts" / "hooks" / "repo_policy.py"

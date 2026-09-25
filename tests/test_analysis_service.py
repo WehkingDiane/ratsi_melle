@@ -4,6 +4,8 @@ import json
 import sqlite3
 from pathlib import Path
 
+import pytest
+
 from src.analysis.schemas import (
     ANALYSIS_OUTPUT_SCHEMA_VERSION,
     ANALYSIS_OUTPUT_SCHEMA_VERSION_V2,
@@ -144,6 +146,7 @@ def test_document_priority_starts_with_decision_source() -> None:
     ]
 
 
+@pytest.mark.integration
 def test_large_document_set_is_summarized_before_synthesis(tmp_path: Path, monkeypatch) -> None:
     calls: list[dict] = []
 
@@ -253,6 +256,7 @@ def test_structured_analysis_uses_ki_json_fields() -> None:
     assert structured.risks_or_uncertainties == ["Quelle pruefen"]
 
 
+@pytest.mark.integration
 def test_persist_analysis_artifacts_writes_valid_ki_json_artifact(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -292,6 +296,7 @@ def test_persist_analysis_artifacts_writes_valid_ki_json_artifact(
     assert "# Titel" in article.read_text(encoding="utf-8")
 
 
+@pytest.mark.integration
 def test_persist_analysis_artifacts_keeps_markdown_for_partial_ki_json(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -374,6 +379,7 @@ def _build_db(tmp_path: Path) -> Path:
     return db_path
 
 
+@pytest.mark.integration
 def test_analysis_service_persists_versioned_outputs(tmp_path: Path, monkeypatch) -> None:
     db_path = _build_db(tmp_path)
     service = AnalysisService()
@@ -436,6 +442,7 @@ def test_analysis_service_persists_versioned_outputs(tmp_path: Path, monkeypatch
     assert payload["job_id"] == record.job_id
 
 
+@pytest.mark.integration
 def test_prepared_analysis_is_executed_in_place(tmp_path: Path, monkeypatch) -> None:
     db_path = _build_db(tmp_path)
     outputs_dir = tmp_path / "data" / "analysis_outputs"

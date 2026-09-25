@@ -16,7 +16,7 @@ import pytest
 from src.analysis.extraction_pipeline import extract_text_for_analysis
 from src.config.secrets import get_api_key
 
-pytestmark = pytest.mark.live
+pytestmark = [pytest.mark.live, pytest.mark.integration]
 
 # --------------------------------------------------------------------------- #
 # Fixture: document path                                                       #

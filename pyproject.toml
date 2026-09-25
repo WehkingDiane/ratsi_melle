@@ -3,5 +3,6 @@ addopts = "-m 'not live'"
 testpaths = ["tests"]
 norecursedirs = ["old", "data", ".venv", ".venv-wsl"]
 markers = [
-    "live: marks tests as requiring real external API calls (deselect with -m 'not live')",
+    "live: requires real API/model access or a non-versioned source PDF (deselect with -m 'not live')",
+    "integration: exercises cross-component workflows with local files, databases, subprocesses, Django's test client, or Qdrant client types",
 ]

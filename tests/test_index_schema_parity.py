@@ -8,8 +8,12 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
 
+import pytest
+
 from scripts import build_local_index, build_online_index_db
 from src.fetching.models import AgendaItem, DocumentReference, SessionDetail, SessionReference
+
+pytestmark = pytest.mark.integration
 
 
 TIME_RE = re.compile(r"^\d{1,2}:\d{2}(?:\s*Uhr)?$")

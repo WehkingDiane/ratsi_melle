@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 import sys
 
+import pytest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:  # pragma: no branch - test safety
@@ -12,6 +14,8 @@ if str(REPO_ROOT) not in sys.path:  # pragma: no branch - test safety
 
 from src.fetching.models import DocumentReference, SessionDetail, SessionReference
 from src.fetching.sessionnet_client import SessionNetClient
+
+pytestmark = pytest.mark.integration
 
 
 def _reference() -> SessionReference:

@@ -136,6 +136,7 @@ def test_invalid_qdrant_configuration_is_unavailable_in_vector_status(tmp_path, 
         )
 
 
+@pytest.mark.integration
 def test_default_vector_build_targets_server(tmp_path, monkeypatch):
     from qdrant_client import QdrantClient
     from scripts import build_vector_index
@@ -160,6 +161,7 @@ def test_default_vector_build_targets_server(tmp_path, monkeypatch):
     assert not (tmp_path / "unused").exists()
 
 
+@pytest.mark.integration
 def test_marker_is_scoped_to_server_and_committed_data(tmp_path, monkeypatch, remote):
     local = tmp_path / "old"
     local.mkdir()
@@ -186,6 +188,7 @@ def test_marker_is_scoped_to_server_and_committed_data(tmp_path, monkeypatch, re
     assert (local / "ratsi_passages.ready.json").is_file()
 
 
+@pytest.mark.integration
 def test_status_matches_search_fallback_and_missing_collection(tmp_path, remote):
     from src.indexing.vector_status import vector_index_status, landkreis_vector_index_status
     directory = tmp_path / "never-created"
@@ -233,6 +236,7 @@ def test_status_survives_client_cleanup_failure(tmp_path, monkeypatch):
     assert status["available"] is False
 
 
+@pytest.mark.integration
 def test_explicit_evaluation_collection_is_preserved(tmp_path, remote):
     legacy = DocumentVectorStore(tmp_path / "absent")
     legacy.ensure_collection()
@@ -247,6 +251,7 @@ def test_explicit_evaluation_collection_is_preserved(tmp_path, remote):
     assert legacy.collection_name == "ratsi_passages"
 
 
+@pytest.mark.integration
 def test_tiny_migration_and_return_to_local(tmp_path, monkeypatch, remote):
     from qdrant_client import QdrantClient
     from qdrant_client.migrate import migrate
@@ -274,6 +279,7 @@ def test_tiny_migration_and_return_to_local(tmp_path, monkeypatch, remote):
         restored.close()
 
 
+@pytest.mark.integration
 @pytest.mark.parametrize('module_name,collection', [
     ('scripts.build_vector_index', 'ratsi_documents'),
     ('scripts.build_landkreis_vector_index', 'landkreis_publications'),
@@ -293,6 +299,7 @@ def test_legacy_and_county_builds_use_configured_server(tmp_path, monkeypatch, r
     assert not (tmp_path / 'absent').exists()
 
 
+@pytest.mark.integration
 def test_passage_build_only_marks_complete_current_documents(tmp_path, monkeypatch, remote):
     import sys
     from src.indexing import passage_builder
@@ -328,6 +335,7 @@ def test_runtime_read_failures_are_not_reported_as_empty_index(tmp_path):
             read()
 
 
+@pytest.mark.integration
 def test_empty_collection_is_incomplete(tmp_path, remote):
     store = DocumentVectorStore(tmp_path / 'absent')
     store.ensure_collection()
@@ -336,6 +344,7 @@ def test_empty_collection_is_incomplete(tmp_path, remote):
     assert probe_qdrant(store.connection)['state'] == 'incomplete'
 
 
+@pytest.mark.integration
 def test_evaluation_cli_uses_server_without_local_storage(tmp_path, monkeypatch, remote):
     from scripts import evaluate_search, build_vector_index
     store = DocumentVectorStore(tmp_path / 'absent', 'ratsi_passages')

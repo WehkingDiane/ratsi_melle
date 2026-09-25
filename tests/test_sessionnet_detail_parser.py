@@ -3,6 +3,8 @@ import json
 from pathlib import Path
 import sys
 
+import pytest
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:  # pragma: no branch - test safety
@@ -50,6 +52,7 @@ def test_parse_session_detail_collects_documents(tmp_path):
     assert [doc.title for doc in second_item.documents] == ["Entwurf", "Anlage"]
 
 
+@pytest.mark.integration
 def test_fetch_session_can_parse_without_persisting_raw_html(tmp_path, monkeypatch):
     html = Path("tests/fixtures/si0057_sample.html").read_text(encoding="utf-8")
     storage_root = tmp_path / "raw"
@@ -133,6 +136,7 @@ def test_parse_session_detail_does_not_duplicate_agenda_document_blocks_as_sessi
     assert detail.agenda_items[0].documents[0].on_agenda_item == "Ö 6"
 
 
+@pytest.mark.integration
 def test_download_documents_writes_manifest(tmp_path, monkeypatch):
     reference = _sample_reference()
     detail = SessionDetail(
@@ -220,6 +224,7 @@ def test_download_documents_writes_manifest(tmp_path, monkeypatch):
     assert summary["agenda_items"][1]["documents_present"] is False
 
 
+@pytest.mark.integration
 def test_download_documents_reuses_cache(tmp_path, monkeypatch):
     reference = _sample_reference()
     shared_url = "https://example.org/documents/shared"
