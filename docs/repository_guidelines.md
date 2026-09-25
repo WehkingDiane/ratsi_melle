@@ -104,10 +104,10 @@ Diese Regeln bilden das Fundament für den weiteren Projektverlauf und können b
 
 - Versionierte Git-Hooks liegen unter `.githooks/` und nutzen `scripts/hooks/repo_policy.py`.
 - Lokale Aktivierung: `git config core.hooksPath .githooks`.
-- Der Pre-Commit-Hook blockiert Commits auf `main`, geloeschte Python-Dateien und Aenderungen an bestehenden Dateien unter `old/`; neue Dateien unter `old/` erzeugen einen Hinweis fuer bewusste Archivierung.
+- Der Pre-Commit-Hook blockiert Commits auf `main` und das Entfernen von Python-Dateien ohne bytegleiche Kopie unter `archive/` mit gleicher relativer Pfadstruktur. Für reine Python-Umbenennungen innerhalb des versionierten Codes ist keine Archivkopie nötig.
 - Konkrete Aufgaben in Abschnitt 3 von `docs/project_tasks.md` stehen unter `#### Konkrete Aufgaben`; allgemeine Beschreibungen stehen separat unter einem Kontextabschnitt. Schwierigkeit, empfohlenes GPT-Modell und Reasoning-Aufwand im Format `[Mittel · GPT-6 Sol / Medium]` sind optionale Orientierung für Diane, keine Vorgabe für Agenten. Der Pre-Commit-Hook gibt bei neu hinzugefügten Aufgaben ohne diese Angaben einen nicht-blockierenden Hinweis. Die Modellübersicht am Anfang der Aufgabenliste wird einmal monatlich anhand der offiziellen OpenAI-Empfehlungen aktualisiert.
 - Der Pre-Push-Hook blockiert Pushes von `main`.
-- Versionierte Codex-Hooks liegen unter `.codex/hooks.json` und geben dem Agenten fruehe Hinweise zu Branch-Regeln, destruktiven Befehlen, Python-Loeschungen und Aenderungen unter `old/`. Neue oder geaenderte Codex-Hooks muessen in Codex ueber `/hooks` geprueft und vertraut werden.
+- Versionierte Codex-Hooks liegen unter `.codex/hooks.json` und geben dem Agenten fruehe Hinweise zu Branch-Regeln, destruktiven Befehlen und Python-Archivierung unter `archive/`. Neue oder geaenderte Codex-Hooks muessen in Codex ueber `/hooks` geprueft und vertraut werden.
 
 ## Versionspflege
 
