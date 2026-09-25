@@ -181,6 +181,47 @@ def test_git_pre_commit_allows_python_rename_from_old(tmp_path: Path) -> None:
     assert result.returncode == 0
 
 
+def test_git_pre_commit_blocks_edited_python_rename_without_archive(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path)
+    source = repo / "module.py"
+    original = "".join(f"VALUE_{index} = {index}\n" for index in range(30))
+    source.write_text(original, encoding="utf-8")
+    git(repo, "add", "module.py")
+    git(repo, "commit", "-m", "Add module")
+    git(repo, "mv", "module.py", "renamed.py")
+    (repo / "renamed.py").write_text(original.replace("VALUE_29 = 29", "VALUE_29 = 99"), encoding="utf-8")
+    git(repo, "add", "renamed.py")
+
+    assert git(repo, "diff", "--cached", "--name-status", "-M").stdout.startswith("R")
+    result = run_policy("git-pre-commit", cwd=repo)
+
+    assert result.returncode == 1
+    assert "module.py -> renamed.py" in result.stderr
+
+
+def test_git_pre_commit_allows_edited_python_rename_with_archive(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path)
+    source = repo / "module.py"
+    original = "".join(f"VALUE_{index} = {index}\n" for index in range(30))
+    source.write_text(original, encoding="utf-8")
+    git(repo, "add", "module.py")
+    git(repo, "commit", "-m", "Add module")
+    archived = repo / "archive" / "module.py"
+    archived.parent.mkdir()
+    shutil.copy2(source, archived)
+    git(repo, "mv", "module.py", "renamed.py")
+    (repo / "renamed.py").write_text(
+        original.replace("VALUE_29 = 29", "VALUE_29 = 99"),
+        encoding="utf-8",
+    )
+    git(repo, "add", "renamed.py")
+
+    assert git(repo, "diff", "--cached", "--name-status", "-M").stdout.startswith("R")
+    result = run_policy("git-pre-commit", cwd=repo)
+
+    assert result.returncode == 0
+
+
 def test_git_pre_push_blocks_remote_main_ref_from_stdin(tmp_path: Path) -> None:
     repo = init_repo(tmp_path)
     stdin = "refs/heads/codex/chore/hooks abc123 refs/heads/main def456\n"

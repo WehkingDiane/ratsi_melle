@@ -178,7 +178,10 @@ class StagedChange:
         if self.status.startswith("D"):
             return True
         if self.status.startswith("R"):
-            return not self.paths[-1].endswith(".py")
+            return not (
+                self.paths[-1].endswith(".py")
+                and has_identical_staged_rename(self.paths[0], self.paths[-1])
+            )
         return False
 
 
@@ -208,6 +211,14 @@ def pushed_remote_refs(stdin_text: str) -> list[str]:
 
 def _is_main_ref(ref: str) -> bool:
     return ref in {"main", "refs/heads/main"}
+
+
+def has_identical_staged_rename(source: str, destination: str) -> bool:
+    """Exempt a Python rename only if its staged bytes match the old file."""
+    previous = subprocess.run(["git", "show", f"HEAD:{source}"], capture_output=True, check=False)
+    staged = subprocess.run(["git", "show", f":{destination}"], capture_output=True, check=False)
+    return previous.returncode == staged.returncode == 0 and previous.stdout == staged.stdout
+
 
 def has_identical_archive_copy(path: str) -> bool:
     """Allow a removed Python file only when its previous bytes survive locally."""
