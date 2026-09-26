@@ -146,6 +146,7 @@ def test_document_vector_store_reads_and_updates_point_payloads(tmp_path: Path) 
     }
 
 
+@pytest.mark.integration
 def test_document_vector_store_applies_metadata_filters_before_hybrid_limit(
     tmp_path: Path,
 ) -> None:
@@ -245,6 +246,7 @@ def test_landkreis_document_text_is_truncated_for_embedding() -> None:
     assert text == "eins zwei"
 
 
+@pytest.mark.integration
 def test_landkreis_main_indexes_missing_documents_and_payload(
     monkeypatch,
     tmp_path: Path,
@@ -334,6 +336,7 @@ def test_landkreis_main_indexes_missing_documents_and_payload(
     assert point["payload"]["local_path"] == str((data_root / "amtsblaetter/2026/a.pdf").resolve())
 
 
+@pytest.mark.integration
 def test_landkreis_main_skips_indexed_and_deletes_orphans_only_without_limit(
     monkeypatch,
     tmp_path: Path,
@@ -388,6 +391,7 @@ def test_landkreis_main_skips_indexed_and_deletes_orphans_only_without_limit(
     assert "Skipping orphan cleanup because --limit is set." in capsys.readouterr().out
 
 
+@pytest.mark.integration
 def test_landkreis_main_refreshes_snippet_payload_for_existing_vectors(
     monkeypatch,
     tmp_path: Path,
@@ -614,6 +618,7 @@ def test_main_rejects_non_positive_limit(value: str, tmp_path: Path, capsys) -> 
     assert "must be greater than 0" in capsys.readouterr().err
 
 
+@pytest.mark.integration
 def test_main_reconciles_orphaned_vectors_even_when_nothing_is_new(
     monkeypatch,
     tmp_path: Path,
@@ -652,6 +657,7 @@ def test_main_reconciles_orphaned_vectors_even_when_nothing_is_new(
     assert "Removing 1 orphaned vector(s)" in output
 
 
+@pytest.mark.integration
 def test_main_refreshes_snippet_payload_for_existing_vectors(
     monkeypatch,
     tmp_path: Path,
@@ -689,6 +695,7 @@ def test_main_refreshes_snippet_payload_for_existing_vectors(
     assert "Refreshing snippet payloads for 1 existing document" in capsys.readouterr().out
 
 
+@pytest.mark.integration
 def test_main_skips_orphan_cleanup_for_limit_runs(
     monkeypatch,
     tmp_path: Path,
@@ -736,6 +743,7 @@ def test_main_skips_orphan_cleanup_for_limit_runs(
     assert "Skipping orphan cleanup because --limit is set." in output
 
 
+@pytest.mark.integration
 def test_limit_applies_to_missing_documents_not_first_sqlite_rows(
     monkeypatch,
     tmp_path: Path,

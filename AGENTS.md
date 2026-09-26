@@ -12,7 +12,7 @@
 
 - `pip install -r requirements.txt` installiert die Abhaengigkeiten.
 - `python scripts/build_local_index.py` baut eine SQLite-DB unter `data/db/local_index.sqlite` aus `data/raw/`.
-- `python -m pytest` fuehrt die Tests in `tests/` aus.
+- `python -m pytest` fuehrt die regulaere Testsuite in `tests/` aus; `live` bleibt standardmaessig ausgeschlossen.
 - Weitere workflow-spezifische Kommandos stehen in `README.md` und den passenden Dateien unter `docs/`.
 
 ## Coding-Style & Namenskonventionen
@@ -24,6 +24,10 @@
 - Bevorzuge strukturiertes Logging und halte Laufzeitlogs unter `logs/`.
 
 ## Test-Richtlinien
+
+- Fuer die normale Entwicklung `python -m pytest -m "not integration and not live"` nutzen; bei betroffenen Workflows zusaetzlich `python -m pytest -m "integration and not live"` ausfuehren.
+- Marker nach dem tatsaechlichen Testverhalten vergeben, in gemischten Modulen pro Test. Neue Marker zentral in `pyproject.toml` registrieren und die Struktur klein halten.
+- Marker-Bedeutung, Voraussetzungen und Live-Aufrufe stehen in [README.md](README.md#tests-gezielt-ausfuehren).
 
 - Tests liegen in `tests/` und heissen `test_*.py`.
 - Nutze Fixtures aus `tests/fixtures/` beim Parsen von HTML.

@@ -91,6 +91,14 @@ Diese Regeln bilden das Fundament für den weiteren Projektverlauf und können b
 - Die früher versionierten Dateien aus `old/` wurden bytegleich nach `archive/old/` verschoben. Dieses lokale Archiv wird nicht eingecheckt; historische Versionen sind über Git zugänglich.
 - Der Ratsinfo-Vektorbuild erzeugt `ratsi_passages` aus allen PDF-Seiten mit maximal 768 Tokens je Abschnitt. `ratsi_documents` bleibt als Legacy-Index erhalten. Die eigene Suchextraktion erlaubt 100 MiB pro Datei; der aeltere Extraktionspfad bleibt bei 25 MiB. Migration und der belegte Recherche-Benchmark stehen in `docs/search_quality.md`.
 
+## Testauswahl und Regression
+
+- Fuer die normale Entwicklung den schnellen Kern ausfuehren und bei Aenderungen an komponentenuebergreifenden Ablaeufen die betroffenen Integrationstests hinzunehmen.
+- Vor PRs die gesamte regulaere Suite mit `python -m pytest` ausfuehren. Die bestehende Konfiguration schliesst `live` dabei aus; diese Tests benoetigen echte Anbieter oder separat bereitgestellte Rohdaten.
+- `integration` und `live` koennen sich ueberschneiden. Tests ohne diese Marker pruefen vor allem einzelne Funktionen und Komponenten; temporaere Dateien oder Beispiel-URLs allein begruenden keinen Marker.
+- Marker zentral in `pyproject.toml` registrieren und nach dem tatsaechlichen Verhalten vergeben. Bei geaenderten Abhaengigkeiten die Zuordnung mitpruefen.
+- Konkrete Befehle und Voraussetzungen stehen in der [Testanleitung im README](../README.md#tests-gezielt-ausfuehren).
+
 ## WSL-Setup (kurz)
 
 - Wenn `python` fehlt, `python3` verwenden.

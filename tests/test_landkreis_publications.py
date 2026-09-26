@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import date
 from dataclasses import replace
 
+import pytest
+
 from src.fetching.landkreis import LandkreisClient, LandkreisPublicationStore, LandkreisStorage
 from src.fetching.landkreis.builder import build_landkreis_publications_db
 from src.fetching.landkreis.database import LandkreisPublicationStore as Store
@@ -111,6 +113,7 @@ def test_storage_distinguishes_same_titled_publications_by_id(tmp_path):
     assert second_manifest.parent.name.endswith("_222222222222")
 
 
+@pytest.mark.integration
 def test_store_search_uses_separated_database_and_extracted_text(tmp_path):
     store = Store(tmp_path / "landkreis.sqlite")
     publication = LandkreisPublication(
@@ -153,6 +156,7 @@ def test_store_search_uses_separated_database_and_extracted_text(tmp_path):
     assert rows[0]["publication_id"] == "pub-1"
 
 
+@pytest.mark.integration
 def test_fetch_bekanntmachung_stores_document_metadata_without_downloading(tmp_path, monkeypatch):
     client = _client(tmp_path)
     publication = LandkreisPublication(
@@ -190,6 +194,7 @@ def test_fetch_bekanntmachung_stores_document_metadata_without_downloading(tmp_p
     assert not (client.storage.publication_dir(publication) / "documents").exists()
 
 
+@pytest.mark.integration
 def test_fetch_amtsblatt_reuses_existing_document_without_redownload(tmp_path, monkeypatch):
     client = _client(tmp_path)
     publication = LandkreisPublication(
@@ -225,6 +230,7 @@ def test_fetch_amtsblatt_reuses_existing_document_without_redownload(tmp_path, m
     assert existing_path.read_bytes() == b"existing"
 
 
+@pytest.mark.integration
 def test_fetch_amtsblatt_downloads_direct_pdf_url(tmp_path, monkeypatch):
     client = _client(tmp_path)
     publication = LandkreisPublication(
@@ -250,6 +256,7 @@ def test_fetch_amtsblatt_downloads_direct_pdf_url(tmp_path, monkeypatch):
     assert document_path.read_bytes() == b"%PDF-test"
 
 
+@pytest.mark.integration
 def test_crawl_skips_existing_manifests_for_all_sources(tmp_path, monkeypatch):
     client = _client(tmp_path)
     amtsblatt = LandkreisPublication(
@@ -288,6 +295,7 @@ def test_crawl_skips_existing_manifests_for_all_sources(tmp_path, monkeypatch):
     assert publications == []
 
 
+@pytest.mark.integration
 def test_build_landkreis_db_from_raw_manifests(tmp_path):
     storage = LandkreisStorage(tmp_path / "raw-landkreis")
     publication = LandkreisPublication(

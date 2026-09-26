@@ -53,6 +53,38 @@ python scripts/run_web.py
 python -m pytest
 ```
 
+## Tests gezielt ausfuehren
+
+Die Marker sind in `pyproject.toml` registriert:
+
+| Marker | Bedeutung |
+| --- | --- |
+| `integration` | Prueft das Zusammenspiel mehrerer Komponenten mit lokalen Dateien, SQLite, Qdrant-Client-Typen oder Local-Mode, Git-Subprozessen oder dem Django-Testclient. Ohne zusaetzliches `live` werden externe Zugriffe simuliert. |
+| `live` | Benutzt einen echten API-/Modellanbieter oder ein nicht versioniertes Quell-PDF; dafuer sind passende Schluessel, Modelle oder Rohdaten noetig. |
+
+Tests ohne diese Marker pruefen vor allem einzelne Funktionen oder Komponenten mit Mocks und temporaeren Fixtures. Ein Test kann beide Marker tragen. Die Auswahl basiert auf dem tatsaechlichen Verhalten: Beispiel-URLs allein bedeuten keinen externen Zugriff, und eine temporaere SQLite-Datei allein macht einen Test noch nicht zum Integrationstest.
+
+```bash
+# Normale Entwicklung: schneller Kern ohne mehrschichtige Workflows
+python -m pytest -m "not integration and not live"
+
+# Lokale Integrationspruefung nach Aenderungen an Workflows, Daten oder Web-UI
+python -m pytest -m "integration and not live"
+
+# Vollstaendige Regression der regulaeren Suite (wie bisher, ohne live)
+python -m pytest
+
+# Live-Tests nur gezielt mit bereitgestellten Schluesseln/Modellen/Rohdaten
+python -m pytest -o addopts='' -m live
+
+# Alle Tests einschliesslich live, mit denselben externen Voraussetzungen
+python -m pytest -o addopts=''
+```
+
+Unter WSL kann `python` jeweils durch `.venv-wsl/bin/python` ersetzt werden. Die normale Entwicklungsrunde nutzt den schnellen Kern und bei Bedarf die betroffenen Integrationsmodule; vor PRs ist `python -m pytest` empfohlen. Live-Tests sind wegen externer Dienste, variabler Laufzeit und ggf. Kosten getrennt und bleiben wie bisher standardmaessig ausgeschlossen.
+
+Eine eigene `-m`-Auswahl ersetzt den voreingestellten Ausdruck `not live`. Fuer lokale Teilmengen deshalb `and not live` explizit angeben. Marker filtern erst nach der Sammlung: Modulimporte und vorhandene Verfuegbarkeitspruefungen (Schluesselring/Ollama) koennen auch bei abgewaehlten Live-Tests stattfinden. Ein schneller Teillauf ersetzt die regulaere Regression nicht.
+
 Repository-Hooks werden lokal mit folgendem Befehl aktiviert:
 
 ```bash

@@ -3,7 +3,11 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
+import pytest
+
 from scripts import build_local_index
+
+pytestmark = pytest.mark.integration
 
 
 def test_build_local_index_backfills_document_type_for_existing_rows(tmp_path: Path) -> None:

@@ -81,6 +81,7 @@ def workspace_tmp() -> Path:
             shutil.rmtree(tmp, ignore_errors=True)
 
 
+@pytest.mark.integration
 def test_analysis_services_return_empty_lists_without_data(workspace_tmp: Path, monkeypatch) -> None:
     tmp_path = workspace_tmp
     monkeypatch.setattr(analysis_services, "LOCAL_INDEX_DB", tmp_path / "missing.sqlite")
@@ -94,6 +95,7 @@ def test_analysis_services_return_empty_lists_without_data(workspace_tmp: Path, 
     assert analysis_services.get_analysis_output("1") is None
 
 
+@pytest.mark.integration
 def test_search_documents_finds_document_metadata(workspace_tmp: Path, monkeypatch) -> None:
     db_path = workspace_tmp / "data" / "db" / "local_index.sqlite"
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -146,6 +148,7 @@ def test_search_documents_finds_document_metadata(workspace_tmp: Path, monkeypat
     assert results[0]["detail_url"] == "https://example.test/si0057.asp"
 
 
+@pytest.mark.integration
 def test_semantic_search_documents_uses_vector_store(workspace_tmp: Path, monkeypatch) -> None:
     qdrant_dir = workspace_tmp / "data" / "db" / "qdrant"
     qdrant_dir.mkdir(parents=True)
@@ -251,6 +254,7 @@ def test_semantic_result_filters_preserve_relevance_order() -> None:
     assert search_services.result_filter_options(results, "committee") == ["Ortsrat", "Rat"]
 
 
+@pytest.mark.integration
 def test_semantic_search_filters_candidates_before_result_limit(
     workspace_tmp: Path, monkeypatch
 ) -> None:
@@ -306,6 +310,7 @@ def test_semantic_search_filters_candidates_before_result_limit(
     assert response["candidate_count"] == 21
 
 
+@pytest.mark.integration
 def test_semantic_search_documents_uses_landkreis_collection(workspace_tmp: Path, monkeypatch) -> None:
     qdrant_dir = workspace_tmp / "data" / "db" / "qdrant"
     qdrant_dir.mkdir(parents=True)
@@ -359,6 +364,7 @@ def test_semantic_search_documents_uses_landkreis_collection(workspace_tmp: Path
     assert "Landkreis" in response["warning"]
 
 
+@pytest.mark.integration
 def test_semantic_search_documents_reports_missing_landkreis_vector_index(workspace_tmp: Path, monkeypatch) -> None:
     monkeypatch.setattr(search_services, "QDRANT_DIR", workspace_tmp / "missing_qdrant")
     monkeypatch.setattr(search_services, "_semantic_search_dependency_error", lambda: "")
@@ -370,6 +376,7 @@ def test_semantic_search_documents_reports_missing_landkreis_vector_index(worksp
     assert "build_landkreis_vector_index.py" in response["error"]
 
 
+@pytest.mark.integration
 def test_semantic_search_documents_reports_missing_vector_index(workspace_tmp: Path, monkeypatch) -> None:
     monkeypatch.setattr(search_services, "QDRANT_DIR", workspace_tmp / "missing_qdrant")
     monkeypatch.setattr(search_services, "_semantic_search_dependency_error", lambda: "")
@@ -380,6 +387,7 @@ def test_semantic_search_documents_reports_missing_vector_index(workspace_tmp: P
     assert "Vektorindex fehlt" in response["error"]
 
 
+@pytest.mark.integration
 def test_semantic_search_documents_closes_vector_store_after_search_error(
     workspace_tmp: Path,
     monkeypatch,
@@ -430,6 +438,7 @@ def test_service_facades_keep_domain_exports_separate() -> None:
     assert not hasattr(core_services, "list_analysis_outputs")
 
 
+@pytest.mark.integration
 def test_service_status_summarizes_content_counts(workspace_tmp: Path, monkeypatch) -> None:
     from core.services import status as status_service
 
@@ -482,6 +491,7 @@ def test_service_status_summarizes_content_counts(workspace_tmp: Path, monkeypat
     assert status["qdrant_summary"] == "Collection fehlt: ratsi_documents"
 
 
+@pytest.mark.integration
 def test_service_status_marks_raw_data_file_missing(workspace_tmp: Path, monkeypatch) -> None:
     from core.services import status as status_service
 
@@ -514,6 +524,7 @@ def test_raw_session_directory_count_handles_unreadable_root() -> None:
     assert status_service._raw_session_directory_count(UnreadableRoot()) is None
 
 
+@pytest.mark.integration
 def test_service_status_marks_unreadable_online_index_missing(workspace_tmp: Path, monkeypatch) -> None:
     from core.services import status as status_service
 
@@ -531,6 +542,7 @@ def test_service_status_marks_unreadable_online_index_missing(workspace_tmp: Pat
     assert status["online_index_summary"] == "fehlt"
 
 
+@pytest.mark.integration
 def test_service_status_marks_unreadable_local_index_missing(workspace_tmp: Path, monkeypatch) -> None:
     from core.services import status as status_service
 
@@ -547,6 +559,7 @@ def test_service_status_marks_unreadable_local_index_missing(workspace_tmp: Path
     assert status["local_index_summary"] == "fehlt"
 
 
+@pytest.mark.integration
 def test_legacy_analysis_output_file_is_displayed(workspace_tmp: Path, monkeypatch) -> None:
     tmp_path = workspace_tmp
     outputs = tmp_path / "analysis_outputs"
@@ -578,6 +591,7 @@ def test_legacy_analysis_output_file_is_displayed(workspace_tmp: Path, monkeypat
     assert job["markdown"] == "# Analyse"
 
 
+@pytest.mark.integration
 def test_workflow_analysis_output_schema_is_displayed(workspace_tmp: Path, monkeypatch) -> None:
     output_dir = workspace_tmp / "data" / "analysis_outputs" / "2026" / "03" / "session"
     output_dir.mkdir(parents=True)
@@ -651,6 +665,7 @@ def test_workflow_analysis_output_schema_is_displayed(workspace_tmp: Path, monke
     assert "data/analysis_outputs/2026/03/session/job_1.raw.json" in job["files"]
 
 
+@pytest.mark.integration
 def test_workflow_output_paths_accept_windows_separators(workspace_tmp: Path, monkeypatch) -> None:
     output_dir = workspace_tmp / "data" / "analysis_outputs" / "2026" / "03" / "session"
     output_dir.mkdir(parents=True)
@@ -704,6 +719,7 @@ def test_workflow_output_paths_accept_windows_separators(workspace_tmp: Path, mo
     assert "data/analysis_outputs/2026/03/session/job_1.raw.json" in job["files"]
 
 
+@pytest.mark.integration
 def test_publication_draft_status_does_not_replace_completed_analysis_status(
     workspace_tmp: Path, monkeypatch
 ) -> None:
@@ -760,6 +776,7 @@ def test_publication_draft_status_does_not_replace_completed_analysis_status(
     assert job["structured_outputs"][0]["status"] == "draft"
 
 
+@pytest.mark.integration
 def test_source_artifacts_merge_into_single_public_workflow_job(
     workspace_tmp: Path, monkeypatch
 ) -> None:
@@ -795,6 +812,7 @@ def test_source_artifacts_merge_into_single_public_workflow_job(
     assert jobs[0]["markdown"] == "# Grundlage"
 
 
+@pytest.mark.integration
 def test_workflow_jobs_hide_internal_local_source_jobs(workspace_tmp: Path, monkeypatch) -> None:
     workflow_db = workspace_tmp / "data" / "db" / "analysis_workflow.sqlite"
     workflow_job_id = create_analysis_job(
@@ -870,6 +888,7 @@ def test_workflow_jobs_hide_internal_local_source_jobs(workspace_tmp: Path, monk
     assert analysis_services.get_analysis_output("1")["session_id"] == "workflow-session"
 
 
+@pytest.mark.integration
 def test_file_analysis_outputs_merge_into_unique_db_job(workspace_tmp: Path, monkeypatch) -> None:
     local_db = workspace_tmp / "data" / "db" / "local_index.sqlite"
     output_dir = workspace_tmp / "data" / "analysis_outputs"
@@ -941,6 +960,7 @@ def test_file_analysis_outputs_merge_into_unique_db_job(workspace_tmp: Path, mon
     assert "data/analysis_outputs/job_1.json" in jobs["local:1"]["files"]
 
 
+@pytest.mark.integration
 def test_unlinked_local_job_remains_visible_when_workflow_job_id_collides(
     workspace_tmp: Path, monkeypatch
 ) -> None:
@@ -1024,6 +1044,7 @@ def test_unlinked_local_job_remains_visible_when_workflow_job_id_collides(
     assert jobs["local:1"]["session_id"] == "local-session"
 
 
+@pytest.mark.integration
 def test_canonical_analysis_job_id_prefers_workflow_source_job(
     workspace_tmp: Path, monkeypatch
 ) -> None:
@@ -1090,6 +1111,7 @@ def test_canonical_analysis_job_id_prefers_workflow_source_job(
     assert analysis_services.canonical_analysis_job_id({"job_id": 1}) == str(workflow_job_id)
 
 
+@pytest.mark.integration
 def test_prompt_artifact_is_loaded_from_prompt_directory(workspace_tmp: Path, monkeypatch) -> None:
     local_db = workspace_tmp / "data" / "db" / "local_index.sqlite"
     prompt_dir = workspace_tmp / "data" / "analysis_prompts"
@@ -1148,6 +1170,7 @@ def test_prompt_artifact_is_loaded_from_prompt_directory(workspace_tmp: Path, mo
     assert "data/analysis_prompts/job_1.txt" not in job["files"]
 
 
+@pytest.mark.integration
 def test_legacy_db_analysis_outputs_are_read_in_id_order(workspace_tmp: Path, monkeypatch) -> None:
     local_db = workspace_tmp / "data" / "db" / "local_index.sqlite"
     local_db.parent.mkdir(parents=True, exist_ok=True)
@@ -1209,6 +1232,7 @@ def test_legacy_db_analysis_outputs_are_read_in_id_order(workspace_tmp: Path, mo
     assert job["markdown"] == "# Erster Output"
 
 
+@pytest.mark.integration
 def test_session_detail_reads_agenda_and_documents(workspace_tmp: Path, monkeypatch) -> None:
     tmp_path = workspace_tmp
     db_path = tmp_path / "local_index.sqlite"
@@ -1294,6 +1318,7 @@ def test_session_detail_reads_agenda_and_documents(workspace_tmp: Path, monkeypa
     assert analysis_services.get_local_pdf_document("7123", 1) is None
 
 
+@pytest.mark.integration
 def test_session_display_fields_fall_back_to_humanized_committee(
     workspace_tmp: Path, monkeypatch
 ) -> None:
@@ -1436,6 +1461,7 @@ def test_session_display_fields_fall_back_to_humanized_committee(
     assert detail["meeting_name"] == "Ausschuss für Bildung"
 
 
+@pytest.mark.integration
 def test_run_analysis_from_form_validates_missing_session(monkeypatch, workspace_tmp: Path) -> None:
     monkeypatch.setattr(analysis_services, "LOCAL_INDEX_DB", workspace_tmp / "missing.sqlite")
 
@@ -1466,6 +1492,7 @@ def test_analysis_prompts_append_required_json_contract() -> None:
     assert "ausschließlich mit genau einem validen JSON-Objekt" in prompt
 
 
+@pytest.mark.integration
 def test_execute_prepared_analysis_resolves_artifact_paths(
     monkeypatch, workspace_tmp: Path
 ) -> None:
@@ -1583,6 +1610,7 @@ def test_execute_prepared_analysis_rejects_unlinked_local_job(monkeypatch) -> No
     assert claimed is False
 
 
+@pytest.mark.integration
 def test_default_template_id_prefers_meeting_briefing(monkeypatch, workspace_tmp: Path) -> None:
     template_path = workspace_tmp / "prompt_templates.json"
     example_path = workspace_tmp / "prompt_templates.example.json"
@@ -1636,6 +1664,7 @@ def test_default_template_id_prefers_meeting_briefing(monkeypatch, workspace_tmp
     assert analysis_services.default_template_id("tops", "top_deep_dive") == "top_critical_analysis"
 
 
+@pytest.mark.integration
 def test_run_analysis_from_form_rejects_top_without_analysis_documents(monkeypatch, workspace_tmp: Path) -> None:
     db_path = workspace_tmp / "local_index.sqlite"
     with sqlite3.connect(db_path) as conn:
@@ -1701,6 +1730,7 @@ def test_run_analysis_from_form_rejects_top_without_analysis_documents(monkeypat
     assert any("lokal vorhandenen Dokumenten" in error for error in errors)
 
 
+@pytest.mark.integration
 def test_run_analysis_from_form_ignores_stale_tops_for_session_scope(monkeypatch, workspace_tmp: Path) -> None:
     from core.services import analysis as core_analysis_services
 
@@ -1814,6 +1844,7 @@ def test_run_analysis_from_form_ignores_stale_tops_for_session_scope(monkeypatch
     assert "- Oe 8 Haushalt" in request.prompt
 
 
+@pytest.mark.integration
 def test_save_prompt_template_from_form_persists_template(monkeypatch, workspace_tmp: Path) -> None:
     template_path = workspace_tmp / "prompt_templates.json"
     example_path = workspace_tmp / "prompt_templates.example.json"
@@ -1840,6 +1871,7 @@ def test_save_prompt_template_from_form_persists_template(monkeypatch, workspace
     assert any(item["label"] == "Meine TOP Vorlage" for item in loaded)
 
 
+@pytest.mark.integration
 def test_list_prompt_templates_returns_empty_list_for_invalid_store(monkeypatch, workspace_tmp: Path) -> None:
     template_path = workspace_tmp / "prompt_templates.json"
     template_path.write_text("{not json", encoding="utf-8")
@@ -1851,6 +1883,7 @@ def test_list_prompt_templates_returns_empty_list_for_invalid_store(monkeypatch,
     assert analysis_services.list_prompt_templates("session") == []
 
 
+@pytest.mark.integration
 def test_list_prompt_templates_handles_invalid_revision(monkeypatch, workspace_tmp: Path) -> None:
     template_path = workspace_tmp / "prompt_templates.json"
     template_path.write_text(
@@ -1886,6 +1919,7 @@ def test_list_prompt_templates_handles_invalid_revision(monkeypatch, workspace_t
     assert templates[0]["revision"] == 1
 
 
+@pytest.mark.integration
 def test_save_prompt_template_from_form_returns_errors_for_invalid_store(monkeypatch, workspace_tmp: Path) -> None:
     template_path = workspace_tmp / "prompt_templates.json"
     template_path.write_text("{not json", encoding="utf-8")
@@ -1909,6 +1943,7 @@ def test_save_prompt_template_from_form_returns_errors_for_invalid_store(monkeyp
     assert "Analysiere" not in errors[0]
 
 
+@pytest.mark.integration
 def test_get_prompt_template_returns_none_for_invalid_store(monkeypatch, workspace_tmp: Path) -> None:
     template_path = workspace_tmp / "prompt_templates.json"
     template_path.write_text("{not json", encoding="utf-8")
@@ -1920,6 +1955,7 @@ def test_get_prompt_template_returns_none_for_invalid_store(monkeypatch, workspa
     assert analysis_services.get_prompt_template("kaputt") is None
 
 
+@pytest.mark.integration
 def test_prompt_template_actions_return_errors_for_invalid_store(monkeypatch, workspace_tmp: Path) -> None:
     from core.services.prompts import deactivate_prompt_template
     from core.services.prompts import duplicate_prompt_template
@@ -1942,6 +1978,7 @@ def test_prompt_template_actions_return_errors_for_invalid_store(monkeypatch, wo
     assert deactivate_errors == ["Prompt-Vorlagen konnten nicht gelesen werden. Bitte private Vorlagen-Datei prüfen."]
 
 
+@pytest.mark.integration
 def test_prompt_template_slugify_handles_german_umlauts(monkeypatch, workspace_tmp: Path) -> None:
     template_path = workspace_tmp / "prompt_templates.json"
     example_path = workspace_tmp / "prompt_templates.example.json"
@@ -1963,6 +2000,7 @@ def test_prompt_template_slugify_handles_german_umlauts(monkeypatch, workspace_t
     assert template["id"] == "meine_oeffentliche_vorlage"
 
 
+@pytest.mark.integration
 def test_prompt_template_error_messages_use_correct_umlauts(monkeypatch, workspace_tmp: Path) -> None:
     from core.services.prompts import get_active_prompt_template
 
@@ -1978,6 +2016,7 @@ def test_prompt_template_error_messages_use_correct_umlauts(monkeypatch, workspa
     assert "gewÃ" not in errors[0]
 
 
+@pytest.mark.integration
 def test_new_prompt_templates_with_same_label_do_not_overwrite(monkeypatch, workspace_tmp: Path) -> None:
     template_path = workspace_tmp / "prompt_templates.json"
     example_path = workspace_tmp / "prompt_templates.example.json"
@@ -2011,6 +2050,7 @@ def test_new_prompt_templates_with_same_label_do_not_overwrite(monkeypatch, work
     assert analysis_services.get_prompt_template("gleiche_vorlage")["prompt_text"] == "Analysiere {{session_title}}."
 
 
+@pytest.mark.integration
 def test_editing_existing_prompt_template_increments_revision(monkeypatch, workspace_tmp: Path) -> None:
     template_path = workspace_tmp / "prompt_templates.json"
     example_path = workspace_tmp / "prompt_templates.example.json"
@@ -2048,6 +2088,7 @@ def test_editing_existing_prompt_template_increments_revision(monkeypatch, works
     assert edited["prompt_text"] == "Analysiere {{committee}}."
 
 
+@pytest.mark.integration
 def test_editing_existing_multi_scope_prompt_template_preserves_scopes(monkeypatch, workspace_tmp: Path) -> None:
     template_path = workspace_tmp / "prompt_templates.json"
     example_path = workspace_tmp / "prompt_templates.example.json"
@@ -2095,6 +2136,7 @@ def test_editing_existing_multi_scope_prompt_template_preserves_scopes(monkeypat
     assert analysis_services.get_prompt_template("multi_scope_edit")["prompt_text"] == "Analysiere {{committee}}."
 
 
+@pytest.mark.integration
 def test_analysis_output_reads_private_prompt_snapshot(monkeypatch, workspace_tmp: Path) -> None:
     import sqlite3
 
@@ -2172,6 +2214,7 @@ def test_analysis_output_reads_private_prompt_snapshot(monkeypatch, workspace_tm
     assert str(snapshot_path) not in job["files"]
 
 
+@pytest.mark.integration
 def test_public_job_filters_configured_private_prompt_paths(monkeypatch, workspace_tmp: Path) -> None:
     from core.services import outputs
     from core.services import paths
@@ -2199,6 +2242,7 @@ def test_public_job_filters_configured_private_prompt_paths(monkeypatch, workspa
     assert job["files"] == [public_path]
 
 
+@pytest.mark.integration
 def test_public_job_filters_private_paths_without_resolving(monkeypatch, workspace_tmp: Path) -> None:
     from core.services import outputs
     from core.services import paths
@@ -2238,6 +2282,7 @@ def test_public_job_filters_private_paths_without_resolving(monkeypatch, workspa
     assert job["files"] == [public_path]
 
 
+@pytest.mark.integration
 def test_public_job_filters_private_paths_with_windows_separators(monkeypatch, workspace_tmp: Path) -> None:
     from core.services import outputs
     from core.services import paths
@@ -2385,6 +2430,7 @@ def test_service_action_validates_months() -> None:
     assert errors
 
 
+@pytest.mark.integration
 def test_service_job_launch_failure_is_marked_error(monkeypatch, workspace_tmp: Path) -> None:
     def fail_popen(*_args, **_kwargs):
         raise OSError("missing executable")
@@ -2409,6 +2455,7 @@ def test_service_job_launch_failure_is_marked_error(monkeypatch, workspace_tmp: 
     assert "missing executable" in current.output
 
 
+@pytest.mark.integration
 def test_service_job_output_keeps_only_bounded_tail(monkeypatch, workspace_tmp: Path) -> None:
     class FakeProcess:
         stdout = (f"line-{index}\n" for index in range(600))
@@ -2471,6 +2518,7 @@ def test_terminal_service_jobs_are_pruned_but_active_jobs_remain() -> None:
             service_jobs._jobs.update(old_jobs)
 
 
+@pytest.mark.integration
 def test_service_jobs_survive_memory_reload(monkeypatch, workspace_tmp: Path) -> None:
     db_path = workspace_tmp / "data" / "db" / "service_jobs.sqlite"
     monkeypatch.setattr(service_jobs, "SERVICE_JOBS_DB", db_path)
@@ -2500,6 +2548,7 @@ def test_service_jobs_survive_memory_reload(monkeypatch, workspace_tmp: Path) ->
     assert reloaded.command == ["python", "scripts/build_local_index.py"]
 
 
+@pytest.mark.integration
 def test_running_service_job_is_marked_interrupted_after_reload(monkeypatch, workspace_tmp: Path) -> None:
     db_path = workspace_tmp / "data" / "db" / "service_jobs.sqlite"
     monkeypatch.setattr(service_jobs, "SERVICE_JOBS_DB", db_path)
@@ -2526,6 +2575,7 @@ def test_running_service_job_is_marked_interrupted_after_reload(monkeypatch, wor
     assert reloaded.finished_at
 
 
+@pytest.mark.integration
 def test_semantic_server_search_does_not_require_local_directory(tmp_path, monkeypatch):
     monkeypatch.setenv("RATSI_QDRANT_URL", "http://test.invalid:6333")
     monkeypatch.setattr(search_services, "QDRANT_DIR", tmp_path / "absent")
@@ -2542,6 +2592,7 @@ def test_semantic_server_search_does_not_require_local_directory(tmp_path, monke
     assert not (tmp_path / "absent").exists()
 
 
+@pytest.mark.integration
 def test_semantic_server_failure_is_reported_before_model_loading(tmp_path, monkeypatch):
     from unittest.mock import Mock
     from src.qdrant_connection import QdrantConnection
@@ -2556,6 +2607,7 @@ def test_semantic_server_failure_is_reported_before_model_loading(tmp_path, monk
     resources.assert_not_called()
 
 
+@pytest.mark.integration
 def test_semantic_server_model_error_is_not_reported_as_connection_error(tmp_path, monkeypatch):
     from unittest.mock import Mock
 
@@ -2576,6 +2628,7 @@ def test_semantic_server_model_error_is_not_reported_as_connection_error(tmp_pat
     store.close.assert_called_once()
 
 
+@pytest.mark.integration
 @pytest.mark.parametrize("failure,expected", [
     ("Ungültiger Qdrant-Filter", "Ungültiger Qdrant-Filter"),
     ("https://user:private-password@test.invalid:6333/prefix ist fehlgeschlagen", "RuntimeError"),
@@ -2600,6 +2653,7 @@ def test_semantic_server_query_error_keeps_safe_diagnostics(tmp_path, monkeypatc
     store.close.assert_called_once()
 
 
+@pytest.mark.integration
 def test_dashboard_reports_server_collection_state(tmp_path, monkeypatch):
     from core.services import status as status_service
     from src.qdrant_connection import QdrantConnection
@@ -2644,6 +2698,7 @@ def test_invalid_qdrant_configuration_is_reported_without_server_error(tmp_path,
     assert value not in status["qdrant_summary"] + search["error"]
 
 
+@pytest.mark.integration
 def test_credential_url_is_not_exposed_by_status_or_search(tmp_path, monkeypatch):
     from core.services import status as status_service
     from src.qdrant_connection import QdrantConnection
