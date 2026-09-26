@@ -164,6 +164,16 @@ Monatsordner enthalten zusaetzlich:
 - Zusätze wie „Berichterstatter …“ werden aus TOP-Ordnernamen entfernt
 - unvollständige künftige Sitzungen bleiben markiert und koennen spaeter angereichert werden
 
+### Gemeinsame Speicherpfade
+
+Die Standardpfade fuer Datenbanken, Rohdaten, Analyseausgaben und private Prompts
+werden in `src/paths.py` festgelegt. Die Weboberflaeche uebernimmt diese Werte,
+auch fuer ihre Statusanzeige, statt eigene Standardpfade zu definieren.
+Die bestehenden Speicherorte und Umgebungsvariablen bleiben erhalten.
+Umgebungsvariablen werden beim Programmstart eingelesen; nach Aenderungen
+ist die Webanwendung neu zu starten. CLI-Pfadparameter gelten weiterhin nur
+fuer den jeweiligen Aufruf.
+
 ## 5. SQLite-Indizes
 
 Es gibt zwei gleich strukturierte Indexdatenbanken:

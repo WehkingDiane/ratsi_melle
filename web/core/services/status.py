@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from pathlib import Path
 from typing import Any
 
 from src.config.settings import QdrantSettingsError
@@ -20,8 +21,8 @@ SESSION_DIR_MARKERS = ("agenda", "session-documents")
 def service_status() -> dict[str, Any]:
     """Return lightweight status for service pages."""
 
-    raw_data_root = paths.REPO_ROOT / "data" / "raw"
-    online_index_db = paths.REPO_ROOT / "data" / "db" / "online_session_index.sqlite"
+    raw_data_root = paths.RAW_DATA_DIR
+    online_index_db = paths.ONLINE_INDEX_DB
     local_session_count = _table_count(paths.LOCAL_INDEX_DB, "sessions")
     local_document_count = _table_count(paths.LOCAL_INDEX_DB, "documents")
     online_session_count = _table_count(online_index_db, "sessions")
@@ -41,10 +42,10 @@ def service_status() -> dict[str, Any]:
         "qdrant_exists": qdrant["available"],
         "qdrant_state": qdrant["state"],
         "raw_data_exists": raw_session_count is not None,
-        "local_index_path": "data/db/local_index.sqlite",
-        "online_index_path": "data/db/online_session_index.sqlite",
+        "local_index_path": _display_path(paths.LOCAL_INDEX_DB),
+        "online_index_path": _display_path(paths.ONLINE_INDEX_DB),
         "qdrant_path": qdrant_target,
-        "raw_data_path": "data/raw/",
+        "raw_data_path": _display_path(paths.RAW_DATA_DIR),
         "raw_session_count": raw_session_count,
         "raw_data_summary": _count_label(raw_session_count, "Sitzungsordner"),
         "local_session_count": local_session_count,
@@ -64,9 +65,16 @@ def source_overview() -> dict[str, Any]:
         "analysis_outputs_exists": paths.ANALYSIS_OUTPUTS_DIR.exists(),
         "session_count": len(list_sessions()),
         "analysis_count": len(list_analysis_outputs()),
-        "local_index_path": str(paths.LOCAL_INDEX_DB.relative_to(paths.REPO_ROOT)),
-        "analysis_outputs_path": str(paths.ANALYSIS_OUTPUTS_DIR.relative_to(paths.REPO_ROOT)),
+        "local_index_path": _display_path(paths.LOCAL_INDEX_DB),
+        "analysis_outputs_path": _display_path(paths.ANALYSIS_OUTPUTS_DIR),
     }
+
+
+def _display_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(paths.REPO_ROOT))
+    except ValueError:
+        return str(path)
 
 
 def _table_count(db_path, table_name: str) -> int | None:

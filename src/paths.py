@@ -26,6 +26,7 @@ PROMPT_SNAPSHOTS_DIR = PRIVATE_DATA_DIR / "prompt_snapshots"
 
 LOCAL_INDEX_DB = DB_DIR / "local_index.sqlite"
 ANALYSIS_WORKFLOW_DB = DB_DIR / "analysis_workflow.sqlite"
+SERVICE_JOBS_DB = DB_DIR / "service_jobs.sqlite"
 QDRANT_DIR = DB_DIR / "qdrant"
 ONLINE_INDEX_DB = DB_DIR / "online_session_index.sqlite"
 LANDKREIS_PUBLICATIONS_DB = Path(
