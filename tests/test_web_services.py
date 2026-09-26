@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-import importlib
+import subprocess
 import shutil
 import sqlite3
 import sys
@@ -457,7 +457,7 @@ def test_service_status_summarizes_content_counts(workspace_tmp: Path, monkeypat
     (summary_only_session_dir / "agenda_summary.json").write_text('{"agenda_items": []}', encoding="utf-8")
     local_db = workspace_tmp / "data" / "db" / "local_index.sqlite"
     local_db.parent.mkdir(parents=True)
-    online_db = workspace_tmp / "data" / "db" / "online_session_index.sqlite"
+    online_db = workspace_tmp / "custom_online.sqlite"
     qdrant_dir = workspace_tmp / "data" / "db" / "qdrant"
     qdrant_dir.mkdir()
     with sqlite3.connect(local_db) as conn:
@@ -480,11 +480,14 @@ def test_service_status_summarizes_content_counts(workspace_tmp: Path, monkeypat
         )
 
     monkeypatch.setattr(status_service.paths, "REPO_ROOT", workspace_tmp)
+    monkeypatch.setattr(status_service.paths, "RAW_DATA_DIR", workspace_tmp / "data" / "raw")
+    monkeypatch.setattr(status_service.paths, "ONLINE_INDEX_DB", online_db)
     monkeypatch.setattr(status_service.paths, "LOCAL_INDEX_DB", local_db)
     monkeypatch.setattr(status_service.paths, "QDRANT_DIR", qdrant_dir)
 
     status = status_service.service_status()
 
+    assert status["online_index_path"] == "custom_online.sqlite"
     assert status["raw_data_summary"] == "4 Sitzungsordner"
     assert status["local_index_summary"] == "1 Sitzungen / 2 Dokumente"
     assert status["online_index_summary"] == "2 Sitzungen"
@@ -502,6 +505,8 @@ def test_service_status_marks_raw_data_file_missing(workspace_tmp: Path, monkeyp
     local_db.parent.mkdir(parents=True)
 
     monkeypatch.setattr(status_service.paths, "REPO_ROOT", workspace_tmp)
+    monkeypatch.setattr(status_service.paths, "RAW_DATA_DIR", workspace_tmp / "data" / "raw")
+    monkeypatch.setattr(status_service.paths, "ONLINE_INDEX_DB", workspace_tmp / "data" / "db" / "online_session_index.sqlite")
     monkeypatch.setattr(status_service.paths, "LOCAL_INDEX_DB", local_db)
 
     status = status_service.service_status()
@@ -534,6 +539,8 @@ def test_service_status_marks_unreadable_online_index_missing(workspace_tmp: Pat
     online_db.write_text("", encoding="utf-8")
 
     monkeypatch.setattr(status_service.paths, "REPO_ROOT", workspace_tmp)
+    monkeypatch.setattr(status_service.paths, "RAW_DATA_DIR", workspace_tmp / "data" / "raw")
+    monkeypatch.setattr(status_service.paths, "ONLINE_INDEX_DB", workspace_tmp / "data" / "db" / "online_session_index.sqlite")
     monkeypatch.setattr(status_service.paths, "LOCAL_INDEX_DB", local_db)
 
     status = status_service.service_status()
@@ -551,6 +558,8 @@ def test_service_status_marks_unreadable_local_index_missing(workspace_tmp: Path
     local_db.write_text("not sqlite", encoding="utf-8")
 
     monkeypatch.setattr(status_service.paths, "REPO_ROOT", workspace_tmp)
+    monkeypatch.setattr(status_service.paths, "RAW_DATA_DIR", workspace_tmp / "data" / "raw")
+    monkeypatch.setattr(status_service.paths, "ONLINE_INDEX_DB", workspace_tmp / "data" / "db" / "online_session_index.sqlite")
     monkeypatch.setattr(status_service.paths, "LOCAL_INDEX_DB", local_db)
 
     status = status_service.service_status()
@@ -2395,19 +2404,28 @@ def test_service_action_builds_landkreis_vector_command() -> None:
     ]
 
 
+@pytest.mark.integration
 def test_web_paths_honor_landkreis_db_env(monkeypatch, tmp_path: Path) -> None:
-    from core.services import paths as path_service
-
-    original = path_service.LANDKREIS_PUBLICATIONS_DB
     custom_db = tmp_path / "external" / "landkreis.sqlite"
     monkeypatch.setenv("RATSI_LANDKREIS_DB", str(custom_db))
-    reloaded = importlib.reload(path_service)
-    try:
-        assert reloaded.LANDKREIS_PUBLICATIONS_DB == custom_db
-    finally:
-        monkeypatch.delenv("RATSI_LANDKREIS_DB", raising=False)
-        importlib.reload(path_service)
-        path_service.LANDKREIS_PUBLICATIONS_DB = original
+    result = subprocess.run(
+        [sys.executable, "-c", """
+import os
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path.cwd() / "web"))
+from src import paths as shared
+from core.services import paths as web
+expected = Path(os.environ["RATSI_LANDKREIS_DB"])
+assert shared.LANDKREIS_PUBLICATIONS_DB == expected
+assert web.LANDKREIS_PUBLICATIONS_DB == expected
+"""],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert result.returncode == 0, result.stderr
 
 
 def test_service_action_validates_landkreis_fetch_date() -> None:
@@ -2661,6 +2679,8 @@ def test_dashboard_reports_server_collection_state(tmp_path, monkeypatch):
     from unittest.mock import Mock
     monkeypatch.setenv("RATSI_QDRANT_URL", "http://test.invalid:6333")
     monkeypatch.setattr(status_service.paths, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(status_service.paths, "RAW_DATA_DIR", tmp_path / "data" / "raw")
+    monkeypatch.setattr(status_service.paths, "ONLINE_INDEX_DB", tmp_path / "data" / "db" / "online_session_index.sqlite")
     monkeypatch.setattr(status_service.paths, "LOCAL_INDEX_DB", tmp_path / "absent.sqlite")
     monkeypatch.setattr(status_service.paths, "QDRANT_DIR", tmp_path / "absent")
     client = Mock()
@@ -2684,6 +2704,8 @@ def test_invalid_qdrant_configuration_is_reported_without_server_error(tmp_path,
 
     monkeypatch.setenv(name, value)
     monkeypatch.setattr(status_service.paths, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(status_service.paths, "RAW_DATA_DIR", tmp_path / "data" / "raw")
+    monkeypatch.setattr(status_service.paths, "ONLINE_INDEX_DB", tmp_path / "data" / "db" / "online_session_index.sqlite")
     monkeypatch.setattr(status_service.paths, "LOCAL_INDEX_DB", tmp_path / "absent.sqlite")
     monkeypatch.setattr(status_service.paths, "QDRANT_DIR", tmp_path / "absent")
     monkeypatch.setattr(search_services, "QDRANT_DIR", tmp_path / "absent")
@@ -2708,6 +2730,8 @@ def test_credential_url_is_not_exposed_by_status_or_search(tmp_path, monkeypatch
     url = f"https://user:{secret}@example.test:6333/prefix"
     monkeypatch.setenv("RATSI_QDRANT_URL", url)
     monkeypatch.setattr(status_service.paths, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(status_service.paths, "RAW_DATA_DIR", tmp_path / "data" / "raw")
+    monkeypatch.setattr(status_service.paths, "ONLINE_INDEX_DB", tmp_path / "data" / "db" / "online_session_index.sqlite")
     monkeypatch.setattr(status_service.paths, "LOCAL_INDEX_DB", tmp_path / "absent.sqlite")
     monkeypatch.setattr(status_service.paths, "QDRANT_DIR", tmp_path / "absent")
     monkeypatch.setattr(search_services, "QDRANT_DIR", tmp_path / "absent")

@@ -70,15 +70,16 @@ Jeder offene Punkt kann eine grobe Aufwandseinstufung und eine Modell-Empfehlung
 
 ### 3.2 Datenhaltung und Builds
 
-### 3.2 Datenhaltung und Builds
-
 #### Konkrete Aufgaben
 
 - Qdrant-Zugangsdaten aus der Verbindungs-URL in einen getrennten Secret-Wert überführen (z. B. API-Key über `src/config/secrets.py`); dabei CLI-Ausgaben, Job-Logs, Fehlerketten und Bibliotheks-Logging auf Offenlegung prüfen. `[Mittel · GPT-6 Sol / Medium]`
-- Speicher- und Datenbankzugriffe auf Entkopplung prüfen: Repository auf fest codierte Datenbankpfade, Qdrant-Pfade/-URLs und sonstige Speicherorte untersuchen; feststellen, ob fachlicher Code physische Speicherorte oder konkrete Speichertechnologien direkt kennt. Problemstellen dokumentieren und prüfen, ob Verbindungen und Pfade zentral konfigurierbar bzw. über klar definierte Storage-/Service-Schnittstellen gekapselt sind. Zunächst keine Implementierungsänderungen vornehmen. `[Mittel · GPT-6 Sol / Medium]`
 - Datenqualität und Metadatenkonsistenz mit Regressionstests absichern `[Mittel · GPT-6 Sol / Low]`
 - Build-Workflows robust halten und Änderungen am Quellformat kontrolliert übernehmen `[Mittel · GPT-6 Sol / Medium]`
 - Vorschau-Modus für Build-Skripte ergänzen, der geplante Änderungen, fehlende Quelldateien und mögliche Bereinigungen vor dem Schreiben ausgibt `[Mittel · GPT-6 Sol / Medium]`
+
+#### Kontext und Stand
+
+Die Umstellung auf den lokalen Qdrant-Server ist laut Diane erledigt (26.09.2026).
 
 ### 3.3 Extraktion, OCR und Suche
 
@@ -90,7 +91,6 @@ Jeder offene Punkt kann eine grobe Aufwandseinstufung und eine Modell-Empfehlung
 - Fortschrittsanzeige für `scripts/build_vector_index.py` ergänzen: Gesamtzahl, bereits indexierte und noch ausstehende Dokumente sowie laufender Fortschritt `[Mittel · GPT-6 Sol / Low]`
 - Datei-Logging für Build-Skripte ergänzen, insbesondere für `scripts/build_vector_index.py`, damit Dokument-ID, Fehlerdetails und Stacktrace nach einem langen Lauf ausgewertet werden können `[Leicht · GPT-6 Luna / Medium]`
 - Dauerhaften Zwischenstand für lange Indexläufe speichern, einschließlich erledigter, offener und fehlgeschlagener Dokumente, damit Abbrüche nachvollziehbar sind und Läufe gezielt fortgesetzt werden können `[Schwer · GPT-6 Astra / Medium]`
-- Qdrant-Local-Modus für große Collections durch einen lokalen Docker-Server ersetzen: Windows-/WSL-Voraussetzungen und Volume dokumentieren, alle Build-, Such- und Statuspfade auf eine konfigurierbare Verbindung umstellen, vorhandene Collections sicher migrieren und Rückweg prüfen `[Schwer · GPT-6 Astra / Medium]`
 - Recherchekatalog über weitere Zeiträume, Protokolle und echte Nutzerfragen erweitern; Abschnitts- und Legacy-Index mit `scripts/evaluate_search.py` vergleichen `[Mittel · GPT-6 Sol / Medium]`
 
 ### 3.4 Analyse und Artefakte
@@ -133,7 +133,7 @@ Analyseartefakte sollen Eingabekontext, verwendete Dokumente und Hashes, Prompt-
 
 ## 4. Abhängigkeiten und sinnvolle Reihenfolge
 
-1. Speicher- und Datenbankzugriffe auf Entkopplung prüfen und bestehende Abhängigkeiten zwischen den Schichten dokumentieren.
+1. **Erledigt (26.09.2026):** Speicherzugriffe geprüft. Auf Wunsch auf die Vereinheitlichung der Standardpfade von Skripten und Weboberfläche in `src/paths.py` begrenzt; keine weitergehende Entkopplung vorgesehen. Siehe [Datenverarbeitungskonzept](data_processing_concept.md#gemeinsame-speicherpfade).
 2. Datenverträge und Metadaten zwischen Fetching, SQLite-Builds und Extraktion stabilisieren.
 3. Extraktion, OCR und Suchindex mit Fortschritt, Fehlerdiagnose und Regressionstests absichern.
 4. Analyseartefakte und Quellenverweise konsistent versionieren.

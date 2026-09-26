@@ -1,26 +1,22 @@
-"""Shared paths for web UI services."""
+"""Expose central project paths to web services without duplicating defaults."""
 
 from __future__ import annotations
 
-import os
-from pathlib import Path
+from src.paths import (
+    ANALYSIS_OUTPUTS_DIR,
+    ANALYSIS_PROMPTS_DIR,
+    ANALYSIS_WORKFLOW_DB,
+    LANDKREIS_PUBLICATIONS_DB,
+    LOCAL_INDEX_DB,
+    ONLINE_INDEX_DB,
+    PRIVATE_DATA_DIR,
+    PROMPT_SNAPSHOTS_DIR,
+    PROMPT_TEMPLATES_EXAMPLE,
+    PROMPT_TEMPLATES_PATH,
+    QDRANT_DIR,
+    RAW_DATA_DIR,
+    REPO_ROOT,
+    SERVICE_JOBS_DB,
+)
 
-from src.paths import QDRANT_DIR
-
-
-REPO_ROOT = Path(__file__).resolve().parents[3]
-PRIVATE_DATA_DIR = Path(os.environ.get("RATSI_PRIVATE_DATA_DIR", REPO_ROOT / "data" / "private")).expanduser()
-LOCAL_INDEX_DB = REPO_ROOT / "data" / "db" / "local_index.sqlite"
-LANDKREIS_PUBLICATIONS_DB = Path(
-    os.environ.get("RATSI_LANDKREIS_DB", REPO_ROOT / "data" / "db" / "landkreis_publications.sqlite")
-).expanduser()
-ANALYSIS_WORKFLOW_DB = REPO_ROOT / "data" / "db" / "analysis_workflow.sqlite"
-SERVICE_JOBS_DB = REPO_ROOT / "data" / "db" / "service_jobs.sqlite"
-ANALYSIS_OUTPUTS_DIR = REPO_ROOT / "data" / "analysis_outputs"
-ANALYSIS_PROMPTS_DIR = PRIVATE_DATA_DIR / "analysis_prompts"
-PROMPT_TEMPLATES_EXAMPLE = REPO_ROOT / "docs" / "examples" / "prompt_templates.example.json"
-PROMPT_TEMPLATES_PATH = Path(
-    os.environ.get("RATSI_PROMPT_TEMPLATES_PATH", PRIVATE_DATA_DIR / "prompt_templates.json")
-).expanduser()
-PROMPT_SNAPSHOTS_DIR = PRIVATE_DATA_DIR / "prompt_snapshots"
 DEFAULT_SCRIPT_TIMEOUT_SECONDS = 900
