@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import logging
+import os
 import sqlite3
 import subprocess
 import threading
@@ -13,6 +15,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from datetime import timezone
 from pathlib import Path
+
+from src.observability import RUN_ID_ENV
 
 from .services.paths import SERVICE_JOBS_DB as DEFAULT_SERVICE_JOBS_DB
 
@@ -26,6 +30,7 @@ STATUS_LABELS = {
     "ok": "erfolgreich",
     "error": "fehlgeschlagen",
 }
+LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
@@ -118,16 +123,27 @@ def _run_job(job_id: str, cwd: Path) -> None:
     if job is None:
         return
     _update_job(job_id, status="running", started_at=_now())
+    LOGGER.info(
+        "event=service_job_started action=%s",
+        job.action,
+        extra={"run_id": job_id},
+    )
     try:
         process = subprocess.Popen(
             job.command,
             cwd=str(cwd),
+            env={**os.environ, RUN_ID_ENV: job.job_id},
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
         )
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
         message = f"Service konnte nicht gestartet werden: {exc}"
+        LOGGER.exception(
+            "event=service_job_failed action=%s phase=launch",
+            job.action,
+            extra={"run_id": job_id},
+        )
         _update_job(
             job_id,
             status="error",
@@ -144,12 +160,21 @@ def _run_job(job_id: str, cwd: Path) -> None:
         lines.append(stripped)
         _update_job(job_id, output="\n".join(lines), summary=stripped)
     process.wait()
+    status = "ok" if process.returncode == 0 else "error"
     _update_job(
         job_id,
-        status="ok" if process.returncode == 0 else "error",
+        status=status,
         exit_code=int(process.returncode or 0),
         output="\n".join(lines),
         finished_at=_now(),
+    )
+    log_method = LOGGER.info if status == "ok" else LOGGER.error
+    log_method(
+        "event=service_job_completed action=%s status=%s exit_code=%d",
+        job.action,
+        status,
+        int(process.returncode or 0),
+        extra={"run_id": job_id},
     )
 
 

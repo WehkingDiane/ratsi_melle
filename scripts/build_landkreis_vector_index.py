@@ -21,6 +21,7 @@ from src.indexing.id_strategy import stable_document_id
 from src.indexing.reconciliation import find_orphaned_ids
 from src.indexing.vectorizer import HybridVectorizer
 from src.paths import LANDKREIS_DATA_DIR, LANDKREIS_PUBLICATIONS_DB, QDRANT_DIR
+from src.observability import cli_log_level, run_cli
 
 COLLECTION_NAME = "landkreis_publications"
 DEFAULT_MAX_TEXT_CHARS = 6_000
@@ -209,6 +210,7 @@ def main(argv: list[str] | None = None) -> None:
             "(default: %(default)s)."
         ),
     )
+    parser.add_argument("--log-level", default="INFO", help="Python logging level.")
     args = parser.parse_args(argv)
 
     db_path: Path = args.db
@@ -343,4 +345,8 @@ def main(argv: list[str] | None = None) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    run_cli(
+        Path(__file__).stem,
+        main,
+        log_level=cli_log_level(sys.argv[1:]),
+    )

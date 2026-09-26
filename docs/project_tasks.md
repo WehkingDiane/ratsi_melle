@@ -77,10 +77,6 @@ Jeder offene Punkt kann eine grobe Aufwandseinstufung und eine Modell-Empfehlung
 - Build-Workflows robust halten und Änderungen am Quellformat kontrolliert übernehmen `[Mittel · GPT-6 Sol / Medium]`
 - Vorschau-Modus für Build-Skripte ergänzen, der geplante Änderungen, fehlende Quelldateien und mögliche Bereinigungen vor dem Schreiben ausgibt `[Mittel · GPT-6 Sol / Medium]`
 
-#### Kontext und Stand
-
-Die Umstellung auf den lokalen Qdrant-Server ist laut Diane erledigt (26.09.2026).
-
 ### 3.3 Extraktion, OCR und Suche
 
 #### Konkrete Aufgaben
@@ -89,7 +85,6 @@ Die Umstellung auf den lokalen Qdrant-Server ist laut Diane erledigt (26.09.2026
 - Optionale OCR-Werkzeuge und das Verhalten bei großen Dateien betrieblich absichern `[Mittel · GPT-6 Sol / Low]`
 - Standardlauf von `scripts/build_vector_index.py` auf 100 Dokumente begrenzen; einen vollständigen Durchlauf nur mit einem ausdrücklichen Parameter wie `--all` starten `[Leicht · GPT-6 Luna / Medium]`
 - Fortschrittsanzeige für `scripts/build_vector_index.py` ergänzen: Gesamtzahl, bereits indexierte und noch ausstehende Dokumente sowie laufender Fortschritt `[Mittel · GPT-6 Sol / Low]`
-- Datei-Logging für Build-Skripte ergänzen, insbesondere für `scripts/build_vector_index.py`, damit Dokument-ID, Fehlerdetails und Stacktrace nach einem langen Lauf ausgewertet werden können `[Leicht · GPT-6 Luna / Medium]`
 - Dauerhaften Zwischenstand für lange Indexläufe speichern, einschließlich erledigter, offener und fehlgeschlagener Dokumente, damit Abbrüche nachvollziehbar sind und Läufe gezielt fortgesetzt werden können `[Schwer · GPT-6 Astra / Medium]`
 - Recherchekatalog über weitere Zeiträume, Protokolle und echte Nutzerfragen erweitern; Abschnitts- und Legacy-Index mit `scripts/evaluate_search.py` vergleichen `[Mittel · GPT-6 Sol / Medium]`
 
@@ -125,17 +120,14 @@ Analyseartefakte sollen Eingabekontext, verwendete Dokumente und Hashes, Prompt-
 
 #### Konkrete Aufgaben
 
-- Logging, Monitoring und Fehlerdiagnose schichtübergreifend vereinheitlichen `[Mittel · GPT-6 Sol / Medium]`
 - Parallele Builds derselben lokalen Qdrant-Collection erkennen und mit einer verständlichen Meldung verhindern `[Mittel · GPT-6 Sol / Medium]`
 - Testabdeckung für Datenpipeline, Analyseflüsse und Suchpfade erweitern `[Mittel · GPT-6 Sol / Low]`
 - Dokumentation regelmäßig gegen Implementierung, Datenformate und tatsächliche Abläufe prüfen `[Leicht · GPT-6 Luna / Medium]`
-- Aufgabenliste nach Architektur- oder Funktionsänderungen aktualisieren und erledigte Punkte entfernen `[Leicht · GPT-6 Luna / Medium]`
 
 ## 4. Abhängigkeiten und sinnvolle Reihenfolge
 
-1. **Erledigt (26.09.2026):** Speicherzugriffe geprüft. Auf Wunsch auf die Vereinheitlichung der Standardpfade von Skripten und Weboberfläche in `src/paths.py` begrenzt; keine weitergehende Entkopplung vorgesehen. Siehe [Datenverarbeitungskonzept](data_processing_concept.md#gemeinsame-speicherpfade).
-2. Datenverträge und Metadaten zwischen Fetching, SQLite-Builds und Extraktion stabilisieren.
-3. Extraktion, OCR und Suchindex mit Fortschritt, Fehlerdiagnose und Regressionstests absichern.
-4. Analyseartefakte und Quellenverweise konsistent versionieren.
-5. Dokumentzentrierten Analyse- und Review-Ablauf darauf aufbauend in der Oberfläche vervollständigen.
-6. Recherchequalität mit erweitertem Katalog messen und die Dokumentation nachführen.
+1. Datenverträge und Metadaten zwischen Fetching, SQLite-Builds und Extraktion stabilisieren.
+2. Extraktion, OCR und Suchindex mit Fortschritt, Fehlerdiagnose und Regressionstests absichern.
+3. Analyseartefakte und Quellenverweise konsistent versionieren.
+4. Dokumentzentrierten Analyse- und Review-Ablauf darauf aufbauend in der Oberfläche vervollständigen.
+5. Recherchequalität mit erweitertem Katalog messen und die Dokumentation nachführen.

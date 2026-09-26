@@ -30,6 +30,7 @@ from src.indexing.payload_builder import build_document_payload, resolve_local_p
 from src.indexing.reconciliation import find_orphaned_ids
 from src.indexing.vectorizer import HybridVectorizer
 from src.paths import LOCAL_INDEX_DB, QDRANT_DIR
+from src.observability import cli_log_level, run_cli
 
 _stable_qdrant_id = stable_document_id
 
@@ -196,6 +197,7 @@ def legacy_main(argv: list[str] | None = None) -> None:
         default=None,
         help="Index at most N missing documents (useful for incremental runs).",
     )
+    parser.add_argument("--log-level", default="INFO", help="Python logging level.")
     args = parser.parse_args(argv)
 
     db_path: Path = args.db
@@ -337,4 +339,8 @@ def main(argv: list[str] | None = None) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    run_cli(
+        Path(__file__).stem,
+        main,
+        log_level=cli_log_level(sys.argv[1:]),
+    )

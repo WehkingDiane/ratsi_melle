@@ -13,6 +13,7 @@ if str(REPO_ROOT) not in sys.path:  # pragma: no branch - direct CLI execution
 
 from src.fetching.landkreis import LandkreisPublicationStore
 from src.paths import LANDKREIS_PUBLICATIONS_DB
+from src.observability import cli_log_level, run_cli
 
 
 def parse_args() -> argparse.Namespace:
@@ -25,6 +26,7 @@ def parse_args() -> argparse.Namespace:
         default=LANDKREIS_PUBLICATIONS_DB,
         help="SQLite database path (default: RATSI_LANDKREIS_DB or %(default)s).",
     )
+    parser.add_argument("--log-level", default="INFO", help="Python logging level.")
     return parser.parse_args()
 
 
@@ -41,4 +43,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    run_cli(
+        Path(__file__).stem,
+        main,
+        log_level=cli_log_level(sys.argv[1:]),
+    )

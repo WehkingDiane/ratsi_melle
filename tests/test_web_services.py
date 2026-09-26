@@ -2475,6 +2475,8 @@ def test_service_job_launch_failure_is_marked_error(monkeypatch, workspace_tmp: 
 
 @pytest.mark.integration
 def test_service_job_output_keeps_only_bounded_tail(monkeypatch, workspace_tmp: Path) -> None:
+    observed_environment: dict[str, str] = {}
+
     class FakeProcess:
         stdout = (f"line-{index}\n" for index in range(600))
         returncode = 0
@@ -2482,7 +2484,11 @@ def test_service_job_output_keeps_only_bounded_tail(monkeypatch, workspace_tmp: 
         def wait(self) -> None:
             return None
 
-    monkeypatch.setattr(service_jobs.subprocess, "Popen", lambda *_args, **_kwargs: FakeProcess())
+    def fake_popen(*_args, **kwargs):
+        observed_environment.update(kwargs["env"])
+        return FakeProcess()
+
+    monkeypatch.setattr(service_jobs.subprocess, "Popen", fake_popen)
 
     job = service_jobs.start_service_job("build_local_index", ["fake-command"], workspace_tmp)
 
@@ -2501,6 +2507,7 @@ def test_service_job_output_keeps_only_bounded_tail(monkeypatch, workspace_tmp: 
     assert len(lines) == 500
     assert lines[0] == "line-100"
     assert lines[-1] == "line-599"
+    assert observed_environment[service_jobs.RUN_ID_ENV] == job.job_id
 
 
 def test_terminal_service_jobs_are_pruned_but_active_jobs_remain() -> None:
