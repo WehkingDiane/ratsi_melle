@@ -4,7 +4,13 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from src.config.embedding_models import BM25_MODEL, HARRIER_MODEL, HARRIER_TOKENIZER
+from src.config.embedding_models import (
+    BM25_MODEL,
+    EMBEDDING_PIPELINE_VERSION,
+    HARRIER_MODEL,
+    HARRIER_TOKENIZER,
+    MODEL_MANIFEST_FORMAT_VERSION,
+)
 
 
 def test_embedding_model_definitions_capture_existing_runtime_contract() -> None:
@@ -15,6 +21,13 @@ def test_embedding_model_definitions_capture_existing_runtime_contract() -> None
     assert HARRIER_TOKENIZER.revision == HARRIER_MODEL.revision
     assert BM25_MODEL.model_id == "Qdrant/bm25"
     assert BM25_MODEL.revision == "22b8d2af71a76161e18dd432d2cee0eefa66e412"
+
+
+def test_embedding_contract_versions_have_distinct_types_and_initial_values() -> None:
+    assert EMBEDDING_PIPELINE_VERSION == "passages-1"
+    assert isinstance(EMBEDDING_PIPELINE_VERSION, str)
+    assert MODEL_MANIFEST_FORMAT_VERSION == 1
+    assert isinstance(MODEL_MANIFEST_FORMAT_VERSION, int)
 
 
 @pytest.mark.parametrize("definition", [HARRIER_MODEL, HARRIER_TOKENIZER, BM25_MODEL])

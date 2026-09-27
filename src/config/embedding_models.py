@@ -3,6 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Final
+
+
+# Changes to embedding, query instructions, tokenization, chunking, or sparse
+# processing that alter index contents require a new value.
+EMBEDDING_PIPELINE_VERSION: Final[str] = "passages-1"
+
+# Changes to the serialized manifest contract require a new integer version.
+MODEL_MANIFEST_FORMAT_VERSION: Final[int] = 1
 
 
 @dataclass(frozen=True, slots=True)

@@ -196,6 +196,30 @@ veraendern koennen. Sie ist unabhaengig von der allgemeinen Anwendungsversion in
 `VERSION`. Eine Aenderung der Weboberflaeche erfordert damit keinen Neuaufbau;
 eine relevante Aenderung der Abschnittsbildung kann ihn dagegen erfordern.
 
+### Versionsvertrag fuer Pipeline und Manifest (M1.4)
+
+Die zentrale Konfiguration definiert zwei bewusst getrennte Versionen:
+
+- `EMBEDDING_PIPELINE_VERSION = "passages-1"` bezeichnet die fachliche
+  Erzeugungssemantik der Vektordaten. Der bestehende Wert wird uebernommen, damit
+  die zentrale Definition denselben Stand wie die bisherige Passage-Pipeline
+  beschreibt. Der Wert muss geaendert werden, wenn Query-Instruktion,
+  Normalisierung, Tokenisierung, Abschnittsbildung, Dense-Verarbeitung oder
+  Sparse-Verarbeitung erzeugte beziehungsweise abgefragte Vektoren fachlich
+  anders interpretieren. Ein Modellwechsel wird zusaetzlich durch die gesonderten
+  Modellrevisionen sichtbar.
+- `MODEL_MANIFEST_FORMAT_VERSION = 1` bezeichnet ausschliesslich die Struktur und
+  Auswertungsregeln des lokalen Modellmanifests. Die ganzzahlige Version wird
+  erhoeht, wenn ein vorhandener Leser die neue Manifeststruktur oder die Bedeutung
+  ihrer Pflichtfelder nicht mehr sicher auswerten kann. Geaenderte Artefakte oder
+  Modellrevisionen bei unveraendertem Schema erzeugen ein neues Manifest, aber
+  keine neue Formatversion.
+
+Nicht indexrelevante Aenderungen an GUI, Logging oder Betriebsdokumentation
+veraendern keine der beiden Versionen. Die allgemeine Anwendungsversion in
+`VERSION` bleibt unabhaengig. Bis zur Verbraucherumstellung in Phase 4 bleibt die
+bisherige gleichlautende Konstante in `src/indexing/passages.py` bestehen.
+
 ## Laufzeitkonfiguration
 
 `src/config/settings.py` enthaelt nur installationsbezogene Werte, insbesondere
@@ -427,7 +451,7 @@ bleiben unabgehakt und werden dort beschrieben.
   Definitionen fuer Harrier, Tokenizer und BM25 einfuehren.
 - [x] **M1.3** Feste bekannte Revisionen ermitteln und dokumentieren; bewegliche
   Referenzen wie `main` aus der produktiven Konfiguration ausschliessen.
-- [ ] **M1.4** Pipeline-Version und Manifestformat-Version fachlich definieren.
+- [x] **M1.4** Pipeline-Version und Manifestformat-Version fachlich definieren.
 - [ ] **M1.5** Manifest-Schema, kanonische Serialisierung und deterministische
   Auswahl relevanter Pruefsummen implementieren.
 - [ ] **M1.6** Unit-Tests fuer Konfiguration, Schema, Manifest-Hash und unzulaessige
@@ -538,12 +562,13 @@ bleiben unabgehakt und werden dort beschrieben.
 
 ## Aktuelle Uebergabe
 
-- Letzter abgeschlossener Punkt: **M1.3**; Harrier, Tokenizer und BM25 sind auf
-  verifizierte vollstaendige Hugging-Face-Commit-SHAs festgelegt und dokumentiert.
-- Naechster regulaerer Punkt: **M1.4**.
-- Aktiver Implementierungsstand: Die zentrale Konfiguration enthaelt keine
-  beweglichen Modellreferenzen mehr. Verbraucher werden planmaessig in Phase 4
-  auf die zentrale Quelle und die vorbereiteten lokalen Snapshots umgestellt.
-- Letzter zugehoeriger Commit: M1.3-Revisionsstand auf dem aktuellen
+- Letzter abgeschlossener Punkt: **M1.4**; fachliche Embedding-Pipeline-Version
+  und technische Manifestformat-Version sind zentral und mit getrennten
+  Aenderungsregeln definiert.
+- Naechster regulaerer Punkt: **M1.5**.
+- Aktiver Implementierungsstand: `passages-1` bildet die bestehende
+  Indexsemantik ab; Manifestformat 1 ist der Ausgangspunkt fuer das Schema in
+  M1.5. Verbraucher werden planmaessig in Phase 4 zentralisiert.
+- Letzter zugehoeriger Commit: M1.4-Versionsvertrag auf dem aktuellen
   Arbeitsbranch.
 - Offene Blocker oder Entscheidungen: keine.
