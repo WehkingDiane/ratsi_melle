@@ -170,6 +170,26 @@ Revisionen werden als unveraenderliche Commit-Hashes gespeichert, nicht als
 bewegliche Bezeichner wie `main`. Embedding-, Passage-, Evaluations- und Suchcode
 importieren diese Definition, statt eigene Modellnamen zu fuehren.
 
+### Festgelegte Modellrevisionen (M1.3)
+
+Die Revisionen wurden am 27. September 2026 ueber die offiziellen
+Hugging-Face-Modellmetadaten aufgeloest und als vollstaendige Commit-SHAs in
+`src/config/embedding_models.py` festgelegt:
+
+| Bestandteil | Modell-ID | Commit-SHA |
+| --- | --- | --- |
+| Dense-Modell | `microsoft/harrier-oss-v1-0.6b` | `f9b9dc8d367d443f2479d27aa5d8d2850c0774ee` |
+| Tokenizer | `microsoft/harrier-oss-v1-0.6b` | `f9b9dc8d367d443f2479d27aa5d8d2850c0774ee` |
+| Sparse-Modell | `Qdrant/bm25` | `22b8d2af71a76161e18dd432d2cee0eefa66e412` |
+
+Harrier und Tokenizer stammen aus demselben Repository und werden deshalb auf
+denselben Snapshot festgelegt. Die FastEmbed-Modelldefinition weist
+`Qdrant/bm25` als Hugging-Face-Quelle aus, besitzt selbst aber kein Feld fuer eine
+Revision. Das Vorbereitungsskript muss den BM25-Snapshot daher mit dem zentral
+festgelegten SHA beziehen und FastEmbed spaeter ueber einen lokalen Modellpfad
+verwenden. Ein spaeterer Stand von `main` darf keine dieser Revisionen implizit
+ersetzen.
+
 Die Pipeline-Version bezeichnet ausschliesslich Aenderungen an Embedding,
 Tokenisierung, Chunking oder Sparse-Verarbeitung, die erzeugte Indexdaten fachlich
 veraendern koennen. Sie ist unabhaengig von der allgemeinen Anwendungsversion in
@@ -405,7 +425,7 @@ bleiben unabgehakt und werden dort beschrieben.
   Pipelinekennzeichen vollstaendig inventarisieren.
 - [x] **M1.2** `src/config/embedding_models.py` mit unveraenderlichen, typisierten
   Definitionen fuer Harrier, Tokenizer und BM25 einfuehren.
-- [ ] **M1.3** Feste bekannte Revisionen ermitteln und dokumentieren; bewegliche
+- [x] **M1.3** Feste bekannte Revisionen ermitteln und dokumentieren; bewegliche
   Referenzen wie `main` aus der produktiven Konfiguration ausschliessen.
 - [ ] **M1.4** Pipeline-Version und Manifestformat-Version fachlich definieren.
 - [ ] **M1.5** Manifest-Schema, kanonische Serialisierung und deterministische
@@ -518,16 +538,12 @@ bleiben unabgehakt und werden dort beschrieben.
 
 ## Aktuelle Uebergabe
 
-- Letzter abgeschlossener Punkt: **M1.2**; unveraenderliche, typisierte
-  Definitionen fuer Harrier, dessen Tokenizer und BM25 liegen zentral unter
-  `src/config/embedding_models.py`.
-- Naechster regulaerer Punkt: **M1.3**.
-- Aktiver Implementierungsstand: Die zentrale Konfiguration bildet die bisherige
-  Modellidentitaet und Dense-Dimension ab. Revisionen stehen bis zur verifizierten
-  Ermittlung in M1.3 ausdruecklich auf `None`; Verbraucher werden planmaessig in
-  Phase 4 auf die zentrale Quelle umgestellt.
-- Letzter zugehoeriger Commit: M1.2-Konfigurationsstand auf dem aktuellen
+- Letzter abgeschlossener Punkt: **M1.3**; Harrier, Tokenizer und BM25 sind auf
+  verifizierte vollstaendige Hugging-Face-Commit-SHAs festgelegt und dokumentiert.
+- Naechster regulaerer Punkt: **M1.4**.
+- Aktiver Implementierungsstand: Die zentrale Konfiguration enthaelt keine
+  beweglichen Modellreferenzen mehr. Verbraucher werden planmaessig in Phase 4
+  auf die zentrale Quelle und die vorbereiteten lokalen Snapshots umgestellt.
+- Letzter zugehoeriger Commit: M1.3-Revisionsstand auf dem aktuellen
   Arbeitsbranch.
-- Offene Blocker oder Entscheidungen: keine; konkrete bekannte Modellrevisionen
-  muessen in **M1.3** aus den vorhandenen lokalen Artefakten beziehungsweise der
-  Modellquelle verifiziert werden.
+- Offene Blocker oder Entscheidungen: keine.
