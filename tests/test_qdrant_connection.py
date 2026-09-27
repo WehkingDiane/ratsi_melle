@@ -8,7 +8,12 @@ import pytest
 
 from src.analysis.vector_store import DocumentVectorStore
 from src.config.settings import QdrantSettingsError, load_qdrant_settings
-from src.qdrant_connection import QdrantConnection, collection_state, probe_qdrant
+from src.qdrant_connection import (
+    QdrantConnection,
+    QdrantServerUnavailableError,
+    collection_state,
+    probe_qdrant,
+)
 
 # Capture the real factory before the autouse isolation fixture replaces it.
 CREATE_CLIENT = QdrantConnection.create_client
@@ -50,11 +55,67 @@ def test_failed_server_does_not_fall_back(tmp_path, monkeypatch):
     factory.return_value.get_collections.side_effect = OSError("connection refused")
     monkeypatch.setattr("qdrant_client.QdrantClient", factory)
     monkeypatch.setenv("RATSI_QDRANT_URL", "http://test.invalid:6333")
-    with pytest.raises(RuntimeError, match="Server nicht erreichbar"):
+    with pytest.raises(QdrantServerUnavailableError, match="Server nicht erreichbar"):
         CREATE_CLIENT(QdrantConnection.from_env(tmp_path / "absent"))
     assert factory.call_count == 1
     factory.return_value.close.assert_called_once()
     assert not (tmp_path / "absent").exists()
+
+
+def test_passage_build_exits_cleanly_before_revoking_readiness(tmp_path, monkeypatch, capsys):
+    from scripts import build_vector_index
+
+    state_dir = tmp_path / "state"
+    monkeypatch.setenv("RATSI_QDRANT_URL", "http://test.invalid:6333")
+    monkeypatch.setenv("RATSI_QDRANT_STATE_DIR", str(state_dir))
+    connection = QdrantConnection.from_env(tmp_path / "unused")
+    connection.ready_path.parent.mkdir(parents=True)
+    connection.ready_path.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(
+        QdrantConnection,
+        "create_client",
+        Mock(side_effect=QdrantServerUnavailableError("Qdrant-Server nicht erreichbar.")),
+    )
+    db = tmp_path / "documents.sqlite"
+    db.touch()
+
+    with pytest.raises(SystemExit) as error:
+        build_vector_index.main(["--db", str(db)])
+
+    assert error.value.code == 1
+    assert capsys.readouterr().err == "ERROR: Qdrant-Server nicht erreichbar.\n"
+    assert connection.ready_path.read_text(encoding="utf-8") == "{}"
+
+
+@pytest.mark.parametrize("builder", ["legacy", "landkreis"])
+def test_legacy_builds_check_qdrant_before_loading_documents(tmp_path, monkeypatch, builder, capsys):
+    from scripts import build_landkreis_vector_index, build_vector_index
+
+    module = build_vector_index if builder == "legacy" else build_landkreis_vector_index
+    monkeypatch.setenv("RATSI_QDRANT_URL", "http://test.invalid:6333")
+    monkeypatch.setattr(
+        QdrantConnection,
+        "create_client",
+        Mock(side_effect=QdrantServerUnavailableError("Qdrant-Server nicht erreichbar.")),
+    )
+    monkeypatch.setattr(module, "_validate_runtime_dependencies", lambda: (Mock, DocumentVectorStore))
+    monkeypatch.setattr(
+        module,
+        "_load_documents",
+        Mock(side_effect=AssertionError("documents were loaded before Qdrant preflight")),
+    )
+    db = tmp_path / "documents.sqlite"
+    db.touch()
+    args = ["--db", str(db), "--qdrant-dir", str(tmp_path / "unused")]
+    if builder == "legacy":
+        args.append("--legacy-document-index")
+
+    with pytest.raises(SystemExit) as error:
+        module.main(args)
+
+    assert error.value.code == 1
+    assert capsys.readouterr().err == "ERROR: Qdrant-Server nicht erreichbar.\n"
+    module._load_documents.assert_not_called()
 
 
 def test_factory_local_fallback(tmp_path, monkeypatch):

@@ -194,7 +194,9 @@ Standardmäßig verwenden Vektorbuilds, Evaluation, Websuche und Statusanzeigen 
 Qdrant-Server unter `http://127.0.0.1:6333`. Das gilt auch für
 `python scripts/build_vector_index.py`, ohne dass eine Variable gesetzt werden
 muss. `RATSI_QDRANT_URL` kann einen anderen Server angeben. Bei Serverfehlern
-gibt es keinen automatischen lokalen Rückfall.
+gibt es keinen automatischen lokalen Rückfall. Die Vektor-Builds pruefen den
+Server vor dem Modellstart und beenden sich bei Nichterreichbarkeit mit einer
+kurzen Fehlermeldung ohne Python-Traceback.
 
 Vor dem ersten Vektor-Build einen lokalen Qdrant-Server starten. Dafür wird
 Docker Desktop oder Docker Engine benötigt. Die folgenden Befehle funktionieren

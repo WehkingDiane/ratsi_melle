@@ -22,6 +22,7 @@ from src.indexing.reconciliation import find_orphaned_ids
 from src.indexing.vectorizer import HybridVectorizer
 from src.paths import LANDKREIS_DATA_DIR, LANDKREIS_PUBLICATIONS_DB, QDRANT_DIR
 from src.observability import cli_log_level, run_cli
+from src.qdrant_connection import QdrantServerUnavailableError
 
 COLLECTION_NAME = "landkreis_publications"
 DEFAULT_MAX_TEXT_CHARS = 6_000
@@ -171,7 +172,7 @@ def _is_torch_oom(exc: Exception) -> bool:
     return exc.__class__.__name__ == "OutOfMemoryError" or "out of memory" in str(exc).lower()
 
 
-def main(argv: list[str] | None = None) -> None:
+def _main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         description="Build or update the Landkreis Qdrant semantic vector index."
     )
@@ -223,12 +224,12 @@ def main(argv: list[str] | None = None) -> None:
 
     HarrierEmbedder, DocumentVectorStore = _validate_runtime_dependencies()
 
+    vector_store = DocumentVectorStore(qdrant_dir, collection_name=COLLECTION_NAME)
+    vector_store.ensure_collection()
+
     print("Loading Landkreis documents from database ...")
     all_docs = _load_documents(db_path)
     print(f"  Found {len(all_docs)} locally stored Landkreis document(s) in DB.")
-
-    vector_store = DocumentVectorStore(qdrant_dir, collection_name=COLLECTION_NAME)
-    vector_store.ensure_collection()
 
     for doc in all_docs:
         doc["_qdrant_id"] = _stable_landkreis_qdrant_id(
@@ -342,6 +343,15 @@ def main(argv: list[str] | None = None) -> None:
 
     total_now = vector_store.count()
     print(f"\nIndexed {indexed_count} new Landkreis documents. Total: {total_now}")
+
+
+def main(argv: list[str] | None = None) -> None:
+    """Run the Landkreis build with concise remote-Qdrant diagnostics."""
+    try:
+        _main(argv)
+    except QdrantServerUnavailableError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        raise SystemExit(1) from None
 
 
 if __name__ == "__main__":

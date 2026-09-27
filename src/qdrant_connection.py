@@ -12,6 +12,10 @@ from src import paths
 from src.config.settings import load_qdrant_settings
 
 
+class QdrantServerUnavailableError(RuntimeError):
+    """Raised when the configured remote Qdrant server cannot be reached."""
+
+
 @dataclass(frozen=True)
 class QdrantConnection:
     """Use validated settings for a Qdrant operation."""
@@ -55,7 +59,7 @@ class QdrantConnection:
                         client.close()
                     except Exception:
                         pass
-                raise RuntimeError("Qdrant-Server nicht erreichbar.") from None
+                raise QdrantServerUnavailableError("Qdrant-Server nicht erreichbar.") from None
             return client
         return QdrantClient(path=str(self.path))
 

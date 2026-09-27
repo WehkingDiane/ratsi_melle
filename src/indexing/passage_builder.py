@@ -136,12 +136,12 @@ def main(argv=None):
         parser.error("Require 32..8192 chunk tokens and 0 <= overlap-tokens < chunk-tokens")
     if not args.db.is_file():
         parser.error(f"Database not found: {args.db}")
-    from transformers import AutoTokenizer
-
     store = DocumentVectorStore(args.qdrant_dir, collection_name=COLLECTION)
     try:
-        store.connection.clear_readiness()
         store.ensure_collection()
+        store.connection.clear_readiness()
+        from transformers import AutoTokenizer
+
         tokenizer = AutoTokenizer.from_pretrained(
             MODEL,
             local_files_only=not INDEXER_ALLOW_MODEL_DOWNLOADS,
