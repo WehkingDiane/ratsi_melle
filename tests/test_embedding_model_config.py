@@ -50,6 +50,7 @@ def test_required_artifacts_are_immutable_central_allowlists() -> None:
         "model.safetensors",
         "modules.json",
     )
+    assert HARRIER_MODEL.expected_absent_artifacts == ("sentence_bert_config.json",)
     assert HARRIER_TOKENIZER.required_artifacts == (
         "added_tokens.json",
         "merges.txt",
@@ -170,6 +171,16 @@ def test_embedding_model_definitions_are_immutable(definition: object) -> None:
                 "model_id": "owner/model",
                 "revision": "a" * 40,
                 "required_artifacts": ("../config.json",),
+            },
+        ),
+        (
+            DenseModelDefinition,
+            {
+                "model_id": "owner/model",
+                "revision": "a" * 40,
+                "vector_dimension": 1024,
+                "required_artifacts": ("sentence_bert_config.json",),
+                "expected_absent_artifacts": ("sentence_bert_config.json",),
             },
         ),
     ],

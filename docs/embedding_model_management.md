@@ -281,6 +281,18 @@ lexikografisch sortiert; absolute Pfade, Rueckspruenge und Windows-Trennzeichen
 sind unzulaessig. Damit bleiben Cache-Metadaten, Locks und temporaere Dateien
 ausgeschlossen.
 
+Der gepinnte Harrier-Snapshot enthaelt nachweislich keine
+`sentence_bert_config.json`; die offizielle Dateiliste und der direkte Abruf am
+festgelegten Commit bestaetigen dies. Sentence Transformers kann eine solche
+Transformer-Modulkonfiguration jedoch laden und damit unter anderem
+Loader-Argumente oder die maximale Sequenzlaenge veraendern. Die Datei ist daher
+nicht faelschlich als erforderliches Downloadartefakt eingetragen, sondern als
+zentral erwartbar abwesend definiert. Vorbereitung und Pruefung muessen sowohl
+fehlende beziehungsweise veraenderte Pflichtartefakte als auch ein unerwartetes
+lokales Hinzufuegen von `sentence_bert_config.json` ablehnen. Die im gepinnten
+Snapshot tatsaechlich vorhandenen `config.json`, `config_sentence_transformers.json`
+und `modules.json` bleiben Pflichtartefakte und werden gehasht.
+
 Die kanonische Serialisierung verwendet UTF-8-JSON mit sortierten
 Objektschluesseln, deterministisch sortierten Artefaktlisten und ohne unbedeutende
 Leerzeichen. Der Wert `manifest_sha256` dient als stabiler
@@ -674,7 +686,7 @@ bleiben unabgehakt und werden dort beschrieben.
 ## Aktuelle Uebergabe
 
 - Letzter abgeschlossener Punkt: **M1.7**; Phase 1 wurde im Gesamtdiff geprueft.
-  Die vollstaendige Standardsuite bestand mit 453 Tests; 5 markierte Live-Tests
+  Die vollstaendige Standardsuite bestand mit 456 Tests; 5 markierte Live-Tests
   blieben gemaess `pyproject.toml` ausgeschlossen.
 - Naechster regulaerer Punkt: **M2.1**.
 - Aktiver Implementierungsstand: Zentraler Modell- und Versionsvertrag,

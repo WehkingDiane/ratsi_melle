@@ -171,12 +171,26 @@ def select_checksum_artifacts(relative_paths: Iterable[str]) -> tuple[str, ...]:
     return tuple(sorted(selected))
 
 
+def validate_absent_artifacts(model_root: Path, relative_paths: Iterable[str]) -> None:
+    """Reject behavior-affecting artifacts that the pinned snapshot must not contain."""
+
+    for relative_path in select_checksum_artifacts(relative_paths):
+        path = model_root.joinpath(*PurePosixPath(relative_path).parts)
+        if path.exists() or path.is_symlink():
+            raise ValueError(f"Unexpected model artifact: {relative_path}")
+
+
 def build_artifact_manifests(
     model_root: Path,
     relative_paths: Iterable[str],
+    *,
+    expected_absent_paths: Iterable[str] = (),
 ) -> tuple[ArtifactManifest, ...]:
     """Hash exactly the selected core artifacts below one prepared model root."""
 
+    expected_absent_paths = tuple(expected_absent_paths)
+    if expected_absent_paths:
+        validate_absent_artifacts(model_root, expected_absent_paths)
     records = []
     for relative_path in select_checksum_artifacts(relative_paths):
         path = model_root.joinpath(*PurePosixPath(relative_path).parts)

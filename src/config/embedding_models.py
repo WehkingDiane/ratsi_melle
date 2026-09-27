@@ -28,6 +28,7 @@ class DenseModelDefinition:
     revision: str
     vector_dimension: int
     required_artifacts: tuple[str, ...]
+    expected_absent_artifacts: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         validate_model_id(self.model_id)
@@ -38,6 +39,15 @@ class DenseModelDefinition:
             raise ValueError("Required artifacts must be an immutable tuple")
         if select_checksum_artifacts(self.required_artifacts) != self.required_artifacts:
             raise ValueError("Required artifacts must be unique and sorted")
+        if not isinstance(self.expected_absent_artifacts, tuple):
+            raise ValueError("Expected-absent artifacts must be an immutable tuple")
+        if self.expected_absent_artifacts:
+            selected_absent = select_checksum_artifacts(self.expected_absent_artifacts)
+            if selected_absent != self.expected_absent_artifacts:
+                raise ValueError("Expected-absent artifacts must be unique and sorted")
+            overlap = set(self.required_artifacts) & set(self.expected_absent_artifacts)
+            if overlap:
+                raise ValueError("Artifacts cannot be both required and expected absent")
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,6 +95,7 @@ HARRIER_MODEL = DenseModelDefinition(
         "model.safetensors",
         "modules.json",
     ),
+    expected_absent_artifacts=("sentence_bert_config.json",),
 )
 
 HARRIER_TOKENIZER = TokenizerDefinition(

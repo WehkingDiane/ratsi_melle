@@ -14,6 +14,7 @@ from src.config.embedding_model_manifest import (
     calculate_manifest_sha256,
     canonical_manifest_bytes,
     select_checksum_artifacts,
+    validate_absent_artifacts,
     with_manifest_sha256,
 )
 
@@ -93,6 +94,22 @@ def test_artifact_selection_and_file_hashing_are_deterministic(tmp_path) -> None
 def test_file_hashing_rejects_a_missing_selected_artifact(tmp_path) -> None:
     with pytest.raises(FileNotFoundError):
         build_artifact_manifests(tmp_path, ("missing.bin",))
+
+
+def test_unexpected_behavior_artifact_is_rejected(tmp_path) -> None:
+    (tmp_path / "config.json").write_bytes(b"{}")
+    (tmp_path / "sentence_bert_config.json").write_bytes(b'{"max_seq_length":128}')
+
+    with pytest.raises(ValueError, match="Unexpected model artifact"):
+        build_artifact_manifests(
+            tmp_path,
+            ("config.json",),
+            expected_absent_paths=("sentence_bert_config.json",),
+        )
+
+
+def test_expected_absent_behavior_artifact_allows_pinned_snapshot(tmp_path) -> None:
+    validate_absent_artifacts(tmp_path, ("sentence_bert_config.json",))
 
 
 @pytest.mark.parametrize(
