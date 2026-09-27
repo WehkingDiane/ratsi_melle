@@ -47,7 +47,7 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 
 - Ein Modul pro Verantwortlichkeit; umfangreiche Komponenten werden in Unterpakete zerlegt.
 - Öffentliche Funktionen dokumentieren Eingabeparameter, Rückgabewerte und Ausnahmen mittels Docstrings oder vergleichbarer Mechanismen.
-- Laufzeitcode nutzt die gemeinsame Konfiguration aus `src/observability.py`. CLI und Django schreiben UTC-Zeit, Level, Komponente, Lauf-ID und Logger in demselben Format. CLI-Ausgaben gehen zusätzlich an die Konsole; rotierende Laufzeitlogs liegen unter `logs/<komponente>.log`. Die Weboberflaeche speichert die begrenzten Ausgaben ihrer letzten Datenjobs in `data/db/service_jobs.sqlite` und reicht deren Job-ID als Lauf-ID an den Kindprozess weiter. `RATSI_LOG_LEVEL` und `RATSI_LOG_DIR` überschreiben Level beziehungsweise Ablage. Dauerhafte Logdateien werden nicht eingecheckt.
+- Laufzeitcode nutzt die gemeinsame Konfiguration aus `src/observability.py`. CLI und Django schreiben UTC-Zeit, Level, Komponente, Lauf-ID und Logger in demselben Format. CLI-Ausgaben gehen zusätzlich an die Konsole; rotierende Laufzeitlogs liegen unter `logs/<komponente>.log`. Die Weboberflaeche speichert die begrenzten Ausgaben ihrer letzten Datenjobs in `data/db/service_jobs.sqlite` und reicht deren Job-ID als Lauf-ID an den Kindprozess weiter. Beim Loglevel gilt die Reihenfolge explizites `--log-level`, `RATSI_LOG_LEVEL`, Standard `INFO`; `RATSI_LOG_DIR` überschreibt die Ablage. Dauerhafte Logdateien werden nicht eingecheckt.
 - UI-spezifisch: Oberflaechenarbeit erfolgt unter `web/`. Gemeinsam genutzte Integrationslogik bleibt in klar abgegrenzten Modulen unter `src/`.
 
 ## Datenhaltung

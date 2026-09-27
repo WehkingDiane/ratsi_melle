@@ -96,7 +96,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--log-level",
         dest="log_level",
-        default="INFO",
+        default=None,
         help="Python logging level.",
     )
     return parser.parse_args()

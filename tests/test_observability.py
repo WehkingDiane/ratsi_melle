@@ -1,17 +1,30 @@
 from __future__ import annotations
 
+import argparse
+from collections.abc import Callable
 import logging
+import sys
 from pathlib import Path
 
 import pytest
 
 from src.observability import (
+    LOG_LEVEL_ENV,
     RUN_ID_ENV,
     SafeFormatter,
     cli_log_level,
     configure_logging,
     run_cli,
 )
+from scripts import (
+    build_landkreis_publications_db,
+    build_local_index,
+    build_online_index_db,
+    fetch_landkreis_publications,
+    fetch_session_from_index,
+    fetch_sessions,
+)
+from scripts._logging_utils import configure_file_logging
 
 
 def _remove_ratsi_handlers() -> None:
@@ -81,3 +94,51 @@ def test_cli_log_level_supports_both_argument_forms() -> None:
     assert cli_log_level(["--log-level", "DEBUG"]) == "DEBUG"
     assert cli_log_level(["--log-level=WARNING"]) == "WARNING"
     assert cli_log_level([]) is None
+
+
+@pytest.mark.parametrize(
+    ("parse_args", "arguments"),
+    [
+        (fetch_sessions.parse_args, ["fetch_sessions.py", "2026"]),
+        (fetch_session_from_index.parse_args, ["fetch_session_from_index.py"]),
+        (build_local_index.parse_args, ["build_local_index.py"]),
+        (build_online_index_db.parse_args, ["build_online_index_db.py", "2026"]),
+        (
+            fetch_landkreis_publications.parse_args,
+            ["fetch_landkreis_publications.py"],
+        ),
+        (
+            build_landkreis_publications_db.parse_args,
+            ["build_landkreis_publications_db.py"],
+        ),
+    ],
+)
+def test_legacy_cli_omits_log_level_by_default(
+    parse_args: Callable[[], argparse.Namespace],
+    arguments: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(sys, "argv", arguments)
+
+    assert parse_args().log_level is None
+
+
+def test_legacy_logging_uses_environment_level_when_cli_option_is_omitted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("RATSI_LOG_DIR", str(tmp_path))
+    monkeypatch.setenv(LOG_LEVEL_ENV, "DEBUG")
+
+    configure_file_logging("legacy_command", None)
+
+    assert logging.getLogger().level == logging.DEBUG
+
+
+def test_explicit_log_level_overrides_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv(LOG_LEVEL_ENV, "DEBUG")
+
+    configure_logging("explicit_level", "WARNING", log_dir=tmp_path, console=False)
+
+    assert logging.getLogger().level == logging.WARNING

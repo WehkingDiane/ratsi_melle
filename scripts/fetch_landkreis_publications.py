@@ -43,7 +43,7 @@ def parse_args() -> argparse.Namespace:
         default=LANDKREIS_DATA_DIR,
         help="Raw file storage root (default: RATSI_LANDKREIS_DATA_DIR or %(default)s).",
     )
-    parser.add_argument("--log-level", default="INFO", help="Python logging level.")
+    parser.add_argument("--log-level", default=None, help="Python logging level.")
     return parser.parse_args()
 
 

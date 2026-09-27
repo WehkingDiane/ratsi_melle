@@ -102,8 +102,9 @@ Job-ID, sodass Status, begrenzte Jobausgabe und vollständiges Dateilog
 zusammengeführt werden können.
 
 Mit `--log-level DEBUG` kann das Level für unterstützte CLI-Skripte pro Lauf
-gesetzt werden. Prozessweit gelten alternativ `RATSI_LOG_LEVEL` und
-`RATSI_LOG_DIR`; `RATSI_RUN_ID` dient zur Korrelation über Kindprozesse hinweg.
+gesetzt werden. Ohne diese Option gilt `RATSI_LOG_LEVEL`, danach als Standard
+`INFO`. `RATSI_LOG_DIR` legt die Logablage fest; `RATSI_RUN_ID` dient zur
+Korrelation über Kindprozesse hinweg.
 Zugangsdaten im User-Info-Teil von HTTP(S)-URLs werden im gemeinsamen Formatter
 maskiert.
 
