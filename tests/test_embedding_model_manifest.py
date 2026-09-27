@@ -210,4 +210,3 @@ def test_manifest_schema_is_immutable() -> None:
 
     with pytest.raises(FrozenInstanceError):
         manifest.pipeline_version = "passages-2"  # type: ignore[misc]
-

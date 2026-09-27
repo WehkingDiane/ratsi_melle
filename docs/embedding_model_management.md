@@ -485,7 +485,7 @@ bleiben unabgehakt und werden dort beschrieben.
   Auswahl relevanter Pruefsummen implementieren.
 - [x] **M1.6** Unit-Tests fuer Konfiguration, Schema, Manifest-Hash und unzulaessige
   Modellangaben ergaenzen.
-- [ ] **M1.7** Phase 1 pruefen und als eigenen Zwischenstand committen.
+- [x] **M1.7** Phase 1 pruefen und als eigenen Zwischenstand committen.
 
 ### Phase 2: Lokaler Modellstatus
 
@@ -591,12 +591,13 @@ bleiben unabgehakt und werden dort beschrieben.
 
 ## Aktuelle Uebergabe
 
-- Letzter abgeschlossener Punkt: **M1.6**; Konfiguration, Manifestschema,
-  kanonischer Hash und unzulaessige Modell-, Revisions-, Pfad- und Schemaangaben
-  sind mit Positiv- und Negativtests abgesichert.
-- Naechster regulaerer Punkt: **M1.7**.
-- Aktiver Implementierungsstand: Der Phase-1-Vertrag ist implementiert und
-  gezielt getestet; fuer M1.7 stehen Gesamtdiff und vollstaendige Testsuite aus.
-- Letzter zugehoeriger Commit: M1.6-Validierungsstand auf dem aktuellen
-  Arbeitsbranch.
+- Letzter abgeschlossener Punkt: **M1.7**; Phase 1 wurde im Gesamtdiff geprueft.
+  Die vollstaendige Standardsuite bestand mit 452 Tests; 5 markierte Live-Tests
+  blieben gemaess `pyproject.toml` ausgeschlossen.
+- Naechster regulaerer Punkt: **M2.1**.
+- Aktiver Implementierungsstand: Zentraler Modell- und Versionsvertrag,
+  Kernartefakt-Allowlists, Manifestschema, kanonische Serialisierung, Hashbildung
+  und Eingabevalidierung sind implementiert. Laufzeitpfad und lokale
+  Statuspruefung folgen in Phase 2.
+- Letzter zugehoeriger Commit: Phase-1-Abschluss auf dem aktuellen Arbeitsbranch.
 - Offene Blocker oder Entscheidungen: keine.
