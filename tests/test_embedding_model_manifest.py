@@ -197,6 +197,20 @@ def test_canonical_hash_is_order_independent_and_self_excluding() -> None:
     )
 
 
+def test_manifest_hash_excludes_volatile_creation_time() -> None:
+    first = _manifest(created_at="2026-09-27T12:00:00Z")
+    prepared_again = replace(first, created_at="2026-09-28T09:30:00Z")
+
+    assert calculate_manifest_sha256(first) == calculate_manifest_sha256(prepared_again)
+    contract_bytes = canonical_manifest_bytes(
+        first,
+        include_manifest_sha256=False,
+        include_created_at=False,
+    )
+    assert b'"created_at"' not in contract_bytes
+    assert b'"manifest_sha256"' not in contract_bytes
+
+
 def test_manifest_hash_changes_with_reproducibility_fields() -> None:
     manifest = _manifest()
 

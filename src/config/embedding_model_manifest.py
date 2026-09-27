@@ -200,6 +200,7 @@ def manifest_payload(
     manifest: EmbeddingModelManifest,
     *,
     include_manifest_sha256: bool = True,
+    include_created_at: bool = True,
 ) -> dict[str, Any]:
     """Return the JSON-compatible manifest payload in deterministic list order."""
 
@@ -211,6 +212,8 @@ def manifest_payload(
         )
     if not include_manifest_sha256:
         payload.pop("manifest_sha256", None)
+    if not include_created_at:
+        payload.pop("created_at", None)
     return payload
 
 
@@ -218,11 +221,16 @@ def canonical_manifest_bytes(
     manifest: EmbeddingModelManifest,
     *,
     include_manifest_sha256: bool = True,
+    include_created_at: bool = True,
 ) -> bytes:
     """Serialize a manifest as canonical UTF-8 JSON without insignificant space."""
 
     return json.dumps(
-        manifest_payload(manifest, include_manifest_sha256=include_manifest_sha256),
+        manifest_payload(
+            manifest,
+            include_manifest_sha256=include_manifest_sha256,
+            include_created_at=include_created_at,
+        ),
         ensure_ascii=False,
         allow_nan=False,
         sort_keys=True,
@@ -231,10 +239,14 @@ def canonical_manifest_bytes(
 
 
 def calculate_manifest_sha256(manifest: EmbeddingModelManifest) -> str:
-    """Hash canonical manifest content while excluding the self-referential hash."""
+    """Hash the stable compatibility contract without volatile metadata."""
 
     return sha256(
-        canonical_manifest_bytes(manifest, include_manifest_sha256=False)
+        canonical_manifest_bytes(
+            manifest,
+            include_manifest_sha256=False,
+            include_created_at=False,
+        )
     ).hexdigest()
 
 

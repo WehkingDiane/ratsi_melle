@@ -256,7 +256,7 @@ Ein generiertes Manifest beschreibt mindestens:
 Die Auswahl der gehashten Artefakte wird zentral definiert. Cache-Metadaten,
 Lockdateien und andere fluechtige Bibliotheksdateien gehoeren nicht dazu. Der
 Manifest-Hash wird aus einer kanonisch serialisierten Form ohne selbstbezogene
-Hashfelder gebildet.
+Hashfelder und ohne fluechtige Erstellungsmetadaten gebildet.
 
 ### Manifestschema und kanonischer Hash (M1.5)
 
@@ -283,9 +283,13 @@ ausgeschlossen.
 
 Die kanonische Serialisierung verwendet UTF-8-JSON mit sortierten
 Objektschluesseln, deterministisch sortierten Artefaktlisten und ohne unbedeutende
-Leerzeichen. Der Wert `manifest_sha256` wird aus genau dieser Darstellung ohne
-das Feld `manifest_sha256` selbst berechnet. Ein bereits gesetzter Hash kann das
-erneute Berechnungsergebnis deshalb nicht veraendern.
+Leerzeichen. Der Wert `manifest_sha256` dient als stabiler
+Kompatibilitaets-Hash und wird aus genau dieser Darstellung ohne das Feld
+`manifest_sha256` selbst sowie ohne `created_at` berechnet. Ein bereits gesetzter
+Hash oder ein neuer Erstellungszeitpunkt bei ansonsten identischer Vorbereitung
+kann das erneute Berechnungsergebnis deshalb nicht veraendern. Aenderungen an
+Modellidentitaet, Revisionen, Artefakten, Bibliotheksversionen, Pipeline oder
+Manifestformat bleiben dagegen hashwirksam.
 
 Es gibt zwei Pruefstufen:
 
@@ -592,7 +596,7 @@ bleiben unabgehakt und werden dort beschrieben.
 ## Aktuelle Uebergabe
 
 - Letzter abgeschlossener Punkt: **M1.7**; Phase 1 wurde im Gesamtdiff geprueft.
-  Die vollstaendige Standardsuite bestand mit 452 Tests; 5 markierte Live-Tests
+  Die vollstaendige Standardsuite bestand mit 453 Tests; 5 markierte Live-Tests
   blieben gemaess `pyproject.toml` ausgeschlossen.
 - Naechster regulaerer Punkt: **M2.1**.
 - Aktiver Implementierungsstand: Zentraler Modell- und Versionsvertrag,
