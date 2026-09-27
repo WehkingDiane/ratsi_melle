@@ -258,6 +258,35 @@ Lockdateien und andere fluechtige Bibliotheksdateien gehoeren nicht dazu. Der
 Manifest-Hash wird aus einer kanonisch serialisierten Form ohne selbstbezogene
 Hashfelder gebildet.
 
+### Manifestschema und kanonischer Hash (M1.5)
+
+`src/config/embedding_model_manifest.py` definiert das unveraenderliche Schema
+fuer den vorbereiteten Gesamtbestand. Das Manifest enthaelt:
+
+- `manifest_format_version`, `pipeline_version`, `created_at` und
+  `manifest_sha256`
+- je einen Eintrag fuer Dense-Modell, Tokenizer und Sparse-Modell mit Modell-ID,
+  konfigurierter und aufgeloester Revision sowie relativem lokalem Modellpfad
+- je Kernartefakt relativen POSIX-Pfad, Dateigroesse und SHA-256
+- die beteiligten Versionen von Transformers, Sentence Transformers, FastEmbed
+  und Hugging Face Hub
+
+Die Kernartefakte werden als unveraenderliche Allowlists in
+`src/config/embedding_models.py` gepflegt. Harrier umfasst die Modell- und
+Sentence-Transformers-Konfiguration samt Gewichtsdatei, der Tokenizer seine
+Tokenizer-Konfigurationen und Vokabulardateien, BM25 `config.json` und die vom
+bisherigen FastEmbed-Standard verwendete englische Stopwortliste. Nur diese
+relativen Pfade werden gehasht. Sie werden validiert, auf Eindeutigkeit geprueft und
+lexikografisch sortiert; absolute Pfade, Rueckspruenge und Windows-Trennzeichen
+sind unzulaessig. Damit bleiben Cache-Metadaten, Locks und temporaere Dateien
+ausgeschlossen.
+
+Die kanonische Serialisierung verwendet UTF-8-JSON mit sortierten
+Objektschluesseln, deterministisch sortierten Artefaktlisten und ohne unbedeutende
+Leerzeichen. Der Wert `manifest_sha256` wird aus genau dieser Darstellung ohne
+das Feld `manifest_sha256` selbst berechnet. Ein bereits gesetzter Hash kann das
+erneute Berechnungsergebnis deshalb nicht veraendern.
+
 Es gibt zwei Pruefstufen:
 
 1. Die normale lokale Pruefung validiert Manifestformat, Modellidentitaet,
@@ -452,7 +481,7 @@ bleiben unabgehakt und werden dort beschrieben.
 - [x] **M1.3** Feste bekannte Revisionen ermitteln und dokumentieren; bewegliche
   Referenzen wie `main` aus der produktiven Konfiguration ausschliessen.
 - [x] **M1.4** Pipeline-Version und Manifestformat-Version fachlich definieren.
-- [ ] **M1.5** Manifest-Schema, kanonische Serialisierung und deterministische
+- [x] **M1.5** Manifest-Schema, kanonische Serialisierung und deterministische
   Auswahl relevanter Pruefsummen implementieren.
 - [ ] **M1.6** Unit-Tests fuer Konfiguration, Schema, Manifest-Hash und unzulaessige
   Modellangaben ergaenzen.
@@ -562,13 +591,13 @@ bleiben unabgehakt und werden dort beschrieben.
 
 ## Aktuelle Uebergabe
 
-- Letzter abgeschlossener Punkt: **M1.4**; fachliche Embedding-Pipeline-Version
-  und technische Manifestformat-Version sind zentral und mit getrennten
-  Aenderungsregeln definiert.
-- Naechster regulaerer Punkt: **M1.5**.
-- Aktiver Implementierungsstand: `passages-1` bildet die bestehende
-  Indexsemantik ab; Manifestformat 1 ist der Ausgangspunkt fuer das Schema in
-  M1.5. Verbraucher werden planmaessig in Phase 4 zentralisiert.
-- Letzter zugehoeriger Commit: M1.4-Versionsvertrag auf dem aktuellen
+- Letzter abgeschlossener Punkt: **M1.5**; unveraenderliches Manifestschema,
+  zentrale Kernartefakt-Allowlists, kanonisches JSON und selbstbeziehungsfreier
+  Manifest-Hash sind implementiert.
+- Naechster regulaerer Punkt: **M1.6**.
+- Aktiver Implementierungsstand: Das Schema und die Hashbausteine liegen vor;
+  die umfassenden Positiv- und Negativtests folgen in M1.6, lokale Statuspruefung
+  und Manifest-Einlesen in Phase 2.
+- Letzter zugehoeriger Commit: M1.5-Manifestschema auf dem aktuellen
   Arbeitsbranch.
 - Offene Blocker oder Entscheidungen: keine.

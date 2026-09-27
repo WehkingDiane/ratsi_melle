@@ -11,6 +11,15 @@ from src.config.embedding_models import (
     HARRIER_TOKENIZER,
     MODEL_MANIFEST_FORMAT_VERSION,
 )
+from src.config.embedding_model_manifest import (
+    EmbeddingModelManifest,
+    ModelLibraryVersions,
+    PreparedModelManifest,
+    build_artifact_manifests,
+    calculate_manifest_sha256,
+    canonical_manifest_bytes,
+    with_manifest_sha256,
+)
 
 
 def test_embedding_model_definitions_capture_existing_runtime_contract() -> None:
@@ -28,6 +37,69 @@ def test_embedding_contract_versions_have_distinct_types_and_initial_values() ->
     assert isinstance(EMBEDDING_PIPELINE_VERSION, str)
     assert MODEL_MANIFEST_FORMAT_VERSION == 1
     assert isinstance(MODEL_MANIFEST_FORMAT_VERSION, int)
+
+
+def test_required_artifacts_are_immutable_central_allowlists() -> None:
+    assert HARRIER_MODEL.required_artifacts == (
+        "1_Pooling/config.json",
+        "config.json",
+        "config_sentence_transformers.json",
+        "model.safetensors",
+        "modules.json",
+    )
+    assert HARRIER_TOKENIZER.required_artifacts == (
+        "added_tokens.json",
+        "merges.txt",
+        "special_tokens_map.json",
+        "tokenizer.json",
+        "tokenizer_config.json",
+        "vocab.json",
+    )
+    assert BM25_MODEL.required_artifacts == ("config.json", "english.txt")
+
+
+def test_manifest_artifacts_and_hash_are_deterministic(tmp_path) -> None:
+    (tmp_path / "nested").mkdir()
+    (tmp_path / "nested" / "weights.bin").write_bytes(b"weights")
+    (tmp_path / "config.json").write_bytes(b"{}")
+    artifacts = build_artifact_manifests(
+        tmp_path,
+        ("nested/weights.bin", "config.json"),
+    )
+    component = PreparedModelManifest(
+        model_id="example/model",
+        configured_revision="a" * 40,
+        resolved_revision="a" * 40,
+        relative_path="dense/example/model/a",
+        artifacts=tuple(reversed(artifacts)),
+    )
+    manifest = EmbeddingModelManifest(
+        manifest_format_version=MODEL_MANIFEST_FORMAT_VERSION,
+        pipeline_version=EMBEDDING_PIPELINE_VERSION,
+        dense_model=component,
+        tokenizer=component,
+        sparse_model=component,
+        library_versions=ModelLibraryVersions(
+            transformers="5.5.0",
+            sentence_transformers="5.4.0",
+            fastembed="0.7.0",
+            huggingface_hub="1.0.0",
+        ),
+        created_at="2026-09-27T12:00:00Z",
+    )
+
+    hashed = with_manifest_sha256(manifest)
+
+    assert [artifact.relative_path for artifact in artifacts] == [
+        "config.json",
+        "nested/weights.bin",
+    ]
+    assert hashed.manifest_sha256 == calculate_manifest_sha256(manifest)
+    assert calculate_manifest_sha256(hashed) == hashed.manifest_sha256
+    assert b'"manifest_sha256"' not in canonical_manifest_bytes(
+        hashed,
+        include_manifest_sha256=False,
+    )
 
 
 @pytest.mark.parametrize("definition", [HARRIER_MODEL, HARRIER_TOKENIZER, BM25_MODEL])

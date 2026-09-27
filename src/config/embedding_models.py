@@ -21,6 +21,7 @@ class DenseModelDefinition:
     model_id: str
     revision: str
     vector_dimension: int
+    required_artifacts: tuple[str, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,6 +30,7 @@ class TokenizerDefinition:
 
     model_id: str
     revision: str
+    required_artifacts: tuple[str, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,20 +39,40 @@ class SparseModelDefinition:
 
     model_id: str
     revision: str
+    required_artifacts: tuple[str, ...]
 
 
 HARRIER_MODEL = DenseModelDefinition(
     model_id="microsoft/harrier-oss-v1-0.6b",
     revision="f9b9dc8d367d443f2479d27aa5d8d2850c0774ee",
     vector_dimension=1024,
+    required_artifacts=(
+        "1_Pooling/config.json",
+        "config.json",
+        "config_sentence_transformers.json",
+        "model.safetensors",
+        "modules.json",
+    ),
 )
 
 HARRIER_TOKENIZER = TokenizerDefinition(
     model_id="microsoft/harrier-oss-v1-0.6b",
     revision="f9b9dc8d367d443f2479d27aa5d8d2850c0774ee",
+    required_artifacts=(
+        "added_tokens.json",
+        "merges.txt",
+        "special_tokens_map.json",
+        "tokenizer.json",
+        "tokenizer_config.json",
+        "vocab.json",
+    ),
 )
 
 BM25_MODEL = SparseModelDefinition(
     model_id="Qdrant/bm25",
     revision="22b8d2af71a76161e18dd432d2cee0eefa66e412",
+    required_artifacts=(
+        "config.json",
+        "english.txt",
+    ),
 )
