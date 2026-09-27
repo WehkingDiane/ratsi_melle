@@ -370,6 +370,60 @@ mit der aktiven Modellkonfiguration. Bei einer Abweichung darf er die Collection
 nicht inkrementell erweitern. Er fordert einen vollstaendigen Neuaufbau oder eine
 getrennte Aufbau-Collection an.
 
+### Einmalige Uebernahme bestehender Collections
+
+Die vor dieser Umstellung aufgebauten Collections enthalten noch keinen
+vollstaendigen Kompatibilitaetsdatensatz. Sie muessen deshalb nicht automatisch
+neu aufgebaut werden. Fuer `ratsi_passages`, `ratsi_documents` und
+`landkreis_publications` wird ein ausdruecklicher, einmaliger Uebernahmepfad
+bereitgestellt. Er ist kein allgemeiner Schalter zum Umgehen der
+Kompatibilitaetspruefung.
+
+Die Uebernahme laeuft zunaechst strikt lesend und erfordert:
+
+- einen vollstaendig vorbereiteten und tiefengeprueften lokalen Modellbestand
+  fuer exakt die aktive Konfiguration
+- das erwartete Qdrant-Schema mit den Vektornamen `harrier` und `bm25` sowie
+  Dense-Dimension 1024
+- vorhandene Modell- und Pipelinehinweise ohne bekannten Widerspruch zur aktiven
+  Konfiguration
+- fuer jeden geprueften Punkt einen unveraenderten, exakt rekonstruierbaren
+  urspruenglichen Embedding-Text
+- eine deterministisch aus Collection, Punkt-IDs und aktivem
+  Kompatibilitaetsdatensatz ausgewaehlte Stichprobe; Auswahlregel und Umfang sind
+  fest im Code definiert und nicht als freie Serviceparameter eingebbar
+- erneute Dense- und Sparse-Berechnung mit den vorbereiteten Modellen sowie den
+  Vergleich mit den gespeicherten Vektoren; Sparse-Indizes muessen exakt passen,
+  Werte und Dense-Vektoren innerhalb zentral festgelegter enger Toleranzen
+
+Die Stichprobe ist ein bewusst dokumentierter Migrationskompromiss und kein
+mathematischer Nachweis fuer jeden Punkt. Das Uebernahmeprotokoll enthaelt daher
+Collection, Punktanzahl, Stichprobenumfang und -IDs, Vergleichstoleranzen,
+Kompatibilitaetsdatensatz, Ergebnis und Zeitpunkt. Secrets, Dokumenttexte und
+vollstaendige Vektoren werden darin nicht gespeichert.
+
+Nur wenn alle Voraussetzungen und Vergleiche erfolgreich sind, darf ein zweiter,
+ausdruecklich bestaetigter Schritt Metadaten schreiben. Er hinterlegt den aktiven
+Kompatibilitaetsdatensatz atomar in den Freigabemetadaten, ergaenzt erforderliche
+Punkt-Payloads ohne Neuberechnung der Vektoren und kennzeichnet die Herkunft als
+`legacy_verified`. Die Collection bleibt waehrend der Pruefung suchbar. Vorhandene
+Vektoren werden weder geloescht noch ueberschrieben; bei einem Abbruch bleibt der
+alte Stand weiterhin nutzbar und die Uebernahme gilt als nicht erfolgt.
+Das Pruefergebnis ist an Ziel, Collection, Punktanzahl, einen Digest der Punkt-IDs
+und den aktiven Kompatibilitaetsdatensatz gebunden. Der Schreibschritt prueft diese
+Bindung erneut und lehnt ein veraltetes Ergebnis ab.
+
+Ein einzelner Vektorfehler, widerspruechliche Metadaten, nicht rekonstruierbarer
+Embedding-Text oder eine unvollstaendige Stichprobe verhindert jede Freigabe und
+fordert einen getrennten Neuaufbau an. Eine Uebernahme ist pro Collection und
+Kompatibilitaetsdatensatz nur einmal moeglich. Nach einer spaeteren Aenderung von
+Modellrevision, Vektordimension oder Pipeline-Version ist keine erneute
+Legacy-Uebernahme zulaessig; dann bleibt der vollstaendige Neuaufbau verbindlich.
+
+CLI und Service-Oberflaeche unterscheiden einen nativ mit dem aktuellen Vertrag
+gebauten Index von `legacy_verified`. Die eingeschraenkte Provenienz bleibt auch
+nach erfolgreichen inkrementellen Ergaenzungen sichtbar.
+
 Ein Modellwechsel folgt spaeter diesem Ablauf:
 
 1. neue Revision ausdruecklich in einer Testkonfiguration festlegen
@@ -401,6 +455,12 @@ Vorgesehene Aktionen:
    fuer die fest konfigurierten Revisionen.
 3. Eine spaetere reine Updateauskunft kann `--check-updates` starten, bleibt aber
    klar von Download und Konfigurationsaenderung getrennt.
+4. **Bestandsindex pruefen** startet die rein lesende Legacy-Pruefung und zeigt
+   Stichprobe, Vergleichsergebnis und Abbruchgruende.
+5. **Geprueften Bestand uebernehmen** wird nur nach einer erfolgreichen, noch
+   aktuellen Bestandspruefung angeboten und schreibt erst nach ausdruecklicher
+   Bestaetigung die `legacy_verified`-Metadaten. Collection, Stichprobenauswahl
+   und Vergleichstoleranzen sind nicht frei eingebbar.
 
 Die Oberflaeche bietet zunaechst keine Eingabefelder fuer Modell-ID, Revision,
 Zielpfad oder zusaetzliche Kommandoargumente. Servicebefehle entstehen
@@ -449,13 +509,18 @@ abgesichert sind:
 5. Fehlende oder beschaedigte Artefakte erzeugen in CLI und Web eine kurze,
    handlungsorientierte Meldung.
 6. Harrier, Tokenizer und BM25 werden gemeinsam validiert.
-7. Ein inkompatibler Modell- oder Pipelinestand verhindert Schreibzugriffe auf
-   eine bestehende Collection.
-8. Servicebefehle sind fest vorgegeben; Tests decken unzulaessige Parameter,
+7. Ein bestehender Legacy-Index kann nur nach erfolgreicher deterministischer
+   Vektorstichprobe und ausdruecklicher Bestaetigung als `legacy_verified`
+   uebernommen werden; ein Fehler hinterlaesst ihn unveraendert und nicht
+   freigegeben.
+8. Ein inkompatibler Modell- oder Pipelinestand verhindert Schreibzugriffe auf
+   eine bestehende Collection; die Legacy-Uebernahme kann diese Sperre nach einer
+   echten Vertragsaenderung nicht umgehen.
+9. Servicebefehle sind fest vorgegeben; Tests decken unzulaessige Parameter,
    CSRF-Schutz, Secret-Redaktion, Statusdarstellung und Servicejobs ab.
-9. Parallele kollidierende Vorbereitungs- und Buildlaeufe koennen keinen
-   freigegebenen Modellbestand beschaedigen.
-10. README, `docs/search_quality.md`, `docs/web_ui.md`, Datenverarbeitungskonzept
+10. Parallele kollidierende Vorbereitungs-, Uebernahme- und Buildlaeufe koennen
+    keinen freigegebenen Modellbestand beschaedigen.
+11. README, `docs/search_quality.md`, `docs/web_ui.md`, Datenverarbeitungskonzept
     und Betriebsanleitungen beschreiben nach der Umsetzung den tatsaechlichen
     Ablauf.
 
@@ -549,13 +614,20 @@ bleiben unabgehakt und werden dort beschrieben.
   Datensatz erweitern.
 - [ ] **M5.3** Erforderliche Modell- und Pipelineangaben in Punkt-Payloads fuer
   Ratsinfo- und Landkreis-Collections konsistent hinterlegen.
-- [ ] **M5.4** Kompatibilitaetspruefung vor dem ersten Schreibzugriff eines Builds
+- [ ] **M5.4** Rein lesende Bestandspruefung und deterministische
+  Vektorstichprobe fuer die einmalige Legacy-Uebernahme implementieren.
+- [ ] **M5.5** Uebernahmeprotokoll, feste Vergleichstoleranzen und eindeutige
+  Abbruchgruende fuer unzureichende oder widerspruechliche Nachweise definieren.
+- [ ] **M5.6** Ausdruecklich bestaetigte, atomare Freigabe als `legacy_verified`
+  und Payload-Backfill ohne Veraenderung vorhandener Vektoren implementieren.
+- [ ] **M5.7** Kompatibilitaetspruefung vor dem ersten Schreibzugriff eines Builds
   durchsetzen.
-- [ ] **M5.5** Inkompatible inkrementelle Fortsetzung mit kurzer Meldung und
+- [ ] **M5.8** Inkompatible inkrementelle Fortsetzung mit kurzer Meldung und
   Hinweis auf Neuaufbau beziehungsweise Aufbau-Collection verhindern.
-- [ ] **M5.6** Migrations-, Abbruch- und Wiederanlauftests fuer kompatible und
-  inkompatible Indexstaende ergaenzen.
-- [ ] **M5.7** Phase 5 pruefen und als eigenen Zwischenstand committen.
+- [ ] **M5.9** Migrations-, Stichproben-, Abbruch-, Atomizitaets- und
+  Wiederanlauftests fuer native, uebernommene und inkompatible Indexstaende
+  ergaenzen.
+- [ ] **M5.10** Phase 5 pruefen und als eigenen Zwischenstand committen.
 
 ### Phase 6: Service-Oberflaeche
 
@@ -568,13 +640,19 @@ bleiben unabgehakt und werden dort beschrieben.
   der konfigurierten Revisionen implementieren.
 - [ ] **M6.5** Freie Modell-IDs, Revisionen, Zielpfade und zusaetzliche
   Kommandoargumente in Formular und Command Builder ausschliessen.
-- [ ] **M6.6** Fortschritt und Ergebnis ueber die bestehende Servicejob- und
+- [ ] **M6.6** Feste rein lesende Serviceaktion fuer die Legacy-Bestandspruefung
+  und Darstellung des Uebernahmeprotokolls implementieren.
+- [ ] **M6.7** Bestaetigungspflichtige Uebernahmeaktion nur fuer ein erfolgreiches,
+  noch aktuelles Pruefergebnis erlauben; freie Collection-, Stichproben- oder
+  Toleranzparameter ausschliessen.
+- [ ] **M6.8** Fortschritt und Ergebnis ueber die bestehende Servicejob- und
   Jobdetail-Infrastruktur anzeigen.
-- [ ] **M6.7** Kollidierende parallele Modellvorbereitungen und Vektor-Builds
-  verhindern oder sicher serialisieren.
-- [ ] **M6.8** CSRF-Schutz, Befehls-Allowlist, Secret-Redaktion, Statuswerte und
-  Jobstart mit Web- und Service-Tests absichern.
-- [ ] **M6.9** Phase 6 pruefen und als eigenen Zwischenstand committen.
+- [ ] **M6.9** Kollidierende parallele Modellvorbereitungen, Legacy-Uebernahmen
+  und Vektor-Builds verhindern oder sicher serialisieren.
+- [ ] **M6.10** CSRF-Schutz, Befehls-Allowlist, Bestaetigungsbindung,
+  Secret-Redaktion, Statuswerte und Jobstart mit Web- und Service-Tests
+  absichern.
+- [ ] **M6.11** Phase 6 pruefen und als eigenen Zwischenstand committen.
 
 ### Phase 7: Gesamtabnahme und Dokumentation
 
@@ -601,7 +679,9 @@ bleiben unabgehakt und werden dort beschrieben.
 - Naechster regulaerer Punkt: **M2.1**.
 - Aktiver Implementierungsstand: Zentraler Modell- und Versionsvertrag,
   Kernartefakt-Allowlists, Manifestschema, kanonische Serialisierung, Hashbildung
-  und Eingabevalidierung sind implementiert. Laufzeitpfad und lokale
-  Statuspruefung folgen in Phase 2.
-- Letzter zugehoeriger Commit: Phase-1-Abschluss auf dem aktuellen Arbeitsbranch.
+  und Eingabevalidierung sind implementiert. Fuer bestehende Collections ist eine
+  einmalige gepruefte Uebernahme als `legacy_verified` vorgesehen. Laufzeitpfad
+  und lokale Statuspruefung folgen in Phase 2.
+- Letzter zugehoeriger Commit: Phase-1-Abschluss und nachfolgende
+  Konzeptpraezisierungen auf dem aktuellen Arbeitsbranch.
 - Offene Blocker oder Entscheidungen: keine.
