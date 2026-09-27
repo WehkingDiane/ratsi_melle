@@ -403,7 +403,7 @@ bleiben unabgehakt und werden dort beschrieben.
 
 - [x] **M1.1** Bestehende Modellnamen, Revisionen, Dimensionen, Cachepfade und
   Pipelinekennzeichen vollstaendig inventarisieren.
-- [ ] **M1.2** `src/config/embedding_models.py` mit unveraenderlichen, typisierten
+- [x] **M1.2** `src/config/embedding_models.py` mit unveraenderlichen, typisierten
   Definitionen fuer Harrier, Tokenizer und BM25 einfuehren.
 - [ ] **M1.3** Feste bekannte Revisionen ermitteln und dokumentieren; bewegliche
   Referenzen wie `main` aus der produktiven Konfiguration ausschliessen.
@@ -518,12 +518,15 @@ bleiben unabgehakt und werden dort beschrieben.
 
 ## Aktuelle Uebergabe
 
-- Letzter abgeschlossener Punkt: **M1.1**; Ist-Vertrag und bestehende Luecken sind
-  im Abschnitt **Inventur des bestehenden Modellvertrags (M1.1)** dokumentiert.
-- Naechster regulaerer Punkt: **M1.2**.
-- Aktiver Implementierungsstand: noch keine Codeaenderung; die Inventur ist die
-  Grundlage fuer die zentralen typisierten Definitionen.
-- Letzter zugehoeriger Commit: M1.1-Dokumentationsstand auf dem aktuellen
+- Letzter abgeschlossener Punkt: **M1.2**; unveraenderliche, typisierte
+  Definitionen fuer Harrier, dessen Tokenizer und BM25 liegen zentral unter
+  `src/config/embedding_models.py`.
+- Naechster regulaerer Punkt: **M1.3**.
+- Aktiver Implementierungsstand: Die zentrale Konfiguration bildet die bisherige
+  Modellidentitaet und Dense-Dimension ab. Revisionen stehen bis zur verifizierten
+  Ermittlung in M1.3 ausdruecklich auf `None`; Verbraucher werden planmaessig in
+  Phase 4 auf die zentrale Quelle umgestellt.
+- Letzter zugehoeriger Commit: M1.2-Konfigurationsstand auf dem aktuellen
   Arbeitsbranch.
 - Offene Blocker oder Entscheidungen: keine; konkrete bekannte Modellrevisionen
   muessen in **M1.3** aus den vorhandenen lokalen Artefakten beziehungsweise der
