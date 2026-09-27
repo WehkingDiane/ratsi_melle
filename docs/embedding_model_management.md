@@ -30,6 +30,75 @@ Ein unbemerkter Wechsel der Modellrevision ist fachlich besonders riskant:
 Neue Dokumente koennten mit einer anderen semantischen Repraesentation in eine
 bestehende Collection geschrieben werden, ohne dass dies sofort sichtbar wird.
 
+## Inventur des bestehenden Modellvertrags (M1.1)
+
+Stand der Inventur: 27. September 2026. Erfasst wurde der produktive Code samt
+Build- und Evaluationsskripten, Tests, Laufzeitkonfiguration und vorhandener
+lokaler Modellablage. Die Inventur beschreibt bewusst den Ist-Zustand vor der
+Zentralisierung in M1.2.
+
+### Modelle, Revisionen und Dimensionen
+
+| Bestandteil | Bestehende Definition und Verbraucher | Revision | Dimension beziehungsweise Ausgabe |
+| --- | --- | --- | --- |
+| Dense-Modell | `microsoft/harrier-oss-v1-0.6b` in `src/analysis/embeddings.py` sowie nochmals in `src/indexing/passages.py`; verwendet von beiden Vektor-Builds, Evaluation und Websuche | nicht angegeben; der Bibliotheksstandard ist damit eine bewegliche Referenz | 1024, separat als `_EMBEDDING_DIM` in `src/analysis/vector_store.py` hinterlegt |
+| Tokenizer | dieselbe Harrier-ID aus `src/indexing/passages.py`, direkt durch `AutoTokenizer.from_pretrained` in `src/indexing/passage_builder.py` geladen | nicht angegeben; der zur Laufzeit aufgeloeste `_commit_hash` fliesst nur in den Passage-Fingerprint ein | keine Vektordimension; Abschnittsstandard 768 Tokens mit 96 Tokens Ueberlappung |
+| Sparse-Modell | `Qdrant/bm25` in `src/analysis/bm25_sparse.py`; verwendet von beiden Vektor-Builds, Evaluation und Websuche | nicht angegeben und nicht in Payloads oder Freigabedaten erfasst | sparse Indizes und Werte ohne feste Dimension im Qdrant-Schema |
+
+Harrier-Dokumente werden ohne Instruktion eingebettet. Suchanfragen erhalten den
+festen Praefix `Instruct: Retrieve semantically similar municipal council
+documents\nQuery: `. Dense-Vektoren werden normalisiert. Diese beiden Parameter
+sind ebenfalls fachlich indexrelevant, besitzen derzeit aber kein eigenes
+Pipelinekennzeichen.
+
+### Cache- und Offlinepfade
+
+- `src/paths.py` definiert `MODELS_DIR` als `data/models/`. Der Pfad wird von den
+  Modell-Ladern noch nicht verwendet; lokal liegt dort nur `.gitkeep`.
+- `SentenceTransformer` erhaelt weder einen lokalen Modellpfad noch `cache_folder`
+  oder eine Revision. Harrier und seine Tokenizer-Abhaengigkeiten verwenden daher
+  den impliziten Hugging-Face-Cache. Dessen Bibliotheksstandard ist
+  `$HF_HUB_CACHE`, andernfalls `$HF_HOME/hub` und schliesslich typischerweise
+  `~/.cache/huggingface/hub`.
+- Der Passage-Tokenizer erhaelt ebenfalls nur die Hub-ID und
+  `local_files_only=not INDEXER_ALLOW_MODEL_DOWNLOADS`, aber weder Revision noch
+  expliziten Cachepfad.
+- `SparseTextEmbedding` erhaelt nur `model_name="Qdrant/bm25"`. `cache_dir`,
+  `specific_model_path` und `local_files_only` werden nicht gesetzt; Speicherort
+  und ein moeglicher Download folgen damit vollstaendig dem FastEmbed-Standard.
+- `INDEXER_ALLOW_MODEL_DOWNLOADS` ist in `src/config/settings.py` fest auf
+  `False` gesetzt und wirkt auf Harrier und den Passage-Tokenizer. BM25 beachtet
+  diesen Schalter nicht. Globale Offlinevariablen wie `HF_HUB_OFFLINE` werden vom
+  Projekt nicht gesetzt.
+- Ein optionaler Hugging-Face-Token wird vor dem Laden von Harrier aus Keyring
+  beziehungsweise `HF_TOKEN` oder `HUGGING_FACE_HUB_TOKEN` bezogen. Er bestimmt
+  keine Modellidentitaet und keinen Cachepfad.
+
+Die lokale Arbeitskopie enthaelt weder vorbereitete Artefakte unter
+`data/models/` noch ein Modellmanifest. Vorhandene benutzerspezifische
+Bibliothekscaches sind deshalb kein versionierter oder projektweit pruefbarer
+Bestand.
+
+### Pipeline- und Indexkennzeichen
+
+| Kennzeichen | Ist-Zustand |
+| --- | --- |
+| Passage-Pipeline | `PIPELINE_VERSION = "passages-1"` in `src/indexing/passages.py` |
+| Legacy-Evaluation | nur der Berichtswert `legacy-10-pages` in `scripts/evaluate_search.py` |
+| Collections | `ratsi_passages`, Legacy `ratsi_documents` und `landkreis_publications` |
+| Qdrant-Vektornamen | `harrier` fuer Dense- und `bm25` fuer Sparse-Vektoren |
+| Passage-Payload | enthaelt Harrier-ID als `model`, `passages-1` als `pipeline_version` und einen Fingerprint mit dem zur Laufzeit aufgeloesten Tokenizer-Commit |
+| Freigabemarker | enthaelt fuer `ratsi_passages` aktuell nur `model` und `pipeline_version`; im Serverbetrieb zusaetzlich URL-Hash und Punktanzahl |
+| Legacy- und Landkreis-Payloads | enthalten keine Modell-ID, Modellrevision, Tokenizer-Revision oder Pipeline-Version |
+
+Damit fehlen im bestehenden Vertrag insbesondere feste Revisionen fuer alle drei
+Komponenten, ein expliziter gemeinsamer Modellstamm, die Sparse-Offlinegarantie
+und ein einheitlicher Kompatibilitaetsdatensatz. Die Paketvorgaben sind zudem nur
+Bereiche (`sentence-transformers>=5.4,<6.0`, `transformers>=5.5,<6.0`,
+`qdrant-client>=1.12`, `fastembed>=0.4.0`) und legen keine konkrete
+Bibliothekskombination fest. Diese Luecken sind Eingaben fuer M1.2 bis M1.5 und
+werden in M1.1 noch nicht technisch geschlossen.
+
 ## Ziele
 
 Die Umsetzung soll folgende Eigenschaften herstellen:
@@ -332,7 +401,7 @@ bleiben unabgehakt und werden dort beschrieben.
 
 ### Phase 1: Vertrag und zentrale Konfiguration
 
-- [ ] **M1.1** Bestehende Modellnamen, Revisionen, Dimensionen, Cachepfade und
+- [x] **M1.1** Bestehende Modellnamen, Revisionen, Dimensionen, Cachepfade und
   Pipelinekennzeichen vollstaendig inventarisieren.
 - [ ] **M1.2** `src/config/embedding_models.py` mit unveraenderlichen, typisierten
   Definitionen fuer Harrier, Tokenizer und BM25 einfuehren.
@@ -449,10 +518,13 @@ bleiben unabgehakt und werden dort beschrieben.
 
 ## Aktuelle Uebergabe
 
-- Letzter abgeschlossener Punkt: keiner; bisher liegt nur das Konzept vor.
-- Naechster regulaerer Punkt: **M1.1**.
-- Aktiver Implementierungsstand: keiner.
-- Letzter zugehoeriger Commit: noch keiner.
+- Letzter abgeschlossener Punkt: **M1.1**; Ist-Vertrag und bestehende Luecken sind
+  im Abschnitt **Inventur des bestehenden Modellvertrags (M1.1)** dokumentiert.
+- Naechster regulaerer Punkt: **M1.2**.
+- Aktiver Implementierungsstand: noch keine Codeaenderung; die Inventur ist die
+  Grundlage fuer die zentralen typisierten Definitionen.
+- Letzter zugehoeriger Commit: M1.1-Dokumentationsstand auf dem aktuellen
+  Arbeitsbranch.
 - Offene Blocker oder Entscheidungen: keine; konkrete bekannte Modellrevisionen
   muessen in **M1.3** aus den vorhandenen lokalen Artefakten beziehungsweise der
   Modellquelle verifiziert werden.
