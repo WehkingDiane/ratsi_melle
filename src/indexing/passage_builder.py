@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from hashlib import sha256
 import json
+import logging
 from pathlib import Path
 import shutil
 from uuid import uuid4
@@ -16,6 +17,9 @@ from src.indexing.passages import COLLECTION, MODEL, PIPELINE_VERSION, chunk_pag
 from src.indexing.vectorizer import HybridVectorizer
 from src.paths import LOCAL_INDEX_DB, QDRANT_DIR
 from src.config.settings import INDEXER_ALLOW_MODEL_DOWNLOADS
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 def build_passage_index(documents, store, tokenizer, vectorizer_factory, *, limit=None,
@@ -68,6 +72,11 @@ def build_passage_index(documents, store, tokenizer, vectorizer_factory, *, limi
                 chunks = [{"text": f"{document.get('title', '')} {document.get('document_type', '')}".strip() or "Dokument",
                            "page_start": None, "page_end": None, "extraction_method": "metadata"}]
             if unreadable:
+                LOGGER.warning(
+                    "event=document_pages_unreadable document_id=%s pages=%s",
+                    parent,
+                    unreadable,
+                )
                 print(f"WARNING {parent}: pages without text: {unreadable}", flush=True)
             points = []
             # Forced OCR retries must not overwrite the still-searchable generation.
@@ -88,9 +97,16 @@ def build_passage_index(documents, store, tokenizer, vectorizer_factory, *, limi
                 store.upsert_batch([{**point, **vector} for point, vector in zip(batch, vectors, strict=True)])
             store.commit_passages({p["id"] for p in points})
             store.delete_ids(set(old) - {p["id"] for p in points})
+            LOGGER.info(
+                "event=document_indexed document_id=%s passages=%d pages=%d",
+                parent,
+                len(chunks),
+                len(pages),
+            )
             print(f"Indexed {parent}: {len(chunks)} passages, {len(pages)} pages", flush=True)
         except Exception as exc:
             failures.append({"document_id": parent, "error": str(exc)})
+            LOGGER.exception("event=document_failed document_id=%s", parent)
             print(f"ERROR {parent}: {exc}", flush=True)
     if limit is None and not failures:
         store.delete_ids({pid for parent, points in groups.items() if parent not in current for pid in points})
@@ -114,17 +130,18 @@ def main(argv=None):
     parser.add_argument("--batch-size", type=_positive_int, default=4)
     parser.add_argument("--no-ocr", action="store_true")
     parser.add_argument("--refresh", action="store_true", help="Retry extraction even for unchanged files")
+    parser.add_argument("--log-level", default="INFO", help="Python logging level.")
     args = parser.parse_args(argv)
     if not 32 <= args.chunk_tokens <= 8192 or not 0 <= args.overlap_tokens < args.chunk_tokens:
         parser.error("Require 32..8192 chunk tokens and 0 <= overlap-tokens < chunk-tokens")
     if not args.db.is_file():
         parser.error(f"Database not found: {args.db}")
-    from transformers import AutoTokenizer
-
     store = DocumentVectorStore(args.qdrant_dir, collection_name=COLLECTION)
     try:
-        store.connection.clear_readiness()
         store.ensure_collection()
+        store.connection.clear_readiness()
+        from transformers import AutoTokenizer
+
         tokenizer = AutoTokenizer.from_pretrained(
             MODEL,
             local_files_only=not INDEXER_ALLOW_MODEL_DOWNLOADS,

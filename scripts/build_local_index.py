@@ -58,7 +58,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Only refresh existing sessions; do not insert new ones.",
     )
-    parser.add_argument("--log-level", default="INFO", help="Python logging level.")
+    parser.add_argument("--log-level", default=None, help="Python logging level.")
     return parser.parse_args()
 
 

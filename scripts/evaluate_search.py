@@ -14,6 +14,7 @@ if str(ROOT) not in sys.path:
 
 from src.indexing.evaluation import evaluate, normalize_evidence
 from src.paths import LOCAL_INDEX_DB, QDRANT_DIR
+from src.observability import cli_log_level, run_cli
 
 
 def validate_sources(queries, documents):
@@ -54,6 +55,7 @@ def main(argv=None):
     parser.add_argument("--validate-only", action="store_true")
     parser.add_argument("--k", type=_positive_int, default=10)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--log-level", default="INFO", help="Python logging level.")
     args = parser.parse_args(argv)
     if not args.db.is_file():
         parser.error(f"Database not found: {args.db}")
@@ -103,4 +105,8 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    main()
+    run_cli(
+        Path(__file__).stem,
+        main,
+        log_level=cli_log_level(sys.argv[1:]),
+    )

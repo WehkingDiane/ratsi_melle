@@ -91,6 +91,23 @@ Repository-Hooks werden lokal mit folgendem Befehl aktiviert:
 git config core.hooksPath .githooks
 ```
 
+## Laufzeitlogs und Fehlerdiagnose
+
+CLI-Skripte und Django verwenden dasselbe Logformat mit UTC-Zeit, Komponente und
+`run_id`. Rotierende Dateien liegen standardmaessig unter `logs/<komponente>.log`;
+CLI-Meldungen erscheinen zusätzlich auf stderr. Nicht behandelte Fehler der
+Vektor-, Such- und Evaluationsskripte enthalten dort einen Stacktrace. Bei über
+die Weboberfläche gestarteten Datenjobs entspricht die `run_id` der sichtbaren
+Job-ID, sodass Status, begrenzte Jobausgabe und vollständiges Dateilog
+zusammengeführt werden können.
+
+Mit `--log-level DEBUG` kann das Level für unterstützte CLI-Skripte pro Lauf
+gesetzt werden. Ohne diese Option gilt `RATSI_LOG_LEVEL`, danach als Standard
+`INFO`. `RATSI_LOG_DIR` legt die Logablage fest; `RATSI_RUN_ID` dient zur
+Korrelation über Kindprozesse hinweg.
+Zugangsdaten im User-Info-Teil von HTTP(S)-URLs werden im gemeinsamen Formatter
+maskiert.
+
 `fetch_session_from_index.py` nutzt `data/db/online_session_index.sqlite` als Auswahlquelle. Damit kann eine einzelne Sitzung anhand ihrer `session_id` nach `data/raw/` geladen werden, ohne die Monatsübersicht erneut komplett abzuarbeiten.
 
 Der lokale Index-Build behandelt `session_detail.html` als kanonische Quelle und übernimmt daraus abweichende TOP- und Dokumentmetadaten direkt in den SQLite-Index. `agenda_summary.json`, `manifest.json` und andere Rohdaten bleiben dabei unverändert; bereits vorhandene Dateien werden im Index wieder ihren Dokumentlinks zugeordnet. Berücksichtigt werden nur SessionNet-Sitzungsordner unter `data/raw/YYYY/MM/`; Landkreis-Rohdaten bleiben getrennt. Auch der Online-Index-Build verändert keine Dateien unter `data/raw/`.
@@ -178,7 +195,9 @@ Standardmäßig verwenden Vektorbuilds, Evaluation, Websuche und Statusanzeigen 
 Qdrant-Server unter `http://127.0.0.1:6333`. Das gilt auch für
 `python scripts/build_vector_index.py`, ohne dass eine Variable gesetzt werden
 muss. `RATSI_QDRANT_URL` kann einen anderen Server angeben. Bei Serverfehlern
-gibt es keinen automatischen lokalen Rückfall.
+gibt es keinen automatischen lokalen Rückfall. Die Vektor-Builds pruefen den
+Server vor dem Modellstart und beenden sich bei Nichterreichbarkeit mit einer
+kurzen Fehlermeldung ohne Python-Traceback.
 
 Vor dem ersten Vektor-Build einen lokalen Qdrant-Server starten. Dafür wird
 Docker Desktop oder Docker Engine benötigt. Die folgenden Befehle funktionieren

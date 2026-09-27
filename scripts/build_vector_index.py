@@ -30,6 +30,8 @@ from src.indexing.payload_builder import build_document_payload, resolve_local_p
 from src.indexing.reconciliation import find_orphaned_ids
 from src.indexing.vectorizer import HybridVectorizer
 from src.paths import LOCAL_INDEX_DB, QDRANT_DIR
+from src.observability import cli_log_level, run_cli
+from src.qdrant_connection import QdrantServerUnavailableError
 
 _stable_qdrant_id = stable_document_id
 
@@ -196,6 +198,7 @@ def legacy_main(argv: list[str] | None = None) -> None:
         default=None,
         help="Index at most N missing documents (useful for incremental runs).",
     )
+    parser.add_argument("--log-level", default="INFO", help="Python logging level.")
     args = parser.parse_args(argv)
 
     db_path: Path = args.db
@@ -207,13 +210,13 @@ def legacy_main(argv: list[str] | None = None) -> None:
 
     HarrierEmbedder, DocumentVectorStore = _validate_runtime_dependencies()
 
+    vector_store = DocumentVectorStore(qdrant_dir)
+    vector_store.ensure_collection()
+
     print("Loading documents from database …")
     all_docs = _load_documents(db_path)
     total_in_db = len(all_docs)
     print(f"  Found {total_in_db} document(s) in DB.")
-
-    vector_store = DocumentVectorStore(qdrant_dir)
-    vector_store.ensure_collection()
 
     # Use stable hash IDs (not SQLite autoincrement) to survive index refreshes
     for doc in all_docs:
@@ -327,14 +330,22 @@ def legacy_main(argv: list[str] | None = None) -> None:
 
 def main(argv: list[str] | None = None) -> None:
     """Build passages by default; retain explicit legacy build for evaluation."""
-    arguments = list(sys.argv[1:] if argv is None else argv)
-    if "--legacy-document-index" in arguments:
-        arguments.remove("--legacy-document-index")
-        legacy_main(arguments)
-        return
-    from src.indexing.passage_builder import main as build_passages
-    build_passages(arguments)
+    try:
+        arguments = list(sys.argv[1:] if argv is None else argv)
+        if "--legacy-document-index" in arguments:
+            arguments.remove("--legacy-document-index")
+            legacy_main(arguments)
+            return
+        from src.indexing.passage_builder import main as build_passages
+        build_passages(arguments)
+    except QdrantServerUnavailableError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        raise SystemExit(1) from None
 
 
 if __name__ == "__main__":
-    main()
+    run_cli(
+        Path(__file__).stem,
+        main,
+        log_level=cli_log_level(sys.argv[1:]),
+    )

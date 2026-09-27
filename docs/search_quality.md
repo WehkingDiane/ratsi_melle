@@ -111,7 +111,10 @@ Build und Suche dasselbe Ziel sehen. Für den bisherigen lokalen Pfad
 wirkt ausschließlich im lokalen Modus; im Servermodus werden dort keine
 Qdrant-Dateien angelegt. Der
 REST-Client verwendet 10 Sekunden Timeout je Anfrage. Verbindungs- und Lesefehler
-brechen den Vorgang ab und werden nicht als leerer Index ausgegeben.
+brechen den Vorgang ab und werden nicht als leerer Index ausgegeben. Die
+Vektor-Builds pruefen die Verbindung vor dem Modellstart; ist der Server nicht
+erreichbar, enden sie mit Exitcode 1 und einer kurzen Fehlermeldung ohne
+Python-Traceback. Der Freigabemarker bleibt bei diesem Startfehler unveraendert.
 
 ```powershell
 python scripts/build_vector_index.py

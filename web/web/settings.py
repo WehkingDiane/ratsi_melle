@@ -11,6 +11,8 @@ REPO_ROOT = BASE_DIR.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from src.observability import django_logging_config
+
 SECRET_KEY = "local-development-only"
 DEBUG = True
 ALLOWED_HOSTS = ["127.0.0.1", "localhost", "testserver"]
@@ -68,12 +70,4 @@ STATICFILES_DIRS = [BASE_DIR / "core" / "static"]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "loggers": {
-        "django.server": {
-            "level": "ERROR",
-        },
-    },
-}
+LOGGING = django_logging_config("web")
