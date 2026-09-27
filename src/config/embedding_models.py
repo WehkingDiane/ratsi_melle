@@ -5,6 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final
 
+from src.config.embedding_model_manifest import (
+    select_checksum_artifacts,
+    validate_commit_sha,
+    validate_model_id,
+)
+
 
 # Changes to embedding, query instructions, tokenization, chunking, or sparse
 # processing that alter index contents require a new value.
@@ -23,6 +29,16 @@ class DenseModelDefinition:
     vector_dimension: int
     required_artifacts: tuple[str, ...]
 
+    def __post_init__(self) -> None:
+        validate_model_id(self.model_id)
+        validate_commit_sha(self.revision)
+        if type(self.vector_dimension) is not int or self.vector_dimension < 1:
+            raise ValueError("Dense vector dimension must be a positive integer")
+        if not isinstance(self.required_artifacts, tuple):
+            raise ValueError("Required artifacts must be an immutable tuple")
+        if select_checksum_artifacts(self.required_artifacts) != self.required_artifacts:
+            raise ValueError("Required artifacts must be unique and sorted")
+
 
 @dataclass(frozen=True, slots=True)
 class TokenizerDefinition:
@@ -32,6 +48,14 @@ class TokenizerDefinition:
     revision: str
     required_artifacts: tuple[str, ...]
 
+    def __post_init__(self) -> None:
+        validate_model_id(self.model_id)
+        validate_commit_sha(self.revision)
+        if not isinstance(self.required_artifacts, tuple):
+            raise ValueError("Required artifacts must be an immutable tuple")
+        if select_checksum_artifacts(self.required_artifacts) != self.required_artifacts:
+            raise ValueError("Required artifacts must be unique and sorted")
+
 
 @dataclass(frozen=True, slots=True)
 class SparseModelDefinition:
@@ -40,6 +64,14 @@ class SparseModelDefinition:
     model_id: str
     revision: str
     required_artifacts: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        validate_model_id(self.model_id)
+        validate_commit_sha(self.revision)
+        if not isinstance(self.required_artifacts, tuple):
+            raise ValueError("Required artifacts must be an immutable tuple")
+        if select_checksum_artifacts(self.required_artifacts) != self.required_artifacts:
+            raise ValueError("Required artifacts must be unique and sorted")
 
 
 HARRIER_MODEL = DenseModelDefinition(

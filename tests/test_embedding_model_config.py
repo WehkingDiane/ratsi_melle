@@ -6,10 +6,13 @@ import pytest
 
 from src.config.embedding_models import (
     BM25_MODEL,
+    DenseModelDefinition,
     EMBEDDING_PIPELINE_VERSION,
     HARRIER_MODEL,
     HARRIER_TOKENIZER,
     MODEL_MANIFEST_FORMAT_VERSION,
+    SparseModelDefinition,
+    TokenizerDefinition,
 )
 from src.config.embedding_model_manifest import (
     EmbeddingModelManifest,
@@ -114,3 +117,63 @@ def test_embedding_model_revisions_are_full_commit_hashes(definition: object) ->
 def test_embedding_model_definitions_are_immutable(definition: object) -> None:
     with pytest.raises(FrozenInstanceError):
         definition.revision = "moving-reference"  # type: ignore[attr-defined]
+
+
+@pytest.mark.parametrize(
+    ("definition_type", "kwargs"),
+    [
+        (
+            DenseModelDefinition,
+            {
+                "model_id": "missing-owner",
+                "revision": "a" * 40,
+                "vector_dimension": 1024,
+                "required_artifacts": ("model.bin",),
+            },
+        ),
+        (
+            TokenizerDefinition,
+            {
+                "model_id": "owner/model",
+                "revision": "main",
+                "required_artifacts": ("tokenizer.json",),
+            },
+        ),
+        (
+            SparseModelDefinition,
+            {
+                "model_id": "owner/model",
+                "revision": "A" * 40,
+                "required_artifacts": ("config.json",),
+            },
+        ),
+        (
+            DenseModelDefinition,
+            {
+                "model_id": "owner/model",
+                "revision": "a" * 40,
+                "vector_dimension": 0,
+                "required_artifacts": ("model.bin",),
+            },
+        ),
+        (
+            TokenizerDefinition,
+            {
+                "model_id": "owner/model",
+                "revision": "a" * 40,
+                "required_artifacts": ("z.json", "a.json"),
+            },
+        ),
+        (
+            SparseModelDefinition,
+            {
+                "model_id": "owner/model",
+                "revision": "a" * 40,
+                "required_artifacts": ("../config.json",),
+            },
+        ),
+    ],
+)
+def test_invalid_model_definitions_are_rejected(definition_type, kwargs) -> None:
+    with pytest.raises(ValueError):
+        definition_type(**kwargs)

@@ -483,7 +483,7 @@ bleiben unabgehakt und werden dort beschrieben.
 - [x] **M1.4** Pipeline-Version und Manifestformat-Version fachlich definieren.
 - [x] **M1.5** Manifest-Schema, kanonische Serialisierung und deterministische
   Auswahl relevanter Pruefsummen implementieren.
-- [ ] **M1.6** Unit-Tests fuer Konfiguration, Schema, Manifest-Hash und unzulaessige
+- [x] **M1.6** Unit-Tests fuer Konfiguration, Schema, Manifest-Hash und unzulaessige
   Modellangaben ergaenzen.
 - [ ] **M1.7** Phase 1 pruefen und als eigenen Zwischenstand committen.
 
@@ -591,13 +591,12 @@ bleiben unabgehakt und werden dort beschrieben.
 
 ## Aktuelle Uebergabe
 
-- Letzter abgeschlossener Punkt: **M1.5**; unveraenderliches Manifestschema,
-  zentrale Kernartefakt-Allowlists, kanonisches JSON und selbstbeziehungsfreier
-  Manifest-Hash sind implementiert.
-- Naechster regulaerer Punkt: **M1.6**.
-- Aktiver Implementierungsstand: Das Schema und die Hashbausteine liegen vor;
-  die umfassenden Positiv- und Negativtests folgen in M1.6, lokale Statuspruefung
-  und Manifest-Einlesen in Phase 2.
-- Letzter zugehoeriger Commit: M1.5-Manifestschema auf dem aktuellen
+- Letzter abgeschlossener Punkt: **M1.6**; Konfiguration, Manifestschema,
+  kanonischer Hash und unzulaessige Modell-, Revisions-, Pfad- und Schemaangaben
+  sind mit Positiv- und Negativtests abgesichert.
+- Naechster regulaerer Punkt: **M1.7**.
+- Aktiver Implementierungsstand: Der Phase-1-Vertrag ist implementiert und
+  gezielt getestet; fuer M1.7 stehen Gesamtdiff und vollstaendige Testsuite aus.
+- Letzter zugehoeriger Commit: M1.6-Validierungsstand auf dem aktuellen
   Arbeitsbranch.
 - Offene Blocker oder Entscheidungen: keine.

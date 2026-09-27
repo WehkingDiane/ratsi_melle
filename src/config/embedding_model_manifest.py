@@ -3,10 +3,60 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, replace
+from datetime import datetime, timezone
 from hashlib import sha256
 import json
 from pathlib import Path, PurePosixPath
+import re
 from typing import Any, Iterable
+
+
+_MODEL_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*")
+_COMMIT_SHA_PATTERN = re.compile(r"[0-9a-f]{40}")
+_SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
+
+
+def validate_model_id(value: str) -> str:
+    """Return a valid Hub-style model ID or raise ``ValueError``."""
+
+    if not isinstance(value, str) or not _MODEL_ID_PATTERN.fullmatch(value):
+        raise ValueError(f"Invalid model ID: {value!r}")
+    return value
+
+
+def validate_commit_sha(value: str) -> str:
+    """Return a full lowercase commit SHA or reject moving/short revisions."""
+
+    if not isinstance(value, str) or not _COMMIT_SHA_PATTERN.fullmatch(value):
+        raise ValueError(f"Revision must be a full lowercase commit SHA: {value!r}")
+    return value
+
+
+def validate_relative_posix_path(value: str, *, label: str = "Path") -> str:
+    """Return one canonical relative POSIX path without traversal components."""
+
+    if not isinstance(value, str):
+        raise ValueError(f"{label} must be a relative POSIX path: {value!r}")
+    path = PurePosixPath(value)
+    if (
+        not value
+        or "\x00" in value
+        or "\\" in value
+        or path.is_absolute()
+        or ".." in path.parts
+        or not path.parts
+        or path.as_posix() != value
+    ):
+        raise ValueError(f"{label} must be a relative POSIX path: {value!r}")
+    return value
+
+
+def _validate_sha256(value: str, *, allow_empty: bool = False) -> str:
+    if allow_empty and value == "":
+        return value
+    if not isinstance(value, str) or not _SHA256_PATTERN.fullmatch(value):
+        raise ValueError(f"SHA-256 must contain 64 lowercase hexadecimal characters: {value!r}")
+    return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,6 +66,12 @@ class ArtifactManifest:
     relative_path: str
     size_bytes: int
     sha256: str
+
+    def __post_init__(self) -> None:
+        validate_relative_posix_path(self.relative_path, label="Artifact path")
+        if type(self.size_bytes) is not int or self.size_bytes < 0:
+            raise ValueError("Artifact size must be a nonnegative integer")
+        _validate_sha256(self.sha256)
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,6 +84,19 @@ class PreparedModelManifest:
     relative_path: str
     artifacts: tuple[ArtifactManifest, ...]
 
+    def __post_init__(self) -> None:
+        validate_model_id(self.model_id)
+        validate_commit_sha(self.configured_revision)
+        validate_commit_sha(self.resolved_revision)
+        validate_relative_posix_path(self.relative_path, label="Local model path")
+        if not isinstance(self.artifacts, tuple) or not self.artifacts:
+            raise ValueError("Prepared model artifacts must be a nonempty tuple")
+        if not all(isinstance(artifact, ArtifactManifest) for artifact in self.artifacts):
+            raise ValueError("Prepared model artifacts contain an invalid entry")
+        paths = [artifact.relative_path for artifact in self.artifacts]
+        if len(paths) != len(set(paths)):
+            raise ValueError("Prepared model artifacts contain duplicate paths")
+
 
 @dataclass(frozen=True, slots=True)
 class ModelLibraryVersions:
@@ -37,6 +106,17 @@ class ModelLibraryVersions:
     sentence_transformers: str
     fastembed: str
     huggingface_hub: str
+
+    def __post_init__(self) -> None:
+        for name in (
+            "transformers",
+            "sentence_transformers",
+            "fastembed",
+            "huggingface_hub",
+        ):
+            value = getattr(self, name)
+            if not isinstance(value, str) or not value.strip() or value != value.strip():
+                raise ValueError(f"Library version {name} must be a nonempty trimmed string")
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,23 +132,37 @@ class EmbeddingModelManifest:
     created_at: str
     manifest_sha256: str = ""
 
+    def __post_init__(self) -> None:
+        if type(self.manifest_format_version) is not int or self.manifest_format_version < 1:
+            raise ValueError("Manifest format version must be a positive integer")
+        if (
+            not isinstance(self.pipeline_version, str)
+            or not self.pipeline_version.strip()
+            or self.pipeline_version != self.pipeline_version.strip()
+        ):
+            raise ValueError("Pipeline version must be a nonempty trimmed string")
+        for name in ("dense_model", "tokenizer", "sparse_model"):
+            if not isinstance(getattr(self, name), PreparedModelManifest):
+                raise ValueError(f"Manifest component {name} is invalid")
+        if not isinstance(self.library_versions, ModelLibraryVersions):
+            raise ValueError("Manifest library versions are invalid")
+        if not isinstance(self.created_at, str) or not self.created_at.endswith("Z"):
+            raise ValueError("Creation time must be an ISO-8601 UTC timestamp ending in Z")
+        try:
+            created_at = datetime.fromisoformat(self.created_at[:-1] + "+00:00")
+        except ValueError:
+            raise ValueError("Creation time must be an ISO-8601 UTC timestamp ending in Z") from None
+        if created_at.tzinfo is None or created_at.utcoffset() != timezone.utc.utcoffset(created_at):
+            raise ValueError("Creation time must be an ISO-8601 UTC timestamp ending in Z")
+        _validate_sha256(self.manifest_sha256, allow_empty=True)
+
 
 def select_checksum_artifacts(relative_paths: Iterable[str]) -> tuple[str, ...]:
     """Validate and deterministically order the configured artifact allowlist."""
 
     selected: set[str] = set()
     for value in relative_paths:
-        path = PurePosixPath(value)
-        if (
-            not value
-            or "\x00" in value
-            or "\\" in value
-            or path.is_absolute()
-            or ".." in path.parts
-            or not path.parts
-        ):
-            raise ValueError(f"Artifact path must be relative POSIX path: {value!r}")
-        normalized = path.as_posix()
+        normalized = validate_relative_posix_path(value, label="Artifact path")
         if normalized in selected:
             raise ValueError(f"Duplicate artifact path: {normalized}")
         selected.add(normalized)
