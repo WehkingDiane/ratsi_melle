@@ -141,7 +141,7 @@ def load_and_validate_model_inventory(
         raise ModelInventoryIncompatibleError("Das lokale Modellmanifest ist kein regulaeres File.")
     if not manifest_path.exists():
         raise ModelInventoryMissingError("Lokales Embedding-Modellmanifest fehlt.")
-    if manifest_path.is_symlink() or not manifest_path.is_file():
+    if not manifest_path.is_file():
         raise ModelInventoryIncompatibleError("Das lokale Modellmanifest ist kein regulaeres File.")
 
     try:
@@ -215,9 +215,14 @@ def load_and_validate_model_inventory(
                 )
             if deep:
                 digest = sha256()
-                with resolved_artifact.open("rb") as stream:
-                    for block in iter(lambda: stream.read(1024 * 1024), b""):
-                        digest.update(block)
+                try:
+                    with resolved_artifact.open("rb") as stream:
+                        for block in iter(lambda: stream.read(1024 * 1024), b""):
+                            digest.update(block)
+                except OSError as error:
+                    raise ModelInventoryIncompleteError(
+                        f"Ein Pflichtartefakt fuer {name} kann nicht gelesen werden."
+                    ) from error
                 if digest.hexdigest() != artifact.sha256:
                     raise ModelInventoryIncompleteError(
                         f"Die SHA-256-Pruefsumme eines Pflichtartefakts fuer {name} stimmt nicht."
