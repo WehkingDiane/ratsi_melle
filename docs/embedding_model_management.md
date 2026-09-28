@@ -572,7 +572,7 @@ bleiben unabgehakt und werden dort beschrieben.
 
 - [x] **M2.1** Zentralen Pfad fuer `data/models/` in der Laufzeitkonfiguration
   bereitstellen, ohne eine Downloadfreigabe fuer Verbraucher einzufuehren.
-- [ ] **M2.2** Schnelle lokale Pruefung fuer Manifest, Revisionen, Pfade,
+- [x] **M2.2** Schnelle lokale Pruefung fuer Manifest, Revisionen, Pfade,
   Dateiexistenz und Groessen implementieren.
 - [ ] **M2.3** Optionale Tiefenpruefung der festgelegten SHA-256-Werte
   implementieren.
@@ -688,14 +688,15 @@ bleiben unabgehakt und werden dort beschrieben.
 - Letzter abgeschlossener Punkt: **M1.7**; Phase 1 wurde im Gesamtdiff geprueft.
   Die vollstaendige Standardsuite bestand mit 456 Tests; 5 markierte Live-Tests
   blieben gemaess `pyproject.toml` ausgeschlossen.
-- Naechster regulaerer Punkt: **M2.2**.
+- Naechster regulaerer Punkt: **M2.3**.
 - Aktiver Implementierungsstand: Zentraler Modell- und Versionsvertrag,
   Kernartefakt-Allowlists, Manifestschema, kanonische Serialisierung, Hashbildung
   und Eingabevalidierung sind implementiert. Der lokale Modellstamm ist in den
   Laufzeiteinstellungen standardmaessig `data/models/` und kann mit
   `RATSI_MODELS_DIR` ueberschrieben werden. Fuer bestehende Collections ist eine
   einmalige gepruefte Uebernahme als `legacy_verified` vorgesehen. Die lokale
-  Statuspruefung folgt in Phase 2.
+  Schnellpruefung validiert Manifestvertrag, Dateipfade und -groessen ohne
+  Netzwerkzugriff oder Hashen der Modellgewichte.
 - Letzter zugehoeriger Commit: Phase-1-Abschluss und nachfolgende
   Konzeptpraezisierungen auf dem aktuellen Arbeitsbranch.
 - Offene Blocker oder Entscheidungen: keine.
