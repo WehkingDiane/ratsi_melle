@@ -20,9 +20,11 @@ from src.config.embedding_models import (
     MODEL_MANIFEST_FORMAT_VERSION,
 )
 from src.config.embedding_model_status import (
+    EmbeddingModelReadiness,
     MODEL_MANIFEST_FILENAME,
     ModelInventoryIncompatibleError,
     ModelInventoryIncompleteError,
+    check_embedding_model_status,
     load_and_validate_model_inventory,
 )
 
@@ -110,6 +112,44 @@ def test_local_inventory_check_detects_missing_artifact(tmp_path):
 
     with pytest.raises(ModelInventoryIncompleteError):
         load_and_validate_model_inventory(tmp_path)
+
+
+def test_shared_status_model_reports_missing_inventory(tmp_path):
+    result = check_embedding_model_status(tmp_path)
+
+    assert result.state is EmbeddingModelReadiness.MISSING
+    assert result.as_dict()["status"] == "fehlt"
+
+
+def test_shared_status_model_reports_incomplete_inventory(tmp_path):
+    _write_inventory(tmp_path)
+    (tmp_path / "dense_model/snapshot/model.safetensors").unlink()
+
+    result = check_embedding_model_status(tmp_path)
+
+    assert result.state is EmbeddingModelReadiness.INCOMPLETE
+
+
+def test_shared_status_model_reports_incompatible_inventory(tmp_path):
+    manifest = _write_inventory(tmp_path)
+    changed = with_manifest_sha256(
+        replace(manifest, pipeline_version="passages-2")
+    )
+    (tmp_path / MODEL_MANIFEST_FILENAME).write_bytes(canonical_manifest_bytes(changed))
+
+    result = check_embedding_model_status(tmp_path)
+
+    assert result.state is EmbeddingModelReadiness.INCOMPATIBLE
+
+
+def test_shared_status_model_reports_ready_inventory(tmp_path):
+    manifest = _write_inventory(tmp_path)
+
+    result = check_embedding_model_status(tmp_path)
+
+    assert result.state is EmbeddingModelReadiness.READY
+    assert result.manifest_sha256 == manifest.manifest_sha256
+    assert result.as_dict()["status"] == "bereit"
 
 
 def test_local_inventory_check_detects_incompatible_revision(tmp_path):

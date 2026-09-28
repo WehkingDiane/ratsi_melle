@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from enum import StrEnum
 from hashlib import sha256
-from pathlib import Path, PurePosixPath
 import json
+from pathlib import Path, PurePosixPath
 
 from src.config.embedding_model_manifest import (
     ArtifactManifest,
@@ -12,8 +14,8 @@ from src.config.embedding_model_manifest import (
     ModelLibraryVersions,
     PreparedModelManifest,
     calculate_manifest_sha256,
-    validate_relative_posix_path,
     validate_absent_artifacts,
+    validate_relative_posix_path,
 )
 from src.config.embedding_models import (
     BM25_MODEL,
@@ -41,6 +43,33 @@ class ModelInventoryIncompleteError(ModelInventoryError):
 
 class ModelInventoryIncompatibleError(ModelInventoryError):
     """The local inventory does not match the configured model contract."""
+
+
+class EmbeddingModelReadiness(StrEnum):
+    """Stable shared readiness values for command-line and web consumers."""
+
+    READY = "bereit"
+    MISSING = "fehlt"
+    INCOMPLETE = "unvollstaendig"
+    INCOMPATIBLE = "inkompatibel"
+
+
+@dataclass(frozen=True, slots=True)
+class EmbeddingModelStatus:
+    """Machine-readable readiness result for the local model inventory."""
+
+    state: EmbeddingModelReadiness
+    message: str
+    manifest_sha256: str | None = None
+
+    def as_dict(self) -> dict[str, str | None]:
+        """Return a JSON-compatible representation for CLI and web callers."""
+
+        return {
+            "status": self.state.value,
+            "message": self.message,
+            "manifest_sha256": self.manifest_sha256,
+        }
 
 
 def _component_from_payload(payload: object, name: str) -> PreparedModelManifest:
@@ -194,3 +223,25 @@ def load_and_validate_model_inventory(
                         f"Die SHA-256-Pruefsumme eines Pflichtartefakts fuer {name} stimmt nicht."
                     )
     return manifest
+
+
+def check_embedding_model_status(
+    models_dir: Path,
+    *,
+    deep: bool = False,
+) -> EmbeddingModelStatus:
+    """Return one shared readiness result without propagating inventory errors."""
+
+    try:
+        manifest = load_and_validate_model_inventory(models_dir, deep=deep)
+    except ModelInventoryMissingError as error:
+        return EmbeddingModelStatus(EmbeddingModelReadiness.MISSING, str(error))
+    except ModelInventoryIncompleteError as error:
+        return EmbeddingModelStatus(EmbeddingModelReadiness.INCOMPLETE, str(error))
+    except ModelInventoryIncompatibleError as error:
+        return EmbeddingModelStatus(EmbeddingModelReadiness.INCOMPATIBLE, str(error))
+    return EmbeddingModelStatus(
+        EmbeddingModelReadiness.READY,
+        "Lokale Embedding-Modelle sind bereit.",
+        manifest.manifest_sha256,
+    )
