@@ -223,9 +223,9 @@ bisherige gleichlautende Konstante in `src/indexing/passages.py` bestehen.
 ## Laufzeitkonfiguration
 
 `src/config/settings.py` enthaelt nur installationsbezogene Werte, insbesondere
-den lokalen Modellstamm unter standardmaessig `data/models/` und gegebenenfalls
-Timeouts des Vorbereitungsvorgangs. Eine Downloadfreigabe fuer Indexer oder Suche
-ist nicht vorgesehen.
+den lokalen Modellstamm unter standardmaessig `data/models/` (ueberschreibbar mit
+`RATSI_MODELS_DIR`) und gegebenenfalls Timeouts des Vorbereitungsvorgangs. Eine
+Downloadfreigabe fuer Indexer oder Suche ist nicht vorgesehen.
 
 Der ausdrueckliche Aufruf von `prepare_embedding_models.py --download` ist selbst
 die Downloadfreigabe. Eine allgemeine Einstellung wie
@@ -306,11 +306,16 @@ Manifestformat bleiben dagegen hashwirksam.
 Es gibt zwei Pruefstufen:
 
 1. Die normale lokale Pruefung validiert Manifestformat, Modellidentitaet,
-   Revisionen, erwartete Pfade, Existenz und Dateigroessen. Sie darf keine
-   Netzwerkverbindung aufbauen und soll schnell genug fuer Statusanzeigen sein.
+   Revisionen, erwartete Pfade, Existenz, Dateigroessen und Lesezugriff auf alle
+   Kernartefakte. Sie darf keine Netzwerkverbindung aufbauen und soll schnell
+   genug fuer Statusanzeigen sein; grosse Artefakte werden dabei nicht gelesen.
 2. Eine ausdrueckliche Tiefenpruefung berechnet die festgelegten SHA-256-Werte
    erneut. Grosse Gewichtsdateien werden nicht bei jedem Build- oder Suchstart
    vollstaendig gehasht.
+
+Die gemeinsame lokale Statuspruefung meldet `bereit`, `fehlt`, `unvollstaendig`
+oder `inkompatibel` und liefert Status, kurze Meldung sowie bei einem gueltigen
+Bestand dessen Manifest-Hash als maschinenlesbare Felder.
 
 ## Vorbereitungsskript
 
@@ -570,18 +575,18 @@ bleiben unabgehakt und werden dort beschrieben.
 
 ### Phase 2: Lokaler Modellstatus
 
-- [ ] **M2.1** Zentralen Pfad fuer `data/models/` in der Laufzeitkonfiguration
+- [x] **M2.1** Zentralen Pfad fuer `data/models/` in der Laufzeitkonfiguration
   bereitstellen, ohne eine Downloadfreigabe fuer Verbraucher einzufuehren.
-- [ ] **M2.2** Schnelle lokale Pruefung fuer Manifest, Revisionen, Pfade,
+- [x] **M2.2** Schnelle lokale Pruefung fuer Manifest, Revisionen, Pfade,
   Dateiexistenz und Groessen implementieren.
-- [ ] **M2.3** Optionale Tiefenpruefung der festgelegten SHA-256-Werte
+- [x] **M2.3** Optionale Tiefenpruefung der festgelegten SHA-256-Werte
   implementieren.
-- [ ] **M2.4** Gemeinsames Statusmodell `bereit`, `fehlt`, `unvollstaendig` und
+- [x] **M2.4** Gemeinsames Statusmodell `bereit`, `fehlt`, `unvollstaendig` und
   `inkompatibel` fuer CLI und Web definieren.
-- [ ] **M2.5** Tests mit temporaeren vollstaendigen, fehlenden, beschaedigten und
+- [x] **M2.5** Tests mit temporaeren vollstaendigen, fehlenden, beschaedigten und
   revisionsfremden Modellbestaenden ergaenzen.
-- [ ] **M2.6** Nachweisen, dass beide Pruefstufen ohne Netzwerkzugriff arbeiten.
-- [ ] **M2.7** Phase 2 pruefen und als eigenen Zwischenstand committen.
+- [x] **M2.6** Nachweisen, dass beide Pruefstufen ohne Netzwerkzugriff arbeiten.
+- [x] **M2.7** Phase 2 pruefen und als eigenen Zwischenstand committen.
 
 ### Phase 3: Vorbereitungsskript
 
@@ -685,15 +690,28 @@ bleiben unabgehakt und werden dort beschrieben.
 
 ## Aktuelle Uebergabe
 
-- Letzter abgeschlossener Punkt: **M1.7**; Phase 1 wurde im Gesamtdiff geprueft.
-  Die vollstaendige Standardsuite bestand mit 456 Tests; 5 markierte Live-Tests
-  blieben gemaess `pyproject.toml` ausgeschlossen.
-- Naechster regulaerer Punkt: **M2.1**.
+- Letzter abgeschlossener Punkt: **M2.7**; Phase 2 wurde im Gesamtdiff geprueft.
+  Die betroffenen Tests liefen mit 37 bestandenen Faellen; die vollstaendige
+  Testsuite wurde gemaess Arbeitsauftrag nicht ausgefuehrt.
+- Naechster regulaerer Punkt: **M3.1**.
 - Aktiver Implementierungsstand: Zentraler Modell- und Versionsvertrag,
   Kernartefakt-Allowlists, Manifestschema, kanonische Serialisierung, Hashbildung
-  und Eingabevalidierung sind implementiert. Fuer bestehende Collections ist eine
-  einmalige gepruefte Uebernahme als `legacy_verified` vorgesehen. Laufzeitpfad
-  und lokale Statuspruefung folgen in Phase 2.
-- Letzter zugehoeriger Commit: Phase-1-Abschluss und nachfolgende
-  Konzeptpraezisierungen auf dem aktuellen Arbeitsbranch.
+  und Eingabevalidierung sind implementiert. Der lokale Modellstamm ist in den
+  Laufzeiteinstellungen standardmaessig `data/models/` und kann mit
+  `RATSI_MODELS_DIR` ueberschrieben werden. Fuer bestehende Collections ist eine
+  einmalige gepruefte Uebernahme als `legacy_verified` vorgesehen. Die lokale
+  Schnellpruefung validiert Manifestvertrag, Dateipfade und -groessen und oeffnet
+  alle Kernartefakte lesend, ohne deren Inhalte zu hashen. Sie arbeitet ohne
+  Netzwerkzugriff. Mit `deep=True` prueft sie
+  zusaetzlich alle festgelegten Artefakt-SHA-256-Werte lokal. Die gemeinsame
+  Status-API liefert die vier vereinbarten Zustandswerte fuer CLI und Web. Tests
+  pruefen vollstaendige, fehlende, beschaedigte und revisions- oder
+  modellfremde Bestandsdaten; Netzwerkverbindungen sind waehrend schneller und
+  tiefer Pruefung explizit blockiert. Phase 2 liegt auf
+  `codex/feature/embedding-model-management-phase-2`, einem Unterbranch von
+  `codex/feature/embedding-model-management`; beide zweigen nach dem Phase-1-Merge
+  von `main` ab.
+- Letzte zugehoerige Commits: `469c699`, `19fc3bd`, `e21804c`, `550fc9c`,
+  `1739a53` und `faf04c8` fuer M2.1 bis M2.6; M2.7 ist der Phase-2-
+  Abschlusscommit.
 - Offene Blocker oder Entscheidungen: keine.
