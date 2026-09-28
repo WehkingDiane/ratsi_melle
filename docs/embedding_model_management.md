@@ -574,7 +574,7 @@ bleiben unabgehakt und werden dort beschrieben.
   bereitstellen, ohne eine Downloadfreigabe fuer Verbraucher einzufuehren.
 - [x] **M2.2** Schnelle lokale Pruefung fuer Manifest, Revisionen, Pfade,
   Dateiexistenz und Groessen implementieren.
-- [ ] **M2.3** Optionale Tiefenpruefung der festgelegten SHA-256-Werte
+- [x] **M2.3** Optionale Tiefenpruefung der festgelegten SHA-256-Werte
   implementieren.
 - [ ] **M2.4** Gemeinsames Statusmodell `bereit`, `fehlt`, `unvollstaendig` und
   `inkompatibel` fuer CLI und Web definieren.
@@ -688,7 +688,7 @@ bleiben unabgehakt und werden dort beschrieben.
 - Letzter abgeschlossener Punkt: **M1.7**; Phase 1 wurde im Gesamtdiff geprueft.
   Die vollstaendige Standardsuite bestand mit 456 Tests; 5 markierte Live-Tests
   blieben gemaess `pyproject.toml` ausgeschlossen.
-- Naechster regulaerer Punkt: **M2.3**.
+- Naechster regulaerer Punkt: **M2.4**.
 - Aktiver Implementierungsstand: Zentraler Modell- und Versionsvertrag,
   Kernartefakt-Allowlists, Manifestschema, kanonische Serialisierung, Hashbildung
   und Eingabevalidierung sind implementiert. Der lokale Modellstamm ist in den
@@ -696,7 +696,8 @@ bleiben unabgehakt und werden dort beschrieben.
   `RATSI_MODELS_DIR` ueberschrieben werden. Fuer bestehende Collections ist eine
   einmalige gepruefte Uebernahme als `legacy_verified` vorgesehen. Die lokale
   Schnellpruefung validiert Manifestvertrag, Dateipfade und -groessen ohne
-  Netzwerkzugriff oder Hashen der Modellgewichte.
+  Netzwerkzugriff oder Hashen der Modellgewichte. Mit `deep=True` prueft sie
+  zusaetzlich alle festgelegten Artefakt-SHA-256-Werte lokal.
 - Letzter zugehoeriger Commit: Phase-1-Abschluss und nachfolgende
   Konzeptpraezisierungen auf dem aktuellen Arbeitsbranch.
 - Offene Blocker oder Entscheidungen: keine.

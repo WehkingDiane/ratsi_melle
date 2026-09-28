@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from hashlib import sha256
 from pathlib import Path, PurePosixPath
 import json
 
@@ -93,11 +94,16 @@ def _manifest_from_payload(payload: object) -> EmbeddingModelManifest:
     )
 
 
-def load_and_validate_model_inventory(models_dir: Path) -> EmbeddingModelManifest:
+def load_and_validate_model_inventory(
+    models_dir: Path,
+    *,
+    deep: bool = False,
+) -> EmbeddingModelManifest:
     """Validate manifest metadata and file sizes without hashing model contents.
 
-    This check reads only the small manifest and filesystem metadata. It does not
-    initialize model libraries or access the network.
+    The default check reads only the small manifest and filesystem metadata. With
+    ``deep=True``, it also hashes the configured core artifacts. Neither mode
+    initializes model libraries or accesses the network.
     """
 
     models_dir = Path(models_dir).expanduser()
@@ -178,4 +184,13 @@ def load_and_validate_model_inventory(models_dir: Path) -> EmbeddingModelManifes
                 raise ModelInventoryIncompleteError(
                     f"Die Dateigroesse eines Pflichtartefakts fuer {name} stimmt nicht."
                 )
+            if deep:
+                digest = sha256()
+                with resolved_artifact.open("rb") as stream:
+                    for block in iter(lambda: stream.read(1024 * 1024), b""):
+                        digest.update(block)
+                if digest.hexdigest() != artifact.sha256:
+                    raise ModelInventoryIncompleteError(
+                        f"Die SHA-256-Pruefsumme eines Pflichtartefakts fuer {name} stimmt nicht."
+                    )
     return manifest

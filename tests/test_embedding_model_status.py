@@ -78,6 +78,25 @@ def test_local_inventory_check_accepts_complete_manifest_without_network(tmp_pat
     assert actual == expected
 
 
+def test_fast_inventory_check_skips_hashes_but_deep_check_verifies_them(tmp_path):
+    _write_inventory(tmp_path)
+    artifact = tmp_path / "dense_model/snapshot/config.json"
+    original = artifact.read_bytes()
+    artifact.write_bytes(b"x" * len(original))
+
+    load_and_validate_model_inventory(tmp_path)
+    with pytest.raises(ModelInventoryIncompleteError, match="SHA-256"):
+        load_and_validate_model_inventory(tmp_path, deep=True)
+
+
+def test_deep_inventory_check_accepts_valid_artifact_hashes(tmp_path):
+    expected = _write_inventory(tmp_path)
+
+    actual = load_and_validate_model_inventory(tmp_path, deep=True)
+
+    assert actual == expected
+
+
 def test_local_inventory_check_reports_missing_manifest(tmp_path):
     from src.config.embedding_model_status import ModelInventoryMissingError
 
