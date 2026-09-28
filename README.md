@@ -175,6 +175,8 @@ ohne Traceback. `--download --json` ergaenzt `error_code`, unter anderem
 Sichere Diagnosefelder stehen in `logs/embedding_model_preparation.log`;
 `RATSI_LOG_DIR` ueberschreibt das Logverzeichnis. `--log-level` hat Vorrang vor
 `RATSI_LOG_LEVEL`, sonst gilt `INFO`. `--check` legt weiterhin keine Logs an.
+Auch Pfadaufloesungsfehler, etwa Symlink-Schleifen unter Python 3.11/3.12,
+liefern beim Download die kurze Fehlermeldung beziehungsweise das JSON-Fehlerschema.
 `--check` und `--download` sind gegenseitig ausgeschlossen; `--deep` ist nur bei
 `--check` erlaubt. Ein optionaler Hugging-Face-Token stammt aus der vorhandenen
 Secret-Verwaltung (Keyring vor `HF_TOKEN` vor `HUGGING_FACE_HUB_TOKEN`). Ohne Token

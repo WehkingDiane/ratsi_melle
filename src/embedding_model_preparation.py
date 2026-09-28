@@ -240,7 +240,7 @@ def download_embedding_models(models_dir: Path) -> EmbeddingModelDownload:
         if staging_dir is None:
             staging_dir = Path(mkdtemp(prefix="download-", dir=preparation_root))
             (staging_dir / "download-plan.json").write_text(json.dumps(plan), encoding="utf-8")
-    except OSError as error:
+    except (OSError, RuntimeError) as error:
         raise preparation_error(error, phase="directory") from None
 
     snapshots = []
@@ -434,7 +434,7 @@ def prepare_embedding_models(models_dir: Path) -> PreparedEmbeddingModels:
             download.staging_dir.rename(inventory_dir)
 
         return _activate_inventory(root, inventory_dir, candidate, reused=reused_candidate)
-    except (OSError, ValueError, PackageNotFoundError) as error:
+    except (OSError, ValueError, RuntimeError, PackageNotFoundError) as error:
         raise preparation_error(error, phase="prepare") from None
 
 

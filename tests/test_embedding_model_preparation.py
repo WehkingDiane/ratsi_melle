@@ -297,6 +297,67 @@ def test_download_dependency_is_loaded_before_creating_staging(tmp_path, monkeyp
     assert not (tmp_path / ".preparation").exists()
 
 
+@pytest.mark.parametrize("json_output", [False, True])
+@pytest.mark.parametrize("error_type", [RuntimeError, OSError])
+def test_model_root_resolution_error_has_safe_cli_output_and_preserves_inventory(
+    tmp_path, fake_hub, monkeypatch, capsys, json_output, error_type,
+):
+    models_dir = tmp_path / "models"
+    previous = preparation.prepare_embedding_models(models_dir)
+    before = {path: path.read_bytes() for path in models_dir.rglob("*") if path.is_file()}
+    _, calls = fake_hub
+    calls.clear()
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(models_dir))
+    original_resolve = Path.resolve
+
+    def fail_model_root(path, *args, **kwargs):
+        if path == models_dir:
+            # Python 3.11/3.12 use RuntimeError for symlink loops. Simulate the
+            # failure so this regression also runs without symlink privileges.
+            raise error_type("symlink loop; sensitive path; token=secret")
+        return original_resolve(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", fail_model_root)
+    assert cli.main(["--download"] + (["--json"] if json_output else [])) == 1
+    output = capsys.readouterr()
+    if json_output:
+        payload = json.loads(output.out)
+        assert payload["status"] == "fehlgeschlagen"
+        assert payload["error_code"] == "preparation_failed"
+        assert not output.err
+    else:
+        assert not output.out
+        assert "ERROR:" in output.err
+    log = (tmp_path / "logs/embedding_model_preparation.log").read_text()
+    assert f"error_type={error_type.__name__}" in log
+    assert "Traceback" not in output.out + output.err + log
+    assert "secret" not in output.out + output.err + log
+    assert "sensitive" not in output.out + output.err + log
+    assert not calls
+    assert before == {path: path.read_bytes() for path in models_dir.rglob("*") if path.is_file()}
+    monkeypatch.setattr(Path, "resolve", original_resolve)
+    assert load_and_validate_model_inventory(models_dir, deep=True) == previous.manifest
+
+
+def test_raw_download_classifies_symlink_loop_runtime_error(tmp_path, fake_hub, monkeypatch):
+    _, calls = fake_hub
+    original_resolve = Path.resolve
+
+    def fail_model_root(path, *args, **kwargs):
+        if path == tmp_path:
+            raise RuntimeError("symlink loop; token=secret")
+        return original_resolve(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "resolve", fail_model_root)
+    with pytest.raises(preparation.EmbeddingModelDownloadError) as failure:
+        preparation.download_embedding_models(tmp_path)
+    assert failure.value.error_code == "preparation_failed"
+    assert "Vorbereitungsordner" in str(failure.value)
+    assert "secret" not in str(failure.value)
+    assert not calls
+    assert not (tmp_path / ".preparation").exists()
+
+
 def test_download_cannot_use_preparation_directory_outside_model_root(tmp_path, fake_hub):
     models_dir = tmp_path / "models"
     models_dir.mkdir()

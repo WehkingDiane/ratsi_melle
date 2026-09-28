@@ -470,6 +470,10 @@ Die Klassifikation beruecksichtigt auch verschachtelte Ausnahmen, etwa einen
 Anbieterfehler mit zugrunde liegendem ENOSPC. Bekannte Fehler vor der Aktivierung
 lassen das aktive Manifest unveraendert und behalten Kandidaten fuer die
 Wiederaufnahme bei.
+Auch `RuntimeError` bei der Pfadaufloesung, etwa durch Symlink-Schleifen unter
+Python 3.11/3.12, wird in der Vorbereitung und beim Anlegen des Downloadziels
+abgefangen. Der Fehler liefert `preparation_failed`, Exitcode `1` und keine
+rohen Ausnahmetexte oder Tracebacks. Die Mindestversion bleibt Python 3.11+.
 
 Nur `--download` konfiguriert das gemeinsame rotierende Projektlog unter
 `logs/embedding_model_preparation.log` beziehungsweise `RATSI_LOG_DIR`.
@@ -954,6 +958,13 @@ bleiben unabgehakt und werden dort beschrieben.
   Modell-Download wurden ausgefuehrt.
 - Naechster regulaerer Punkt: **M4.1**; Harrier-Embedder und Tokenizer auf
   vorbereitete lokale Pfade und feste Revisionen umstellen.
+- PR-Review-Nachtrag nach M3.9: Zwei bestehende Fehlerhandler erfassen jetzt
+  auch `RuntimeError` von der Pfadaufloesung. Regressionstests pruefen die
+  sichere JSON-/Textausgabe, unveraenderte aktive Artefakte und ausbleibende
+  Hub-Aufrufe. Die Python-Mindestversion bleibt unveraendert; `VERSION` ist
+  fuer diesen sichtbaren Fehlerfix bewusst auf `0.5.16` angehoben.
+  Die gezielten Regressionstests samt bestehender Symlink-/Fehlerdiagnosetests
+  bestehen mit 14 Faellen; keine vollstaendige Suite und keine Live-Downloads.
 - Nachtrag zur von Diane ausgefuehrten regulaeren Windows-Suite: 580 Tests
   bestanden, 3 uebersprungen und 7 abgewaehlt; zwei Archiv-Hook-Tests scheiterten
   wegen CRLF/LF-Konvertierung in temporaeren Test-Repositories. Die Testhilfe
@@ -990,7 +1001,7 @@ bleiben unabgehakt und werden dort beschrieben.
 - Letzte zugehoerige Commits: `9747dda` fuer M3.1, `08abf5b` fuer M3.2,
   `723dcbe` fuer M3.3, `037ca53` fuer M3.4, `5bb21af` fuer M3.5 und `fd25bce`
   fuer M3.6, `f76892a` fuer M3.7 und `c76a23a` fuer M3.8; `a7ec74c` korrigiert
-  die Windows-Hook-Testfixtures. M3.9 erhaelt einen eigenen Abschlusscommit.
+  die Windows-Hook-Testfixtures; `d4dc1f0` schliesst M3.9 ab.
   Phase 2 ist in den
   uebergeordneten Feature-Branch gemergt.
 - Offene Blocker oder Entscheidungen: keine.
