@@ -137,6 +137,15 @@ Sie ist danach standardmäßig unter `http://127.0.0.1:8000/` erreichbar. Detail
 
 Landkreis-Veröffentlichungen aus Bekanntmachungen und Amtsblättern werden bewusst getrennt vom SessionNet-Index verarbeitet. Rohdateien liegen standardmaessig unter `data/raw/landkreis/`; alternativ kann ein externer Speicherort per `RATSI_LANDKREIS_DATA_DIR` oder `--data-dir` gesetzt werden. Die interne Ordnerstruktur bleibt dabei gleich, und die SQLite-DB speichert relative Pfade innerhalb dieser Landkreis-Datenwurzel.
 
+### Lokalen Embedding-Modellbestand pruefen
+
+`python scripts/prepare_embedding_models.py --check` prueft den lokalen Bestand
+ohne Netzwerkzugriff. Der Modellstamm ist `data/models/`; `RATSI_MODELS_DIR`
+ueberschreibt ihn. Exitcode `0` bedeutet `bereit`, `1` einen fehlenden,
+unvollstaendigen oder inkompatiblen Bestand und `2` einen Aufruf- oder
+Konfigurationsfehler. Modell-Downloads folgen in einem weiteren Umsetzungsschritt.
+Details stehen in [docs/embedding_model_management.md](docs/embedding_model_management.md).
+
 ### Landkreis-Veröffentlichungen
 
 Der Landkreis-Import ist als eigenstaendige Datenquelle umgesetzt und veraendert weder `data/db/local_index.sqlite` noch die SessionNet-Rohdaten. Er verarbeitet derzeit:

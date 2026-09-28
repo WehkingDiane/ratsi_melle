@@ -319,10 +319,21 @@ Bestand dessen Manifest-Hash als maschinenlesbare Felder.
 
 ## Vorbereitungsskript
 
-Das neue Skript `scripts/prepare_embedding_models.py` bietet zunaechst:
+Das Skript `scripts/prepare_embedding_models.py` bietet seit M3.1 die lokale
+Schnellpruefung:
 
 ```text
 python scripts/prepare_embedding_models.py --check
+```
+
+Sie verwendet die gemeinsame Statuspruefung und `RATSI_MODELS_DIR` beziehungsweise
+standardmaessig `data/models/`. Die Ausgabe nennt Status und kurze Meldung.
+Exitcode `0` bedeutet `bereit`, `1` einen fehlenden, unvollstaendigen oder
+inkompatiblen Bestand und `2` einen Aufruf- oder Konfigurationsfehler. Die Pruefung
+veraendert keine Dateien und legt auch kein fehlendes Modellverzeichnis an.
+Die geplanten Erweiterungen sind:
+
+```text
 python scripts/prepare_embedding_models.py --check --deep
 python scripts/prepare_embedding_models.py --download
 ```
@@ -590,7 +601,7 @@ bleiben unabgehakt und werden dort beschrieben.
 
 ### Phase 3: Vorbereitungsskript
 
-- [ ] **M3.1** `scripts/prepare_embedding_models.py --check` auf die gemeinsame
+- [x] **M3.1** `scripts/prepare_embedding_models.py --check` auf die gemeinsame
   lokale Prueflogik aufsetzen.
 - [ ] **M3.2** `--check --deep` mit eindeutiger, maschinenlesbarer und
   menschenlesbarer Ausgabe ergaenzen.
@@ -690,10 +701,15 @@ bleiben unabgehakt und werden dort beschrieben.
 
 ## Aktuelle Uebergabe
 
-- Letzter abgeschlossener Punkt: **M2.7**; Phase 2 wurde im Gesamtdiff geprueft.
-  Die betroffenen Tests liefen mit 37 bestandenen Faellen; die vollstaendige
-  Testsuite wurde gemaess Arbeitsauftrag nicht ausgefuehrt.
-- Naechster regulaerer Punkt: **M3.1**.
+- Letzter abgeschlossener Punkt: **M3.1**; die CLI-Schnellpruefung verwendet
+  den gemeinsamen lokalen Modellstatus. Alle 7 betroffenen Einzeltests sind
+  bestanden, einschliesslich des direkten Skriptaufrufs aus einem Fremdverzeichnis.
+  Die vollstaendige Testsuite wurde gemaess Arbeitsauftrag nicht ausgefuehrt.
+- Naechster regulaerer Punkt: **M3.2**.
+- Phase-3-Branch: `codex/feature/embedding-model-management-phase-3`, abgezweigt
+  vom Feature-Branch nach dem Phase-2-Merge. M3.1 und M3.2 erhalten jeweils
+  einen eigenen Commit. `VERSION` wurde fuer die neue sichtbare CLI auf `0.5.10`
+  angehoben.
 - Aktiver Implementierungsstand: Zentraler Modell- und Versionsvertrag,
   Kernartefakt-Allowlists, Manifestschema, kanonische Serialisierung, Hashbildung
   und Eingabevalidierung sind implementiert. Der lokale Modellstamm ist in den
