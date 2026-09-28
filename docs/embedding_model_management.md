@@ -366,8 +366,8 @@ Freie Modell-IDs oder Revisionen sind keine CLI-Parameter.
 
 Wenn kein gepruefter Bestand wiederverwendet werden kann, wird in einen passenden
 vorhandenen oder einen neuen temporaeren Ordner unter
-`<Modellstamm>/.preparation/download-*/` an. Darunter liegen die Snapshots jeweils
-unter `<Modell-ID>/<Commit-SHA>/`. Hugging-Face-Cachemetadaten koennen innerhalb
+`<Modellstamm>/.preparation/download-*/` heruntergeladen. Darunter liegen die
+Snapshots jeweils unter `<Modell-ID>/<Commit-SHA>/`. Hugging-Face-Cachemetadaten koennen innerhalb
 dieser lokalen Snapshotordner entstehen. Umgeleitete `.preparation`- oder
 `inventories`-Verzeichnisverknuepfungen werden abgelehnt.
 
@@ -446,7 +446,8 @@ Modellbestand. Bei Download-, Pruef- oder Freigabefehlern folgt Exitcode `1` mit
 `operation="download"`, `status="fehlgeschlagen"`, einer kurzen `message` und
 seit M3.6 einem stabilen `error_code`.
 Ungueltige Laufzeiteinstellungen liefern dasselbe Fehlerschema und Exitcode `2`.
-Fortschrittsausgaben gehen auf stderr.
+Rohe SDK-Fortschrittsausgaben werden seit M3.7 unterdrueckt; sichere
+Start-/Endereignisse stehen im Komponentenlog.
 
 ### Erwartbare Vorbereitungsfehler (M3.6)
 
@@ -529,6 +530,40 @@ Ohne Opt-in bleiben auch explizit ausgewaehlte Live-Tests uebersprungen.
 Die verwendete Download-API fuer feste Revisionen und Artefaktauswahl ist in der
 [offiziellen Hugging-Face-Anleitung](https://huggingface.co/docs/huggingface_hub/guides/download)
 beschrieben.
+
+### Abschlusspruefung Phase 3 (M3.9)
+
+Der Gesamtdiff gegen `codex/feature/embedding-model-management` wurde statisch
+mit den Anforderungen aus M3.1 bis M3.8, der gemeinsamen Manifest-/Status-API
+und den vorhandenen Tests abgeglichen:
+
+- Offlinepruefung bleibt lesend und ohne Hub-Import oder Secret-Abfrage;
+  CLI-Modi, JSON-Felder und Exitcodes stimmen mit der Dokumentation ueberein.
+- Downloadziele, volle Commit-SHAs und Artefaktlisten stammen ausschliesslich
+  aus dem zentralen Vertrag; gemeinsame Harrier-/Tokenizer-Snapshots werden
+  zusammengefasst.
+- Kandidaten werden vollstaendig und tief geprueft. Erst der atomare Wechsel
+  des aktiven Manifests gibt einen Bestand frei; alte Bestaende bleiben erhalten.
+- Wiederverwendung verlangt gepruefte Artefakte und passende Bibliotheksversionen;
+  eine Teilwiederaufnahme vertraut nur erneut geprueften Snapshot-Bestaetigungen.
+- Fehlerdiagnosen uebernehmen keine rohen Anbietertexte. Tokenprioritaet,
+  anonymer Download und Wiederherstellung des Ausgabezustands sind abgesichert.
+- Fake-Hub- und Live-Tests bleiben getrennt; echte Downloads benoetigen Opt-in
+  und verwenden isolierte temporaere Laufzeitpfade.
+- README, Testaufrufe, direkte Hub-Abhaengigkeit und `VERSION` sind konsistent.
+  Veraltete Aussagen zu SDK-Fortschrittsausgaben wurden berichtigt.
+
+Die bereits dokumentierten gezielten Testlaeufe werden als Nachweis verwendet.
+Diane hat die regulaere pytest-Ausfuehrung als abgeschlossen bestaetigt; fuer
+M3.9 wurde sie auf Wunsch nicht wiederholt. Ein neues detailliertes
+Windows-Ergebnisprotokoll wurde hier nicht uebermittelt. Live-Downloads wurden
+auch fuer die Abschlusspruefung nicht ausgefuehrt.
+
+Diese Abnahme betrifft ausschliesslich Phase 3, nicht die Gesamtabnahme aus
+Phase 7. Verbraucherumstellung und globale Offlinegarantie folgen in Phase 4;
+die Sperre gegen kollidierende Vorbereitungsjobs folgt in M6.9. Es sind fuer
+M3.9 keine weiteren Laufzeitcode-Aenderungen erforderlich. `VERSION` bleibt
+fuer diesen Doku-/Abschlusscommit bewusst bei `0.5.15`.
 
 Eine spaetere Option `--check-updates` darf online ueber neuere Revisionen
 informieren. Sie veraendert weder Modellkonfiguration noch lokalen Bestand und
@@ -804,7 +839,7 @@ bleiben unabgehakt und werden dort beschrieben.
 - [x] **M3.7** Tokenweitergabe und Log-Redaktion mit Tests absichern.
 - [x] **M3.8** Downloadtests ohne echten Hub sowie getrennte, markierte Live-Tests
   fuer den realen Anbieter ergaenzen.
-- [ ] **M3.9** Phase 3 pruefen und als eigenen Zwischenstand committen.
+- [x] **M3.9** Phase 3 pruefen und als eigenen Zwischenstand committen.
 
 ### Phase 4: Verbraucher strikt lokal umstellen
 
@@ -889,7 +924,12 @@ bleiben unabgehakt und werden dort beschrieben.
 
 ## Aktuelle Uebergabe
 
-- Letzter abgeschlossener Punkt: **M3.8**; Fake-Hub-Subprozess-Integrationstests
+- Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-
+  und Testabdeckung, CLI-/Manifestvertrag, Dokumentation und Versionsstand
+  geprueft. Zwei veraltete Fortschrittsaussagen berichtigt; keine erneuten Tests
+  oder Live-Downloads ausgefuehrt. Die Phase wird als eigener Zwischenstand
+  committed; Phase 4 und die spaetere Gesamtabnahme bleiben offen.
+  M3.8: Fake-Hub-Subprozess-Integrationstests
   sowie getrennte, doppelt freizugebende Live-Tests sind ergaenzt. Es wurden
   nur betroffene Tests ausgefuehrt, keine vollstaendige Testsuite und keine
   echten Anbieter-Downloads: Die vier Vorbereitungstestmodule liefern
@@ -912,8 +952,8 @@ bleiben unabgehakt und werden dort beschrieben.
   ist mit 84 Faellen bestanden; der Log-Schreibfehler wurde zusaetzlich gezielt
   mit simuliertem ENOSPC geprueft. Keine vollstaendige Testsuite und kein echter
   Modell-Download wurden ausgefuehrt.
-- Naechster regulaerer Punkt: **M3.9**; Phase 3 pruefen und den abschliessenden
-  Zwischenstand committen.
+- Naechster regulaerer Punkt: **M4.1**; Harrier-Embedder und Tokenizer auf
+  vorbereitete lokale Pfade und feste Revisionen umstellen.
 - Nachtrag zur von Diane ausgefuehrten regulaeren Windows-Suite: 580 Tests
   bestanden, 3 uebersprungen und 7 abgewaehlt; zwei Archiv-Hook-Tests scheiterten
   wegen CRLF/LF-Konvertierung in temporaeren Test-Repositories. Die Testhilfe
@@ -923,8 +963,9 @@ bleiben unabgehakt und werden dort beschrieben.
   des produktiven Archiv-Hooks bleibt unveraendert. Das betroffene Hook-Testmodul
   besteht mit 27 Tests unter WSL und erneut mit 27 Tests bei simulierter
   Windows-CRLF-Schreibweise. Reiner Testfix, daher bleibt
-  `VERSION` bei `0.5.15`; die vollstaendige Suite wird nicht als gruen ausgewiesen,
-  solange Diane sie unter Windows nicht erneut ausgefuehrt hat.
+  `VERSION` bei `0.5.15`. Diane hat die pytest-Ausfuehrung inzwischen als
+  abgeschlossen bestaetigt; ein neues Ergebnisprotokoll mit aktualisierten
+  Zahlen wurde hier nicht uebermittelt. Fuer M3.9 erfolgt keine Wiederholung.
 - Phase-3-Branch: `codex/feature/embedding-model-management-phase-3`, abgezweigt
   vom Feature-Branch nach dem Phase-2-Merge. Jeder Umsetzungsschritt erhaelt
   einen eigenen Commit. `VERSION` wurde fuer die SDK-Ausgabesicherung auf `0.5.15`
@@ -948,7 +989,8 @@ bleiben unabgehakt und werden dort beschrieben.
   von `main` ab.
 - Letzte zugehoerige Commits: `9747dda` fuer M3.1, `08abf5b` fuer M3.2,
   `723dcbe` fuer M3.3, `037ca53` fuer M3.4, `5bb21af` fuer M3.5 und `fd25bce`
-  fuer M3.6 und `f76892a` fuer M3.7; M3.8 erhaelt einen eigenen Folgecommit.
+  fuer M3.6, `f76892a` fuer M3.7 und `c76a23a` fuer M3.8; `a7ec74c` korrigiert
+  die Windows-Hook-Testfixtures. M3.9 erhaelt einen eigenen Abschlusscommit.
   Phase 2 ist in den
   uebergeordneten Feature-Branch gemergt.
 - Offene Blocker oder Entscheidungen: keine.

@@ -159,8 +159,8 @@ gibt ihn frei. Bisherige Modelldateien bleiben erhalten. Bei Abbruch bleibt der
 vorherige Bestand aktiv; ohne vorheriges Manifest bleibt der Status `fehlt`.
 Exitcode `0` bedeutet jetzt auch bei `--download` einen bereiten Bestand.
 `--download --json` liefert `operation`, `status`, `message`, `inventory_dir` und
-`manifest_sha256`; Fortschritt erscheint auf stderr. Kandidaten und alte
-Bestaende werden nicht automatisch geloescht. Ein tiefengepruefter aktiver Bestand
+`manifest_sha256`; rohe SDK-Fortschrittsausgaben werden unterdrueckt. Kandidaten
+und alte Bestaende werden nicht automatisch geloescht. Ein tiefengepruefter aktiver Bestand
 mit passenden Bibliotheksversionen wird ohne Hub-Zugriff oder Manifestwechsel
 wiederverwendet. Gepruefte, noch nicht aktivierte Bestaende werden ohne Download
 freigegeben. Abgebrochene Vorbereitungen werden nur bei exakt passendem
@@ -207,6 +207,11 @@ zu lesen. Modelle, Hub-/Xet-Caches und Logs liegen ausschliesslich im temporaere
 Testverzeichnis; der Projektbestand bleibt unberuehrt. Der Smoke-Test bestaetigt
 keine Modellbereitschaft. Der Volltest prueft Download, Manifest, Tiefenpruefung
 und anschliessende Wiederverwendung bei gesperrtem Netzwerk.
+
+Dieser Zwischenstand schliesst Phase 3 (Vorbereitungsskript) ab. Indexierung,
+Evaluation und Suche werden erst in Phase 4 auf den vorbereiteten lokalen
+Bestand umgestellt; die globale Offlinegarantie fuer diese Verbraucher gilt
+daher noch nicht. Schutz gegen kollidierende Vorbereitungsjobs folgt in Phase 6.
 
 ### Landkreis-Veröffentlichungen
 
