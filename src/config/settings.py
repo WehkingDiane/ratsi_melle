@@ -16,6 +16,33 @@ INDEXER_ALLOW_MODEL_DOWNLOADS = False
 DEFAULT_QDRANT_URL = "http://127.0.0.1:6333"
 
 
+class EmbeddingModelSettingsError(ValueError):
+    """An embedding-model runtime setting is invalid."""
+
+
+@dataclass(frozen=True)
+class EmbeddingModelSettings:
+    """Validated local storage settings for prepared embedding models."""
+
+    models_dir: Path
+
+
+def load_embedding_model_settings() -> EmbeddingModelSettings:
+    """Read the local model directory without enabling model downloads."""
+
+    configured_models_dir = os.environ.get("RATSI_MODELS_DIR")
+    if configured_models_dir is None:
+        models_dir = paths.MODELS_DIR
+    else:
+        if not configured_models_dir.strip() or "\x00" in configured_models_dir:
+            raise EmbeddingModelSettingsError("RATSI_MODELS_DIR muss ein gültiger Pfad sein.")
+        try:
+            models_dir = Path(configured_models_dir).expanduser()
+        except RuntimeError:
+            raise EmbeddingModelSettingsError("RATSI_MODELS_DIR muss ein gültiger Pfad sein.") from None
+    return EmbeddingModelSettings(models_dir=models_dir)
+
+
 class QdrantSettingsError(ValueError):
     """A Qdrant environment setting is invalid."""
 

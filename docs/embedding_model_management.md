@@ -223,9 +223,9 @@ bisherige gleichlautende Konstante in `src/indexing/passages.py` bestehen.
 ## Laufzeitkonfiguration
 
 `src/config/settings.py` enthaelt nur installationsbezogene Werte, insbesondere
-den lokalen Modellstamm unter standardmaessig `data/models/` und gegebenenfalls
-Timeouts des Vorbereitungsvorgangs. Eine Downloadfreigabe fuer Indexer oder Suche
-ist nicht vorgesehen.
+den lokalen Modellstamm unter standardmaessig `data/models/` (ueberschreibbar mit
+`RATSI_MODELS_DIR`) und gegebenenfalls Timeouts des Vorbereitungsvorgangs. Eine
+Downloadfreigabe fuer Indexer oder Suche ist nicht vorgesehen.
 
 Der ausdrueckliche Aufruf von `prepare_embedding_models.py --download` ist selbst
 die Downloadfreigabe. Eine allgemeine Einstellung wie
@@ -570,7 +570,7 @@ bleiben unabgehakt und werden dort beschrieben.
 
 ### Phase 2: Lokaler Modellstatus
 
-- [ ] **M2.1** Zentralen Pfad fuer `data/models/` in der Laufzeitkonfiguration
+- [x] **M2.1** Zentralen Pfad fuer `data/models/` in der Laufzeitkonfiguration
   bereitstellen, ohne eine Downloadfreigabe fuer Verbraucher einzufuehren.
 - [ ] **M2.2** Schnelle lokale Pruefung fuer Manifest, Revisionen, Pfade,
   Dateiexistenz und Groessen implementieren.
@@ -688,12 +688,14 @@ bleiben unabgehakt und werden dort beschrieben.
 - Letzter abgeschlossener Punkt: **M1.7**; Phase 1 wurde im Gesamtdiff geprueft.
   Die vollstaendige Standardsuite bestand mit 456 Tests; 5 markierte Live-Tests
   blieben gemaess `pyproject.toml` ausgeschlossen.
-- Naechster regulaerer Punkt: **M2.1**.
+- Naechster regulaerer Punkt: **M2.2**.
 - Aktiver Implementierungsstand: Zentraler Modell- und Versionsvertrag,
   Kernartefakt-Allowlists, Manifestschema, kanonische Serialisierung, Hashbildung
-  und Eingabevalidierung sind implementiert. Fuer bestehende Collections ist eine
-  einmalige gepruefte Uebernahme als `legacy_verified` vorgesehen. Laufzeitpfad
-  und lokale Statuspruefung folgen in Phase 2.
+  und Eingabevalidierung sind implementiert. Der lokale Modellstamm ist in den
+  Laufzeiteinstellungen standardmaessig `data/models/` und kann mit
+  `RATSI_MODELS_DIR` ueberschrieben werden. Fuer bestehende Collections ist eine
+  einmalige gepruefte Uebernahme als `legacy_verified` vorgesehen. Die lokale
+  Statuspruefung folgt in Phase 2.
 - Letzter zugehoeriger Commit: Phase-1-Abschluss und nachfolgende
   Konzeptpraezisierungen auf dem aktuellen Arbeitsbranch.
 - Offene Blocker oder Entscheidungen: keine.
