@@ -1,6 +1,7 @@
 """Local embedding inventory validation tests; no model or network access."""
 
 from dataclasses import replace
+import json
 
 import pytest
 
@@ -162,6 +163,27 @@ def test_local_inventory_check_detects_incompatible_revision(tmp_path):
     (tmp_path / MODEL_MANIFEST_FILENAME).write_bytes(canonical_manifest_bytes(changed))
 
     with pytest.raises(ModelInventoryIncompatibleError):
+        load_and_validate_model_inventory(tmp_path)
+
+
+def test_local_inventory_check_detects_foreign_model_identity(tmp_path):
+    manifest = _write_inventory(tmp_path)
+    invalid_dense_model = replace(manifest.dense_model, model_id="other/embedding")
+    changed = with_manifest_sha256(replace(manifest, dense_model=invalid_dense_model))
+    (tmp_path / MODEL_MANIFEST_FILENAME).write_bytes(canonical_manifest_bytes(changed))
+
+    with pytest.raises(ModelInventoryIncompatibleError):
+        load_and_validate_model_inventory(tmp_path)
+
+
+def test_local_inventory_check_detects_tampered_manifest_hash(tmp_path):
+    _write_inventory(tmp_path)
+    manifest_path = tmp_path / MODEL_MANIFEST_FILENAME
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    payload["manifest_sha256"] = "0" * 64
+    manifest_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ModelInventoryIncompatibleError, match="Hash"):
         load_and_validate_model_inventory(tmp_path)
 
 

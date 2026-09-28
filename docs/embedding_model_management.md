@@ -582,7 +582,7 @@ bleiben unabgehakt und werden dort beschrieben.
   implementieren.
 - [x] **M2.4** Gemeinsames Statusmodell `bereit`, `fehlt`, `unvollstaendig` und
   `inkompatibel` fuer CLI und Web definieren.
-- [ ] **M2.5** Tests mit temporaeren vollstaendigen, fehlenden, beschaedigten und
+- [x] **M2.5** Tests mit temporaeren vollstaendigen, fehlenden, beschaedigten und
   revisionsfremden Modellbestaenden ergaenzen.
 - [ ] **M2.6** Nachweisen, dass beide Pruefstufen ohne Netzwerkzugriff arbeiten.
 - [ ] **M2.7** Phase 2 pruefen und als eigenen Zwischenstand committen.
@@ -692,7 +692,7 @@ bleiben unabgehakt und werden dort beschrieben.
 - Letzter abgeschlossener Punkt: **M1.7**; Phase 1 wurde im Gesamtdiff geprueft.
   Die vollstaendige Standardsuite bestand mit 456 Tests; 5 markierte Live-Tests
   blieben gemaess `pyproject.toml` ausgeschlossen.
-- Naechster regulaerer Punkt: **M2.5**.
+- Naechster regulaerer Punkt: **M2.6**.
 - Aktiver Implementierungsstand: Zentraler Modell- und Versionsvertrag,
   Kernartefakt-Allowlists, Manifestschema, kanonische Serialisierung, Hashbildung
   und Eingabevalidierung sind implementiert. Der lokale Modellstamm ist in den
@@ -702,7 +702,9 @@ bleiben unabgehakt und werden dort beschrieben.
   Schnellpruefung validiert Manifestvertrag, Dateipfade und -groessen ohne
   Netzwerkzugriff oder Hashen der Modellgewichte. Mit `deep=True` prueft sie
   zusaetzlich alle festgelegten Artefakt-SHA-256-Werte lokal. Die gemeinsame
-  Status-API liefert die vier vereinbarten Zustandswerte fuer CLI und Web.
+  Status-API liefert die vier vereinbarten Zustandswerte fuer CLI und Web. Tests
+  pruefen vollstaendige, fehlende, beschaedigte und revisions- oder
+  modellfremde Bestandsdaten.
 - Letzter zugehoeriger Commit: Phase-1-Abschluss und nachfolgende
   Konzeptpraezisierungen auf dem aktuellen Arbeitsbranch.
 - Offene Blocker oder Entscheidungen: keine.
