@@ -160,8 +160,14 @@ vorherige Bestand aktiv; ohne vorheriges Manifest bleibt der Status `fehlt`.
 Exitcode `0` bedeutet jetzt auch bei `--download` einen bereiten Bestand.
 `--download --json` liefert `operation`, `status`, `message`, `inventory_dir` und
 `manifest_sha256`; Fortschritt erscheint auf stderr. Kandidaten und alte
-Bestaende werden nicht automatisch geloescht. Sichere Wiederaufnahme und das
-Vermeiden erneuter Downloads folgen in M3.5.
+Bestaende werden nicht automatisch geloescht. Ein tiefengepruefter aktiver Bestand
+mit passenden Bibliotheksversionen wird ohne Hub-Zugriff oder Manifestwechsel
+wiederverwendet. Gepruefte, noch nicht aktivierte Bestaende werden ohne Download
+freigegeben. Abgebrochene Vorbereitungen werden nur bei exakt passendem
+Downloadplan fortgesetzt: bestaetigte Snapshots werden nach erneuter SHA-256-Pruefung
+uebernommen; unbestaetigte oder beschaedigte Snapshots werden vollstaendig neu
+geladen. `reused` in der Download-JSON-Ausgabe kennzeichnet die Wiederverwendung
+eines bereits vollstaendig geprueften Bestands.
 `--check` und `--download` sind gegenseitig ausgeschlossen; `--deep` ist nur bei
 `--check` erlaubt. Ein optionaler Hugging-Face-Token stammt aus der vorhandenen
 Secret-Verwaltung. `huggingface-hub>=1.0,<2.0` ist jetzt eine direkte Abhaengigkeit.

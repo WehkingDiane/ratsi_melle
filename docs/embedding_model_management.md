@@ -364,7 +364,8 @@ Dense-Modell und Tokenizer werden bei identischer ID und Revision als gemeinsame
 Snapshot mit der vereinigten Artefaktliste geladen; BM25 wird separat geladen.
 Freie Modell-IDs oder Revisionen sind keine CLI-Parameter.
 
-Jeder Aufruf laedt zunaechst in einen eigenen temporaeren Ordner unter
+Wenn kein gepruefter Bestand wiederverwendet werden kann, wird in einen passenden
+vorhandenen oder einen neuen temporaeren Ordner unter
 `<Modellstamm>/.preparation/download-*/` an. Darunter liegen die Snapshots jeweils
 unter `<Modell-ID>/<Commit-SHA>/`. Hugging-Face-Cachemetadaten koennen innerhalb
 dieser lokalen Snapshotordner entstehen. Umgeleitete `.preparation`- oder
@@ -398,23 +399,62 @@ Ein Fehler oder Abbruch vor dem Manifestwechsel laesst den vorherigen Bestand
 aktiv. Bei einer Erstvorbereitung bleibt ohne erfolgreichen Manifestwechsel der
 Status `fehlt`. Kandidaten, noch nicht aktivierte Bestaende, temporaere
 Manifestdateien bei Abbruch und alte Bestaende werden nicht automatisch
-geloescht. Wiederaufnahme und das Vermeiden erneuter Downloads werden in M3.5
-festgelegt. Noch fuehrt jeder Aufruf den Downloadschritt aus.
+geloescht.
+
+Seit M3.5 erfolgt die Wiederverwendung in dieser festen Reihenfolge:
+
+1. Ein gueltiges aktives Manifest wird mit allen Artefakt-SHA-256-Werten und
+   exakt den aktuell installierten Bibliotheksversionen verglichen. Bei Erfolg
+   bleibt der Bestand unveraendert; weder Hub-Import, Zugangsdatenabfrage noch
+   Download oder Manifestwechsel werden ausgefuehrt.
+2. Vollstaendig gepruefte Bestandsordner unter `inventories/`, deren
+   Kandidatenmanifest-Hash ihrem Ordnernamen entspricht, koennen ohne erneuten
+   Download atomar aktiviert werden. Damit laesst sich ein Abbruch nach dem
+   Verschieben, aber vor dem Manifestwechsel abschliessen.
+3. Vollstaendige, tiefengepruefte Kandidaten unter `.preparation/download-*/`
+   koennen ebenfalls ohne Hub-Aufruf freigegeben werden. Modellvertrag und
+   Bibliotheksversionen muessen weiterhin exakt passen.
+4. Fuer teilweise heruntergeladene Kandidaten muss `download-plan.json` exakt
+   zum aktuellen Vertrag passen: Planformat `1`, Pipeline- und Manifestformat,
+   Modell-IDs, Commit-SHAs und vereinigte Artefaktlisten. Unpassende, unlesbare
+   oder unbekannte Altplaene sowie verlinkte Kandidatenordner werden nicht
+   weiterbeschrieben. Die Auswahl passender Ordner erfolgt lexikografisch.
+
+Nach einem erfolgreichen Snapshot-Download entsteht `snapshot-<Nummer>.json`
+als Bestaetigung mit Modell-ID, Revision sowie Artefaktpfaden, Groessen und
+SHA-256-Werten. Vor einer Wiederverwendung werden alle diese Werte erneut aus
+den lokalen Dateien berechnet und exakt verglichen. Eine vorhandene Datei oder
+Hub-Cachemetadaten allein gelten nicht als Bestaetigung. Fehlende, unlesbare oder
+nicht mehr passende Bestaetigungen fuehren zu einem erneuten Download des
+betroffenen Snapshots mit `force_download=True`.
+
+Die Wiederaufnahme erfolgt damit auf Snapshotebene: Bereits bestaetigte
+Snapshots bleiben erhalten, der unterbrochene oder beschaedigte Snapshot wird
+vollstaendig erneut bezogen. Eine Wiederaufnahme einzelner Gewichtsdateien auf
+Byteebene wird nicht zugesichert. Ein erneuter Download schreibt nur in den
+passenden Kandidatenordner; aktive oder alte freigegebene Dateien werden nie
+repariert oder ueberschrieben. Nach der Wiederaufnahme gelten unveraendert die
+vollstaendige Manifestbildung, Tiefenpruefung und atomare Freigabe aus M3.4.
 
 `--download --json` liefert bei Erfolg ein einzelnes Objekt mit
 `operation="download"`, `status="bereit"`, `message`, `inventory_dir` und
-`manifest_sha256`. Exitcode `0` bedeutet einen geprueften und freigegebenen
+`manifest_sha256` sowie `reused`. `reused=true` kennzeichnet einen bereits
+vollstaendig geprueften Bestand, der ohne erneuten Download wiederverwendet oder
+freigegeben wurde; die Wiederaufnahme nur einzelner bestaetigter Snapshots setzt
+diesen Wert nicht. Exitcode `0` bedeutet einen geprueften und freigegebenen
 Modellbestand. Bei Download-, Pruef- oder Freigabefehlern folgt Exitcode `1` mit
 `operation="download"`, `status="fehlgeschlagen"` und einer kurzen `message`.
 Ungueltige Laufzeiteinstellungen liefern dasselbe Fehlerschema und Exitcode `2`.
 Fortschrittsausgaben gehen auf stderr.
 
 `--check` und `--download` schliessen sich gegenseitig aus; `--deep` ist nur bei
-`--check` erlaubt. Die Hub-Bibliothek und die Zugangsdaten werden nur bei
-`--download` geladen. Der optionale Token wird ueber die vorhandene
+`--check` erlaubt. Die Hub-Bibliothek und die Zugangsdaten werden nur beim
+Bearbeiten neuer oder teilweise vorbereiteter Downloads geladen. Vollstaendig
+gepruefte Bestaende und Kandidaten werden ohne diesen Schritt wiederverwendet.
+Der optionale Token wird ueber die vorhandene
 Secret-Verwaltung bezogen und als API-Argument uebergeben; ohne konfigurierten
 Token wird explizit anonym geladen. `huggingface-hub>=1.0,<2.0` wird als direkte
-Abhaengigkeit gefuehrt. Echte Live-Downloads wurden fuer M3.3/M3.4 nicht ausgefuehrt.
+Abhaengigkeit gefuehrt. Echte Live-Downloads wurden fuer M3.3 bis M3.5 nicht ausgefuehrt.
 
 Die verwendete Download-API fuer feste Revisionen und Artefaktauswahl ist in der
 [offiziellen Hugging-Face-Anleitung](https://huggingface.co/docs/huggingface_hub/guides/download)
@@ -687,7 +727,7 @@ bleiben unabgehakt und werden dort beschrieben.
   implementieren.
 - [x] **M3.4** Download in ein temporaeres Ziel, Vollstaendigkeitspruefung und
   atomare Freigabe unter `data/models/` implementieren.
-- [ ] **M3.5** Wiederaufnahme beziehungsweise sichere Wiederverwendung bereits
+- [x] **M3.5** Wiederaufnahme beziehungsweise sichere Wiederverwendung bereits
   vollstaendiger Artefakte festlegen.
 - [ ] **M3.6** Erwartbare Fehler fuer Netz, Speicherplatz und unvollstaendige
   Artefakte ohne langen CLI-Traceback behandeln.
@@ -779,20 +819,20 @@ bleiben unabgehakt und werden dort beschrieben.
 
 ## Aktuelle Uebergabe
 
-- Letzter abgeschlossener Punkt: **M3.4**; `--download` prueft gepinnte Kandidaten,
-  bildet ein Manifest und gibt den Bestand durch einen atomaren Manifestwechsel
-  frei. Alte Modelldateien werden erhalten. Die gezielten Tests pruefen
-  Vollstaendigkeit, Integritaet, beide Seiten des Manifestwechsels und Fehler
-  beziehungsweise Abbrueche vor der Aktivierung mit einem Fake-Hub und
-  gesperrtem Netzwerk. Der gezielte Lauf
+- Letzter abgeschlossener Punkt: **M3.5**; tiefengepruefte aktive Bestaende werden
+  ohne Hub-Zugriff wiederverwendet. Unterbrochene Freigaben koennen ohne Download
+  abgeschlossen werden. Teilweise Downloads werden anhand exakt passender Plaene
+  und erneut gepruefter Snapshot-Bestaetigungen fortgesetzt. Unbestaetigte oder
+  beschaedigte Snapshots werden vollstaendig neu geladen, niemals aktive Dateien.
+  Die gezielten Tests verwenden einen Fake-Hub und gesperrtes Netzwerk. Der Lauf
   `python -m pytest tests/test_embedding_model_preparation.py tests/test_prepare_embedding_models.py -q`
-  ist mit 54 Faellen bestanden. Keine vollstaendige Testsuite und kein echter
+  ist mit 64 Faellen bestanden. Keine vollstaendige Testsuite und kein echter
   Modell-Download wurden ausgefuehrt.
-- Naechster regulaerer Punkt: **M3.5**; Wiederaufnahme und sichere
-  Wiederverwendung ohne erneuten Download sind noch festzulegen.
+- Naechster regulaerer Punkt: **M3.6**; Fehlerklassifikation und strukturiertes,
+  redigiertes Logging fuer erwartbare Vorbereitungsfehler erweitern.
 - Phase-3-Branch: `codex/feature/embedding-model-management-phase-3`, abgezweigt
   vom Feature-Branch nach dem Phase-2-Merge. Jeder Umsetzungsschritt erhaelt
-  einen eigenen Commit. `VERSION` wurde fuer die atomare Vorbereitung auf `0.5.12`
+  einen eigenen Commit. `VERSION` wurde fuer sichere Wiederverwendung auf `0.5.13`
   angehoben.
 - Aktiver Implementierungsstand: Zentraler Modell- und Versionsvertrag,
   Kernartefakt-Allowlists, Manifestschema, kanonische Serialisierung, Hashbildung
@@ -811,7 +851,8 @@ bleiben unabgehakt und werden dort beschrieben.
   `codex/feature/embedding-model-management-phase-2`, einem Unterbranch von
   `codex/feature/embedding-model-management`; beide zweigen nach dem Phase-1-Merge
   von `main` ab.
-- Letzte zugehoerige Commits: `9747dda` fuer M3.1, `08abf5b` fuer M3.2 und
-  `723dcbe` fuer M3.3; M3.4 erhaelt einen eigenen Folgecommit. Phase 2 ist in den
+- Letzte zugehoerige Commits: `9747dda` fuer M3.1, `08abf5b` fuer M3.2,
+  `723dcbe` fuer M3.3 und `037ca53` fuer M3.4; M3.5 erhaelt einen eigenen
+  Folgecommit. Phase 2 ist in den
   uebergeordneten Feature-Branch gemergt.
 - Offene Blocker oder Entscheidungen: keine.

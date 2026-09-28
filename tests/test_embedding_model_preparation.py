@@ -68,6 +68,7 @@ def test_download_requests_only_pinned_identities_and_required_artifacts(tmp_pat
         assert call["repo_type"] == "model"
         assert call["token"] is False
         assert call["local_files_only"] is False
+        assert call["force_download"] is True
         assert call["local_dir"] == result.staging_dir / snapshot.relative_path
         assert call["revision"] in snapshot.relative_path
         assert all((call["local_dir"] / path).is_file() for path in snapshot.required_artifacts)
@@ -223,6 +224,7 @@ def test_download_invalid_settings_never_calls_hub(fake_hub, monkeypatch, capsys
 def test_invalid_candidate_never_replaces_ready_inventory(tmp_path, fake_hub, monkeypatch, damage):
     previous = preparation.prepare_embedding_models(tmp_path)
     old_manifest = (tmp_path / "manifest.json").read_bytes()
+    monkeypatch.setattr(preparation, "version", lambda distribution: f"{distribution}-new")
     hub, _ = fake_hub
     original = hub.snapshot_download
 
@@ -258,6 +260,7 @@ def test_invalid_candidate_never_replaces_ready_inventory(tmp_path, fake_hub, mo
 
 def test_candidate_is_deeply_verified_before_activation(tmp_path, fake_hub, monkeypatch):
     previous = preparation.prepare_embedding_models(tmp_path)
+    monkeypatch.setattr(preparation, "version", lambda distribution: f"{distribution}-new")
     original_build = preparation._build_candidate_manifest
 
     def corrupt_after_hashing(download):
@@ -360,6 +363,7 @@ def test_missing_library_metadata_prevents_activation(tmp_path, fake_hub, monkey
 
 def test_interrupted_activation_preserves_previous_inventory(tmp_path, fake_hub, monkeypatch):
     previous = preparation.prepare_embedding_models(tmp_path)
+    monkeypatch.setattr(preparation, "version", lambda distribution: f"{distribution}-new")
 
     def interrupt(*args, **kwargs):
         raise KeyboardInterrupt
@@ -382,3 +386,140 @@ def test_failed_first_activation_leaves_inventory_missing(tmp_path, fake_hub, mo
 
     assert check_embedding_model_status(tmp_path).state is EmbeddingModelReadiness.MISSING
     assert not (tmp_path / "manifest.json").exists()
+
+
+def test_ready_inventory_is_reused_without_hub_credentials_or_writes(tmp_path, fake_hub, monkeypatch):
+    previous = preparation.prepare_embedding_models(tmp_path)
+    before = (tmp_path / "manifest.json").read_bytes()
+    _, calls = fake_hub
+    calls.clear()
+
+    def reject(*args, **kwargs):
+        raise AssertionError("Ready inventory reuse must remain offline and read-only")
+
+    monkeypatch.setattr(preparation, "download_embedding_models", reject)
+    monkeypatch.setattr("src.config.secrets.get_api_key", reject)
+    monkeypatch.setattr(preparation.os, "replace", reject)
+    result = preparation.prepare_embedding_models(tmp_path)
+
+    assert result.reused is True
+    assert result.manifest == previous.manifest
+    assert (tmp_path / "manifest.json").read_bytes() == before
+    assert not calls
+    assert not list((tmp_path / ".preparation").iterdir())
+
+
+def test_orphan_inventory_is_activated_without_hub(tmp_path, fake_hub, monkeypatch):
+    original_replace = preparation.os.replace
+
+    def fail(*args, **kwargs):
+        raise OSError("activation failed")
+
+    monkeypatch.setattr(preparation.os, "replace", fail)
+    with pytest.raises(preparation.EmbeddingModelDownloadError):
+        preparation.prepare_embedding_models(tmp_path)
+    _, calls = fake_hub
+    calls.clear()
+    monkeypatch.setattr(preparation.os, "replace", original_replace)
+
+    def reject(*args, **kwargs):
+        raise AssertionError("Validated inventory must not require a download")
+
+    monkeypatch.setattr(preparation, "download_embedding_models", reject)
+    result = preparation.prepare_embedding_models(tmp_path)
+
+    assert result.reused is True
+    assert load_and_validate_model_inventory(tmp_path, deep=True) == result.manifest
+    assert not calls
+
+
+def test_completed_candidate_resumes_publication_without_hub(tmp_path, fake_hub, monkeypatch):
+    original_rename = Path.rename
+
+    def fail(*args, **kwargs):
+        raise OSError("rename failed")
+
+    monkeypatch.setattr(Path, "rename", fail)
+    with pytest.raises(preparation.EmbeddingModelDownloadError):
+        preparation.prepare_embedding_models(tmp_path)
+    _, calls = fake_hub
+    calls.clear()
+    monkeypatch.setattr(Path, "rename", original_rename)
+    monkeypatch.setattr(preparation, "download_embedding_models", lambda *args: pytest.fail("unexpected download"))
+
+    result = preparation.prepare_embedding_models(tmp_path)
+
+    assert result.reused is True
+    assert load_and_validate_model_inventory(tmp_path, deep=True) == result.manifest
+    assert not calls
+
+
+@pytest.mark.parametrize("damage", ["none", "same_size", "missing_receipt", "bad_receipt", "wrong_plan", "symlink"])
+def test_partial_download_resumes_only_confirmed_snapshots(tmp_path, fake_hub, damage):
+    hub, calls = fake_hub
+    original = hub.snapshot_download
+
+    def fail_sparse(**kwargs):
+        if kwargs["repo_id"] == BM25_MODEL.model_id:
+            root = Path(kwargs["local_dir"])
+            root.mkdir(parents=True, exist_ok=True)
+            (root / "config.json").write_bytes(b"partial")
+            raise OSError("interrupted sparse download")
+        return original(**kwargs)
+
+    hub.snapshot_download = fail_sparse
+    with pytest.raises(preparation.EmbeddingModelDownloadError):
+        preparation.prepare_embedding_models(tmp_path)
+    staging = next((tmp_path / ".preparation").iterdir())
+    dense_root = Path(calls[0]["local_dir"])
+    if damage == "same_size":
+        artifact = dense_root / "config.json"
+        artifact.write_bytes(b"x" * artifact.stat().st_size)
+    elif damage == "missing_receipt":
+        (staging / "snapshot-0.json").unlink()
+    elif damage == "bad_receipt":
+        (staging / "snapshot-0.json").write_bytes(b"{")
+    elif damage == "wrong_plan":
+        plan_path = staging / "download-plan.json"
+        plan = json.loads(plan_path.read_text())
+        plan["snapshots"][0]["revision"] = "a" * 40
+        plan_path.write_text(json.dumps(plan))
+    elif damage == "symlink":
+        artifact = dense_root / "config.json"
+        outside = tmp_path / "outside"
+        outside.write_bytes(artifact.read_bytes())
+        artifact.unlink()
+        try:
+            artifact.symlink_to(outside)
+        except OSError:
+            pytest.skip("Symlinks are unavailable on this platform")
+    calls.clear()
+    hub.snapshot_download = original
+
+    result = preparation.prepare_embedding_models(tmp_path)
+
+    expected = [BM25_MODEL.model_id] if damage == "none" else [HARRIER_MODEL.model_id, BM25_MODEL.model_id]
+    assert [call["repo_id"] for call in calls] == expected
+    assert all(call["force_download"] is True for call in calls)
+    reused_path = Path(calls[-1]["local_dir"]).parents[2]
+    if damage in {"wrong_plan", "symlink"}:
+        assert reused_path != staging
+        assert staging.is_dir()
+    else:
+        assert reused_path == staging
+        assert not staging.exists()
+    assert load_and_validate_model_inventory(tmp_path, deep=True) == result.manifest
+
+
+def test_mismatched_library_versions_do_not_reuse_ready_inventory(tmp_path, fake_hub, monkeypatch):
+    original = preparation.prepare_embedding_models(tmp_path)
+    _, calls = fake_hub
+    calls.clear()
+    monkeypatch.setattr(preparation, "version", lambda distribution: f"{distribution}-new")
+
+    result = preparation.prepare_embedding_models(tmp_path)
+
+    assert len(calls) == 2
+    assert result.manifest.manifest_sha256 != original.manifest.manifest_sha256
+    assert result.inventory_dir != original.inventory_dir
+    assert original.inventory_dir.is_dir()
