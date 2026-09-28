@@ -14,6 +14,11 @@ import pytest
 from scripts import prepare_embedding_models as cli
 from src import embedding_model_preparation as preparation
 from src.config.embedding_models import BM25_MODEL, HARRIER_MODEL, HARRIER_TOKENIZER
+from src.config.embedding_model_status import (
+    EmbeddingModelReadiness,
+    check_embedding_model_status,
+    load_and_validate_model_inventory,
+)
 
 
 @pytest.fixture
@@ -27,6 +32,7 @@ def fake_hub(monkeypatch):
     monkeypatch.setattr(socket, "create_connection", reject_network)
     monkeypatch.setattr(urllib.request, "urlopen", reject_network)
     monkeypatch.setattr("src.config.secrets.get_api_key", lambda provider: None)
+    monkeypatch.setattr(preparation, "version", lambda distribution: f"{distribution}-test")
 
     def snapshot_download(**kwargs):
         calls.append(kwargs)
@@ -81,7 +87,7 @@ def test_different_tokenizer_revision_is_downloaded_separately(tmp_path, fake_hu
 
 
 @pytest.mark.parametrize("json_output", [False, True])
-def test_download_cli_keeps_active_inventory_and_reports_only_candidates(
+def test_download_cli_publishes_ready_inventory_without_overwriting_old_artifacts(
     tmp_path, fake_hub, monkeypatch, capsys, json_output,
 ):
     monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
@@ -90,7 +96,7 @@ def test_download_cli_keeps_active_inventory_and_reports_only_candidates(
     active_artifact.parent.mkdir()
     active_manifest.write_bytes(b"existing manifest")
     active_artifact.write_bytes(b"existing weights")
-    before = [(path.read_bytes(), path.stat().st_mtime_ns) for path in (active_manifest, active_artifact)]
+    before = (active_artifact.read_bytes(), active_artifact.stat().st_mtime_ns)
 
     assert cli.main(["--download"] + (["--json"] if json_output else [])) == 0
 
@@ -100,16 +106,19 @@ def test_download_cli_keeps_active_inventory_and_reports_only_candidates(
     if json_output:
         payload = json.loads(output.out)
         assert payload["operation"] == "download"
-        assert payload["status"] == "heruntergeladen"
-        assert Path(payload["staging_dir"]).parent == tmp_path / ".preparation"
-        assert len(payload["snapshots"]) == 2
-        assert "manifest_sha256" not in payload
+        assert payload["status"] == "bereit"
+        assert Path(payload["inventory_dir"]).parent == tmp_path / "inventories"
+        assert payload["manifest_sha256"]
     else:
-        assert "Vorbereitungsordner:" in output.out
-        assert HARRIER_MODEL.revision in output.out
-        assert BM25_MODEL.revision in output.out
-    assert "noch nicht geprueft oder freigegeben" in output.out
-    assert before == [(path.read_bytes(), path.stat().st_mtime_ns) for path in (active_manifest, active_artifact)]
+        assert "Modellbestand:" in output.out
+        assert "Manifest-SHA-256:" in output.out
+    assert "geprueft und freigegeben" in output.out
+    assert before == (active_artifact.read_bytes(), active_artifact.stat().st_mtime_ns)
+    manifest = load_and_validate_model_inventory(tmp_path, deep=True)
+    assert manifest.dense_model.relative_path == manifest.tokenizer.relative_path
+    assert manifest.library_versions.huggingface_hub == "huggingface-hub-test"
+    if json_output:
+        assert payload["manifest_sha256"] == manifest.manifest_sha256
 
 
 @pytest.mark.parametrize("json_output", [False, True])
@@ -208,3 +217,168 @@ def test_download_invalid_settings_never_calls_hub(fake_hub, monkeypatch, capsys
         assert output.out == ""
     assert "RATSI_MODELS_DIR" in output.out + output.err
     assert not fake_hub[1]
+
+
+@pytest.mark.parametrize("damage", ["missing", "empty", "unexpected", "escape"])
+def test_invalid_candidate_never_replaces_ready_inventory(tmp_path, fake_hub, monkeypatch, damage):
+    previous = preparation.prepare_embedding_models(tmp_path)
+    old_manifest = (tmp_path / "manifest.json").read_bytes()
+    hub, _ = fake_hub
+    original = hub.snapshot_download
+
+    def damage_download(**kwargs):
+        result = original(**kwargs)
+        if kwargs["repo_id"] == HARRIER_MODEL.model_id:
+            root = Path(kwargs["local_dir"])
+            artifact = root / "model.safetensors"
+            if damage == "missing":
+                artifact.unlink()
+            elif damage == "empty":
+                artifact.write_bytes(b"")
+            elif damage == "unexpected":
+                (root / "sentence_bert_config.json").write_bytes(b"{}")
+            else:
+                outside = tmp_path / "outside"
+                outside.write_bytes(b"not a local model artifact")
+                artifact.unlink()
+                try:
+                    artifact.symlink_to(outside)
+                except OSError:
+                    pytest.skip("Symlinks are unavailable on this platform")
+        return result
+
+    hub.snapshot_download = damage_download
+
+    with pytest.raises(preparation.EmbeddingModelDownloadError, match="Modellpruefung"):
+        preparation.prepare_embedding_models(tmp_path)
+
+    assert (tmp_path / "manifest.json").read_bytes() == old_manifest
+    assert load_and_validate_model_inventory(tmp_path, deep=True) == previous.manifest
+
+
+def test_candidate_is_deeply_verified_before_activation(tmp_path, fake_hub, monkeypatch):
+    previous = preparation.prepare_embedding_models(tmp_path)
+    original_build = preparation._build_candidate_manifest
+
+    def corrupt_after_hashing(download):
+        candidate = original_build(download)
+        artifact = download.staging_dir / candidate.dense_model.relative_path / "config.json"
+        artifact.write_bytes(b"x" * artifact.stat().st_size)
+        return candidate
+
+    monkeypatch.setattr(preparation, "_build_candidate_manifest", corrupt_after_hashing)
+
+    with pytest.raises(preparation.EmbeddingModelDownloadError):
+        preparation.prepare_embedding_models(tmp_path)
+    assert load_and_validate_model_inventory(tmp_path, deep=True) == previous.manifest
+
+
+@pytest.mark.parametrize("failure_point", ["rename", "manifest_write", "flush", "activate"])
+def test_publication_failure_preserves_previous_ready_inventory(
+    tmp_path, fake_hub, monkeypatch, failure_point,
+):
+    previous = preparation.prepare_embedding_models(tmp_path)
+    old_manifest = (tmp_path / "manifest.json").read_bytes()
+    # A different library record creates a different candidate generation.
+    monkeypatch.setattr(preparation, "version", lambda distribution: f"{distribution}-new")
+
+    def fail(*args, **kwargs):
+        raise OSError("simulated publication failure")
+
+    if failure_point == "rename":
+        monkeypatch.setattr(Path, "rename", fail)
+    elif failure_point == "manifest_write":
+        monkeypatch.setattr(preparation, "mkstemp", fail)
+    elif failure_point == "flush":
+        monkeypatch.setattr(preparation.os, "fsync", fail)
+    else:
+        monkeypatch.setattr(preparation.os, "replace", fail)
+
+    with pytest.raises(preparation.EmbeddingModelDownloadError):
+        preparation.prepare_embedding_models(tmp_path)
+
+    assert (tmp_path / "manifest.json").read_bytes() == old_manifest
+    assert load_and_validate_model_inventory(tmp_path, deep=True) == previous.manifest
+
+
+def test_activation_switches_one_manifest_and_keeps_old_generation(tmp_path, fake_hub, monkeypatch):
+    previous = preparation.prepare_embedding_models(tmp_path)
+    original_replace = preparation.os.replace
+    observations = []
+    monkeypatch.setattr(preparation, "version", lambda distribution: f"{distribution}-new")
+
+    def observe_switch(source, destination):
+        assert Path(source).parent == tmp_path
+        assert Path(destination) == tmp_path / "manifest.json"
+        observations.append(load_and_validate_model_inventory(tmp_path, deep=True))
+        original_replace(source, destination)
+        observations.append(load_and_validate_model_inventory(tmp_path, deep=True))
+
+    monkeypatch.setattr(preparation.os, "replace", observe_switch)
+
+    prepared = preparation.prepare_embedding_models(tmp_path)
+
+    assert observations == [previous.manifest, prepared.manifest]
+    assert previous.inventory_dir.is_dir()
+    assert prepared.inventory_dir != previous.inventory_dir
+    assert not list((tmp_path / ".preparation").iterdir())
+
+
+def test_identical_preparation_preserves_compatibility_hash(tmp_path, fake_hub):
+    previous = preparation.prepare_embedding_models(tmp_path)
+
+    prepared = preparation.prepare_embedding_models(tmp_path)
+
+    assert prepared.inventory_dir == previous.inventory_dir
+    assert prepared.manifest.manifest_sha256 == previous.manifest.manifest_sha256
+    assert load_and_validate_model_inventory(tmp_path, deep=True) == prepared.manifest
+
+
+def test_corrupted_existing_generation_is_not_overwritten(tmp_path, fake_hub):
+    previous = preparation.prepare_embedding_models(tmp_path)
+    old_manifest = (tmp_path / "manifest.json").read_bytes()
+    artifact = tmp_path / previous.manifest.dense_model.relative_path / "config.json"
+    artifact.write_bytes(b"x" * artifact.stat().st_size)
+
+    with pytest.raises(preparation.EmbeddingModelDownloadError):
+        preparation.prepare_embedding_models(tmp_path)
+
+    assert (tmp_path / "manifest.json").read_bytes() == old_manifest
+    assert artifact.read_bytes() == b"x" * artifact.stat().st_size
+
+
+def test_missing_library_metadata_prevents_activation(tmp_path, fake_hub, monkeypatch):
+    def missing(distribution):
+        raise preparation.PackageNotFoundError(distribution)
+
+    monkeypatch.setattr(preparation, "version", missing)
+
+    with pytest.raises(preparation.EmbeddingModelDownloadError):
+        preparation.prepare_embedding_models(tmp_path)
+    assert not (tmp_path / "manifest.json").exists()
+
+
+def test_interrupted_activation_preserves_previous_inventory(tmp_path, fake_hub, monkeypatch):
+    previous = preparation.prepare_embedding_models(tmp_path)
+
+    def interrupt(*args, **kwargs):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(preparation.os, "replace", interrupt)
+
+    with pytest.raises(KeyboardInterrupt):
+        preparation.prepare_embedding_models(tmp_path)
+    assert load_and_validate_model_inventory(tmp_path, deep=True) == previous.manifest
+
+
+def test_failed_first_activation_leaves_inventory_missing(tmp_path, fake_hub, monkeypatch):
+    def fail(*args, **kwargs):
+        raise OSError("manifest activation failed")
+
+    monkeypatch.setattr(preparation.os, "replace", fail)
+
+    with pytest.raises(preparation.EmbeddingModelDownloadError):
+        preparation.prepare_embedding_models(tmp_path)
+
+    assert check_embedding_model_status(tmp_path).state is EmbeddingModelReadiness.MISSING
+    assert not (tmp_path / "manifest.json").exists()

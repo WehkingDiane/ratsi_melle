@@ -1,4 +1,4 @@
-"""Check local embedding models offline or explicitly download pinned candidates."""
+"""Check local embedding models offline or explicitly prepare pinned models."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from src.config.settings import (
     EmbeddingModelSettingsError,
     load_embedding_model_settings,
 )
-from src.embedding_model_preparation import EmbeddingModelDownloadError, download_embedding_models
+from src.embedding_model_preparation import EmbeddingModelDownloadError, prepare_embedding_models
 
 
 def _print_status(status: EmbeddingModelStatus, *, deep: bool, json_output: bool) -> None:
@@ -56,7 +56,7 @@ def main(argv: list[str] | None = None) -> int:
     action.add_argument(
         "--download",
         action="store_true",
-        help="Gepinnte Artefakte in einen separaten Vorbereitungsordner herunterladen.",
+        help="Gepinnte Artefakte herunterladen, pruefen und atomar freigeben.",
     )
     parser.add_argument(
         "--deep",
@@ -90,7 +90,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             # Hub progress output must not mix with a machine-readable result.
             with redirect_stdout(sys.stderr):
-                result = download_embedding_models(settings.models_dir)
+                result = prepare_embedding_models(settings.models_dir)
         except EmbeddingModelDownloadError as error:
             _print_download_error(str(error), json_output=args.json)
             return 1
@@ -98,9 +98,8 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(result.as_dict(), ensure_ascii=False, sort_keys=True))
         else:
             print(result.as_dict()["message"])
-            print(f"Vorbereitungsordner: {result.staging_dir}")
-            for snapshot in result.snapshots:
-                print(f"{snapshot.model_id}: {snapshot.revision}")
+            print(f"Modellbestand: {result.inventory_dir}")
+            print(f"Manifest-SHA-256: {result.manifest.manifest_sha256}")
         return 0
 
     status = check_embedding_model_status(settings.models_dir, deep=args.deep)

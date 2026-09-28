@@ -2,15 +2,52 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
+from datetime import datetime, timezone
+from importlib.metadata import PackageNotFoundError, version
+import os
 from pathlib import Path
-from tempfile import mkdtemp
+from tempfile import mkdtemp, mkstemp
 
-from src.config.embedding_models import BM25_MODEL, HARRIER_MODEL, HARRIER_TOKENIZER
+from src.config.embedding_model_manifest import (
+    EmbeddingModelManifest,
+    ModelLibraryVersions,
+    PreparedModelManifest,
+    build_artifact_manifests,
+    canonical_manifest_bytes,
+    with_manifest_sha256,
+)
+from src.config.embedding_models import (
+    BM25_MODEL, EMBEDDING_PIPELINE_VERSION, HARRIER_MODEL, HARRIER_TOKENIZER,
+    MODEL_MANIFEST_FORMAT_VERSION,
+)
+from src.config.embedding_model_status import (
+    MODEL_MANIFEST_FILENAME,
+    load_and_validate_model_inventory,
+)
 
 
 class EmbeddingModelDownloadError(RuntimeError):
     """A configured snapshot could not be downloaded into the preparation area."""
+
+
+@dataclass(frozen=True, slots=True)
+class PreparedEmbeddingModels:
+    """Validated inventory activated by atomically replacing its manifest."""
+
+    inventory_dir: Path
+    manifest: EmbeddingModelManifest
+
+    def as_dict(self) -> dict[str, object]:
+        """Return the successful preparation result without credentials."""
+
+        return {
+            "operation": "download",
+            "status": "bereit",
+            "message": "Lokale Embedding-Modelle sind geprueft und freigegeben.",
+            "inventory_dir": str(self.inventory_dir),
+            "manifest_sha256": self.manifest.manifest_sha256,
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,3 +141,103 @@ def download_embedding_models(models_dir: Path) -> EmbeddingModelDownload:
             required_artifacts=required_artifacts,
         ))
     return EmbeddingModelDownload(staging_dir, tuple(snapshots))
+
+
+def _build_candidate_manifest(download: EmbeddingModelDownload) -> EmbeddingModelManifest:
+    components = {}
+    staging_root = download.staging_dir.resolve(strict=True)
+    for name, definition in (
+        ("dense_model", HARRIER_MODEL),
+        ("tokenizer", HARRIER_TOKENIZER),
+        ("sparse_model", BM25_MODEL),
+    ):
+        relative_path = f"{definition.model_id}/{definition.revision}"
+        model_root = staging_root / relative_path
+        resolved_model_root = model_root.resolve(strict=True)
+        resolved_model_root.relative_to(staging_root)
+        for relative_artifact in definition.required_artifacts:
+            artifact = model_root / relative_artifact
+            resolved = artifact.resolve(strict=True)
+            resolved.relative_to(resolved_model_root)
+            if artifact.is_symlink() or not resolved.is_file() or resolved.stat().st_size == 0:
+                raise ValueError("Required artifacts must be nonempty regular local files")
+        components[name] = PreparedModelManifest(
+            model_id=definition.model_id,
+            configured_revision=definition.revision,
+            resolved_revision=definition.revision,
+            relative_path=relative_path,
+            artifacts=build_artifact_manifests(
+                model_root,
+                definition.required_artifacts,
+                expected_absent_paths=getattr(definition, "expected_absent_artifacts", ()),
+            ),
+        )
+    return with_manifest_sha256(EmbeddingModelManifest(
+        manifest_format_version=MODEL_MANIFEST_FORMAT_VERSION,
+        pipeline_version=EMBEDDING_PIPELINE_VERSION,
+        **components,
+        library_versions=ModelLibraryVersions(
+            transformers=version("transformers"),
+            sentence_transformers=version("sentence-transformers"),
+            fastembed=version("fastembed"),
+            huggingface_hub=version("huggingface-hub"),
+        ),
+        created_at=datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    ))
+
+
+def prepare_embedding_models(models_dir: Path) -> PreparedEmbeddingModels:
+    """Download, deeply validate, then atomically activate a complete inventory.
+
+    Artifacts are stored in content-addressed inventory directories and never
+    overwrite active files. The root manifest is the sole activation point.
+    Failed or interrupted preparation leaves the previous root manifest intact;
+    candidates and old inventories are retained rather than deleted.
+    """
+
+    download = download_embedding_models(models_dir)
+    root = models_dir.resolve()
+    try:
+        candidate = _build_candidate_manifest(download)
+        candidate_path = download.staging_dir / MODEL_MANIFEST_FILENAME
+        candidate_path.write_bytes(canonical_manifest_bytes(candidate))
+        load_and_validate_model_inventory(download.staging_dir, deep=True)
+
+        inventories_root = root / "inventories"
+        if inventories_root.is_symlink():
+            raise ValueError("Inventory directory must not be a symlink")
+        inventories_root.mkdir(exist_ok=True)
+        inventory_dir = inventories_root / candidate.manifest_sha256
+        if inventory_dir.exists() or inventory_dir.is_symlink():
+            # Deterministic paths keep identical preparations hash-compatible.
+            # Verify a pre-existing generation instead of overwriting its files.
+            if inventory_dir.is_symlink():
+                raise ValueError("Inventory must not be a symlink")
+            existing = load_and_validate_model_inventory(inventory_dir, deep=True)
+            if canonical_manifest_bytes(existing, include_created_at=False) != canonical_manifest_bytes(
+                candidate, include_created_at=False,
+            ):
+                raise ValueError("Existing inventory does not match its content address")
+        else:
+            download.staging_dir.rename(inventory_dir)
+
+        prefix = inventory_dir.relative_to(root).as_posix()
+        active_components = {}
+        for name in ("dense_model", "tokenizer", "sparse_model"):
+            component = getattr(candidate, name)
+            active_components[name] = replace(
+                component, relative_path=f"{prefix}/{component.relative_path}",
+            )
+        active = with_manifest_sha256(replace(candidate, **active_components))
+        # Create and flush on the same filesystem before the atomic switch.
+        descriptor, temporary_name = mkstemp(prefix=".manifest-", suffix=".tmp", dir=root)
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(canonical_manifest_bytes(active))
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary_name, root / MODEL_MANIFEST_FILENAME)
+    except (OSError, ValueError, PackageNotFoundError):
+        raise EmbeddingModelDownloadError(
+            "Modellpruefung oder Freigabe fehlgeschlagen; der aktive Bestand bleibt unveraendert."
+        ) from None
+    return PreparedEmbeddingModels(inventory_dir, active)
