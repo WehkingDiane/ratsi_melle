@@ -914,6 +914,17 @@ bleiben unabgehakt und werden dort beschrieben.
   Modell-Download wurden ausgefuehrt.
 - Naechster regulaerer Punkt: **M3.9**; Phase 3 pruefen und den abschliessenden
   Zwischenstand committen.
+- Nachtrag zur von Diane ausgefuehrten regulaeren Windows-Suite: 580 Tests
+  bestanden, 3 uebersprungen und 7 abgewaehlt; zwei Archiv-Hook-Tests scheiterten
+  wegen CRLF/LF-Konvertierung in temporaeren Test-Repositories. Die Testhilfe
+  setzt dort jetzt lokal `core.autocrlf=false`, ohne globale oder Projekt-Git-
+  Einstellungen zu aendern. Beide Faelle werden mit LF/CRLF und den globalen
+  Einstellungen `false`, `true` und `input` abgesichert. Die strikte Bytepruefung
+  des produktiven Archiv-Hooks bleibt unveraendert. Das betroffene Hook-Testmodul
+  besteht mit 27 Tests unter WSL und erneut mit 27 Tests bei simulierter
+  Windows-CRLF-Schreibweise. Reiner Testfix, daher bleibt
+  `VERSION` bei `0.5.15`; die vollstaendige Suite wird nicht als gruen ausgewiesen,
+  solange Diane sie unter Windows nicht erneut ausgefuehrt hat.
 - Phase-3-Branch: `codex/feature/embedding-model-management-phase-3`, abgezweigt
   vom Feature-Branch nach dem Phase-2-Merge. Jeder Umsetzungsschritt erhaelt
   einen eigenen Commit. `VERSION` wurde fuer die SDK-Ausgabesicherung auf `0.5.15`
