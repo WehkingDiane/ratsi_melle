@@ -2,6 +2,7 @@
 
 from dataclasses import replace
 import json
+from pathlib import Path
 import socket
 import urllib.request
 
@@ -131,6 +132,24 @@ def test_local_inventory_check_detects_missing_artifact(tmp_path):
 
     with pytest.raises(ModelInventoryIncompleteError):
         load_and_validate_model_inventory(tmp_path)
+
+
+def test_fast_inventory_check_rejects_unreadable_artifact(tmp_path, monkeypatch):
+    _write_inventory(tmp_path)
+    unreadable_artifact = (tmp_path / "dense_model/snapshot/config.json").resolve()
+    original_open = Path.open
+
+    def deny_artifact_open(path, *args, **kwargs):
+        if path == unreadable_artifact:
+            raise PermissionError("read access denied")
+        return original_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", deny_artifact_open)
+
+    result = check_embedding_model_status(tmp_path)
+
+    assert result.state is EmbeddingModelReadiness.INCOMPLETE
+    assert "nicht gelesen" in result.message
 
 
 def test_shared_status_model_reports_missing_inventory(tmp_path):

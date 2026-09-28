@@ -306,8 +306,9 @@ Manifestformat bleiben dagegen hashwirksam.
 Es gibt zwei Pruefstufen:
 
 1. Die normale lokale Pruefung validiert Manifestformat, Modellidentitaet,
-   Revisionen, erwartete Pfade, Existenz und Dateigroessen. Sie darf keine
-   Netzwerkverbindung aufbauen und soll schnell genug fuer Statusanzeigen sein.
+   Revisionen, erwartete Pfade, Existenz, Dateigroessen und Lesezugriff auf alle
+   Kernartefakte. Sie darf keine Netzwerkverbindung aufbauen und soll schnell
+   genug fuer Statusanzeigen sein; grosse Artefakte werden dabei nicht gelesen.
 2. Eine ausdrueckliche Tiefenpruefung berechnet die festgelegten SHA-256-Werte
    erneut. Grosse Gewichtsdateien werden nicht bei jedem Build- oder Suchstart
    vollstaendig gehasht.
@@ -699,8 +700,9 @@ bleiben unabgehakt und werden dort beschrieben.
   Laufzeiteinstellungen standardmaessig `data/models/` und kann mit
   `RATSI_MODELS_DIR` ueberschrieben werden. Fuer bestehende Collections ist eine
   einmalige gepruefte Uebernahme als `legacy_verified` vorgesehen. Die lokale
-  Schnellpruefung validiert Manifestvertrag, Dateipfade und -groessen ohne
-  Netzwerkzugriff oder Hashen der Modellgewichte. Mit `deep=True` prueft sie
+  Schnellpruefung validiert Manifestvertrag, Dateipfade und -groessen und oeffnet
+  alle Kernartefakte lesend, ohne deren Inhalte zu hashen. Sie arbeitet ohne
+  Netzwerkzugriff. Mit `deep=True` prueft sie
   zusaetzlich alle festgelegten Artefakt-SHA-256-Werte lokal. Die gemeinsame
   Status-API liefert die vier vereinbarten Zustandswerte fuer CLI und Web. Tests
   pruefen vollstaendige, fehlende, beschaedigte und revisions- oder

@@ -238,6 +238,14 @@ def load_and_validate_model_inventory(
                     raise ModelInventoryIncompleteError(
                         f"Die SHA-256-Pruefsumme eines Pflichtartefakts fuer {name} stimmt nicht."
                     )
+            else:
+                try:
+                    with resolved_artifact.open("rb"):
+                        pass
+                except OSError as error:
+                    raise ModelInventoryIncompleteError(
+                        f"Ein Pflichtartefakt fuer {name} kann nicht gelesen werden."
+                    ) from error
     return manifest
 
 
