@@ -2,7 +2,7 @@
 
 ## Status und Zweck
 
-Dieses Dokument beschreibt das Zielbild fuer die noch nicht implementierte
+Dieses Dokument beschreibt das Zielbild fuer die schrittweise implementierte
 Verwaltung der lokalen Embedding-Modelle. Die zugehoerige konkrete Aufgabe steht
 in [project_tasks.md](project_tasks.md#33-extraktion-ocr-und-suche).
 
@@ -319,26 +319,45 @@ Bestand dessen Manifest-Hash als maschinenlesbare Felder.
 
 ## Vorbereitungsskript
 
-Das Skript `scripts/prepare_embedding_models.py` bietet seit M3.1 die lokale
-Schnellpruefung:
+Das Skript `scripts/prepare_embedding_models.py` bietet seit M3.1/M3.2 lokale
+Schnell- und Tiefenpruefungen:
 
 ```text
 python scripts/prepare_embedding_models.py --check
+python scripts/prepare_embedding_models.py --check --deep
+python scripts/prepare_embedding_models.py --check --json
+python scripts/prepare_embedding_models.py --check --deep --json
 ```
 
-Sie verwendet die gemeinsame Statuspruefung und `RATSI_MODELS_DIR` beziehungsweise
-standardmaessig `data/models/`. Die Ausgabe nennt Status und kurze Meldung.
+Beide verwenden die gemeinsame Statuspruefung und `RATSI_MODELS_DIR` beziehungsweise
+standardmaessig `data/models/`. Die menschenlesbare Ausgabe nennt Pruefstufe,
+Status und kurze Meldung sowie bei einem bereiten Bestand dessen Manifest-Hash.
+`--deep` berechnet zusaetzlich alle festgelegten Artefakt-SHA-256-Werte erneut.
+`--json` ersetzt die CLI-Meldung durch genau ein JSON-Objekt auf stdout:
+
+```json
+{"check_level":"fast","manifest_sha256":null,"message":"Das lokale Modellmanifest fehlt.","status":"fehlt"}
+```
+
+`status`, `message` und `manifest_sha256` stammen aus der gemeinsamen Status-API;
+`check_level` bezeichnet `fast` oder `deep`. Der Hash ist nur bei einem bereiten
+Bestand gesetzt. Eine ungueltige Einstellung fuer `RATSI_MODELS_DIR` liefert
+im JSON-Modus ebenfalls dieses Schema mit `status="inkompatibel"` und Exitcode
+`2`; im menschenlesbaren Modus erscheint die kurze Fehlermeldung auf stderr.
+Ungueltige Argumente werden mit Usage-Meldung auf stderr und Exitcode `2`
+abgelehnt, auch bei `--json`.
+
 Exitcode `0` bedeutet `bereit`, `1` einen fehlenden, unvollstaendigen oder
 inkompatiblen Bestand und `2` einen Aufruf- oder Konfigurationsfehler. Die Pruefung
 veraendert keine Dateien und legt auch kein fehlendes Modellverzeichnis an.
 Die geplanten Erweiterungen sind:
 
 ```text
-python scripts/prepare_embedding_models.py --check --deep
 python scripts/prepare_embedding_models.py --download
 ```
 
-`--check` arbeitet garantiert offline. `--download` laedt ausschliesslich die in
+`--check` arbeitet garantiert offline. Das noch nicht implementierte `--download`
+laedt spaeter ausschliesslich die in
 `embedding_models.py` festgelegten Revisionen, prueft sie und schreibt danach das
 Manifest. Bereits vollstaendig vorbereitete Artefakte werden wiederverwendet.
 
@@ -603,7 +622,7 @@ bleiben unabgehakt und werden dort beschrieben.
 
 - [x] **M3.1** `scripts/prepare_embedding_models.py --check` auf die gemeinsame
   lokale Prueflogik aufsetzen.
-- [ ] **M3.2** `--check --deep` mit eindeutiger, maschinenlesbarer und
+- [x] **M3.2** `--check --deep` mit eindeutiger, maschinenlesbarer und
   menschenlesbarer Ausgabe ergaenzen.
 - [ ] **M3.3** `--download` fuer ausschliesslich fest konfigurierte Revisionen
   implementieren.
@@ -701,11 +720,16 @@ bleiben unabgehakt und werden dort beschrieben.
 
 ## Aktuelle Uebergabe
 
-- Letzter abgeschlossener Punkt: **M3.1**; die CLI-Schnellpruefung verwendet
-  den gemeinsamen lokalen Modellstatus. Alle 7 betroffenen Einzeltests sind
-  bestanden, einschliesslich des direkten Skriptaufrufs aus einem Fremdverzeichnis.
+- Letzter abgeschlossener Punkt: **M3.2**; die CLI-Schnell- und Tiefenpruefung
+  verwenden den gemeinsamen lokalen Modellstatus. `--json` bietet in beiden
+  Pruefmodi eine reine maschinenlesbare Ausgabe. M3.1 wurde mit 7 bestandenen
+  Einzeltests verifiziert. Der abschliessende gezielte Lauf
+  `python -m pytest tests/test_prepare_embedding_models.py -q` ist mit 25 Faellen
+  bestanden; darunter gleich grosse beschaedigte Artefakte, blockiertes Netz
+  und unveraenderte Dateien.
   Die vollstaendige Testsuite wurde gemaess Arbeitsauftrag nicht ausgefuehrt.
-- Naechster regulaerer Punkt: **M3.2**.
+- Naechster regulaerer Punkt: **M3.3**; Download und atomare Vorbereitung sind
+  noch nicht implementiert.
 - Phase-3-Branch: `codex/feature/embedding-model-management-phase-3`, abgezweigt
   vom Feature-Branch nach dem Phase-2-Merge. M3.1 und M3.2 erhalten jeweils
   einen eigenen Commit. `VERSION` wurde fuer die neue sichtbare CLI auf `0.5.10`
@@ -727,7 +751,6 @@ bleiben unabgehakt und werden dort beschrieben.
   `codex/feature/embedding-model-management-phase-2`, einem Unterbranch von
   `codex/feature/embedding-model-management`; beide zweigen nach dem Phase-1-Merge
   von `main` ab.
-- Letzte zugehoerige Commits: `469c699`, `19fc3bd`, `e21804c`, `550fc9c`,
-  `1739a53` und `faf04c8` fuer M2.1 bis M2.6; M2.7 ist der Phase-2-
-  Abschlusscommit.
+- Letzte zugehoerige Commits: `9747dda` fuer M3.1; M3.2 erhaelt einen eigenen
+  Folgecommit. Phase 2 ist in den uebergeordneten Feature-Branch gemergt.
 - Offene Blocker oder Entscheidungen: keine.

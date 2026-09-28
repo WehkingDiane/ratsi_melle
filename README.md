@@ -140,7 +140,10 @@ Landkreis-Veröffentlichungen aus Bekanntmachungen und Amtsblättern werden bewu
 ### Lokalen Embedding-Modellbestand pruefen
 
 `python scripts/prepare_embedding_models.py --check` prueft den lokalen Bestand
-ohne Netzwerkzugriff. Der Modellstamm ist `data/models/`; `RATSI_MODELS_DIR`
+ohne Netzwerkzugriff; `--check --deep` prueft zusaetzlich die Artefakt-SHA-256-Werte.
+Mit `--json` gibt jeder Pruefmodus ein einzelnes JSON-Objekt mit `status`,
+`message`, `manifest_sha256` und `check_level` (`fast` oder `deep`) aus.
+Der Modellstamm ist `data/models/`; `RATSI_MODELS_DIR`
 ueberschreibt ihn. Exitcode `0` bedeutet `bereit`, `1` einen fehlenden,
 unvollstaendigen oder inkompatiblen Bestand und `2` einen Aufruf- oder
 Konfigurationsfehler. Modell-Downloads folgen in einem weiteren Umsetzungsschritt.
