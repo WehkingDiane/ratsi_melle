@@ -507,7 +507,24 @@ und nur als API-Argument uebergeben. Ein Keyringfehler erlaubt den Env-Fallback.
 Die Token-Umgebung wird nicht veraendert; ohne konfigurierten Token verhindert
 `token=False` eine implizite Anmeldung aus dem Hub-Cache.
 `huggingface-hub>=1.0,<2.0` wird als direkte Abhaengigkeit gefuehrt.
-Echte Live-Downloads wurden fuer M3.3 bis M3.7 nicht ausgefuehrt.
+Echte Live-Downloads wurden fuer M3.3 bis M3.8 nicht ausgefuehrt.
+
+M3.8 ergaenzt echte CLI-Subprozess-Integrationstests mit einem kleinen Fake-Hub
+und gesperrtem Netzwerk. Sie pruefen den Aufruf aus einem fremden Arbeitsordner,
+atomare Freigabe, Tiefenpruefung und Offline-Wiederverwendung ohne Hub-Import
+oder Secret-Zugriff. Ein simulierter Anbieterfehler laesst den alten Bestand
+bytegleich bestehen; anschliessend wird nur der unbestaetigte Snapshot nachgeladen.
+
+Die getrennte Datei `tests/test_embedding_model_preparation_live.py` verwendet
+die bestehenden Marker `live` und `integration`. Beide Tests brauchen neben der
+Marker-Auswahl eine eigene Opt-in-Variable: `RATSI_EMBEDDING_LIVE_SMOKE=1` fuer
+gepinntes Anbieter-Metadaten-/Konfigurationslesen ohne Gewichte beziehungsweise
+`RATSI_EMBEDDING_LIVE_DOWNLOAD=1` fuer den kompletten Modelldownload samt
+Manifestvalidierung und Offline-Wiederverwendung. Der Smoke-Test ist keine
+Bereitschaftsabnahme. Die Tests laufen anonym in isolierten Kindprozessen;
+Modellstamm, Logs, Tokenpfad und Hub-/Xet-Caches liegen im temporaeren
+Testverzeichnis. Die konkreten Aufrufe und der Speicherhinweis stehen im README.
+Ohne Opt-in bleiben auch explizit ausgewaehlte Live-Tests uebersprungen.
 
 Die verwendete Download-API fuer feste Revisionen und Artefaktauswahl ist in der
 [offiziellen Hugging-Face-Anleitung](https://huggingface.co/docs/huggingface_hub/guides/download)
@@ -785,7 +802,7 @@ bleiben unabgehakt und werden dort beschrieben.
 - [x] **M3.6** Erwartbare Fehler fuer Netz, Speicherplatz und unvollstaendige
   Artefakte ohne langen CLI-Traceback behandeln.
 - [x] **M3.7** Tokenweitergabe und Log-Redaktion mit Tests absichern.
-- [ ] **M3.8** Downloadtests ohne echten Hub sowie getrennte, markierte Live-Tests
+- [x] **M3.8** Downloadtests ohne echten Hub sowie getrennte, markierte Live-Tests
   fuer den realen Anbieter ergaenzen.
 - [ ] **M3.9** Phase 3 pruefen und als eigenen Zwischenstand committen.
 
@@ -872,7 +889,15 @@ bleiben unabgehakt und werden dort beschrieben.
 
 ## Aktuelle Uebergabe
 
-- Letzter abgeschlossener Punkt: **M3.7**; Tokenprioritaet, anonymer Download,
+- Letzter abgeschlossener Punkt: **M3.8**; Fake-Hub-Subprozess-Integrationstests
+  sowie getrennte, doppelt freizugebende Live-Tests sind ergaenzt. Es wurden
+  nur betroffene Tests ausgefuehrt, keine vollstaendige Testsuite und keine
+  echten Anbieter-Downloads: Die vier Vorbereitungstestmodule liefern
+  **107 bestanden, 2 Live-Tests abgewaehlt**. Bei expliziter Live-Auswahl ohne
+  Opt-in werden beide Tests korrekt uebersprungen; beide sind separat sammelbar.
+  `VERSION` bleibt fuer diesen Test-/Dokuschritt
+  bewusst bei `0.5.15`.
+  M3.7: Tokenprioritaet, anonymer Download,
   unveraenderte Token-Umgebung und unterdrueckte SDK-Ausgaben sind abgesichert.
   Tests decken Erfolg, Fehler, JSON-/Textausgabe, DEBUG-Logs, kodierte und
   verteilte Zugangsdaten sowie Offline-Wiederverwendung und Abbruch ab.
@@ -887,8 +912,8 @@ bleiben unabgehakt und werden dort beschrieben.
   ist mit 84 Faellen bestanden; der Log-Schreibfehler wurde zusaetzlich gezielt
   mit simuliertem ENOSPC geprueft. Keine vollstaendige Testsuite und kein echter
   Modell-Download wurden ausgefuehrt.
-- Naechster regulaerer Punkt: **M3.8**; getrennte markierte Live-Tests und
-  verbleibende Download-Testgrenzen ergaenzen.
+- Naechster regulaerer Punkt: **M3.9**; Phase 3 pruefen und den abschliessenden
+  Zwischenstand committen.
 - Phase-3-Branch: `codex/feature/embedding-model-management-phase-3`, abgezweigt
   vom Feature-Branch nach dem Phase-2-Merge. Jeder Umsetzungsschritt erhaelt
   einen eigenen Commit. `VERSION` wurde fuer die SDK-Ausgabesicherung auf `0.5.15`
@@ -912,6 +937,7 @@ bleiben unabgehakt und werden dort beschrieben.
   von `main` ab.
 - Letzte zugehoerige Commits: `9747dda` fuer M3.1, `08abf5b` fuer M3.2,
   `723dcbe` fuer M3.3, `037ca53` fuer M3.4, `5bb21af` fuer M3.5 und `fd25bce`
-  fuer M3.6; M3.7 erhaelt einen eigenen Folgecommit. Phase 2 ist in den
+  fuer M3.6 und `f76892a` fuer M3.7; M3.8 erhaelt einen eigenen Folgecommit.
+  Phase 2 ist in den
   uebergeordneten Feature-Branch gemergt.
 - Offene Blocker oder Entscheidungen: keine.

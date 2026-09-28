@@ -185,6 +185,29 @@ unterdrueckt, auch bei `DEBUG`; sichere Start-/Endereignisse stehen im Komponent
 `huggingface-hub>=1.0,<2.0` ist jetzt eine direkte Abhaengigkeit.
 Details stehen in [docs/embedding_model_management.md](docs/embedding_model_management.md).
 
+Die Vorbereitung laesst sich getrennt und ohne echten Hub testen:
+
+```bash
+python -m pytest tests/test_embedding_model_preparation.py tests/test_prepare_embedding_models.py tests/test_embedding_model_preparation_integration.py -m "not live" -q
+```
+
+Live-Tests benoetigen Internet und `huggingface-hub`, bleiben standardmaessig
+ausgeschlossen und erfordern zusaetzlich eine ausdrueckliche Freigabe (Bash):
+
+```bash
+# Nur gepinnte Hub-Metadaten und kleine config.json-Dateien; keine Gewichte
+RATSI_EMBEDDING_LIVE_SMOKE=1 python -m pytest tests/test_embedding_model_preparation_live.py -o addopts='' -m live -k small_config -q
+
+# Vollstaendiger Modelldownload: Speicherplatz im GB-Bereich und laengere Laufzeit
+RATSI_EMBEDDING_LIVE_DOWNLOAD=1 python -m pytest tests/test_embedding_model_preparation_live.py -o addopts='' -m live -k full_download -q
+```
+
+Diese Tests arbeiten anonym, ohne den OS-Schluesselring oder bestehende Hub-Tokens
+zu lesen. Modelle, Hub-/Xet-Caches und Logs liegen ausschliesslich im temporaeren
+Testverzeichnis; der Projektbestand bleibt unberuehrt. Der Smoke-Test bestaetigt
+keine Modellbereitschaft. Der Volltest prueft Download, Manifest, Tiefenpruefung
+und anschliessende Wiederverwendung bei gesperrtem Netzwerk.
+
 ### Landkreis-Veröffentlichungen
 
 Der Landkreis-Import ist als eigenstaendige Datenquelle umgesetzt und veraendert weder `data/db/local_index.sqlite` noch die SessionNet-Rohdaten. Er verarbeitet derzeit:
