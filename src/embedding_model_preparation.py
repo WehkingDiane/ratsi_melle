@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timezone
+import errno
 from importlib.metadata import PackageNotFoundError, version
 import json
+import logging
 import os
 from pathlib import Path
 from tempfile import mkdtemp, mkstemp
@@ -30,7 +32,86 @@ from src.config.embedding_model_status import (
 
 
 class EmbeddingModelDownloadError(RuntimeError):
-    """A configured snapshot could not be downloaded into the preparation area."""
+    """Expected preparation failure with a stable machine-readable diagnosis."""
+
+    def __init__(self, message: str, *, error_code: str = "preparation_failed") -> None:
+        super().__init__(message)
+        self.error_code = error_code
+
+
+_LOGGER = logging.getLogger("embedding_model_preparation")
+_LOGGER.addHandler(logging.NullHandler())
+
+
+def preparation_error(error: Exception, *, phase: str) -> EmbeddingModelDownloadError:
+    """Classify expected failures and log safe metadata without raw exception text."""
+
+    chain = []
+    seen = set()
+    current: BaseException | None = error
+    while current is not None and id(current) not in seen:
+        chain.append(current)
+        seen.add(id(current))
+        current = current.__cause__ or current.__context__
+    code = "preparation_failed"
+    selected = error
+    http_status = None
+    for cause in chain:
+        status = getattr(getattr(cause, "response", None), "status_code", None)
+        status = status if type(status) is int and 100 <= status <= 599 else None
+        bases = {(base.__module__, base.__name__) for base in type(cause).__mro__}
+        os_code = getattr(cause, "errno", None)
+        os_code = os_code if type(os_code) is int else None
+        if os_code in {errno.ENOSPC, getattr(errno, "EDQUOT", errno.ENOSPC)} or getattr(cause, "winerror", None) == 112:
+            code = "disk_full"
+        elif isinstance(cause, PermissionError) or os_code in {errno.EACCES, errno.EPERM, errno.EROFS}:
+            code = "permission_denied"
+        elif status is not None:
+            code = "network_unavailable" if status == 429 or status >= 500 else "source_unavailable"
+        elif (
+            isinstance(cause, (ConnectionError, TimeoutError))
+            or os_code in {errno.ENETUNREACH, errno.EHOSTUNREACH, errno.ECONNRESET, errno.ECONNREFUSED, errno.ETIMEDOUT}
+            or ("httpx", "TransportError") in bases
+            or ("huggingface_hub.errors", "OfflineModeIsEnabled") in bases
+        ):
+            code = "network_unavailable"
+        elif isinstance(cause, ImportError):
+            code = "dependency_missing"
+        elif isinstance(cause, (FileNotFoundError, ValueError)) and phase != "download":
+            code = "incomplete_artifacts"
+        else:
+            continue
+        selected = cause
+        http_status = status
+        break
+    if code == "preparation_failed" and phase == "download":
+        code = "download_failed"
+    messages = {
+        "disk_full": "Nicht genug lokaler Speicherplatz. Speicher freigeben und --download erneut starten.",
+        "permission_denied": "Lese- oder Schreibzugriff fehlt. Verzeichnisrechte pruefen und --download erneut starten.",
+        "network_unavailable": "Modellquelle nicht erreichbar. Internet, Proxy und Offline-Einstellungen pruefen; --download erneut starten.",
+        "source_unavailable": "Modellquelle lehnt die Anfrage ab. Zugangsdaten und die konfigurierte Revision pruefen.",
+        "dependency_missing": "Eine Modell-Abhaengigkeit fehlt; requirements.txt installieren.",
+        "incomplete_artifacts": "Modellartefakte fehlen, sind unvollstaendig oder ungueltig. --download erneut starten; bei erneutem Fehler den Kandidatenbestand pruefen.",
+        "download_failed": "Modelldownload fehlgeschlagen. Verbindung und lokalen Speicher pruefen; --download erneut starten.",
+        "preparation_failed": "Vorbereitung fehlgeschlagen. Lokalen Modellstamm und Verzeichnisrechte pruefen; --download erneut starten.",
+    }
+    if phase == "hub_import" and code == "dependency_missing":
+        messages[code] = "Die Download-Abhaengigkeit huggingface-hub fehlt; requirements.txt installieren."
+    prefix = {
+        "directory": "Vorbereitungsordner", "download": "Modelldownload",
+        "validate_download": "Modellpruefung", "prepare": "Modellpruefung oder Freigabe",
+        "logging": "Protokollierung", "hub_import": "Download-Abhaengigkeiten",
+    }[phase]
+    _LOGGER.error(
+        "event=model_preparation_failed error_code=%s phase=%s error_type=%s errno=%s http_status=%s",
+        code, phase, type(selected).__name__,
+        getattr(selected, "errno", None) if type(getattr(selected, "errno", None)) is int else None,
+        http_status,
+    )
+    return EmbeddingModelDownloadError(
+        f"{prefix}: {messages[code]} Der aktive Bestand bleibt unveraendert.", error_code=code,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,10 +177,8 @@ def download_embedding_models(models_dir: Path) -> EmbeddingModelDownload:
     # Keep the Hub dependency and credential lookup out of all offline checks.
     try:
         from huggingface_hub import snapshot_download
-    except ImportError:
-        raise EmbeddingModelDownloadError(
-            "Die Download-Abhaengigkeit huggingface-hub fehlt; requirements.txt installieren."
-        ) from None
+    except ImportError as error:
+        raise preparation_error(error, phase="hub_import") from None
     from src.config.secrets import get_api_key
 
     token = get_api_key("huggingface") or False
@@ -137,10 +216,8 @@ def download_embedding_models(models_dir: Path) -> EmbeddingModelDownload:
         if staging_dir is None:
             staging_dir = Path(mkdtemp(prefix="download-", dir=preparation_root))
             (staging_dir / "download-plan.json").write_text(json.dumps(plan), encoding="utf-8")
-    except OSError:
-        raise EmbeddingModelDownloadError(
-            "Der lokale Vorbereitungsordner kann nicht angelegt werden."
-        ) from None
+    except OSError as error:
+        raise preparation_error(error, phase="directory") from None
 
     snapshots = []
     for index, ((model_id, revision), artifacts) in enumerate(artifacts_by_snapshot.items()):
@@ -167,15 +244,15 @@ def download_embedding_models(models_dir: Path) -> EmbeddingModelDownload:
                     local_files_only=False,
                     force_download=True,
                 )
+        except Exception as error:
+            raise preparation_error(error, phase="download") from None
+        if not confirmed:
+            try:
                 receipt_path.write_text(json.dumps(_snapshot_receipt(
                     model_root, model_id, revision, required_artifacts,
                 )), encoding="utf-8")
-        except Exception:
-            # Provider exceptions can contain authenticated URLs. Detailed error
-            # categorization and redacted logging are separate preparation steps.
-            raise EmbeddingModelDownloadError(
-                f"Download oder Modellpruefung fuer {model_id} fehlgeschlagen; der aktive Bestand bleibt unveraendert."
-            ) from None
+            except (OSError, ValueError) as error:
+                raise preparation_error(error, phase="validate_download") from None
         snapshots.append(DownloadedModelSnapshot(
             model_id=model_id,
             revision=revision,
@@ -280,8 +357,8 @@ def prepare_embedding_models(models_dir: Path) -> PreparedEmbeddingModels:
     candidates and old inventories are retained rather than deleted.
     """
 
-    root = models_dir.resolve()
     try:
+        root = models_dir.resolve()
         libraries = _library_versions()
         current = _reusable_manifest(root, libraries)
         if current is not None:
@@ -330,10 +407,8 @@ def prepare_embedding_models(models_dir: Path) -> PreparedEmbeddingModels:
             download.staging_dir.rename(inventory_dir)
 
         return _activate_inventory(root, inventory_dir, candidate, reused=reused_candidate)
-    except (OSError, ValueError, PackageNotFoundError):
-        raise EmbeddingModelDownloadError(
-            "Modellpruefung oder Freigabe fehlgeschlagen; der aktive Bestand bleibt unveraendert."
-        ) from None
+    except (OSError, ValueError, PackageNotFoundError) as error:
+        raise preparation_error(error, phase="prepare") from None
 
 
 def _activate_inventory(

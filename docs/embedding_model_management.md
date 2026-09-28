@@ -443,9 +443,54 @@ vollstaendig geprueften Bestand, der ohne erneuten Download wiederverwendet oder
 freigegeben wurde; die Wiederaufnahme nur einzelner bestaetigter Snapshots setzt
 diesen Wert nicht. Exitcode `0` bedeutet einen geprueften und freigegebenen
 Modellbestand. Bei Download-, Pruef- oder Freigabefehlern folgt Exitcode `1` mit
-`operation="download"`, `status="fehlgeschlagen"` und einer kurzen `message`.
+`operation="download"`, `status="fehlgeschlagen"`, einer kurzen `message` und
+seit M3.6 einem stabilen `error_code`.
 Ungueltige Laufzeiteinstellungen liefern dasselbe Fehlerschema und Exitcode `2`.
 Fortschrittsausgaben gehen auf stderr.
+
+### Erwartbare Vorbereitungsfehler (M3.6)
+
+CLI-Meldungen nennen den betroffenen Schritt und die naechste sinnvolle Aktion;
+erwartbare Download-, Dateisystem- und Prueffehler erzeugen keinen Traceback.
+Die JSON-Ausgabe unterscheidet:
+
+| `error_code` | Bedeutung und naechster Schritt |
+| --- | --- |
+| `network_unavailable` | Verbindung, Timeout, Offline-Einstellung, HTTP 429 oder HTTP 5xx; Internet und Proxy pruefen, Download erneut starten |
+| `disk_full` | ENOSPC, Speicherquota oder Windows-Fehler 112; lokalen Speicher freigeben, Download erneut starten |
+| `permission_denied` | Fehlender Lese-/Schreibzugriff oder schreibgeschuetztes Dateisystem; Verzeichnisrechte pruefen |
+| `incomplete_artifacts` | Fehlende, leere, beschaedigte oder ungueltige Artefakte/Manifeste; Vorbereitung erneut starten, bei Wiederholung Kandidaten pruefen |
+| `source_unavailable` | Andere HTTP-Fehler wie 401, 403 oder 404; Zugangsdaten und gepinnte Quelle pruefen |
+| `dependency_missing` | Hub- oder Modell-Abhaengigkeit fehlt; `requirements.txt` installieren |
+| `download_failed` / `preparation_failed` | Nicht genauer klassifizierter Fehler; Verbindung, Modellstamm und Verzeichnisrechte pruefen |
+| `configuration_error` | Ungueltige Laufzeiteinstellung; Konfiguration korrigieren, Exitcode `2` |
+
+Die Klassifikation beruecksichtigt auch verschachtelte Ausnahmen, etwa einen
+Anbieterfehler mit zugrunde liegendem ENOSPC. Bekannte Fehler vor der Aktivierung
+lassen das aktive Manifest unveraendert und behalten Kandidaten fuer die
+Wiederaufnahme bei.
+
+Nur `--download` konfiguriert das gemeinsame rotierende Projektlog unter
+`logs/embedding_model_preparation.log` beziehungsweise `RATSI_LOG_DIR`.
+`--log-level` hat Vorrang vor `RATSI_LOG_LEVEL`, danach gilt `INFO`; erlaubte
+explizite Level sind DEBUG, INFO, WARNING, ERROR und CRITICAL. `--check` bleibt
+rein lesend und konfiguriert keine Logdatei, auch bei gesetztem `--log-level`.
+
+`event=model_preparation_failed` protokolliert Fehlercode, Arbeitsschritt,
+Fehlerklasse, numerisches `errno` und gegebenenfalls HTTP-Status. UTC-Zeit,
+Komponente und Lauf-ID folgen `src/observability.py`; `RATSI_RUN_ID` kann die
+Lauf-ID setzen. Bei Erfolg erscheint `event=model_preparation_completed` mit
+Bereitschafts- und Wiederverwendungsstatus. Ausnahmetexte, Anbieterantworten,
+Requests, Header und URLs werden nicht in diese Diagnosefelder uebernommen.
+Fremde SDK-Logs werden aus dem Komponentenlog herausgefiltert. Die kurze
+CLI-Meldung beziehungsweise das einzelne JSON-Objekt bleibt von den
+Dateiprotokollen getrennt.
+
+Scheitert bereits das Anlegen des Logs, endet der Aufruf ohne Download mit einer
+kurzen klassifizierten Meldung. Scheitert ein spaeterer Log-Schreibzugriff, wird
+kein Logging-Traceback ausgegeben; die Vorbereitung und ihre CLI-Ergebnismeldung
+laufen weiter. Tokenweitergabe und umfassende Redaktionspruefungen folgen als
+gesonderte Abnahme in M3.7.
 
 `--check` und `--download` schliessen sich gegenseitig aus; `--deep` ist nur bei
 `--check` erlaubt. Die Hub-Bibliothek und die Zugangsdaten werden nur beim
@@ -454,7 +499,7 @@ gepruefte Bestaende und Kandidaten werden ohne diesen Schritt wiederverwendet.
 Der optionale Token wird ueber die vorhandene
 Secret-Verwaltung bezogen und als API-Argument uebergeben; ohne konfigurierten
 Token wird explizit anonym geladen. `huggingface-hub>=1.0,<2.0` wird als direkte
-Abhaengigkeit gefuehrt. Echte Live-Downloads wurden fuer M3.3 bis M3.5 nicht ausgefuehrt.
+Abhaengigkeit gefuehrt. Echte Live-Downloads wurden fuer M3.3 bis M3.6 nicht ausgefuehrt.
 
 Die verwendete Download-API fuer feste Revisionen und Artefaktauswahl ist in der
 [offiziellen Hugging-Face-Anleitung](https://huggingface.co/docs/huggingface_hub/guides/download)
@@ -729,7 +774,7 @@ bleiben unabgehakt und werden dort beschrieben.
   atomare Freigabe unter `data/models/` implementieren.
 - [x] **M3.5** Wiederaufnahme beziehungsweise sichere Wiederverwendung bereits
   vollstaendiger Artefakte festlegen.
-- [ ] **M3.6** Erwartbare Fehler fuer Netz, Speicherplatz und unvollstaendige
+- [x] **M3.6** Erwartbare Fehler fuer Netz, Speicherplatz und unvollstaendige
   Artefakte ohne langen CLI-Traceback behandeln.
 - [ ] **M3.7** Tokenweitergabe und Log-Redaktion mit Tests absichern.
 - [ ] **M3.8** Downloadtests ohne echten Hub sowie getrennte, markierte Live-Tests
@@ -819,20 +864,21 @@ bleiben unabgehakt und werden dort beschrieben.
 
 ## Aktuelle Uebergabe
 
-- Letzter abgeschlossener Punkt: **M3.5**; tiefengepruefte aktive Bestaende werden
-  ohne Hub-Zugriff wiederverwendet. Unterbrochene Freigaben koennen ohne Download
-  abgeschlossen werden. Teilweise Downloads werden anhand exakt passender Plaene
-  und erneut gepruefter Snapshot-Bestaetigungen fortgesetzt. Unbestaetigte oder
-  beschaedigte Snapshots werden vollstaendig neu geladen, niemals aktive Dateien.
-  Die gezielten Tests verwenden einen Fake-Hub und gesperrtes Netzwerk. Der Lauf
+- Letzter abgeschlossener Punkt: **M3.6**; erwartbare Netzwerk-, Speicher-,
+  Zugriffs- und Artefaktfehler liefern kurze Meldungen und stabile JSON-Fehlercodes.
+  Das gemeinsame Komponentenlog erfasst sichere technische Diagnosefelder ohne
+  rohe Ausnahmetexte oder Anbieter-Logs. Fehler beim Logzugriff werden ebenfalls
+  ohne Traceback behandelt. Die gezielten Tests verwenden einen Fake-Hub und
+  gesperrtes Netzwerk. Der Lauf
   `python -m pytest tests/test_embedding_model_preparation.py tests/test_prepare_embedding_models.py -q`
-  ist mit 64 Faellen bestanden. Keine vollstaendige Testsuite und kein echter
+  ist mit 84 Faellen bestanden; der Log-Schreibfehler wurde zusaetzlich gezielt
+  mit simuliertem ENOSPC geprueft. Keine vollstaendige Testsuite und kein echter
   Modell-Download wurden ausgefuehrt.
-- Naechster regulaerer Punkt: **M3.6**; Fehlerklassifikation und strukturiertes,
-  redigiertes Logging fuer erwartbare Vorbereitungsfehler erweitern.
+- Naechster regulaerer Punkt: **M3.7**; Tokenweitergabe und Log-Redaktion
+  umfassend mit Tests absichern.
 - Phase-3-Branch: `codex/feature/embedding-model-management-phase-3`, abgezweigt
   vom Feature-Branch nach dem Phase-2-Merge. Jeder Umsetzungsschritt erhaelt
-  einen eigenen Commit. `VERSION` wurde fuer sichere Wiederverwendung auf `0.5.13`
+  einen eigenen Commit. `VERSION` wurde fuer die Fehlerdiagnosen auf `0.5.14`
   angehoben.
 - Aktiver Implementierungsstand: Zentraler Modell- und Versionsvertrag,
   Kernartefakt-Allowlists, Manifestschema, kanonische Serialisierung, Hashbildung
@@ -852,7 +898,7 @@ bleiben unabgehakt und werden dort beschrieben.
   `codex/feature/embedding-model-management`; beide zweigen nach dem Phase-1-Merge
   von `main` ab.
 - Letzte zugehoerige Commits: `9747dda` fuer M3.1, `08abf5b` fuer M3.2,
-  `723dcbe` fuer M3.3 und `037ca53` fuer M3.4; M3.5 erhaelt einen eigenen
-  Folgecommit. Phase 2 ist in den
+  `723dcbe` fuer M3.3, `037ca53` fuer M3.4 und `5bb21af` fuer M3.5; M3.6 erhaelt
+  einen eigenen Folgecommit. Phase 2 ist in den
   uebergeordneten Feature-Branch gemergt.
 - Offene Blocker oder Entscheidungen: keine.

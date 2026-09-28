@@ -2,7 +2,9 @@
 
 import builtins
 from dataclasses import replace
+import errno
 import json
+import logging
 from pathlib import Path
 import socket
 import sys
@@ -19,6 +21,19 @@ from src.config.embedding_model_status import (
     check_embedding_model_status,
     load_and_validate_model_inventory,
 )
+
+
+@pytest.fixture(autouse=True)
+def isolate_preparation_logs(tmp_path, monkeypatch):
+    monkeypatch.setenv("RATSI_LOG_DIR", str(tmp_path / "logs"))
+    previous_level = logging.getLogger().level
+    yield
+    root = logging.getLogger()
+    for handler in root.handlers[:]:
+        if getattr(handler, "_ratsi_handler", False):
+            root.removeHandler(handler)
+            handler.close()
+    root.setLevel(previous_level)
 
 
 @pytest.fixture
@@ -523,3 +538,201 @@ def test_mismatched_library_versions_do_not_reuse_ready_inventory(tmp_path, fake
     assert result.manifest.manifest_sha256 != original.manifest.manifest_sha256
     assert result.inventory_dir != original.inventory_dir
     assert original.inventory_dir.is_dir()
+
+
+@pytest.mark.parametrize("json_output", [False, True])
+@pytest.mark.parametrize("failure,expected_code", [
+    (ConnectionError("sensitive provider detail"), "network_unavailable"),
+    (TimeoutError("sensitive provider detail"), "network_unavailable"),
+    (OSError(errno.ENOSPC, "sensitive disk path"), "disk_full"),
+    (PermissionError(errno.EACCES, "sensitive disk path"), "permission_denied"),
+])
+def test_expected_download_failures_have_safe_short_cli_and_structured_logs(
+    tmp_path, fake_hub, monkeypatch, capsys, failure, expected_code, json_output,
+):
+    previous = preparation.prepare_embedding_models(tmp_path)
+    old_manifest = (tmp_path / "manifest.json").read_bytes()
+    monkeypatch.setattr(preparation, "version", lambda name: f"{name}-new")
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
+    monkeypatch.setenv("RATSI_RUN_ID", "expected-error-run")
+    hub, _ = fake_hub
+
+    def fail(**kwargs):
+        raise failure
+
+    hub.snapshot_download = fail
+    capsys.readouterr()
+
+    assert cli.main(["--download", "--log-level", "DEBUG"] + (["--json"] if json_output else [])) == 1
+
+    output = capsys.readouterr()
+    log = (tmp_path / "logs/embedding_model_preparation.log").read_text()
+    if json_output:
+        payload = json.loads(output.out)
+        assert payload["error_code"] == expected_code
+        assert payload["status"] == "fehlgeschlagen"
+        assert output.err == ""
+    else:
+        assert output.out == ""
+        assert "--download" in output.err
+    assert "event=model_preparation_failed" in log
+    assert f"error_code={expected_code}" in log
+    assert "phase=download" in log
+    assert "run_id=expected-error-run" in log
+    assert "error_type=" in log
+    assert "Traceback" not in output.out + output.err + log
+    assert "sensitive" not in output.out + output.err + log
+    assert (tmp_path / "manifest.json").read_bytes() == old_manifest
+    assert load_and_validate_model_inventory(tmp_path, deep=True) == previous.manifest
+
+
+def test_incomplete_download_reports_missing_artifacts_without_traceback(tmp_path, fake_hub, monkeypatch, capsys):
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
+    hub, _ = fake_hub
+
+    def incomplete(**kwargs):
+        Path(kwargs["local_dir"]).mkdir(parents=True)
+        return str(kwargs["local_dir"])
+
+    hub.snapshot_download = incomplete
+
+    assert cli.main(["--download", "--json"]) == 1
+    output = capsys.readouterr()
+    payload = json.loads(output.out)
+    assert payload["error_code"] == "incomplete_artifacts"
+    assert "--download" in payload["message"]
+    log = (tmp_path / "logs/embedding_model_preparation.log").read_text()
+    assert "phase=validate_download" in log
+    assert "error_type=FileNotFoundError" in log
+    assert "Traceback" not in output.out + output.err + log
+    assert not (tmp_path / "manifest.json").exists()
+
+
+@pytest.mark.parametrize("failure_point", ["directory", "activate"])
+def test_disk_full_in_local_preparation_preserves_manifest(tmp_path, fake_hub, monkeypatch, capsys, failure_point):
+    previous = preparation.prepare_embedding_models(tmp_path)
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
+    monkeypatch.setattr(preparation, "version", lambda name: f"{name}-new")
+
+    def disk_full(*args, **kwargs):
+        raise OSError(errno.ENOSPC, "secret local path")
+
+    if failure_point == "directory":
+        monkeypatch.setattr(preparation, "mkdtemp", disk_full)
+    else:
+        monkeypatch.setattr(preparation.os, "replace", disk_full)
+    capsys.readouterr()
+
+    assert cli.main(["--download", "--json"]) == 1
+    output = capsys.readouterr()
+    assert json.loads(output.out)["error_code"] == "disk_full"
+    assert load_and_validate_model_inventory(tmp_path, deep=True) == previous.manifest
+
+
+def test_logging_setup_failure_is_reported_without_starting_download(tmp_path, fake_hub, monkeypatch, capsys):
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
+
+    def fail(*args, **kwargs):
+        raise OSError(errno.ENOSPC, "secret log path")
+
+    monkeypatch.setattr(cli, "configure_logging", fail)
+
+    assert cli.main(["--download", "--json"]) == 1
+    output = capsys.readouterr()
+    assert json.loads(output.out)["error_code"] == "disk_full"
+    assert "secret" not in output.out + output.err
+    assert "Traceback" not in output.out + output.err
+    assert not fake_hub[1]
+
+
+def test_wrapped_disk_full_is_classified_without_exposing_exception_chain(caplog):
+    try:
+        try:
+            raise OSError(errno.ENOSPC, "secret disk detail")
+        except OSError as cause:
+            raise RuntimeError("secret provider detail") from cause
+    except RuntimeError as wrapped:
+        result = preparation.preparation_error(wrapped, phase="download")
+
+    assert result.error_code == "disk_full"
+    assert "error_type=OSError" in caplog.text
+    assert "secret" not in caplog.text + str(result)
+
+
+@pytest.mark.parametrize("status,code", [(401, "source_unavailable"), (404, "source_unavailable"), (429, "network_unavailable"), (503, "network_unavailable")])
+def test_hub_http_errors_log_only_status_and_type(status, code, caplog):
+    import httpx
+    from huggingface_hub.errors import HfHubHTTPError
+
+    response = httpx.Response(status, request=httpx.Request("GET", "https://user:secret@example.test/model?token=secret"))
+    failure = HfHubHTTPError("secret response body", response=response)
+
+    result = preparation.preparation_error(failure, phase="download")
+
+    assert result.error_code == code
+    assert f"http_status={status}" in caplog.text
+    assert "secret" not in str(result) + caplog.text
+
+
+def test_httpx_transport_timeout_is_classified_without_hub_import(caplog):
+    import httpx
+
+    result = preparation.preparation_error(httpx.ReadTimeout("secret request detail"), phase="download")
+
+    assert result.error_code == "network_unavailable"
+    assert "secret" not in caplog.text + str(result)
+
+
+def test_log_write_failure_does_not_emit_traceback_or_hide_cli_result(tmp_path, fake_hub, monkeypatch, capsys):
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
+    real_configure = cli.configure_logging
+
+    class FullLogStream:
+        def seek(self, *args):
+            pass
+
+        def tell(self):
+            return 0
+
+        def write(self, value):
+            raise OSError(errno.ENOSPC, "secret log detail")
+
+        def flush(self):
+            pass
+
+        def close(self):
+            pass
+
+    def configure(*args, **kwargs):
+        path = real_configure(*args, **kwargs)
+        for handler in logging.getLogger().handlers:
+            if getattr(handler, "_ratsi_handler", False):
+                handler.stream.close()
+                handler.stream = FullLogStream()
+        return path
+
+    monkeypatch.setattr(cli, "configure_logging", configure)
+
+    assert cli.main(["--download", "--json"]) == 0
+    output = capsys.readouterr()
+    assert json.loads(output.out)["status"] == "bereit"
+    assert "Traceback" not in output.err
+    assert "Logging error" not in output.err
+    assert "secret" not in output.out + output.err
+
+
+def test_component_log_does_not_copy_provider_debug_messages(tmp_path, fake_hub, monkeypatch, capsys):
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
+    hub, _ = fake_hub
+
+    def fail(**kwargs):
+        logging.getLogger("httpx").debug("secret provider request URL")
+        raise TimeoutError("secret provider request URL")
+
+    hub.snapshot_download = fail
+
+    assert cli.main(["--download", "--json", "--log-level", "DEBUG"]) == 1
+    output = capsys.readouterr()
+    log = (tmp_path / "logs/embedding_model_preparation.log").read_text()
+    assert "error_code=network_unavailable" in log
+    assert "secret" not in log + output.out + output.err

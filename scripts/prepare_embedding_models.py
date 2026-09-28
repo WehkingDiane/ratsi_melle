@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from contextlib import redirect_stdout
 import json
+import logging
 from pathlib import Path
 import sys
 
@@ -22,7 +23,10 @@ from src.config.settings import (
     EmbeddingModelSettingsError,
     load_embedding_model_settings,
 )
-from src.embedding_model_preparation import EmbeddingModelDownloadError, prepare_embedding_models
+from src.embedding_model_preparation import (
+    EmbeddingModelDownloadError, preparation_error, prepare_embedding_models,
+)
+from src.observability import configure_logging
 
 
 def _print_status(status: EmbeddingModelStatus, *, deep: bool, json_output: bool) -> None:
@@ -36,11 +40,22 @@ def _print_status(status: EmbeddingModelStatus, *, deep: bool, json_output: bool
             print(f"Manifest-SHA-256: {status.manifest_sha256}")
 
 
-def _print_download_error(message: str, *, json_output: bool) -> None:
+def _print_download_error(
+    message: str, *, json_output: bool, error_code: str = "configuration_error",
+) -> None:
     if json_output:
-        print(json.dumps({"operation": "download", "status": "fehlgeschlagen", "message": message}))
+        print(json.dumps({
+            "operation": "download", "status": "fehlgeschlagen",
+            "message": message, "error_code": error_code,
+        }))
     else:
         print(f"ERROR: {message}", file=sys.stderr)
+
+
+def _ignore_log_write_failure(record: logging.LogRecord) -> None:
+    # A full log filesystem must not produce a logging traceback or conceal the
+    # short preparation result that is still written to stdout/stderr.
+    pass
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -68,9 +83,25 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Status als einzelnes JSON-Objekt statt als CLI-Meldung ausgeben.",
     )
+    parser.add_argument(
+        "--log-level", type=str.upper,
+        choices=("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"),
+        help="Loglevel fuer die Vorbereitung; sonst RATSI_LOG_LEVEL oder INFO.",
+    )
     args = parser.parse_args(argv)
     if args.deep and not args.check:
         parser.error("--deep ist nur zusammen mit --check erlaubt.")
+    if args.download:
+        try:
+            configure_logging("embedding_model_preparation", args.log_level, console=False)
+            for handler in logging.getLogger().handlers:
+                if getattr(handler, "_ratsi_handler", False):
+                    handler.addFilter(logging.Filter("embedding_model_preparation"))
+                    handler.handleError = _ignore_log_write_failure
+        except OSError as error:
+            failure = preparation_error(error, phase="logging")
+            _print_download_error(str(failure), json_output=args.json, error_code=failure.error_code)
+            return 1
     try:
         settings = load_embedding_model_settings()
     except EmbeddingModelSettingsError as error:
@@ -92,8 +123,11 @@ def main(argv: list[str] | None = None) -> int:
             with redirect_stdout(sys.stderr):
                 result = prepare_embedding_models(settings.models_dir)
         except EmbeddingModelDownloadError as error:
-            _print_download_error(str(error), json_output=args.json)
+            _print_download_error(str(error), json_output=args.json, error_code=error.error_code)
             return 1
+        logging.getLogger("embedding_model_preparation").info(
+            "event=model_preparation_completed status=ready reused=%s", result.reused,
+        )
         if args.json:
             print(json.dumps(result.as_dict(), ensure_ascii=False, sort_keys=True))
         else:

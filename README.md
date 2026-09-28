@@ -168,6 +168,13 @@ Downloadplan fortgesetzt: bestaetigte Snapshots werden nach erneuter SHA-256-Pru
 uebernommen; unbestaetigte oder beschaedigte Snapshots werden vollstaendig neu
 geladen. `reused` in der Download-JSON-Ausgabe kennzeichnet die Wiederverwendung
 eines bereits vollstaendig geprueften Bestands.
+
+Erwartbare Vorbereitungsfehler enden mit einer kurzen Meldung und Exitcode `1`,
+ohne Traceback. `--download --json` ergaenzt `error_code`, unter anderem
+`network_unavailable`, `disk_full`, `permission_denied` oder `incomplete_artifacts`.
+Sichere Diagnosefelder stehen in `logs/embedding_model_preparation.log`;
+`RATSI_LOG_DIR` ueberschreibt das Logverzeichnis. `--log-level` hat Vorrang vor
+`RATSI_LOG_LEVEL`, sonst gilt `INFO`. `--check` legt weiterhin keine Logs an.
 `--check` und `--download` sind gegenseitig ausgeschlossen; `--deep` ist nur bei
 `--check` erlaubt. Ein optionaler Hugging-Face-Token stammt aus der vorhandenen
 Secret-Verwaltung. `huggingface-hub>=1.0,<2.0` ist jetzt eine direkte Abhaengigkeit.
