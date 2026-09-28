@@ -2,6 +2,8 @@
 
 from dataclasses import replace
 import json
+import socket
+import urllib.request
 
 import pytest
 
@@ -98,6 +100,22 @@ def test_deep_inventory_check_accepts_valid_artifact_hashes(tmp_path):
     actual = load_and_validate_model_inventory(tmp_path, deep=True)
 
     assert actual == expected
+
+
+@pytest.mark.parametrize("deep", [False, True])
+def test_inventory_checks_never_open_network_connections(tmp_path, monkeypatch, deep):
+    _write_inventory(tmp_path)
+
+    def reject_network(*args, **kwargs):
+        raise AssertionError("Embedding model inventory checks must remain offline")
+
+    monkeypatch.setattr(socket.socket, "connect", reject_network)
+    monkeypatch.setattr(socket, "create_connection", reject_network)
+    monkeypatch.setattr(urllib.request, "urlopen", reject_network)
+
+    status = check_embedding_model_status(tmp_path, deep=deep)
+
+    assert status.state is EmbeddingModelReadiness.READY
 
 
 def test_local_inventory_check_reports_missing_manifest(tmp_path):
