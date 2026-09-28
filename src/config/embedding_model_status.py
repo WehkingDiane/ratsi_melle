@@ -146,16 +146,27 @@ def load_and_validate_model_inventory(
 
     try:
         payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise ModelInventoryIncompleteError("Das lokale Modellmanifest ist unvollstaendig oder ungueltig.") from error
+
+    if not isinstance(payload, dict):
+        raise ModelInventoryIncompleteError("Das lokale Modellmanifest ist unvollstaendig oder ungueltig.")
+    format_version = payload.get("manifest_format_version")
+    if type(format_version) is not int or format_version < 1:
+        raise ModelInventoryIncompleteError("Das lokale Modellmanifest ist unvollstaendig oder ungueltig.")
+    if format_version != MODEL_MANIFEST_FORMAT_VERSION:
+        raise ModelInventoryIncompatibleError(
+            "Das lokale Modellmanifest verwendet eine nicht unterstuetzte Formatversion."
+        )
+
+    try:
         manifest = _manifest_from_payload(payload)
-    except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError, ValueError) as error:
+    except (KeyError, TypeError, ValueError) as error:
         raise ModelInventoryIncompleteError("Das lokale Modellmanifest ist unvollstaendig oder ungueltig.") from error
 
     if manifest.manifest_sha256 != calculate_manifest_sha256(manifest):
         raise ModelInventoryIncompatibleError("Der Hash des lokalen Modellmanifests stimmt nicht.")
-    if (
-        manifest.manifest_format_version != MODEL_MANIFEST_FORMAT_VERSION
-        or manifest.pipeline_version != EMBEDDING_PIPELINE_VERSION
-    ):
+    if manifest.pipeline_version != EMBEDDING_PIPELINE_VERSION:
         raise ModelInventoryIncompatibleError("Das lokale Modellmanifest verwendet einen inkompatiblen Vertrag.")
 
     root = models_dir.resolve()

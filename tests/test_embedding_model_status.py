@@ -205,6 +205,20 @@ def test_local_inventory_check_detects_tampered_manifest_hash(tmp_path):
         load_and_validate_model_inventory(tmp_path)
 
 
+def test_new_manifest_format_is_reported_as_incompatible_before_schema_parsing(tmp_path):
+    _write_inventory(tmp_path)
+    manifest_path = tmp_path / MODEL_MANIFEST_FILENAME
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    payload["manifest_format_version"] = MODEL_MANIFEST_FORMAT_VERSION + 1
+    payload.pop("created_at")
+    payload["future_schema_field"] = "introduced-by-newer-version"
+    manifest_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    result = check_embedding_model_status(tmp_path)
+
+    assert result.state is EmbeddingModelReadiness.INCOMPATIBLE
+
+
 def test_local_inventory_check_reports_size_mismatch(tmp_path):
     _write_inventory(tmp_path)
     artifact = tmp_path / "dense_model/snapshot/config.json"
