@@ -146,7 +146,20 @@ Mit `--json` gibt jeder Pruefmodus ein einzelnes JSON-Objekt mit `status`,
 Der Modellstamm ist `data/models/`; `RATSI_MODELS_DIR`
 ueberschreibt ihn. Exitcode `0` bedeutet `bereit`, `1` einen fehlenden,
 unvollstaendigen oder inkompatiblen Bestand und `2` einen Aufruf- oder
-Konfigurationsfehler. Modell-Downloads folgen in einem weiteren Umsetzungsschritt.
+Konfigurationsfehler.
+
+`python scripts/prepare_embedding_models.py --download` laedt ausschliesslich die
+fest konfigurierten Revisionen und Kernartefakte in einen eigenen Ordner unter
+`data/models/.preparation/` beziehungsweise dem konfigurierten Modellstamm.
+Harrier und Tokenizer teilen sich dabei ihren gepinnten Snapshot. Der aktive
+Bestand und sein Manifest werden nicht ersetzt. Exitcode `0` bedeutet bei dieser
+Aktion einen erfolgreichen Download, noch keinen bereiten Modellbestand;
+Vollstaendigkeitspruefung, Manifest und atomare Freigabe folgen in M3.4.
+`--download --json` liefert Downloadstatus und Vorbereitungsordner; Fortschritt
+erscheint auf stderr. Abgebrochene Downloads bleiben im Vorbereitungsordner.
+`--check` und `--download` sind gegenseitig ausgeschlossen; `--deep` ist nur bei
+`--check` erlaubt. Ein optionaler Hugging-Face-Token stammt aus der vorhandenen
+Secret-Verwaltung. `huggingface-hub>=1.0,<2.0` ist jetzt eine direkte Abhaengigkeit.
 Details stehen in [docs/embedding_model_management.md](docs/embedding_model_management.md).
 
 ### Landkreis-Veröffentlichungen

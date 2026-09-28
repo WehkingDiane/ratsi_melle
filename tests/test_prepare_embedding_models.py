@@ -206,7 +206,12 @@ def test_json_invalid_settings_returns_parseable_error(monkeypatch, capsys):
     assert output.err == ""
 
 
-@pytest.mark.parametrize("args", [[], ["--deep"], ["--json"], ["--download"], ["--check", "--update"]])
+@pytest.mark.parametrize("args", [
+    [], ["--deep"], ["--json"], ["--check", "--update"],
+    ["--check", "--download"], ["--download", "--deep"],
+    ["--download", "--model-id", "other/model"],
+    ["--download", "--revision", "main"],
+])
 def test_unsupported_or_missing_action_is_rejected(args, capsys):
     with pytest.raises(SystemExit) as error:
         cli.main(args)
