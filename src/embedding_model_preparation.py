@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timezone
 import errno
+import io
 from importlib.metadata import PackageNotFoundError, version
 import json
 import logging
 import os
 from pathlib import Path
+import sys
 from tempfile import mkdtemp, mkstemp
 
 from src.config.embedding_model_manifest import (
@@ -41,6 +44,27 @@ class EmbeddingModelDownloadError(RuntimeError):
 
 _LOGGER = logging.getLogger("embedding_model_preparation")
 _LOGGER.addHandler(logging.NullHandler())
+
+
+class _DiscardProviderOutput(io.TextIOBase):
+    """Discard raw SDK output without buffering possibly sensitive messages."""
+
+    def write(self, text: str) -> int:
+        return len(text)
+
+
+@contextmanager
+def _private_provider_output():
+    # This synchronous preparation command owns its process while downloading.
+    # Suppression, rather than substring replacement, also covers unknown cached
+    # credentials, encoded tokens, split writes and provider response bodies.
+    previous_disable = logging.root.manager.disable
+    with _DiscardProviderOutput() as sink, redirect_stdout(sink), redirect_stderr(sink):
+        logging.disable(sys.maxsize)
+        try:
+            yield
+        finally:
+            logging.disable(previous_disable)
 
 
 def preparation_error(error: Exception, *, phase: str) -> EmbeddingModelDownloadError:
@@ -234,16 +258,19 @@ def download_embedding_models(models_dir: Path) -> EmbeddingModelDownload:
             pass
         try:
             if not confirmed:
-                snapshot_download(
-                    repo_id=model_id,
-                    repo_type="model",
-                    revision=revision,
-                    local_dir=model_root,
-                    allow_patterns=list(required_artifacts),
-                    token=token,
-                    local_files_only=False,
-                    force_download=True,
-                )
+                _LOGGER.info("event=model_snapshot_download_started model_id=%s revision=%s", model_id, revision)
+                with _private_provider_output():
+                    snapshot_download(
+                        repo_id=model_id,
+                        repo_type="model",
+                        revision=revision,
+                        local_dir=model_root,
+                        allow_patterns=list(required_artifacts),
+                        token=token,
+                        local_files_only=False,
+                        force_download=True,
+                    )
+                _LOGGER.info("event=model_snapshot_download_completed model_id=%s revision=%s", model_id, revision)
         except Exception as error:
             raise preparation_error(error, phase="download") from None
         if not confirmed:

@@ -5,22 +5,114 @@ from dataclasses import replace
 import errno
 import json
 import logging
+import os
 from pathlib import Path
 import socket
 import sys
 from types import SimpleNamespace
 import urllib.request
+from urllib.parse import quote
 
 import pytest
 
 from scripts import prepare_embedding_models as cli
 from src import embedding_model_preparation as preparation
 from src.config.embedding_models import BM25_MODEL, HARRIER_MODEL, HARRIER_TOKENIZER
+from src.config.secrets import get_api_key as resolve_api_key
 from src.config.embedding_model_status import (
     EmbeddingModelReadiness,
     check_embedding_model_status,
     load_and_validate_model_inventory,
 )
+
+
+@pytest.mark.parametrize("source", ["keyring", "env", "alias", "keyring_error", "anonymous"])
+@pytest.mark.parametrize("failure", [False, True])
+@pytest.mark.parametrize("json_output", [False, True])
+def test_download_credentials_are_explicit_and_never_exposed(
+    tmp_path, fake_hub, monkeypatch, capsys, source, failure, json_output,
+):
+    hub, calls = fake_hub
+    monkeypatch.setattr("src.config.secrets.get_api_key", resolve_api_key)
+    monkeypatch.setattr("src.config.secrets._MANAGED_HUGGINGFACE_TOKEN", None)
+    stored, env, alias = "hf_keyring/private", "hf_env/private", "hf_alias/private"
+    monkeypatch.delenv("HF_TOKEN", raising=False)
+    monkeypatch.delenv("HUGGING_FACE_HUB_TOKEN", raising=False)
+    if source in {"keyring", "env", "keyring_error"}:
+        monkeypatch.setenv("HF_TOKEN", env)
+    if source != "anonymous":
+        monkeypatch.setenv("HUGGING_FACE_HUB_TOKEN", alias)
+
+    keyring_calls = []
+
+    def get_password(service, provider):
+        keyring_calls.append((service, provider))
+        if source == "keyring_error":
+            raise RuntimeError(stored)
+        return stored if source == "keyring" else None
+
+    monkeypatch.setitem(sys.modules, "keyring", SimpleNamespace(get_password=get_password))
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path / "models"))
+    credentials_before = {name: os.environ.get(name) for name in ("HF_TOKEN", "HUGGING_FACE_HUB_TOKEN")}
+    original_download = hub.snapshot_download
+    provider_calls = []
+
+    def noisy_download(**kwargs):
+        provider_calls.append(kwargs)
+        for secret in (stored, env, alias, "hf_unknown_cache_token"):
+            print(f"Authorization: Bearer {secret}")
+            sys.stderr.write(secret[:5])
+            sys.stderr.flush()
+            sys.stderr.write(secret[5:] + "\n")
+            print(f"https://user:{quote(secret, safe='')}@example.test/?token={quote(secret, safe='')}")
+            logging.getLogger("embedding_model_preparation").critical("header=%s", secret)
+            logging.getLogger("huggingface_hub").warning("provider=%s", secret)
+        if failure:
+            raise TimeoutError(f"Authorization: Bearer {stored}; body={env}")
+        return original_download(**kwargs)
+
+    monkeypatch.setattr(hub, "snapshot_download", noisy_download)
+    previous_disable = logging.root.manager.disable
+    args = ["--download", "--log-level", "DEBUG"] + (["--json"] if json_output else [])
+    assert cli.main(args) == (1 if failure else 0)
+    assert logging.root.manager.disable == previous_disable
+    assert keyring_calls == [("ratsi_melle", "huggingface")]
+    expected_token = {"keyring": stored, "env": env, "alias": alias, "keyring_error": env, "anonymous": False}[source]
+    assert all(call["token"] == expected_token for call in provider_calls)
+    assert len(provider_calls) == (1 if failure else 2)
+    assert credentials_before == {name: os.environ.get(name) for name in credentials_before}
+    output = capsys.readouterr()
+    persisted = b"\n".join(path.read_bytes() for path in tmp_path.rglob("*") if path.is_file()).decode()
+    combined = output.out + output.err + persisted
+    for secret in (stored, env, alias, "hf_unknown_cache_token"):
+        assert secret not in combined
+        assert quote(secret, safe="") not in combined
+    assert "Authorization" not in combined
+    assert "Traceback" not in combined
+    assert "event=model_snapshot_download_started" in persisted
+    assert ("event=model_preparation_failed" if failure else "event=model_preparation_completed") in persisted
+    if json_output:
+        assert json.loads(output.out)["status"] == ("fehlgeschlagen" if failure else "bereit")
+        assert not output.err
+    if not failure:
+        assert cli.main(args) == 0
+        assert len(provider_calls) == 2
+        assert len(keyring_calls) == 1  # Offline reuse never resolves credentials.
+        if json_output:
+            assert json.loads(capsys.readouterr().out)["reused"] is True
+
+
+def test_provider_output_state_is_restored_after_interruption(tmp_path, fake_hub, monkeypatch):
+    hub, _ = fake_hub
+
+    def interrupt(**kwargs):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(hub, "snapshot_download", interrupt)
+    before = (sys.stdout, sys.stderr, logging.root.manager.disable)
+    with pytest.raises(KeyboardInterrupt):
+        preparation.download_embedding_models(tmp_path)
+    assert (sys.stdout, sys.stderr, logging.root.manager.disable) == before
 
 
 @pytest.fixture(autouse=True)
@@ -118,7 +210,7 @@ def test_download_cli_publishes_ready_inventory_without_overwriting_old_artifact
 
     output = capsys.readouterr()
     assert "Fake Hub progress" not in output.out
-    assert "Fake Hub progress" in output.err
+    assert "Fake Hub progress" not in output.err
     if json_output:
         payload = json.loads(output.out)
         assert payload["operation"] == "download"

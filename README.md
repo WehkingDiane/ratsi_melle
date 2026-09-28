@@ -177,7 +177,12 @@ Sichere Diagnosefelder stehen in `logs/embedding_model_preparation.log`;
 `RATSI_LOG_LEVEL`, sonst gilt `INFO`. `--check` legt weiterhin keine Logs an.
 `--check` und `--download` sind gegenseitig ausgeschlossen; `--deep` ist nur bei
 `--check` erlaubt. Ein optionaler Hugging-Face-Token stammt aus der vorhandenen
-Secret-Verwaltung. `huggingface-hub>=1.0,<2.0` ist jetzt eine direkte Abhaengigkeit.
+Secret-Verwaltung (Keyring vor `HF_TOKEN` vor `HUGGING_FACE_HUB_TOKEN`). Ohne Token
+wird explizit anonym geladen, ohne Zugangsdaten aus dem Hub-Cache zu verwenden.
+Tokens werden nur als API-Argument weitergegeben; die Token-Umgebung bleibt
+unveraendert. Rohe Python-Ausgaben und Logs des SDK werden waehrend des Downloads
+unterdrueckt, auch bei `DEBUG`; sichere Start-/Endereignisse stehen im Komponentenlog.
+`huggingface-hub>=1.0,<2.0` ist jetzt eine direkte Abhaengigkeit.
 Details stehen in [docs/embedding_model_management.md](docs/embedding_model_management.md).
 
 ### Landkreis-Veröffentlichungen

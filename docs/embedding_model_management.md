@@ -489,17 +489,25 @@ Dateiprotokollen getrennt.
 Scheitert bereits das Anlegen des Logs, endet der Aufruf ohne Download mit einer
 kurzen klassifizierten Meldung. Scheitert ein spaeterer Log-Schreibzugriff, wird
 kein Logging-Traceback ausgegeben; die Vorbereitung und ihre CLI-Ergebnismeldung
-laufen weiter. Tokenweitergabe und umfassende Redaktionspruefungen folgen als
-gesonderte Abnahme in M3.7.
+laufen weiter. Waehrend des synchronen SDK-Aufrufs werden rohe Python-Ausgaben
+auf stdout/stderr und Python-Logs vollstaendig unterdrueckt, statt nur bekannte
+Tokenzeichenfolgen zu ersetzen. Dies schuetzt auch vor unbekannten, kodierten
+oder ueber mehrere Schreibzugriffe verteilten Zugangsdaten. Der vorherige
+Logging- und Streamzustand wird auch bei Abbruch wiederhergestellt. Sichere
+Start-/Endereignisse enthalten ausschliesslich die konfigurierte Modell-ID und
+Revision; rohe SDK-Fortschrittsausgaben werden nicht angezeigt.
 
 `--check` und `--download` schliessen sich gegenseitig aus; `--deep` ist nur bei
 `--check` erlaubt. Die Hub-Bibliothek und die Zugangsdaten werden nur beim
 Bearbeiten neuer oder teilweise vorbereiteter Downloads geladen. Vollstaendig
 gepruefte Bestaende und Kandidaten werden ohne diesen Schritt wiederverwendet.
 Der optionale Token wird ueber die vorhandene
-Secret-Verwaltung bezogen und als API-Argument uebergeben; ohne konfigurierten
-Token wird explizit anonym geladen. `huggingface-hub>=1.0,<2.0` wird als direkte
-Abhaengigkeit gefuehrt. Echte Live-Downloads wurden fuer M3.3 bis M3.6 nicht ausgefuehrt.
+Secret-Verwaltung bezogen (Keyring vor `HF_TOKEN` vor `HUGGING_FACE_HUB_TOKEN`)
+und nur als API-Argument uebergeben. Ein Keyringfehler erlaubt den Env-Fallback.
+Die Token-Umgebung wird nicht veraendert; ohne konfigurierten Token verhindert
+`token=False` eine implizite Anmeldung aus dem Hub-Cache.
+`huggingface-hub>=1.0,<2.0` wird als direkte Abhaengigkeit gefuehrt.
+Echte Live-Downloads wurden fuer M3.3 bis M3.7 nicht ausgefuehrt.
 
 Die verwendete Download-API fuer feste Revisionen und Artefaktauswahl ist in der
 [offiziellen Hugging-Face-Anleitung](https://huggingface.co/docs/huggingface_hub/guides/download)
@@ -776,7 +784,7 @@ bleiben unabgehakt und werden dort beschrieben.
   vollstaendiger Artefakte festlegen.
 - [x] **M3.6** Erwartbare Fehler fuer Netz, Speicherplatz und unvollstaendige
   Artefakte ohne langen CLI-Traceback behandeln.
-- [ ] **M3.7** Tokenweitergabe und Log-Redaktion mit Tests absichern.
+- [x] **M3.7** Tokenweitergabe und Log-Redaktion mit Tests absichern.
 - [ ] **M3.8** Downloadtests ohne echten Hub sowie getrennte, markierte Live-Tests
   fuer den realen Anbieter ergaenzen.
 - [ ] **M3.9** Phase 3 pruefen und als eigenen Zwischenstand committen.
@@ -864,7 +872,12 @@ bleiben unabgehakt und werden dort beschrieben.
 
 ## Aktuelle Uebergabe
 
-- Letzter abgeschlossener Punkt: **M3.6**; erwartbare Netzwerk-, Speicher-,
+- Letzter abgeschlossener Punkt: **M3.7**; Tokenprioritaet, anonymer Download,
+  unveraenderte Token-Umgebung und unterdrueckte SDK-Ausgaben sind abgesichert.
+  Tests decken Erfolg, Fehler, JSON-/Textausgabe, DEBUG-Logs, kodierte und
+  verteilte Zugangsdaten sowie Offline-Wiederverwendung und Abbruch ab.
+  Beide betroffenen Vorbereitungstestmodule bestehen mit 105 Tests.
+  M3.6: Erwartbare Netzwerk-, Speicher-,
   Zugriffs- und Artefaktfehler liefern kurze Meldungen und stabile JSON-Fehlercodes.
   Das gemeinsame Komponentenlog erfasst sichere technische Diagnosefelder ohne
   rohe Ausnahmetexte oder Anbieter-Logs. Fehler beim Logzugriff werden ebenfalls
@@ -874,11 +887,11 @@ bleiben unabgehakt und werden dort beschrieben.
   ist mit 84 Faellen bestanden; der Log-Schreibfehler wurde zusaetzlich gezielt
   mit simuliertem ENOSPC geprueft. Keine vollstaendige Testsuite und kein echter
   Modell-Download wurden ausgefuehrt.
-- Naechster regulaerer Punkt: **M3.7**; Tokenweitergabe und Log-Redaktion
-  umfassend mit Tests absichern.
+- Naechster regulaerer Punkt: **M3.8**; getrennte markierte Live-Tests und
+  verbleibende Download-Testgrenzen ergaenzen.
 - Phase-3-Branch: `codex/feature/embedding-model-management-phase-3`, abgezweigt
   vom Feature-Branch nach dem Phase-2-Merge. Jeder Umsetzungsschritt erhaelt
-  einen eigenen Commit. `VERSION` wurde fuer die Fehlerdiagnosen auf `0.5.14`
+  einen eigenen Commit. `VERSION` wurde fuer die SDK-Ausgabesicherung auf `0.5.15`
   angehoben.
 - Aktiver Implementierungsstand: Zentraler Modell- und Versionsvertrag,
   Kernartefakt-Allowlists, Manifestschema, kanonische Serialisierung, Hashbildung
@@ -898,7 +911,7 @@ bleiben unabgehakt und werden dort beschrieben.
   `codex/feature/embedding-model-management`; beide zweigen nach dem Phase-1-Merge
   von `main` ab.
 - Letzte zugehoerige Commits: `9747dda` fuer M3.1, `08abf5b` fuer M3.2,
-  `723dcbe` fuer M3.3, `037ca53` fuer M3.4 und `5bb21af` fuer M3.5; M3.6 erhaelt
-  einen eigenen Folgecommit. Phase 2 ist in den
+  `723dcbe` fuer M3.3, `037ca53` fuer M3.4, `5bb21af` fuer M3.5 und `fd25bce`
+  fuer M3.6; M3.7 erhaelt einen eigenen Folgecommit. Phase 2 ist in den
   uebergeordneten Feature-Branch gemergt.
 - Offene Blocker oder Entscheidungen: keine.
