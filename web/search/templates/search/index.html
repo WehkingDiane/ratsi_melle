@@ -52,7 +52,7 @@
 
 {% if has_query %}
 {% if search_error %}
-<section class="panel"><p class="status-warning">{{ search_error }}</p></section>
+<section class="panel"><p class="status-warning">{{ search_error }}</p>{% if model_status_unavailable %}<p><a href="{% url 'data_tools:service_vector' %}">Technischer Servicebereich</a></p>{% endif %}</section>
 {% elif search_warning %}
 <section class="panel"><p class="status-muted">{{ search_warning }}</p></section>
 {% endif %}

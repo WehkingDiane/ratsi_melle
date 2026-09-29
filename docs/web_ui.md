@@ -223,7 +223,9 @@ Umgebung Django neu starten. Auf `/daten/vektor/` wird das konfigurierte Ziel
 angezeigt. Dashboard und Vektorstatus prüfen die Verbindung und die Collection;
 sie unterscheiden fehlende Collection, unvollständigen Index, unerreichbaren
 Server und ungültige Konfiguration. Die Suche lädt bei diesen Fehlern keine
-Embedding-Modelle nach. URL-Zugangsdaten und URL-Pfade erscheinen nicht in
+Embedding-Modelle nach. Fehlt der vorbereitete lokale Modellbestand, zeigt die
+Suche den Vorbereitungsbefehl und einen Link zum technischen Servicebereich.
+URL-Zugangsdaten und URL-Pfade erscheinen nicht in
 Statusanzeigen oder Suchfehlern.
 
 Ein vorhandener, noch nicht freigegebener Passage-Index wird als unvollständig

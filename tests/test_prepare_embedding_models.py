@@ -129,6 +129,13 @@ def prepared_inventory(tmp_path, monkeypatch):
     ))
     (tmp_path / MODEL_MANIFEST_FILENAME).write_bytes(canonical_manifest_bytes(manifest))
     monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
+    versions = manifest.library_versions
+    monkeypatch.setattr("src.config.embedding_model_status.version", lambda name: {
+        "transformers": versions.transformers,
+        "sentence-transformers": versions.sentence_transformers,
+        "fastembed": versions.fastembed,
+        "huggingface-hub": versions.huggingface_hub,
+    }[name])
     return tmp_path, manifest
 
 

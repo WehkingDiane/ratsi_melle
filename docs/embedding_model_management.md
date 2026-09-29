@@ -847,19 +847,19 @@ bleiben unabgehakt und werden dort beschrieben.
 
 ### Phase 4: Verbraucher strikt lokal umstellen
 
-- [ ] **M4.1** Harrier-Embedder und Tokenizer auf vorbereitete lokale Pfade und
+- [x] **M4.1** Harrier-Embedder und Tokenizer auf vorbereitete lokale Pfade und
   feste Revisionen umstellen.
-- [ ] **M4.2** BM25/FastEmbed auf den vorbereiteten lokalen Bestand umstellen.
-- [ ] **M4.3** Doppelte Modelldefinitionen aus Passage-, Embedding-, Evaluations-
+- [x] **M4.2** BM25/FastEmbed auf den vorbereiteten lokalen Bestand umstellen.
+- [x] **M4.3** Doppelte Modelldefinitionen aus Passage-, Embedding-, Evaluations-
   und Suchcode entfernen.
-- [ ] **M4.4** `INDEXER_ALLOW_MODEL_DOWNLOADS` und andere Modell-Downloadpfade aus
+- [x] **M4.4** `INDEXER_ALLOW_MODEL_DOWNLOADS` und andere Modell-Downloadpfade aus
   Indexierung und Suche entfernen.
-- [ ] **M4.5** Vor Modellinitialisierung die schnelle lokale Manifestpruefung und
+- [x] **M4.5** Vor Modellinitialisierung die schnelle lokale Manifestpruefung und
   handlungsorientierte Fehlermeldungen integrieren.
-- [ ] **M4.6** Offline-Tests fuer Ratsinfo-Build, Landkreis-Build, Evaluation und
+- [x] **M4.6** Offline-Tests fuer Ratsinfo-Build, Landkreis-Build, Evaluation und
   Websuche ergaenzen; unerwartete Hub-Aufrufe muessen die Tests fehlschlagen
   lassen.
-- [ ] **M4.7** Phase 4 pruefen und als eigenen Zwischenstand committen.
+- [x] **M4.7** Phase 4 pruefen und als eigenen Zwischenstand committen.
 
 ### Phase 5: Indexkompatibilitaet
 
@@ -928,6 +928,28 @@ bleiben unabgehakt und werden dort beschrieben.
 
 ## Aktuelle Uebergabe
 
+- Phase 4 umgesetzt auf `codex/feature/embedding-model-management-phase-4`:
+  Harrier, Passage-Tokenizer und BM25 nutzen ausschliesslich die per Manifest
+  geprueften lokalen Snapshots. FastEmbed bekommt `specific_model_path` und
+  `local_files_only=True`; Harrier und der Tokenizer erhalten lokale Pfade und
+  `local_files_only=True`. Die Modell-IDs, Dimension und Pipeline-Version kommen
+  aus `src/config/embedding_models.py`; der alte Indexer-Downloadschalter ist
+  entfernt. Fehlende oder inkompatible Modelle liefern einen kurzen Hinweis auf
+  den Vorbereitungsbefehl; die Websuche verlinkt den technischen Servicebereich.
+  Betroffene Build-, Evaluations- und Websuchtests sperren unerwartete Hub-Downloads.
+  Ein FastEmbed-Test laedt BM25 direkt aus einem kleinen lokalen Testbestand.
+  Die gemeinsame Bereitschaftspruefung und jeder Verbraucher vergleichen zudem
+  den vollstaendigen Bibliotheksversionssatz aus dem Manifest mit den installierten
+  Versionen. Abweichungen und fehlende Bibliotheken liefern `inkompatibel` und
+  sperren die Modellinitialisierung. Der vollstaendige
+  Lauf `python -m pytest` mit den Projektabhaengigkeiten
+  bestand nach dem Review-Fix mit **617 Tests**, 7 Live-Tests blieben abgewählt. Es wurden keine
+  echten Modellgewichte heruntergeladen.
+  Die praktischen Builds und die Suche mit echten vorbereiteten Modellen bleiben
+  Teil der Gesamtabnahme in Phase 7. Allgemeine Version: `0.5.17`.
+- Naechster regulaerer Punkt: **M5.1**; zentralen Kompatibilitaetsdatensatz fuer
+  die Indexfreigabe erzeugen.
+
 - Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-
   und Testabdeckung, CLI-/Manifestvertrag, Dokumentation und Versionsstand
   geprueft. Zwei veraltete Fortschrittsaussagen berichtigt; keine erneuten Tests
@@ -956,8 +978,6 @@ bleiben unabgehakt und werden dort beschrieben.
   ist mit 84 Faellen bestanden; der Log-Schreibfehler wurde zusaetzlich gezielt
   mit simuliertem ENOSPC geprueft. Keine vollstaendige Testsuite und kein echter
   Modell-Download wurden ausgefuehrt.
-- Naechster regulaerer Punkt: **M4.1**; Harrier-Embedder und Tokenizer auf
-  vorbereitete lokale Pfade und feste Revisionen umstellen.
 - PR-Review-Nachtrag nach M3.9: Zwei bestehende Fehlerhandler erfassen jetzt
   auch `RuntimeError` von der Pfadaufloesung. Regressionstests pruefen die
   sichere JSON-/Textausgabe, unveraenderte aktive Artefakte und ausbleibende

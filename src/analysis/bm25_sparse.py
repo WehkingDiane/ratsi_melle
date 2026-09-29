@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from src.config.embedding_model_status import prepared_model_path
+from src.config.embedding_models import BM25_MODEL
 
-if TYPE_CHECKING:
-    pass
-
-_BM25_MODEL = "Qdrant/bm25"
 
 
 class BM25Encoder:
@@ -22,8 +19,13 @@ class BM25Encoder:
 
     def _get_model(self):
         if self._model is None:
+            model_path = prepared_model_path("sparse_model")
             from fastembed import SparseTextEmbedding
-            self._model = SparseTextEmbedding(model_name=_BM25_MODEL)
+            self._model = SparseTextEmbedding(
+                model_name=BM25_MODEL.model_id,
+                specific_model_path=str(model_path),
+                local_files_only=True,
+            )
         return self._model
 
     def encode_documents(self, texts: list[str]) -> list[dict]:

@@ -204,6 +204,17 @@ def run_cli(
                 perf_counter() - started,
             )
         raise
+    except Exception as exc:
+        from src.config.embedding_model_status import PreparedModelUnavailableError
+
+        if not isinstance(exc, PreparedModelUnavailableError):
+            logger.exception(
+                "event=run_failed duration_seconds=%.3f", perf_counter() - started
+            )
+            raise
+        logger.error("event=run_failed reason=local_models_unavailable")
+        print(f"ERROR: {exc}", file=sys.stderr)
+        raise SystemExit(1) from None
     except BaseException:
         logger.exception(
             "event=run_failed duration_seconds=%.3f", perf_counter() - started

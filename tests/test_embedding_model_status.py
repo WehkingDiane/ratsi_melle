@@ -2,6 +2,7 @@
 
 from dataclasses import replace
 import json
+from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 import shutil
 import socket
@@ -31,8 +32,10 @@ from src.config.embedding_model_status import (
     MODEL_MANIFEST_FILENAME,
     ModelInventoryIncompatibleError,
     ModelInventoryIncompleteError,
+    PreparedModelUnavailableError,
     check_embedding_model_status,
     load_and_validate_model_inventory,
+    prepared_model_path,
 )
 
 
@@ -87,6 +90,76 @@ def test_local_inventory_check_accepts_complete_manifest_without_network(tmp_pat
     assert actual == expected
 
 
+def test_prepared_harrier_paths_use_verified_pinned_snapshot(tmp_path, monkeypatch):
+    _write_inventory(tmp_path)
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
+    versions = {
+        "transformers": "5.5.0", "sentence-transformers": "5.4.0",
+        "fastembed": "0.7.0", "huggingface-hub": "1.0.0",
+    }
+    monkeypatch.setattr("src.config.embedding_model_status.version", versions.__getitem__)
+
+    assert prepared_model_path("dense_model") == tmp_path / "dense_model/snapshot"
+    assert prepared_model_path("tokenizer") == tmp_path / "tokenizer/snapshot"
+
+
+@pytest.mark.parametrize("changed", [
+    "transformers", "sentence-transformers", "fastembed", "huggingface-hub",
+])
+def test_prepared_model_path_rejects_changed_library_version(tmp_path, monkeypatch, changed):
+    _write_inventory(tmp_path)
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
+    versions = {
+        "transformers": "5.5.0", "sentence-transformers": "5.4.0",
+        "fastembed": "0.7.0", "huggingface-hub": "1.0.0",
+    }
+    versions[changed] = "new-version"
+    monkeypatch.setattr("src.config.embedding_model_status.version", versions.__getitem__)
+
+    with pytest.raises(PreparedModelUnavailableError, match="prepare_embedding_models.py --download"):
+        prepared_model_path("dense_model")
+
+
+def test_prepared_model_path_rejects_missing_library(tmp_path, monkeypatch):
+    _write_inventory(tmp_path)
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
+    monkeypatch.setattr(
+        "src.config.embedding_model_status.version",
+        lambda name: (_ for _ in ()).throw(PackageNotFoundError(name)),
+    )
+
+    with pytest.raises(PreparedModelUnavailableError, match="prepare_embedding_models.py --download"):
+        prepared_model_path("dense_model")
+
+
+def test_prepared_harrier_path_rejects_missing_inventory(tmp_path, monkeypatch):
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
+
+    with pytest.raises(PreparedModelUnavailableError, match="prepare_embedding_models.py --download"):
+        prepared_model_path("dense_model")
+
+
+@pytest.mark.parametrize("missing", [False, True])
+def test_readiness_and_consumer_agree_on_library_incompatibility(tmp_path, monkeypatch, capsys, missing):
+    _write_inventory(tmp_path)
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
+    if missing:
+        monkeypatch.setattr(
+            "src.config.embedding_model_status.version",
+            lambda name: (_ for _ in ()).throw(PackageNotFoundError(name)),
+        )
+    else:
+        monkeypatch.setattr("src.config.embedding_model_status.version", lambda name: "changed-version")
+
+    assert cli.main(["--check", "--json"]) == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "inkompatibel"
+    assert payload["manifest_sha256"] is None
+    assert "Modellbibliothek" in payload["message"]
+    with pytest.raises(PreparedModelUnavailableError):
+        prepared_model_path("dense_model")
+
+
 @pytest.mark.parametrize("deep", [False, True])
 def test_check_json_reports_component_symlink_loop(tmp_path, monkeypatch, capsys, deep):
     _write_inventory(tmp_path)
@@ -127,7 +200,14 @@ def test_deep_inventory_check_accepts_valid_artifact_hashes(tmp_path):
 
 @pytest.mark.parametrize("deep", [False, True])
 def test_inventory_checks_never_open_network_connections(tmp_path, monkeypatch, deep):
-    _write_inventory(tmp_path)
+    manifest = _write_inventory(tmp_path)
+    versions = manifest.library_versions
+    monkeypatch.setattr("src.config.embedding_model_status.version", lambda name: {
+        "transformers": versions.transformers,
+        "sentence-transformers": versions.sentence_transformers,
+        "fastembed": versions.fastembed,
+        "huggingface-hub": versions.huggingface_hub,
+    }[name])
 
     def reject_network(*args, **kwargs):
         raise AssertionError("Embedding model inventory checks must remain offline")
@@ -202,8 +282,15 @@ def test_shared_status_model_reports_incompatible_inventory(tmp_path):
     assert result.state is EmbeddingModelReadiness.INCOMPATIBLE
 
 
-def test_shared_status_model_reports_ready_inventory(tmp_path):
+def test_shared_status_model_reports_ready_inventory(tmp_path, monkeypatch):
     manifest = _write_inventory(tmp_path)
+    versions = manifest.library_versions
+    monkeypatch.setattr("src.config.embedding_model_status.version", lambda name: {
+        "transformers": versions.transformers,
+        "sentence-transformers": versions.sentence_transformers,
+        "fastembed": versions.fastembed,
+        "huggingface-hub": versions.huggingface_hub,
+    }[name])
 
     result = check_embedding_model_status(tmp_path)
 

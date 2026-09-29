@@ -150,6 +150,8 @@ def test_search_documents_finds_document_metadata(workspace_tmp: Path, monkeypat
 
 @pytest.mark.integration
 def test_semantic_search_documents_uses_vector_store(workspace_tmp: Path, monkeypatch) -> None:
+    from unittest.mock import Mock
+    monkeypatch.setattr("huggingface_hub.snapshot_download", Mock(side_effect=AssertionError("Unexpected Hub call")))
     qdrant_dir = workspace_tmp / "data" / "db" / "qdrant"
     qdrant_dir.mkdir(parents=True)
     captured = {}
@@ -2650,6 +2652,29 @@ def test_semantic_server_model_error_is_not_reported_as_connection_error(tmp_pat
     assert "Suchmodell" in result["error"]
     assert "Harrier-Modell fehlt" in result["error"]
     assert "Server nicht erreichbar" not in result["error"]
+    store.close.assert_called_once()
+
+
+@pytest.mark.integration
+def test_semantic_search_reports_prepared_model_action_without_hub(tmp_path, monkeypatch):
+    from unittest.mock import Mock
+    from src.analysis.embeddings import HarrierEmbedder
+    import huggingface_hub
+
+    monkeypatch.setenv("RATSI_QDRANT_URL", "http://test.invalid:6333")
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path / "missing"))
+    monkeypatch.setattr(search_services, "QDRANT_DIR", tmp_path / "absent")
+    monkeypatch.setattr(search_services, "_semantic_search_dependency_error", lambda: "")
+    store = Mock()
+    monkeypatch.setattr(search_services, "_create_vector_store", lambda *args: store)
+    monkeypatch.setattr(search_services, "_get_semantic_resources", lambda: (HarrierEmbedder(), Mock()))
+    monkeypatch.setattr(huggingface_hub, "snapshot_download", Mock(side_effect=AssertionError("Hub called")))
+
+    result = search_services.search_semantic_documents("Schule")
+
+    assert result["model_status_unavailable"] is True
+    assert "prepare_embedding_models.py --download" in result["error"]
+    assert not result["results"]
     store.close.assert_called_once()
 
 

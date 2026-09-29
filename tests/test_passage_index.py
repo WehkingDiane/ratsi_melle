@@ -4,10 +4,12 @@ import json
 from pathlib import Path
 import re
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
 
 from src.indexing import passages
+from src.indexing import passage_builder
 from src.indexing.passage_builder import build_passage_index
 from src.indexing.evaluation import score_query, evaluate
 
@@ -15,6 +17,21 @@ from src.indexing.evaluation import score_query, evaluate
 class Tokenizer:
     def __call__(self, text, **kwargs):
         return {"offset_mapping": [m.span() for m in re.finditer(r"\S+", text)]}
+
+
+def test_passage_tokenizer_uses_prepared_local_snapshot(monkeypatch, tmp_path):
+    captured = {}
+    tokenizer_path = tmp_path / "tokenizer"
+    monkeypatch.setattr(passage_builder, "prepared_model_path", lambda component: tokenizer_path if component == "tokenizer" else None)
+    fake_tokenizer = object()
+    fake_transformers = SimpleNamespace(AutoTokenizer=SimpleNamespace(
+        from_pretrained=lambda path, **kwargs: captured.update(path=path, kwargs=kwargs) or fake_tokenizer,
+    ))
+
+    with patch.dict("sys.modules", {"transformers": fake_transformers}):
+        assert passage_builder._load_tokenizer() is fake_tokenizer
+
+    assert captured == {"path": str(tokenizer_path), "kwargs": {"local_files_only": True}}
 
 
 class Store:

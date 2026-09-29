@@ -93,8 +93,9 @@ Ausgewertet werden:
 Die Quellenmetriken zaehlen wiederholte URLs nur einmal innerhalb der abgerufenen
 Treffer. Vergleiche sollten dieselben Fragen, denselben Dokumentbestand, dasselbe
 `k` und dieselbe Hardware nutzen. Reports enthalten Einzelresultate, Benchmark-Hash,
-Collection und Modell. Ein fehlender Modellcache erfordert zunaechst den Download
-der lokalen Modellgewichte. Aus den Unit-Tests lassen sich keine realen
+Collection und Modell. Ein fehlender oder inkompatibler Modellbestand erfordert
+zunaechst `python scripts/prepare_embedding_models.py --download`; Evaluation
+und Suche beschaffen selbst keine Modellgewichte. Aus den Unit-Tests lassen sich keine realen
 Qualitaetsgewinne oder Laufzeiten ableiten.
 
 ## Qdrant-Serverbetrieb
