@@ -15,6 +15,23 @@ from src.indexing.payload_builder import build_document_payload, resolve_local_p
 from src.indexing.reconciliation import find_orphaned_ids
 from src.indexing.vectorizer import HybridVectorizer
 from src.analysis.vector_store import DocumentVectorStore
+from src.config.embedding_models import BM25_MODEL, HARRIER_MODEL, HARRIER_TOKENIZER
+from src.config.index_compatibility import IndexCompatibility
+
+
+@pytest.fixture
+def compatibility() -> IndexCompatibility:
+    return IndexCompatibility(
+        dense_model_id=HARRIER_MODEL.model_id,
+        dense_revision=HARRIER_MODEL.revision,
+        sparse_model_id=BM25_MODEL.model_id,
+        sparse_revision=BM25_MODEL.revision,
+        tokenizer_model_id=HARRIER_TOKENIZER.model_id,
+        tokenizer_revision=HARRIER_TOKENIZER.revision,
+        manifest_sha256="a" * 64,
+        vector_dimension=HARRIER_MODEL.vector_dimension,
+        pipeline_version="passages-1",
+    )
 
 
 class _FakeVectorStore:
@@ -250,6 +267,7 @@ def test_landkreis_document_text_is_truncated_for_embedding() -> None:
 def test_landkreis_main_indexes_missing_documents_and_payload(
     monkeypatch,
     tmp_path: Path,
+    compatibility: IndexCompatibility,
 ) -> None:
     monkeypatch.setattr("huggingface_hub.snapshot_download", lambda **kwargs: (_ for _ in ()).throw(AssertionError("Unexpected Hub call")))
     doc = {
@@ -304,6 +322,7 @@ def test_landkreis_main_indexes_missing_documents_and_payload(
         lambda: (_FakeHarrierEmbedder, _FakeDocumentVectorStore),
     )
     monkeypatch.setattr(build_landkreis_vector_index, "HybridVectorizer", _FakeHybridVectorizer)
+    monkeypatch.setattr(build_landkreis_vector_index, "current_index_compatibility", lambda: compatibility)
     monkeypatch.setattr(build_landkreis_vector_index, "_load_documents", lambda _db_path: [doc])
     monkeypatch.setattr(build_landkreis_vector_index, "LANDKREIS_DATA_DIR", tmp_path / "raw-landkreis")
 
@@ -335,6 +354,7 @@ def test_landkreis_main_indexes_missing_documents_and_payload(
     assert point["payload"]["document_title"] == "PDF Anlage"
     assert point["payload"]["snippet"] == "Extrahierter"
     assert point["payload"]["local_path"] == str((data_root / "amtsblaetter/2026/a.pdf").resolve())
+    assert point["payload"]["index_compatibility"] == compatibility.as_dict()
 
 
 @pytest.mark.integration
@@ -437,6 +457,7 @@ def test_landkreis_main_refreshes_snippet_payload_for_existing_vectors(
         vector_store.updated_payloads[0][0]["payload"]["snippet"]
         == "Inhalt für den Suchtreffer"
     )
+    assert "index_compatibility" not in vector_store.updated_payloads[0][0]["payload"]
     assert vector_store.upserted_batches == []
     assert "Refreshing snippet payloads for 1 existing Landkreis document" in capsys.readouterr().out
 
@@ -693,6 +714,7 @@ def test_main_refreshes_snippet_payload_for_existing_vectors(
     assert len(vector_store.updated_payloads) == 1
     assert vector_store.updated_payloads[0][0]["id"] == current_id
     assert vector_store.updated_payloads[0][0]["payload"]["snippet"] == "Doc 1 protokoll"
+    assert "index_compatibility" not in vector_store.updated_payloads[0][0]["payload"]
     assert vector_store.upserted_batches == []
     assert "Refreshing snippet payloads for 1 existing document" in capsys.readouterr().out
 
@@ -750,6 +772,7 @@ def test_limit_applies_to_missing_documents_not_first_sqlite_rows(
     monkeypatch,
     tmp_path: Path,
     capsys,
+    compatibility: IndexCompatibility,
 ) -> None:
     first_doc = _doc("1", "https://example.org/doc-1.pdf")
     second_doc = _doc("2", "https://example.org/doc-2.pdf")
@@ -806,6 +829,7 @@ def test_limit_applies_to_missing_documents_not_first_sqlite_rows(
         lambda: (_FakeHarrierEmbedder, vector_store_module.DocumentVectorStore),
     )
     monkeypatch.setattr(build_vector_index, "HybridVectorizer", _FakeHybridVectorizer)
+    monkeypatch.setattr(build_vector_index, "current_index_compatibility", lambda: compatibility)
     monkeypatch.setattr(
         build_vector_index,
         "_load_documents",
@@ -827,6 +851,7 @@ def test_limit_applies_to_missing_documents_not_first_sqlite_rows(
     )
 
     assert [[point["id"] for point in batch] for batch in vector_store.upserted_batches] == [[second_id]]
+    assert vector_store.upserted_batches[0][0]["payload"]["index_compatibility"] == compatibility.as_dict()
     assert third_id not in {point["id"] for batch in vector_store.upserted_batches for point in batch}
     output = capsys.readouterr().out
     assert "2 missing, indexing next 1" in output

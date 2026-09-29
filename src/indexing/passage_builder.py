@@ -18,7 +18,11 @@ from src.indexing.vectorizer import HybridVectorizer
 from src.paths import LOCAL_INDEX_DB, QDRANT_DIR
 from src.config.embedding_model_status import prepared_model_path
 from src.config.embedding_models import HARRIER_TOKENIZER
-from src.config.index_compatibility import current_index_compatibility
+from src.config.index_compatibility import (
+    IndexCompatibility,
+    current_index_compatibility,
+    with_index_compatibility,
+)
 
 
 LOGGER = logging.getLogger(__name__)
@@ -34,7 +38,8 @@ def _load_tokenizer():
 
 
 def build_passage_index(documents, store, tokenizer, vectorizer_factory, *, limit=None,
-                        tokens=768, overlap=96, use_ocr=True, batch_size=4, refresh=False):
+                        tokens=768, overlap=96, use_ocr=True, batch_size=4, refresh=False,
+                        compatibility: IndexCompatibility | None = None):
     """Replace changed documents only after all their new passages are stored."""
     if not 32 <= tokens <= 8192 or not 0 <= overlap < tokens or batch_size < 1:
         raise ValueError("Require 32..8192 chunk tokens, smaller nonnegative overlap and positive batch size")
@@ -99,6 +104,8 @@ def build_passage_index(documents, store, tokenizer, vectorizer_factory, *, limi
                            "chunk_count": len(chunks), "fingerprint": fingerprint, "generation": generation,
                            "source_hash": source_hash, "model": MODEL, "pipeline_version": PIPELINE_VERSION,
                            "unreadable_pages": unreadable, "committed": False}
+                if compatibility is not None:
+                    payload = with_index_compatibility(payload, compatibility)
                 points.append({"id": point_id, "payload": payload})
             if vectorizer is None:
                 vectorizer = vectorizer_factory()
@@ -158,6 +165,7 @@ def main(argv=None):
             lambda: HybridVectorizer(HarrierEmbedder(), BM25Encoder()),
             limit=args.limit, tokens=args.chunk_tokens, overlap=args.overlap_tokens,
             use_ocr=not args.no_ocr, batch_size=args.batch_size, refresh=args.refresh,
+            compatibility=compatibility,
         )
         # Activate only after every current document has a complete generation.
         # A --limit build may finish migration over several runs.

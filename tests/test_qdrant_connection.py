@@ -478,6 +478,9 @@ def test_passage_build_only_marks_complete_current_documents(tmp_path, monkeypat
     config = QdrantConnection.from_env(tmp_path / 'absent')
     assert config.passages_ready(remote)
     assert config.read_index_compatibility('ratsi_passages') == compatibility
+    points, _ = remote.scroll('ratsi_passages', with_payload=True, limit=100)
+    assert points and all(point.payload['index_compatibility'] == compatibility.as_dict()
+                          for point in points)
     source.write_text('Changed document source')
     passage_builder.main(args + ['--limit', '1'])
     assert not config.ready_path.exists()

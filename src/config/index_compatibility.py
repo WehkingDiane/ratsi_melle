@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Final
 
 from src.config.embedding_model_manifest import validate_commit_sha, validate_model_id
 from src.config.embedding_model_status import (
@@ -18,6 +19,9 @@ from src.config.embedding_models import (
     HARRIER_TOKENIZER,
 )
 from src.config.settings import load_embedding_model_settings
+
+
+INDEX_COMPATIBILITY_PAYLOAD_KEY: Final[str] = "index_compatibility"
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,6 +64,12 @@ class IndexCompatibility:
         if not isinstance(payload, dict) or set(payload) != set(cls.__dataclass_fields__):
             raise ValueError("Index compatibility fields do not match the schema")
         return cls(**payload)
+
+
+def with_index_compatibility(payload: dict, compatibility: IndexCompatibility) -> dict:
+    """Add the shared model contract to a newly vectorized point payload."""
+
+    return {**payload, INDEX_COMPATIBILITY_PAYLOAD_KEY: compatibility.as_dict()}
 
 
 def current_index_compatibility(models_dir: Path | None = None, *, deep: bool = False) -> IndexCompatibility:

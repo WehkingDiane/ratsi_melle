@@ -23,7 +23,9 @@ Der Landkreis-Builder bleibt ein eigener Dokumentindex.
   Ueberlappung. Seiten bleiben getrennt; innerhalb einer Seite werden bevorzugt
   Absatzgrenzen genutzt. Kurze Seiten ergeben kuerzere Abschnitte.
 - Payloads enthalten Dokument-ID, URL, Sitzung, TOP-Zuordnung aus dem Index,
-  Seitenzahl, Text, Zeichenpositionen, Extraktionsmethode und Modell-/Pipelineversion.
+  Seitenzahl, Text, Zeichenpositionen, Extraktionsmethode und bei neu
+  berechneten Vektoren den vollstaendigen Modell-/Pipelinevertrag im Feld
+  `index_compatibility`.
   Eine neue TOP-Zuordnung innerhalb sitzungsweiter Protokolle wird nicht abgeleitet.
 - Die Suche zeigt einzelne Fundstellen mit Seitenzahl und einem Link zur lokalen
   PDF-Seite. Mehrere relevante Abschnitte eines Dokuments koennen erscheinen.

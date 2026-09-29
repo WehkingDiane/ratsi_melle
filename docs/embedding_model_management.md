@@ -640,6 +640,16 @@ Kompatibilitaetsnachweis. Die Aufnahme neuer Freigabeschreibvorgaenge fuer
 `ratsi_documents` und `landkreis_publications` folgt mit der Build-Sperre in
 M5.7; alte Collections werden hier nicht nachtraeglich als kompatibel markiert.
 
+M5.3 schreibt bei neu berechneten Punkten aller drei Collections denselben
+vollstaendigen Datensatz unter dem Payload-Feld `index_compatibility`. Dieser
+enthaelt Dense-, Sparse- und Tokenizer-ID samt Revision, Manifest-Hash,
+Vektordimension und Pipeline-Version. Bei Passagen bleiben die bisherigen Felder
+`model` und `pipeline_version` fuer vorhandene Verbraucher bestehen. Der neue
+Datensatz wird erst nach der Fingerprint-Berechnung an den Punkt angefuegt;
+Snippet-Aktualisierungen vorhandener Punkte setzen ihn nicht, da dabei keine
+Vektoren neu berechnet werden. Alt-Punkte ohne Datensatz werden erst nach
+verifizierter Uebernahme beziehungsweise getrenntem Neuaufbau behandelt.
+
 Vor dem ersten Schreibzugriff vergleicht ein Builder den vorhandenen Indexstand
 mit der aktiven Modellkonfiguration. Bei einer Abweichung darf er die Collection
 nicht inkrementell erweitern. Er fordert einen vollstaendigen Neuaufbau oder eine
@@ -887,7 +897,7 @@ bleiben unabgehakt und werden dort beschrieben.
   Manifest-Hash, Dimension und Pipeline-Version zentral erzeugen.
 - [x] **M5.2** Lokale und serverbezogene Qdrant-Freigabemetadaten um diesen
   Datensatz erweitern.
-- [ ] **M5.3** Erforderliche Modell- und Pipelineangaben in Punkt-Payloads fuer
+- [x] **M5.3** Erforderliche Modell- und Pipelineangaben in Punkt-Payloads fuer
   Ratsinfo- und Landkreis-Collections konsistent hinterlegen.
 - [ ] **M5.4** Rein lesende Bestandspruefung und deterministische
   Vektorstichprobe fuer die einmalige Legacy-Uebernahme implementieren.
@@ -978,11 +988,18 @@ bleiben unabgehakt und werden dort beschrieben.
   Kompatibilitaetsdatensatz; Marker werden atomar geschrieben und beim Lesen
   an Collection und Serverziel gebunden. Die gezielten Qdrant- und
   Kompatibilitaetstests bestehen mit 49 Tests; ein breiterer Lauf wurde
-  nach 73 bestandenen Tests wegen eines langsam laufenden Folgetests abgebrochen. Die Legacy- und Landkreis-Builder erhalten
+  nach 73 bestandenen Tests wegen eines langsam laufenden Folgetests
+  abgebrochen. Die Legacy- und Landkreis-Builder erhalten
   ihren Freigabeschreibvorgang erst mit M5.7, damit vorhandene Daten nicht
   ungeprueft gestempelt werden. Allgemeine Version: `0.5.18`.
-- Naechster regulaerer Punkt: **M5.3**; erforderliche Modell- und
-  Pipelineangaben in Ratsinfo- und Landkreis-Punkt-Payloads hinterlegen.
+- M5.3 schreibt `index_compatibility` in neu vektorisierte Passage-, Legacy-
+  und Landkreis-Punkte. Bestehende Punkte erhalten bei reinen Snippet-Updates
+  keine neue Herkunftsangabe. Drei Build-Integrationstests und zwei Tests
+  fuer bestehende Snippet-Payloads bestehen; die umfassende Phasenabnahme
+  folgt mit M5.9/M5.10.
+  Allgemeine Version: `0.5.19`.
+- Naechster regulaerer Punkt: **M5.4**; rein lesende Bestandspruefung und
+  deterministische Vektorstichprobe fuer die Legacy-Uebernahme.
 
 - Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-
   und Testabdeckung, CLI-/Manifestvertrag, Dokumentation und Versionsstand

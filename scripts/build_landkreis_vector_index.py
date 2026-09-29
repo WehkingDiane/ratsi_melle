@@ -18,6 +18,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from src.indexing.id_strategy import stable_document_id
+from src.config.index_compatibility import current_index_compatibility, with_index_compatibility
 from src.indexing.reconciliation import find_orphaned_ids
 from src.indexing.vectorizer import HybridVectorizer
 from src.paths import LANDKREIS_DATA_DIR, LANDKREIS_PUBLICATIONS_DB, QDRANT_DIR
@@ -277,6 +278,7 @@ def _main(argv: list[str] | None = None) -> None:
             )
         else:
             print(f"  {len(already_indexed)} already indexed, {len(docs_to_index)} new.")
+        compatibility = current_index_compatibility()
         print("Loading embedding models ...")
         embedder = HarrierEmbedder()
 
@@ -325,7 +327,9 @@ def _main(argv: list[str] | None = None) -> None:
                     "id": doc["_qdrant_id"],
                     "dense_vector": vectors["dense_vector"],
                     "sparse_vector": vectors["sparse_vector"],
-                    "payload": _build_payload(doc, data_root=data_dir, search_text=text),
+                    "payload": with_index_compatibility(
+                        _build_payload(doc, data_root=data_dir, search_text=text), compatibility,
+                    ),
                 }
                 for doc, text, vectors in zip(batch, texts, vector_results)
             ]
