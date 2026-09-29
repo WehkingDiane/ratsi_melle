@@ -938,6 +938,9 @@ bleiben unabgehakt und werden dort beschrieben.
   den Vorbereitungsbefehl; die Websuche verlinkt den technischen Servicebereich.
   Betroffene Build-, Evaluations- und Websuchtests sperren unerwartete Hub-Downloads.
   Ein FastEmbed-Test laedt BM25 direkt aus einem kleinen lokalen Testbestand.
+  Der vollstaendige Lauf `python -m pytest` mit den Projektabhaengigkeiten
+  bestand mit **610 Tests**, 7 Live-Tests blieben abgewählt. Es wurden keine
+  echten Modellgewichte heruntergeladen.
   Die praktischen Builds und die Suche mit echten vorbereiteten Modellen bleiben
   Teil der Gesamtabnahme in Phase 7. Allgemeine Version: `0.5.17`.
 - Naechster regulaerer Punkt: **M5.1**; zentralen Kompatibilitaetsdatensatz fuer
