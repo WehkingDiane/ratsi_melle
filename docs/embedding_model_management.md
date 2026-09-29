@@ -2,7 +2,7 @@
 
 ## Status und Zweck
 
-Dieses Dokument beschreibt das Zielbild fuer die noch nicht implementierte
+Dieses Dokument beschreibt das Zielbild fuer die schrittweise implementierte
 Verwaltung der lokalen Embedding-Modelle. Die zugehoerige konkrete Aufgabe steht
 in [project_tasks.md](project_tasks.md#33-extraktion-ocr-und-suche).
 
@@ -319,17 +319,255 @@ Bestand dessen Manifest-Hash als maschinenlesbare Felder.
 
 ## Vorbereitungsskript
 
-Das neue Skript `scripts/prepare_embedding_models.py` bietet zunaechst:
+Das Skript `scripts/prepare_embedding_models.py` bietet seit M3.1/M3.2 lokale
+Schnell- und Tiefenpruefungen:
 
 ```text
 python scripts/prepare_embedding_models.py --check
 python scripts/prepare_embedding_models.py --check --deep
-python scripts/prepare_embedding_models.py --download
+python scripts/prepare_embedding_models.py --check --json
+python scripts/prepare_embedding_models.py --check --deep --json
 ```
 
-`--check` arbeitet garantiert offline. `--download` laedt ausschliesslich die in
-`embedding_models.py` festgelegten Revisionen, prueft sie und schreibt danach das
-Manifest. Bereits vollstaendig vorbereitete Artefakte werden wiederverwendet.
+Beide verwenden die gemeinsame Statuspruefung und `RATSI_MODELS_DIR` beziehungsweise
+standardmaessig `data/models/`. Die menschenlesbare Ausgabe nennt Pruefstufe,
+Status und kurze Meldung sowie bei einem bereiten Bestand dessen Manifest-Hash.
+`--deep` berechnet zusaetzlich alle festgelegten Artefakt-SHA-256-Werte erneut.
+`--json` ersetzt die CLI-Meldung durch genau ein JSON-Objekt auf stdout:
+
+```json
+{"check_level":"fast","manifest_sha256":null,"message":"Das lokale Modellmanifest fehlt.","status":"fehlt"}
+```
+
+`status`, `message` und `manifest_sha256` stammen aus der gemeinsamen Status-API;
+`check_level` bezeichnet `fast` oder `deep`. Der Hash ist nur bei einem bereiten
+Bestand gesetzt. Eine ungueltige Einstellung fuer `RATSI_MODELS_DIR` liefert
+im JSON-Modus ebenfalls dieses Schema mit `status="inkompatibel"` und Exitcode
+`2`; im menschenlesbaren Modus erscheint die kurze Fehlermeldung auf stderr.
+Ungueltige Argumente werden mit Usage-Meldung auf stderr und Exitcode `2`
+abgelehnt, auch bei `--json`.
+
+Exitcode `0` bedeutet `bereit`, `1` einen fehlenden, unvollstaendigen oder
+inkompatiblen Bestand und `2` einen Aufruf- oder Konfigurationsfehler. Die Pruefung
+veraendert keine Dateien und legt auch kein fehlendes Modellverzeichnis an.
+Seit M3.3/M3.4 ist zudem die ausdrueckliche Vorbereitung gepinnter Modelle verfuegbar:
+
+```text
+python scripts/prepare_embedding_models.py --download
+python scripts/prepare_embedding_models.py --download --json
+```
+
+`--check` arbeitet garantiert offline. `--download` verwendet
+`huggingface_hub.snapshot_download` mit ausschliesslich den Modell-IDs,
+vollstaendigen Commit-SHAs und Kernartefakt-Allowlists aus `embedding_models.py`.
+Dense-Modell und Tokenizer werden bei identischer ID und Revision als gemeinsamer
+Snapshot mit der vereinigten Artefaktliste geladen; BM25 wird separat geladen.
+Freie Modell-IDs oder Revisionen sind keine CLI-Parameter.
+
+Wenn kein gepruefter Bestand wiederverwendet werden kann, wird in einen passenden
+vorhandenen oder einen neuen temporaeren Ordner unter
+`<Modellstamm>/.preparation/download-*/` heruntergeladen. Darunter liegen die
+Snapshots jeweils unter `<Modell-ID>/<Commit-SHA>/`. Hugging-Face-Cachemetadaten koennen innerhalb
+dieser lokalen Snapshotordner entstehen. Umgeleitete `.preparation`- oder
+`inventories`-Verzeichnisverknuepfungen werden abgelehnt.
+
+M3.4 prueft vor der Freigabe alle Pflichtartefakte: Sie muessen lesbare,
+nichtleere regulaere lokale Dateien innerhalb des erwarteten Modellpfads sein.
+Unerwartete verhaltensrelevante Dateien wie `sentence_bert_config.json` werden
+abgelehnt. Das Kandidatenmanifest erfasst konfigurierte und ueber den gepinnten
+Download bezogene Revisionen, relative Modellpfade, Dateigroessen und SHA-256,
+die installierten Versionen von Transformers, Sentence Transformers, FastEmbed
+und Hugging Face Hub sowie den UTC-Erstellungszeitpunkt. Anschliessend wird die
+gemeinsame lokale Tiefenpruefung auf den vollstaendigen Kandidaten angewendet.
+
+Ein neuer gepruefter Kandidatenordner wird auf demselben Dateisystem nach
+`<Modellstamm>/inventories/<Kandidatenmanifest-Hash>/` verschoben. Die
+inhaltsbezogene Adresse verhindert wechselnde Kompatibilitaets-Hashes allein
+aufgrund zufaelliger Downloadordner oder neuer Erstellungszeiten. Existiert der
+Zielbestand schon, wird er tiefengeprueft und mit dem Kandidaten verglichen;
+abweichende oder beschaedigte Bestandsdateien werden nicht ueberschrieben.
+
+Das aktive Manifest enthaelt die freigegebenen relativen Pfade unter `inventories/`
+und einen entsprechend neu berechneten Manifest-Hash. Es wird in einer separaten
+Datei im Modellstamm vollstaendig geschrieben, geflusht und mit `fsync` gesichert.
+Erst `os.replace` auf `<Modellstamm>/manifest.json` aktiviert den Bestand atomar.
+Leser sehen damit entweder das bisherige oder das neue vollstaendige Manifest.
+Bestehende Modellordner werden erhalten, damit zuvor gestartete Leser ihre alten
+Pfade weiter nutzen koennen.
+
+Ein Fehler oder Abbruch vor dem Manifestwechsel laesst den vorherigen Bestand
+aktiv. Bei einer Erstvorbereitung bleibt ohne erfolgreichen Manifestwechsel der
+Status `fehlt`. Kandidaten, noch nicht aktivierte Bestaende, temporaere
+Manifestdateien bei Abbruch und alte Bestaende werden nicht automatisch
+geloescht.
+
+Seit M3.5 erfolgt die Wiederverwendung in dieser festen Reihenfolge:
+
+1. Ein gueltiges aktives Manifest wird mit allen Artefakt-SHA-256-Werten und
+   exakt den aktuell installierten Bibliotheksversionen verglichen. Bei Erfolg
+   bleibt der Bestand unveraendert; weder Hub-Import, Zugangsdatenabfrage noch
+   Download oder Manifestwechsel werden ausgefuehrt.
+2. Vollstaendig gepruefte Bestandsordner unter `inventories/`, deren
+   Kandidatenmanifest-Hash ihrem Ordnernamen entspricht, koennen ohne erneuten
+   Download atomar aktiviert werden. Damit laesst sich ein Abbruch nach dem
+   Verschieben, aber vor dem Manifestwechsel abschliessen.
+3. Vollstaendige, tiefengepruefte Kandidaten unter `.preparation/download-*/`
+   koennen ebenfalls ohne Hub-Aufruf freigegeben werden. Modellvertrag und
+   Bibliotheksversionen muessen weiterhin exakt passen.
+4. Fuer teilweise heruntergeladene Kandidaten muss `download-plan.json` exakt
+   zum aktuellen Vertrag passen: Planformat `1`, Pipeline- und Manifestformat,
+   Modell-IDs, Commit-SHAs und vereinigte Artefaktlisten. Unpassende, unlesbare
+   oder unbekannte Altplaene sowie verlinkte Kandidatenordner werden nicht
+   weiterbeschrieben. Die Auswahl passender Ordner erfolgt lexikografisch.
+
+Nach einem erfolgreichen Snapshot-Download entsteht `snapshot-<Nummer>.json`
+als Bestaetigung mit Modell-ID, Revision sowie Artefaktpfaden, Groessen und
+SHA-256-Werten. Vor einer Wiederverwendung werden alle diese Werte erneut aus
+den lokalen Dateien berechnet und exakt verglichen. Eine vorhandene Datei oder
+Hub-Cachemetadaten allein gelten nicht als Bestaetigung. Fehlende, unlesbare oder
+nicht mehr passende Bestaetigungen fuehren zu einem erneuten Download des
+betroffenen Snapshots mit `force_download=True`.
+
+Die Wiederaufnahme erfolgt damit auf Snapshotebene: Bereits bestaetigte
+Snapshots bleiben erhalten, der unterbrochene oder beschaedigte Snapshot wird
+vollstaendig erneut bezogen. Eine Wiederaufnahme einzelner Gewichtsdateien auf
+Byteebene wird nicht zugesichert. Ein erneuter Download schreibt nur in den
+passenden Kandidatenordner; aktive oder alte freigegebene Dateien werden nie
+repariert oder ueberschrieben. Nach der Wiederaufnahme gelten unveraendert die
+vollstaendige Manifestbildung, Tiefenpruefung und atomare Freigabe aus M3.4.
+
+`--download --json` liefert bei Erfolg ein einzelnes Objekt mit
+`operation="download"`, `status="bereit"`, `message`, `inventory_dir` und
+`manifest_sha256` sowie `reused`. `reused=true` kennzeichnet einen bereits
+vollstaendig geprueften Bestand, der ohne erneuten Download wiederverwendet oder
+freigegeben wurde; die Wiederaufnahme nur einzelner bestaetigter Snapshots setzt
+diesen Wert nicht. Exitcode `0` bedeutet einen geprueften und freigegebenen
+Modellbestand. Bei Download-, Pruef- oder Freigabefehlern folgt Exitcode `1` mit
+`operation="download"`, `status="fehlgeschlagen"`, einer kurzen `message` und
+seit M3.6 einem stabilen `error_code`.
+Ungueltige Laufzeiteinstellungen liefern dasselbe Fehlerschema und Exitcode `2`.
+Rohe SDK-Fortschrittsausgaben werden seit M3.7 unterdrueckt; sichere
+Start-/Endereignisse stehen im Komponentenlog.
+
+### Erwartbare Vorbereitungsfehler (M3.6)
+
+CLI-Meldungen nennen den betroffenen Schritt und die naechste sinnvolle Aktion;
+erwartbare Download-, Dateisystem- und Prueffehler erzeugen keinen Traceback.
+Die JSON-Ausgabe unterscheidet:
+
+| `error_code` | Bedeutung und naechster Schritt |
+| --- | --- |
+| `network_unavailable` | Verbindung, Timeout, Offline-Einstellung, HTTP 429 oder HTTP 5xx; Internet und Proxy pruefen, Download erneut starten |
+| `disk_full` | ENOSPC, Speicherquota oder Windows-Fehler 112; lokalen Speicher freigeben, Download erneut starten |
+| `permission_denied` | Fehlender Lese-/Schreibzugriff oder schreibgeschuetztes Dateisystem; Verzeichnisrechte pruefen |
+| `incomplete_artifacts` | Fehlende, leere, beschaedigte oder ungueltige Artefakte/Manifeste; Vorbereitung erneut starten, bei Wiederholung Kandidaten pruefen |
+| `source_unavailable` | Andere HTTP-Fehler wie 401, 403 oder 404; Zugangsdaten und gepinnte Quelle pruefen |
+| `dependency_missing` | Hub- oder Modell-Abhaengigkeit fehlt; `requirements.txt` installieren |
+| `download_failed` / `preparation_failed` | Nicht genauer klassifizierter Fehler; Verbindung, Modellstamm und Verzeichnisrechte pruefen |
+| `configuration_error` | Ungueltige Laufzeiteinstellung; Konfiguration korrigieren, Exitcode `2` |
+
+Die Klassifikation beruecksichtigt auch verschachtelte Ausnahmen, etwa einen
+Anbieterfehler mit zugrunde liegendem ENOSPC. Bekannte Fehler vor der Aktivierung
+lassen das aktive Manifest unveraendert und behalten Kandidaten fuer die
+Wiederaufnahme bei.
+Auch `RuntimeError` bei der Pfadaufloesung, etwa durch Symlink-Schleifen unter
+Python 3.11/3.12, wird in der Vorbereitung und beim Anlegen des Downloadziels
+abgefangen. Der Fehler liefert `preparation_failed`, Exitcode `1` und keine
+rohen Ausnahmetexte oder Tracebacks. Die Mindestversion bleibt Python 3.11+.
+
+Nur `--download` konfiguriert das gemeinsame rotierende Projektlog unter
+`logs/embedding_model_preparation.log` beziehungsweise `RATSI_LOG_DIR`.
+`--log-level` hat Vorrang vor `RATSI_LOG_LEVEL`, danach gilt `INFO`; erlaubte
+explizite Level sind DEBUG, INFO, WARNING, ERROR und CRITICAL. `--check` bleibt
+rein lesend und konfiguriert keine Logdatei, auch bei gesetztem `--log-level`.
+
+`event=model_preparation_failed` protokolliert Fehlercode, Arbeitsschritt,
+Fehlerklasse, numerisches `errno` und gegebenenfalls HTTP-Status. UTC-Zeit,
+Komponente und Lauf-ID folgen `src/observability.py`; `RATSI_RUN_ID` kann die
+Lauf-ID setzen. Bei Erfolg erscheint `event=model_preparation_completed` mit
+Bereitschafts- und Wiederverwendungsstatus. Ausnahmetexte, Anbieterantworten,
+Requests, Header und URLs werden nicht in diese Diagnosefelder uebernommen.
+Fremde SDK-Logs werden aus dem Komponentenlog herausgefiltert. Die kurze
+CLI-Meldung beziehungsweise das einzelne JSON-Objekt bleibt von den
+Dateiprotokollen getrennt.
+
+Scheitert bereits das Anlegen des Logs, endet der Aufruf ohne Download mit einer
+kurzen klassifizierten Meldung. Scheitert ein spaeterer Log-Schreibzugriff, wird
+kein Logging-Traceback ausgegeben; die Vorbereitung und ihre CLI-Ergebnismeldung
+laufen weiter. Waehrend des synchronen SDK-Aufrufs werden rohe Python-Ausgaben
+auf stdout/stderr und Python-Logs vollstaendig unterdrueckt, statt nur bekannte
+Tokenzeichenfolgen zu ersetzen. Dies schuetzt auch vor unbekannten, kodierten
+oder ueber mehrere Schreibzugriffe verteilten Zugangsdaten. Der vorherige
+Logging- und Streamzustand wird auch bei Abbruch wiederhergestellt. Sichere
+Start-/Endereignisse enthalten ausschliesslich die konfigurierte Modell-ID und
+Revision; rohe SDK-Fortschrittsausgaben werden nicht angezeigt.
+
+`--check` und `--download` schliessen sich gegenseitig aus; `--deep` ist nur bei
+`--check` erlaubt. Die Hub-Bibliothek und die Zugangsdaten werden nur beim
+Bearbeiten neuer oder teilweise vorbereiteter Downloads geladen. Vollstaendig
+gepruefte Bestaende und Kandidaten werden ohne diesen Schritt wiederverwendet.
+Der optionale Token wird ueber die vorhandene
+Secret-Verwaltung bezogen (Keyring vor `HF_TOKEN` vor `HUGGING_FACE_HUB_TOKEN`)
+und nur als API-Argument uebergeben. Ein Keyringfehler erlaubt den Env-Fallback.
+Die Token-Umgebung wird nicht veraendert; ohne konfigurierten Token verhindert
+`token=False` eine implizite Anmeldung aus dem Hub-Cache.
+`huggingface-hub>=1.0,<2.0` wird als direkte Abhaengigkeit gefuehrt.
+Echte Live-Downloads wurden fuer M3.3 bis M3.8 nicht ausgefuehrt.
+
+M3.8 ergaenzt echte CLI-Subprozess-Integrationstests mit einem kleinen Fake-Hub
+und gesperrtem Netzwerk. Sie pruefen den Aufruf aus einem fremden Arbeitsordner,
+atomare Freigabe, Tiefenpruefung und Offline-Wiederverwendung ohne Hub-Import
+oder Secret-Zugriff. Ein simulierter Anbieterfehler laesst den alten Bestand
+bytegleich bestehen; anschliessend wird nur der unbestaetigte Snapshot nachgeladen.
+
+Die getrennte Datei `tests/test_embedding_model_preparation_live.py` verwendet
+die bestehenden Marker `live` und `integration`. Beide Tests brauchen neben der
+Marker-Auswahl eine eigene Opt-in-Variable: `RATSI_EMBEDDING_LIVE_SMOKE=1` fuer
+gepinntes Anbieter-Metadaten-/Konfigurationslesen ohne Gewichte beziehungsweise
+`RATSI_EMBEDDING_LIVE_DOWNLOAD=1` fuer den kompletten Modelldownload samt
+Manifestvalidierung und Offline-Wiederverwendung. Der Smoke-Test ist keine
+Bereitschaftsabnahme. Die Tests laufen anonym in isolierten Kindprozessen;
+Modellstamm, Logs, Tokenpfad und Hub-/Xet-Caches liegen im temporaeren
+Testverzeichnis. Die konkreten Aufrufe und der Speicherhinweis stehen im README.
+Ohne Opt-in bleiben auch explizit ausgewaehlte Live-Tests uebersprungen.
+
+Die verwendete Download-API fuer feste Revisionen und Artefaktauswahl ist in der
+[offiziellen Hugging-Face-Anleitung](https://huggingface.co/docs/huggingface_hub/guides/download)
+beschrieben.
+
+### Abschlusspruefung Phase 3 (M3.9)
+
+Der Gesamtdiff gegen `codex/feature/embedding-model-management` wurde statisch
+mit den Anforderungen aus M3.1 bis M3.8, der gemeinsamen Manifest-/Status-API
+und den vorhandenen Tests abgeglichen:
+
+- Offlinepruefung bleibt lesend und ohne Hub-Import oder Secret-Abfrage;
+  CLI-Modi, JSON-Felder und Exitcodes stimmen mit der Dokumentation ueberein.
+- Downloadziele, volle Commit-SHAs und Artefaktlisten stammen ausschliesslich
+  aus dem zentralen Vertrag; gemeinsame Harrier-/Tokenizer-Snapshots werden
+  zusammengefasst.
+- Kandidaten werden vollstaendig und tief geprueft. Erst der atomare Wechsel
+  des aktiven Manifests gibt einen Bestand frei; alte Bestaende bleiben erhalten.
+- Wiederverwendung verlangt gepruefte Artefakte und passende Bibliotheksversionen;
+  eine Teilwiederaufnahme vertraut nur erneut geprueften Snapshot-Bestaetigungen.
+- Fehlerdiagnosen uebernehmen keine rohen Anbietertexte. Tokenprioritaet,
+  anonymer Download und Wiederherstellung des Ausgabezustands sind abgesichert.
+- Fake-Hub- und Live-Tests bleiben getrennt; echte Downloads benoetigen Opt-in
+  und verwenden isolierte temporaere Laufzeitpfade.
+- README, Testaufrufe, direkte Hub-Abhaengigkeit und `VERSION` sind konsistent.
+  Veraltete Aussagen zu SDK-Fortschrittsausgaben wurden berichtigt.
+
+Die bereits dokumentierten gezielten Testlaeufe werden als Nachweis verwendet.
+Diane hat die regulaere pytest-Ausfuehrung als abgeschlossen bestaetigt; fuer
+M3.9 wurde sie auf Wunsch nicht wiederholt. Ein neues detailliertes
+Windows-Ergebnisprotokoll wurde hier nicht uebermittelt. Live-Downloads wurden
+auch fuer die Abschlusspruefung nicht ausgefuehrt.
+
+Diese Abnahme betrifft ausschliesslich Phase 3, nicht die Gesamtabnahme aus
+Phase 7. Verbraucherumstellung und globale Offlinegarantie folgen in Phase 4;
+die Sperre gegen kollidierende Vorbereitungsjobs folgt in M6.9. Es sind fuer
+M3.9 keine weiteren Laufzeitcode-Aenderungen erforderlich. `VERSION` bleibt
+fuer diesen Doku-/Abschlusscommit bewusst bei `0.5.15`.
 
 Eine spaetere Option `--check-updates` darf online ueber neuere Revisionen
 informieren. Sie veraendert weder Modellkonfiguration noch lokalen Bestand und
@@ -590,22 +828,22 @@ bleiben unabgehakt und werden dort beschrieben.
 
 ### Phase 3: Vorbereitungsskript
 
-- [ ] **M3.1** `scripts/prepare_embedding_models.py --check` auf die gemeinsame
+- [x] **M3.1** `scripts/prepare_embedding_models.py --check` auf die gemeinsame
   lokale Prueflogik aufsetzen.
-- [ ] **M3.2** `--check --deep` mit eindeutiger, maschinenlesbarer und
+- [x] **M3.2** `--check --deep` mit eindeutiger, maschinenlesbarer und
   menschenlesbarer Ausgabe ergaenzen.
-- [ ] **M3.3** `--download` fuer ausschliesslich fest konfigurierte Revisionen
+- [x] **M3.3** `--download` fuer ausschliesslich fest konfigurierte Revisionen
   implementieren.
-- [ ] **M3.4** Download in ein temporaeres Ziel, Vollstaendigkeitspruefung und
+- [x] **M3.4** Download in ein temporaeres Ziel, Vollstaendigkeitspruefung und
   atomare Freigabe unter `data/models/` implementieren.
-- [ ] **M3.5** Wiederaufnahme beziehungsweise sichere Wiederverwendung bereits
+- [x] **M3.5** Wiederaufnahme beziehungsweise sichere Wiederverwendung bereits
   vollstaendiger Artefakte festlegen.
-- [ ] **M3.6** Erwartbare Fehler fuer Netz, Speicherplatz und unvollstaendige
+- [x] **M3.6** Erwartbare Fehler fuer Netz, Speicherplatz und unvollstaendige
   Artefakte ohne langen CLI-Traceback behandeln.
-- [ ] **M3.7** Tokenweitergabe und Log-Redaktion mit Tests absichern.
-- [ ] **M3.8** Downloadtests ohne echten Hub sowie getrennte, markierte Live-Tests
+- [x] **M3.7** Tokenweitergabe und Log-Redaktion mit Tests absichern.
+- [x] **M3.8** Downloadtests ohne echten Hub sowie getrennte, markierte Live-Tests
   fuer den realen Anbieter ergaenzen.
-- [ ] **M3.9** Phase 3 pruefen und als eigenen Zwischenstand committen.
+- [x] **M3.9** Phase 3 pruefen und als eigenen Zwischenstand committen.
 
 ### Phase 4: Verbraucher strikt lokal umstellen
 
@@ -690,10 +928,59 @@ bleiben unabgehakt und werden dort beschrieben.
 
 ## Aktuelle Uebergabe
 
-- Letzter abgeschlossener Punkt: **M2.7**; Phase 2 wurde im Gesamtdiff geprueft.
-  Die betroffenen Tests liefen mit 37 bestandenen Faellen; die vollstaendige
-  Testsuite wurde gemaess Arbeitsauftrag nicht ausgefuehrt.
-- Naechster regulaerer Punkt: **M3.1**.
+- Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-
+  und Testabdeckung, CLI-/Manifestvertrag, Dokumentation und Versionsstand
+  geprueft. Zwei veraltete Fortschrittsaussagen berichtigt; keine erneuten Tests
+  oder Live-Downloads ausgefuehrt. Die Phase wird als eigener Zwischenstand
+  committed; Phase 4 und die spaetere Gesamtabnahme bleiben offen.
+  M3.8: Fake-Hub-Subprozess-Integrationstests
+  sowie getrennte, doppelt freizugebende Live-Tests sind ergaenzt. Es wurden
+  nur betroffene Tests ausgefuehrt, keine vollstaendige Testsuite und keine
+  echten Anbieter-Downloads: Die vier Vorbereitungstestmodule liefern
+  **107 bestanden, 2 Live-Tests abgewaehlt**. Bei expliziter Live-Auswahl ohne
+  Opt-in werden beide Tests korrekt uebersprungen; beide sind separat sammelbar.
+  `VERSION` bleibt fuer diesen Test-/Dokuschritt
+  bewusst bei `0.5.15`.
+  M3.7: Tokenprioritaet, anonymer Download,
+  unveraenderte Token-Umgebung und unterdrueckte SDK-Ausgaben sind abgesichert.
+  Tests decken Erfolg, Fehler, JSON-/Textausgabe, DEBUG-Logs, kodierte und
+  verteilte Zugangsdaten sowie Offline-Wiederverwendung und Abbruch ab.
+  Beide betroffenen Vorbereitungstestmodule bestehen mit 105 Tests.
+  M3.6: Erwartbare Netzwerk-, Speicher-,
+  Zugriffs- und Artefaktfehler liefern kurze Meldungen und stabile JSON-Fehlercodes.
+  Das gemeinsame Komponentenlog erfasst sichere technische Diagnosefelder ohne
+  rohe Ausnahmetexte oder Anbieter-Logs. Fehler beim Logzugriff werden ebenfalls
+  ohne Traceback behandelt. Die gezielten Tests verwenden einen Fake-Hub und
+  gesperrtes Netzwerk. Der Lauf
+  `python -m pytest tests/test_embedding_model_preparation.py tests/test_prepare_embedding_models.py -q`
+  ist mit 84 Faellen bestanden; der Log-Schreibfehler wurde zusaetzlich gezielt
+  mit simuliertem ENOSPC geprueft. Keine vollstaendige Testsuite und kein echter
+  Modell-Download wurden ausgefuehrt.
+- Naechster regulaerer Punkt: **M4.1**; Harrier-Embedder und Tokenizer auf
+  vorbereitete lokale Pfade und feste Revisionen umstellen.
+- PR-Review-Nachtrag nach M3.9: Zwei bestehende Fehlerhandler erfassen jetzt
+  auch `RuntimeError` von der Pfadaufloesung. Regressionstests pruefen die
+  sichere JSON-/Textausgabe, unveraenderte aktive Artefakte und ausbleibende
+  Hub-Aufrufe. Die Python-Mindestversion bleibt unveraendert; `VERSION` ist
+  fuer diesen sichtbaren Fehlerfix bewusst auf `0.5.16` angehoben.
+  Die gezielten Regressionstests samt bestehender Symlink-/Fehlerdiagnosetests
+  bestehen mit 14 Faellen; keine vollstaendige Suite und keine Live-Downloads.
+- Nachtrag zur von Diane ausgefuehrten regulaeren Windows-Suite: 580 Tests
+  bestanden, 3 uebersprungen und 7 abgewaehlt; zwei Archiv-Hook-Tests scheiterten
+  wegen CRLF/LF-Konvertierung in temporaeren Test-Repositories. Die Testhilfe
+  setzt dort jetzt lokal `core.autocrlf=false`, ohne globale oder Projekt-Git-
+  Einstellungen zu aendern. Beide Faelle werden mit LF/CRLF und den globalen
+  Einstellungen `false`, `true` und `input` abgesichert. Die strikte Bytepruefung
+  des produktiven Archiv-Hooks bleibt unveraendert. Das betroffene Hook-Testmodul
+  besteht mit 27 Tests unter WSL und erneut mit 27 Tests bei simulierter
+  Windows-CRLF-Schreibweise. Reiner Testfix, daher bleibt
+  `VERSION` bei `0.5.15`. Diane hat die pytest-Ausfuehrung inzwischen als
+  abgeschlossen bestaetigt; ein neues Ergebnisprotokoll mit aktualisierten
+  Zahlen wurde hier nicht uebermittelt. Fuer M3.9 erfolgt keine Wiederholung.
+- Phase-3-Branch: `codex/feature/embedding-model-management-phase-3`, abgezweigt
+  vom Feature-Branch nach dem Phase-2-Merge. Jeder Umsetzungsschritt erhaelt
+  einen eigenen Commit. `VERSION` wurde fuer die SDK-Ausgabesicherung auf `0.5.15`
+  angehoben.
 - Aktiver Implementierungsstand: Zentraler Modell- und Versionsvertrag,
   Kernartefakt-Allowlists, Manifestschema, kanonische Serialisierung, Hashbildung
   und Eingabevalidierung sind implementiert. Der lokale Modellstamm ist in den
@@ -711,7 +998,10 @@ bleiben unabgehakt und werden dort beschrieben.
   `codex/feature/embedding-model-management-phase-2`, einem Unterbranch von
   `codex/feature/embedding-model-management`; beide zweigen nach dem Phase-1-Merge
   von `main` ab.
-- Letzte zugehoerige Commits: `469c699`, `19fc3bd`, `e21804c`, `550fc9c`,
-  `1739a53` und `faf04c8` fuer M2.1 bis M2.6; M2.7 ist der Phase-2-
-  Abschlusscommit.
+- Letzte zugehoerige Commits: `9747dda` fuer M3.1, `08abf5b` fuer M3.2,
+  `723dcbe` fuer M3.3, `037ca53` fuer M3.4, `5bb21af` fuer M3.5 und `fd25bce`
+  fuer M3.6, `f76892a` fuer M3.7 und `c76a23a` fuer M3.8; `a7ec74c` korrigiert
+  die Windows-Hook-Testfixtures; `d4dc1f0` schliesst M3.9 ab.
+  Phase 2 ist in den
+  uebergeordneten Feature-Branch gemergt.
 - Offene Blocker oder Entscheidungen: keine.

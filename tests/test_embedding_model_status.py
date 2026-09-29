@@ -3,10 +3,13 @@
 from dataclasses import replace
 import json
 from pathlib import Path
+import shutil
 import socket
 import urllib.request
 
 import pytest
+
+from scripts import prepare_embedding_models as cli
 
 from src.config.embedding_model_manifest import (
     EmbeddingModelManifest,
@@ -82,6 +85,25 @@ def test_local_inventory_check_accepts_complete_manifest_without_network(tmp_pat
     actual = load_and_validate_model_inventory(tmp_path)
 
     assert actual == expected
+
+
+@pytest.mark.parametrize("deep", [False, True])
+def test_check_json_reports_component_symlink_loop(tmp_path, monkeypatch, capsys, deep):
+    _write_inventory(tmp_path)
+    model_root = tmp_path / "dense_model/snapshot"
+    shutil.rmtree(model_root)
+    try:
+        model_root.symlink_to("snapshot", target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("Directory symlinks are unavailable on this platform")
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
+
+    assert cli.main(["--check", "--json"] + (["--deep"] if deep else [])) == 1
+    output = capsys.readouterr()
+    payload = json.loads(output.out)
+    assert payload["status"] == "unvollstaendig"
+    assert payload["check_level"] == ("deep" if deep else "fast")
+    assert not output.err
 
 
 def test_fast_inventory_check_skips_hashes_but_deep_check_verifies_them(tmp_path):

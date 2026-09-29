@@ -137,6 +137,84 @@ Sie ist danach standardmäßig unter `http://127.0.0.1:8000/` erreichbar. Detail
 
 Landkreis-Veröffentlichungen aus Bekanntmachungen und Amtsblättern werden bewusst getrennt vom SessionNet-Index verarbeitet. Rohdateien liegen standardmaessig unter `data/raw/landkreis/`; alternativ kann ein externer Speicherort per `RATSI_LANDKREIS_DATA_DIR` oder `--data-dir` gesetzt werden. Die interne Ordnerstruktur bleibt dabei gleich, und die SQLite-DB speichert relative Pfade innerhalb dieser Landkreis-Datenwurzel.
 
+### Lokalen Embedding-Modellbestand pruefen
+
+`python scripts/prepare_embedding_models.py --check` prueft den lokalen Bestand
+ohne Netzwerkzugriff; `--check --deep` prueft zusaetzlich die Artefakt-SHA-256-Werte.
+Mit `--json` gibt jeder Pruefmodus ein einzelnes JSON-Objekt mit `status`,
+`message`, `manifest_sha256` und `check_level` (`fast` oder `deep`) aus.
+Der Modellstamm ist `data/models/`; `RATSI_MODELS_DIR`
+ueberschreibt ihn. Exitcode `0` bedeutet `bereit`, `1` einen fehlenden,
+unvollstaendigen oder inkompatiblen Bestand und `2` einen Aufruf- oder
+Konfigurationsfehler.
+
+`python scripts/prepare_embedding_models.py --download` laedt ausschliesslich die
+fest konfigurierten Revisionen und Kernartefakte in einen eigenen Ordner unter
+`data/models/.preparation/` beziehungsweise dem konfigurierten Modellstamm.
+Harrier und Tokenizer teilen sich dabei ihren gepinnten Snapshot. Nach der
+Vollstaendigkeits- und SHA-256-Pruefung entsteht ein Manifest mit Revisionen,
+Artefaktgroessen, Pruefsummen und Bibliotheksversionen. Der gepruefte Bestand liegt
+unter `inventories/<Bestands-Hash>/`; erst der atomare Austausch von `manifest.json`
+gibt ihn frei. Bisherige Modelldateien bleiben erhalten. Bei Abbruch bleibt der
+vorherige Bestand aktiv; ohne vorheriges Manifest bleibt der Status `fehlt`.
+Exitcode `0` bedeutet jetzt auch bei `--download` einen bereiten Bestand.
+`--download --json` liefert `operation`, `status`, `message`, `inventory_dir` und
+`manifest_sha256`; rohe SDK-Fortschrittsausgaben werden unterdrueckt. Kandidaten
+und alte Bestaende werden nicht automatisch geloescht. Ein tiefengepruefter aktiver Bestand
+mit passenden Bibliotheksversionen wird ohne Hub-Zugriff oder Manifestwechsel
+wiederverwendet. Gepruefte, noch nicht aktivierte Bestaende werden ohne Download
+freigegeben. Abgebrochene Vorbereitungen werden nur bei exakt passendem
+Downloadplan fortgesetzt: bestaetigte Snapshots werden nach erneuter SHA-256-Pruefung
+uebernommen; unbestaetigte oder beschaedigte Snapshots werden vollstaendig neu
+geladen. `reused` in der Download-JSON-Ausgabe kennzeichnet die Wiederverwendung
+eines bereits vollstaendig geprueften Bestands.
+
+Erwartbare Vorbereitungsfehler enden mit einer kurzen Meldung und Exitcode `1`,
+ohne Traceback. `--download --json` ergaenzt `error_code`, unter anderem
+`network_unavailable`, `disk_full`, `permission_denied` oder `incomplete_artifacts`.
+Sichere Diagnosefelder stehen in `logs/embedding_model_preparation.log`;
+`RATSI_LOG_DIR` ueberschreibt das Logverzeichnis. `--log-level` hat Vorrang vor
+`RATSI_LOG_LEVEL`, sonst gilt `INFO`. `--check` legt weiterhin keine Logs an.
+Auch Pfadaufloesungsfehler, etwa Symlink-Schleifen unter Python 3.11/3.12,
+liefern beim Download die kurze Fehlermeldung beziehungsweise das JSON-Fehlerschema.
+`--check` und `--download` sind gegenseitig ausgeschlossen; `--deep` ist nur bei
+`--check` erlaubt. Ein optionaler Hugging-Face-Token stammt aus der vorhandenen
+Secret-Verwaltung (Keyring vor `HF_TOKEN` vor `HUGGING_FACE_HUB_TOKEN`). Ohne Token
+wird explizit anonym geladen, ohne Zugangsdaten aus dem Hub-Cache zu verwenden.
+Tokens werden nur als API-Argument weitergegeben; die Token-Umgebung bleibt
+unveraendert. Rohe Python-Ausgaben und Logs des SDK werden waehrend des Downloads
+unterdrueckt, auch bei `DEBUG`; sichere Start-/Endereignisse stehen im Komponentenlog.
+`huggingface-hub>=1.0,<2.0` ist jetzt eine direkte Abhaengigkeit.
+Details stehen in [docs/embedding_model_management.md](docs/embedding_model_management.md).
+
+Die Vorbereitung laesst sich getrennt und ohne echten Hub testen:
+
+```bash
+python -m pytest tests/test_embedding_model_preparation.py tests/test_prepare_embedding_models.py tests/test_embedding_model_preparation_integration.py -m "not live" -q
+```
+
+Live-Tests benoetigen Internet und `huggingface-hub`, bleiben standardmaessig
+ausgeschlossen und erfordern zusaetzlich eine ausdrueckliche Freigabe (Bash):
+
+```bash
+# Nur gepinnte Hub-Metadaten und kleine config.json-Dateien; keine Gewichte
+RATSI_EMBEDDING_LIVE_SMOKE=1 python -m pytest tests/test_embedding_model_preparation_live.py -o addopts='' -m live -k small_config -q
+
+# Vollstaendiger Modelldownload: Speicherplatz im GB-Bereich und laengere Laufzeit
+RATSI_EMBEDDING_LIVE_DOWNLOAD=1 python -m pytest tests/test_embedding_model_preparation_live.py -o addopts='' -m live -k full_download -q
+```
+
+Diese Tests arbeiten anonym, ohne den OS-Schluesselring oder bestehende Hub-Tokens
+zu lesen. Modelle, Hub-/Xet-Caches und Logs liegen ausschliesslich im temporaeren
+Testverzeichnis; der Projektbestand bleibt unberuehrt. Der Smoke-Test bestaetigt
+keine Modellbereitschaft. Der Volltest prueft Download, Manifest, Tiefenpruefung
+und anschliessende Wiederverwendung bei gesperrtem Netzwerk.
+
+Dieser Zwischenstand schliesst Phase 3 (Vorbereitungsskript) ab. Indexierung,
+Evaluation und Suche werden erst in Phase 4 auf den vorbereiteten lokalen
+Bestand umgestellt; die globale Offlinegarantie fuer diese Verbraucher gilt
+daher noch nicht. Schutz gegen kollidierende Vorbereitungsjobs folgt in Phase 6.
+
 ### Landkreis-Veröffentlichungen
 
 Der Landkreis-Import ist als eigenstaendige Datenquelle umgesetzt und veraendert weder `data/db/local_index.sqlite` noch die SessionNet-Rohdaten. Er verarbeitet derzeit:
