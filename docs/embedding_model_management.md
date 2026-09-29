@@ -615,6 +615,15 @@ Der fuer eine Collection freigegebene Indexstand enthaelt mindestens:
 - Vektordimension
 - Pipeline-Version
 
+Seit M5.1 erzeugt `src/config/index_compatibility.py` den unveraenderlichen
+`IndexCompatibility`-Datensatz aus den zentralen Dense-, Sparse- und
+Tokenizer-IDs samt Commit-SHAs, der Vektordimension, der fachlichen
+Pipeline-Version und dem SHA-256-Wert des aktiven Modellmanifests. Die Erzeugung
+setzt eine erfolgreiche gemeinsame lokale Bestandspruefung einschliesslich der
+installierten Bibliotheksversionen voraus. Ungueltige IDs, Revisionen, Hashes,
+Dimensionen und leere Pipeline-Versionen werden abgelehnt. `as_dict()` liefert
+die JSON-faehigen Pflichtfelder fuer die folgenden Freigabemarker und Payloads.
+
 Diese Angaben werden in den bestehenden Freigabe- beziehungsweise Buildmetadaten
 und in den fuer die Nachvollziehbarkeit erforderlichen Punkt-Payloads gefuehrt.
 Die konkrete Speicherung muss fuer lokalen und Serverbetrieb denselben
@@ -863,7 +872,7 @@ bleiben unabgehakt und werden dort beschrieben.
 
 ### Phase 5: Indexkompatibilitaet
 
-- [ ] **M5.1** Kompatibilitaetsdatensatz aus Modell-IDs, Revisionen,
+- [x] **M5.1** Kompatibilitaetsdatensatz aus Modell-IDs, Revisionen,
   Manifest-Hash, Dimension und Pipeline-Version zentral erzeugen.
 - [ ] **M5.2** Lokale und serverbezogene Qdrant-Freigabemetadaten um diesen
   Datensatz erweitern.
@@ -947,8 +956,14 @@ bleiben unabgehakt und werden dort beschrieben.
   echten Modellgewichte heruntergeladen.
   Die praktischen Builds und die Suche mit echten vorbereiteten Modellen bleiben
   Teil der Gesamtabnahme in Phase 7. Allgemeine Version: `0.5.17`.
-- Naechster regulaerer Punkt: **M5.1**; zentralen Kompatibilitaetsdatensatz fuer
-  die Indexfreigabe erzeugen.
+- Phase 5 begonnen auf `codex/feature/embedding-model-management-phase-5`:
+  M5.1 fuehrt den zentralen `IndexCompatibility`-Datensatz ein. Er wird nur aus
+  einem lokal geprueften Modellbestand erzeugt und enthaelt alle neun Pflichtfelder
+  fuer spaetere Qdrant-Freigaben. Zehn gezielte Tests bestehen. Noch keine
+  Freigabemarker, Payloads oder bestehenden Collections wurden veraendert;
+  `VERSION` bleibt fuer diesen internen Baustein bei `0.5.17`.
+- Naechster regulaerer Punkt: **M5.2**; lokale und serverbezogene
+  Qdrant-Freigabemetadaten um den Datensatz erweitern.
 
 - Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-
   und Testabdeckung, CLI-/Manifestvertrag, Dokumentation und Versionsstand
