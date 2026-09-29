@@ -798,6 +798,21 @@ def test_logging_setup_failure_is_reported_without_starting_download(tmp_path, f
     assert not fake_hub[1]
 
 
+def test_invalid_log_directory_expansion_reports_json_error(tmp_path, fake_hub, monkeypatch, capsys):
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
+    monkeypatch.setenv("RATSI_LOG_DIR", "~missing-user/logs")
+
+    assert cli.main(["--download", "--json"]) == 1
+    output = capsys.readouterr()
+    payload = json.loads(output.out)
+    assert payload["operation"] == "download"
+    assert payload["status"] == "fehlgeschlagen"
+    assert payload["error_code"] == "preparation_failed"
+    assert "missing-user" not in output.out + output.err
+    assert "Traceback" not in output.out + output.err
+    assert not fake_hub[1]
+
+
 def test_wrapped_disk_full_is_classified_without_exposing_exception_chain(caplog):
     try:
         try:
