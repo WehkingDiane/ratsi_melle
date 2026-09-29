@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 from hashlib import sha256
+from importlib.metadata import PackageNotFoundError, version
 import json
 from pathlib import Path, PurePosixPath
 
@@ -288,9 +289,19 @@ def prepared_model_path(component: str) -> Path:
     try:
         models_dir = load_embedding_model_settings().models_dir
         manifest = load_and_validate_model_inventory(models_dir)
+        installed = ModelLibraryVersions(
+            transformers=version("transformers"),
+            sentence_transformers=version("sentence-transformers"),
+            fastembed=version("fastembed"),
+            huggingface_hub=version("huggingface-hub"),
+        )
+        if manifest.library_versions != installed:
+            raise ModelInventoryIncompatibleError(
+                "Die installierten Modellbibliotheken entsprechen nicht dem vorbereiteten Bestand."
+            )
         relative_path = getattr(manifest, component).relative_path
         return models_dir.joinpath(*PurePosixPath(relative_path).parts).resolve(strict=True)
-    except (EmbeddingModelSettingsError, ModelInventoryError, OSError, RuntimeError) as error:
+    except (EmbeddingModelSettingsError, ModelInventoryError, PackageNotFoundError, OSError, RuntimeError) as error:
         raise PreparedModelUnavailableError(
             "Lokales Embedding-Modell fehlt, ist unvollstaendig oder inkompatibel. "
             "Vorbereitung: python scripts/prepare_embedding_models.py --download"

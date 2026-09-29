@@ -2,6 +2,7 @@
 
 from dataclasses import replace
 import json
+from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 import shutil
 import socket
@@ -92,9 +93,43 @@ def test_local_inventory_check_accepts_complete_manifest_without_network(tmp_pat
 def test_prepared_harrier_paths_use_verified_pinned_snapshot(tmp_path, monkeypatch):
     _write_inventory(tmp_path)
     monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
+    versions = {
+        "transformers": "5.5.0", "sentence-transformers": "5.4.0",
+        "fastembed": "0.7.0", "huggingface-hub": "1.0.0",
+    }
+    monkeypatch.setattr("src.config.embedding_model_status.version", versions.__getitem__)
 
     assert prepared_model_path("dense_model") == tmp_path / "dense_model/snapshot"
     assert prepared_model_path("tokenizer") == tmp_path / "tokenizer/snapshot"
+
+
+@pytest.mark.parametrize("changed", [
+    "transformers", "sentence-transformers", "fastembed", "huggingface-hub",
+])
+def test_prepared_model_path_rejects_changed_library_version(tmp_path, monkeypatch, changed):
+    _write_inventory(tmp_path)
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
+    versions = {
+        "transformers": "5.5.0", "sentence-transformers": "5.4.0",
+        "fastembed": "0.7.0", "huggingface-hub": "1.0.0",
+    }
+    versions[changed] = "new-version"
+    monkeypatch.setattr("src.config.embedding_model_status.version", versions.__getitem__)
+
+    with pytest.raises(PreparedModelUnavailableError, match="prepare_embedding_models.py --download"):
+        prepared_model_path("dense_model")
+
+
+def test_prepared_model_path_rejects_missing_library(tmp_path, monkeypatch):
+    _write_inventory(tmp_path)
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
+    monkeypatch.setattr(
+        "src.config.embedding_model_status.version",
+        lambda name: (_ for _ in ()).throw(PackageNotFoundError(name)),
+    )
+
+    with pytest.raises(PreparedModelUnavailableError, match="prepare_embedding_models.py --download"):
+        prepared_model_path("dense_model")
 
 
 def test_prepared_harrier_path_rejects_missing_inventory(tmp_path, monkeypatch):
