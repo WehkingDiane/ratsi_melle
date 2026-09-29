@@ -169,7 +169,10 @@ def load_and_validate_model_inventory(
     if manifest.pipeline_version != EMBEDDING_PIPELINE_VERSION:
         raise ModelInventoryIncompatibleError("Das lokale Modellmanifest verwendet einen inkompatiblen Vertrag.")
 
-    root = models_dir.resolve()
+    try:
+        root = models_dir.resolve()
+    except (OSError, RuntimeError) as error:
+        raise ModelInventoryIncompleteError("Der lokale Modellpfad fehlt oder ist ungueltig.") from error
     expected = (
         ("dense_model", HARRIER_MODEL.model_id, HARRIER_MODEL.revision,
          HARRIER_MODEL.required_artifacts, HARRIER_MODEL.expected_absent_artifacts),
@@ -197,7 +200,7 @@ def load_and_validate_model_inventory(
             )
             model_root = (root / Path(*PurePosixPath(relative_model_path).parts)).resolve(strict=True)
             model_root.relative_to(root)
-        except (OSError, ValueError) as error:
+        except (OSError, ValueError, RuntimeError) as error:
             raise ModelInventoryIncompleteError(
                 f"Der lokale Modellpfad fuer {name} fehlt oder ist ungueltig."
             ) from error
@@ -216,7 +219,7 @@ def load_and_validate_model_inventory(
                 if artifact_path.is_symlink() or not resolved_artifact.is_file():
                     raise OSError("not a regular local file")
                 actual_size = resolved_artifact.stat().st_size
-            except (OSError, ValueError) as error:
+            except (OSError, ValueError, RuntimeError) as error:
                 raise ModelInventoryIncompleteError(
                     f"Ein Pflichtartefakt fuer {name} fehlt oder liegt ausserhalb des Modellpfads."
                 ) from error
