@@ -98,7 +98,7 @@ def main(argv: list[str] | None = None) -> int:
                 if getattr(handler, "_ratsi_handler", False):
                     handler.addFilter(logging.Filter("embedding_model_preparation"))
                     handler.handleError = _ignore_log_write_failure
-        except OSError as error:
+        except (OSError, RuntimeError) as error:
             failure = preparation_error(error, phase="logging")
             _print_download_error(str(failure), json_output=args.json, error_code=failure.error_code)
             return 1
