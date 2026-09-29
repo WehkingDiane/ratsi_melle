@@ -36,6 +36,7 @@ def test_current_compatibility_uses_validated_inventory_and_canonical_models(tmp
         "vector_dimension": HARRIER_MODEL.vector_dimension,
         "pipeline_version": "passages-1",
     }
+    assert IndexCompatibility.from_dict(record.as_dict()) == record
     with pytest.raises(FrozenInstanceError):
         record.pipeline_version = "changed"
 
@@ -78,3 +79,26 @@ def test_compatibility_rejects_invalid_fields(field, value):
 
     with pytest.raises(ValueError):
         replace(valid, **{field: value})
+
+
+@pytest.mark.parametrize("change", [
+    lambda data: data.pop("sparse_revision"),
+    lambda data: data.update(extra="unexpected"),
+])
+def test_stored_compatibility_rejects_wrong_schema(change):
+    record = IndexCompatibility(
+        dense_model_id=HARRIER_MODEL.model_id,
+        dense_revision=HARRIER_MODEL.revision,
+        sparse_model_id=BM25_MODEL.model_id,
+        sparse_revision=BM25_MODEL.revision,
+        tokenizer_model_id=HARRIER_TOKENIZER.model_id,
+        tokenizer_revision=HARRIER_TOKENIZER.revision,
+        manifest_sha256="a" * 64,
+        vector_dimension=1024,
+        pipeline_version="passages-1",
+    )
+    data = record.as_dict()
+    change(data)
+
+    with pytest.raises(ValueError, match="fields do not match"):
+        IndexCompatibility.from_dict(data)

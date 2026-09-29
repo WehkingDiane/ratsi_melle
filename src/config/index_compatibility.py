@@ -39,7 +39,9 @@ class IndexCompatibility:
             validate_model_id(model_id)
         for revision in (self.dense_revision, self.sparse_revision, self.tokenizer_revision):
             validate_commit_sha(revision)
-        if len(self.manifest_sha256) != 64 or any(c not in "0123456789abcdef" for c in self.manifest_sha256):
+        if (not isinstance(self.manifest_sha256, str)
+                or len(self.manifest_sha256) != 64
+                or any(c not in "0123456789abcdef" for c in self.manifest_sha256)):
             raise ValueError("Manifest hash must be a lowercase SHA-256 digest")
         if type(self.vector_dimension) is not int or self.vector_dimension < 1:
             raise ValueError("Vector dimension must be a positive integer")
@@ -50,6 +52,14 @@ class IndexCompatibility:
         """Return the exact JSON-compatible compatibility fields."""
 
         return asdict(self)
+
+    @classmethod
+    def from_dict(cls, payload: object) -> IndexCompatibility:
+        """Parse a stored record, rejecting missing or unknown fields."""
+
+        if not isinstance(payload, dict) or set(payload) != set(cls.__dataclass_fields__):
+            raise ValueError("Index compatibility fields do not match the schema")
+        return cls(**payload)
 
 
 def current_index_compatibility(models_dir: Path | None = None, *, deep: bool = False) -> IndexCompatibility:

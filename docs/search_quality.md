@@ -142,7 +142,11 @@ Vor jedem Passage-Build wird dessen Freigabe zurückgenommen. Erst ein fehlerfre
 Lauf mit vollständigen, bestätigten Generationen aller aktuellen Dokumente und
 ohne ausstehende Änderungen schreibt den Marker atomar. Auch `--limit` prüft die
 Fingerprints aller Dokumente; die Grenze beschränkt nur die neu aufgebauten
-Dokumente. Der Servermarker enthält nur den SHA-256-Hash der URL und die exakte Punktzahl.
+Dokumente. Der Servermarker enthält den SHA-256-Hash der URL, die exakte Punktzahl,
+den Collection-Namen und den vollstaendigen Kompatibilitaetsdatensatz aus
+Modell-IDs und Revisionen, Manifest-Hash, Vektordimension und Pipeline-Version.
+Der lokale Marker enthaelt denselben Kompatibilitaetsdatensatz und
+Collection-Namen.
 Bisherige Marker mit Klartext-URL werden nicht mehr akzeptiert; ein vollständiger
 Passage-Build schreibt einen neuen Marker. Die
 Suche prüft, dass Punktzahl und Anzahl der `committed`-Punkte dazu passen.

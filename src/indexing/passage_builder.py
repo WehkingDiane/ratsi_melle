@@ -18,6 +18,7 @@ from src.indexing.vectorizer import HybridVectorizer
 from src.paths import LOCAL_INDEX_DB, QDRANT_DIR
 from src.config.embedding_model_status import prepared_model_path
 from src.config.embedding_models import HARRIER_TOKENIZER
+from src.config.index_compatibility import current_index_compatibility
 
 
 LOGGER = logging.getLogger(__name__)
@@ -149,6 +150,7 @@ def main(argv=None):
     store = DocumentVectorStore(args.qdrant_dir, collection_name=COLLECTION)
     try:
         store.ensure_collection()
+        compatibility = current_index_compatibility()
         store.connection.clear_readiness()
         tokenizer = _load_tokenizer()
         result = build_passage_index(
@@ -167,7 +169,9 @@ def main(argv=None):
         complete = {parent for (parent, _), chunks in generations.items()
                     if len(chunks) == chunks[0].get("chunk_count") and all(c.get("committed") for c in chunks)}
         if expected and expected <= complete and not result["failures"] and not result["pending_documents"]:
-            store.connection.write_readiness(store._get_client(), {"pipeline_version": PIPELINE_VERSION, "model": MODEL})
+            store.connection.write_readiness(
+                store._get_client(), {}, compatibility=compatibility,
+            )
         result["ready"] = store.connection.passages_ready(store._get_client())
         print(json.dumps(result, ensure_ascii=False))
         if result["failures"]:

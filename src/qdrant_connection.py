@@ -5,15 +5,21 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from hashlib import sha256
 import json
+import os
 from pathlib import Path
 from urllib.parse import urlsplit
+from uuid import uuid4
 
 from src import paths
+from src.config.index_compatibility import IndexCompatibility
 from src.config.settings import load_qdrant_settings
 
 
 class QdrantServerUnavailableError(RuntimeError):
     """Raised when the configured remote Qdrant server cannot be reached."""
+
+
+_INDEX_COLLECTIONS = frozenset({"ratsi_passages", "ratsi_documents", "landkreis_publications"})
 
 
 @dataclass(frozen=True)
@@ -40,9 +46,27 @@ class QdrantConnection:
 
     @property
     def ready_path(self) -> Path:
-        """Keep server readiness separate from the old embedded database."""
+        """Return the historical passage marker path."""
+        return self.release_path("ratsi_passages")
+
+    def release_path(self, collection: str) -> Path:
+        """Keep each collection's local or URL-scoped release marker separate."""
+        if collection not in _INDEX_COLLECTIONS:
+            raise ValueError("Unknown index collection")
         directory = self.state_dir / sha256(self.url.encode()).hexdigest() if self.url else self.path
-        return directory / "ratsi_passages.ready.json"
+        return directory / f"{collection}.ready.json"
+
+    def read_index_compatibility(self, collection: str) -> IndexCompatibility | None:
+        """Read a marker's validated model contract without changing the store."""
+        try:
+            marker = json.loads(self.release_path(collection).read_text(encoding="utf-8"))
+            if not isinstance(marker, dict) or marker.get("collection") != collection:
+                return None
+            if self.url and marker.get("url_sha256") != sha256(self.url.encode()).hexdigest():
+                return None
+            return IndexCompatibility.from_dict(marker.get("compatibility"))
+        except (OSError, UnicodeError, ValueError, TypeError):
+            return None
 
     def create_client(self):
         """Open only the selected backend; never fall back after server errors."""
@@ -83,21 +107,31 @@ class QdrantConnection:
         ])).count
         return total == committed == marker["points_count"]
 
-    def clear_readiness(self) -> None:
+    def clear_readiness(self, collection: str = "ratsi_passages") -> None:
         """Revoke activation before a build changes the collection."""
-        self.ready_path.unlink(missing_ok=True)
+        self.release_path(collection).unlink(missing_ok=True)
 
-    def write_readiness(self, client, metadata: dict) -> None:
+    def write_readiness(self, client, metadata: dict, *,
+                        collection: str = "ratsi_passages",
+                        compatibility: IndexCompatibility | None = None) -> None:
         """Atomically record the completed build for the selected backend."""
+        path = self.release_path(collection)
         marker = dict(metadata)
+        if compatibility is not None:
+            marker.update(collection=collection, compatibility=compatibility.as_dict())
         if self.url:
             marker.update(url_sha256=sha256(self.url.encode()).hexdigest(),
-                          points_count=client.count("ratsi_passages", exact=True).count)
-        path = self.ready_path
+                          points_count=client.count(collection, exact=True).count)
         path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = path.with_suffix(".tmp")
-        temporary.write_text(json.dumps(marker), encoding="utf-8")
-        temporary.replace(path)
+        temporary = path.with_name(f".{path.name}.{uuid4().hex}.tmp")
+        try:
+            with temporary.open("w", encoding="utf-8") as stream:
+                json.dump(marker, stream, sort_keys=True, separators=(",", ":"))
+                stream.flush()
+                os.fsync(stream.fileno())
+            temporary.replace(path)
+        finally:
+            temporary.unlink(missing_ok=True)
 
 
 def collection_state(connection: QdrantConnection, client, collection: str = "ratsi_documents", *, prefer_passages: bool = True) -> dict:

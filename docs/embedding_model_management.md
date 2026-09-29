@@ -627,7 +627,18 @@ die JSON-faehigen Pflichtfelder fuer die folgenden Freigabemarker und Payloads.
 Diese Angaben werden in den bestehenden Freigabe- beziehungsweise Buildmetadaten
 und in den fuer die Nachvollziehbarkeit erforderlichen Punkt-Payloads gefuehrt.
 Die konkrete Speicherung muss fuer lokalen und Serverbetrieb denselben
-Kompatibilitaetsvertrag liefern.
+Kompatibilitaetsvertrag liefern. M5.2 ergaenzt dafuer die gemeinsame
+`QdrantConnection`-Marker-API: Pro Collection (`ratsi_passages`,
+`ratsi_documents`, `landkreis_publications`) gibt es einen eigenen
+`<Collection>.ready.json`-Pfad. Lokal liegt er im Qdrant-Verzeichnis, im
+Serverbetrieb unter der SHA-256-adressierten URL-Statuswurzel. Neue
+Passage-Freigaben speichern den vollstaendigen Datensatz als `compatibility`
+zusammen mit dem Collection-Namen. Servermarker behalten ausserdem URL-Hash
+und exakte Punktzahl. Der Leser validiert Collection, URL-Bindung und alle
+Kompatibilitaetsfelder; alte Marker ohne Datensatz liefern keinen
+Kompatibilitaetsnachweis. Die Aufnahme neuer Freigabeschreibvorgaenge fuer
+`ratsi_documents` und `landkreis_publications` folgt mit der Build-Sperre in
+M5.7; alte Collections werden hier nicht nachtraeglich als kompatibel markiert.
 
 Vor dem ersten Schreibzugriff vergleicht ein Builder den vorhandenen Indexstand
 mit der aktiven Modellkonfiguration. Bei einer Abweichung darf er die Collection
@@ -874,7 +885,7 @@ bleiben unabgehakt und werden dort beschrieben.
 
 - [x] **M5.1** Kompatibilitaetsdatensatz aus Modell-IDs, Revisionen,
   Manifest-Hash, Dimension und Pipeline-Version zentral erzeugen.
-- [ ] **M5.2** Lokale und serverbezogene Qdrant-Freigabemetadaten um diesen
+- [x] **M5.2** Lokale und serverbezogene Qdrant-Freigabemetadaten um diesen
   Datensatz erweitern.
 - [ ] **M5.3** Erforderliche Modell- und Pipelineangaben in Punkt-Payloads fuer
   Ratsinfo- und Landkreis-Collections konsistent hinterlegen.
@@ -962,8 +973,16 @@ bleiben unabgehakt und werden dort beschrieben.
   fuer spaetere Qdrant-Freigaben. Zehn gezielte Tests bestehen. Noch keine
   Freigabemarker, Payloads oder bestehenden Collections wurden veraendert;
   `VERSION` bleibt fuer diesen internen Baustein bei `0.5.17`.
-- Naechster regulaerer Punkt: **M5.2**; lokale und serverbezogene
-  Qdrant-Freigabemetadaten um den Datensatz erweitern.
+- M5.2 erweitert die lokale und URL-bezogene Marker-API fuer alle drei
+  Collections. Neue Passage-Freigaben enthalten den geprueften
+  Kompatibilitaetsdatensatz; Marker werden atomar geschrieben und beim Lesen
+  an Collection und Serverziel gebunden. Die gezielten Qdrant- und
+  Kompatibilitaetstests bestehen mit 49 Tests; ein breiterer Lauf wurde
+  nach 73 bestandenen Tests wegen eines langsam laufenden Folgetests abgebrochen. Die Legacy- und Landkreis-Builder erhalten
+  ihren Freigabeschreibvorgang erst mit M5.7, damit vorhandene Daten nicht
+  ungeprueft gestempelt werden. Allgemeine Version: `0.5.18`.
+- Naechster regulaerer Punkt: **M5.3**; erforderliche Modell- und
+  Pipelineangaben in Ratsinfo- und Landkreis-Punkt-Payloads hinterlegen.
 
 - Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-
   und Testabdeckung, CLI-/Manifestvertrag, Dokumentation und Versionsstand
