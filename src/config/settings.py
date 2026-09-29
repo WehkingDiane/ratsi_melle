@@ -10,9 +10,6 @@ from urllib.parse import urlsplit
 from src import paths
 
 
-# False = der Indexer verwendet ausschließlich bereits lokal vorhandene Modelle.
-# True  = fehlende Modelle dürfen beim Indexieren heruntergeladen werden.
-INDEXER_ALLOW_MODEL_DOWNLOADS = False
 DEFAULT_QDRANT_URL = "http://127.0.0.1:6333"
 
 

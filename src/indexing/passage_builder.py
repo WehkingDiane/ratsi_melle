@@ -16,10 +16,20 @@ from src.indexing.payload_builder import build_document_payload
 from src.indexing.passages import COLLECTION, MODEL, PIPELINE_VERSION, chunk_pages, extract_pages, file_digest
 from src.indexing.vectorizer import HybridVectorizer
 from src.paths import LOCAL_INDEX_DB, QDRANT_DIR
-from src.config.settings import INDEXER_ALLOW_MODEL_DOWNLOADS
+from src.config.embedding_model_status import prepared_model_path
+from src.config.embedding_models import HARRIER_TOKENIZER
 
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _load_tokenizer():
+    """Load the pinned Harrier tokenizer from its prepared local snapshot."""
+
+    tokenizer_path = prepared_model_path("tokenizer")
+    from transformers import AutoTokenizer
+
+    return AutoTokenizer.from_pretrained(str(tokenizer_path), local_files_only=True)
 
 
 def build_passage_index(documents, store, tokenizer, vectorizer_factory, *, limit=None,
@@ -49,7 +59,7 @@ def build_passage_index(documents, store, tokenizer, vectorizer_factory, *, limi
                 "source": source_hash, "metadata": metadata, "model": MODEL,
                 "pipeline": PIPELINE_VERSION, "tokens": tokens, "overlap": overlap,
                 "ocr": use_ocr, "ocr_tools": [shutil.which("pdftoppm"), shutil.which("tesseract")],
-                "tokenizer_revision": getattr(tokenizer, "init_kwargs", {}).get("_commit_hash"),
+                "tokenizer_revision": HARRIER_TOKENIZER.revision,
             }, sort_keys=True).encode()).hexdigest()
             old = groups.get(parent, {})
             generations = {}
@@ -140,12 +150,7 @@ def main(argv=None):
     try:
         store.ensure_collection()
         store.connection.clear_readiness()
-        from transformers import AutoTokenizer
-
-        tokenizer = AutoTokenizer.from_pretrained(
-            MODEL,
-            local_files_only=not INDEXER_ALLOW_MODEL_DOWNLOADS,
-            )
+        tokenizer = _load_tokenizer()
         result = build_passage_index(
             _load_documents(args.db), store, tokenizer,
             lambda: HybridVectorizer(HarrierEmbedder(), BM25Encoder()),

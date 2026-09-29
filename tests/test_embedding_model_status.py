@@ -31,8 +31,10 @@ from src.config.embedding_model_status import (
     MODEL_MANIFEST_FILENAME,
     ModelInventoryIncompatibleError,
     ModelInventoryIncompleteError,
+    PreparedModelUnavailableError,
     check_embedding_model_status,
     load_and_validate_model_inventory,
+    prepared_model_path,
 )
 
 
@@ -85,6 +87,21 @@ def test_local_inventory_check_accepts_complete_manifest_without_network(tmp_pat
     actual = load_and_validate_model_inventory(tmp_path)
 
     assert actual == expected
+
+
+def test_prepared_harrier_paths_use_verified_pinned_snapshot(tmp_path, monkeypatch):
+    _write_inventory(tmp_path)
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
+
+    assert prepared_model_path("dense_model") == tmp_path / "dense_model/snapshot"
+    assert prepared_model_path("tokenizer") == tmp_path / "tokenizer/snapshot"
+
+
+def test_prepared_harrier_path_rejects_missing_inventory(tmp_path, monkeypatch):
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
+
+    with pytest.raises(PreparedModelUnavailableError, match="prepare_embedding_models.py --download"):
+        prepared_model_path("dense_model")
 
 
 @pytest.mark.parametrize("deep", [False, True])

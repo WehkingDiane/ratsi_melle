@@ -45,6 +45,10 @@ class ModelInventoryIncompatibleError(ModelInventoryError):
     """The local inventory does not match the configured model contract."""
 
 
+class PreparedModelUnavailableError(ModelInventoryError):
+    """A consumer cannot safely load its local model snapshot."""
+
+
 class EmbeddingModelReadiness(StrEnum):
     """Stable shared readiness values for command-line and web consumers."""
 
@@ -272,3 +276,22 @@ def check_embedding_model_status(
         "Lokale Embedding-Modelle sind bereit.",
         manifest.manifest_sha256,
     )
+
+
+def prepared_model_path(component: str) -> Path:
+    """Return a verified local snapshot for a pinned model component."""
+
+    if component not in {"dense_model", "tokenizer", "sparse_model"}:
+        raise ValueError(f"Unknown embedding model component: {component}")
+    from src.config.settings import EmbeddingModelSettingsError, load_embedding_model_settings
+
+    try:
+        models_dir = load_embedding_model_settings().models_dir
+        manifest = load_and_validate_model_inventory(models_dir)
+        relative_path = getattr(manifest, component).relative_path
+        return models_dir.joinpath(*PurePosixPath(relative_path).parts).resolve(strict=True)
+    except (EmbeddingModelSettingsError, ModelInventoryError, OSError, RuntimeError) as error:
+        raise PreparedModelUnavailableError(
+            "Lokales Embedding-Modell fehlt, ist unvollstaendig oder inkompatibel. "
+            "Vorbereitung: python scripts/prepare_embedding_models.py --download"
+        ) from error

@@ -7,12 +7,13 @@ from pathlib import Path
 from typing import Any
 
 from src.qdrant_connection import QdrantConnection, collection_state
+from src.config.embedding_models import HARRIER_MODEL
 
 _COLLECTION_NAME = "ratsi_documents"
 LANDKREIS_COLLECTION_NAME = "landkreis_publications"
 _DENSE_VECTOR = "harrier"
 _SPARSE_VECTOR = "bm25"
-_EMBEDDING_DIM = 1024
+_EMBEDDING_DIM = HARRIER_MODEL.vector_dimension
 
 
 class DocumentVectorStore:

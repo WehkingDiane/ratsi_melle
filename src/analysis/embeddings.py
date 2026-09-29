@@ -2,20 +2,13 @@
 
 from __future__ import annotations
 
-import os
 from typing import TYPE_CHECKING
 
-from src.config.secrets import configure_huggingface_token_env
-from src.config.settings import INDEXER_ALLOW_MODEL_DOWNLOADS
-
-# Suppress HuggingFace Hub unauthenticated-request warning – no token needed
-# for public models and we don't want to prompt users to create an account.
-os.environ.setdefault("HF_HUB_DISABLE_IMPLICIT_TOKEN", "1")
+from src.config.embedding_model_status import prepared_model_path
 
 if TYPE_CHECKING:
     from sentence_transformers import SentenceTransformer
 
-_MODEL_NAME = "microsoft/harrier-oss-v1-0.6b"
 _QUERY_INSTRUCTION = (
     "Instruct: Retrieve semantically similar municipal council documents\nQuery: "
 )
@@ -48,17 +41,15 @@ class HarrierEmbedder:
 
     def _get_model(self) -> "SentenceTransformer":
         if self._model is None:
-            token = configure_huggingface_token_env()
+            model_path = prepared_model_path("dense_model")
             from sentence_transformers import SentenceTransformer
 
             device = _detect_device()
-            auth_kwargs = {"token": token} if token else {}
             self._model = SentenceTransformer(
-                _MODEL_NAME,
+                str(model_path),
                 device=device,
                 model_kwargs={"dtype": "auto"},
-                local_files_only=not INDEXER_ALLOW_MODEL_DOWNLOADS,
-                **auth_kwargs,
+                local_files_only=True,
             )
         return self._model
 
