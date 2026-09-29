@@ -938,11 +938,12 @@ bleiben unabgehakt und werden dort beschrieben.
   den Vorbereitungsbefehl; die Websuche verlinkt den technischen Servicebereich.
   Betroffene Build-, Evaluations- und Websuchtests sperren unerwartete Hub-Downloads.
   Ein FastEmbed-Test laedt BM25 direkt aus einem kleinen lokalen Testbestand.
-  Vor jedem Verbrauch wird zudem der vollstaendige Bibliotheksversionssatz aus
-  dem Manifest mit den installierten Versionen verglichen; Abweichungen und
-  fehlende Bibliotheken sperren die Modellinitialisierung. Der vollstaendige
+  Die gemeinsame Bereitschaftspruefung und jeder Verbraucher vergleichen zudem
+  den vollstaendigen Bibliotheksversionssatz aus dem Manifest mit den installierten
+  Versionen. Abweichungen und fehlende Bibliotheken liefern `inkompatibel` und
+  sperren die Modellinitialisierung. Der vollstaendige
   Lauf `python -m pytest` mit den Projektabhaengigkeiten
-  bestand nach dem Review-Fix mit **615 Tests**, 7 Live-Tests blieben abgewählt. Es wurden keine
+  bestand nach dem Review-Fix mit **617 Tests**, 7 Live-Tests blieben abgewählt. Es wurden keine
   echten Modellgewichte heruntergeladen.
   Die praktischen Builds und die Suche mit echten vorbereiteten Modellen bleiben
   Teil der Gesamtabnahme in Phase 7. Allgemeine Version: `0.5.17`.

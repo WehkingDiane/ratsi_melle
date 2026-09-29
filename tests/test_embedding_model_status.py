@@ -139,6 +139,27 @@ def test_prepared_harrier_path_rejects_missing_inventory(tmp_path, monkeypatch):
         prepared_model_path("dense_model")
 
 
+@pytest.mark.parametrize("missing", [False, True])
+def test_readiness_and_consumer_agree_on_library_incompatibility(tmp_path, monkeypatch, capsys, missing):
+    _write_inventory(tmp_path)
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
+    if missing:
+        monkeypatch.setattr(
+            "src.config.embedding_model_status.version",
+            lambda name: (_ for _ in ()).throw(PackageNotFoundError(name)),
+        )
+    else:
+        monkeypatch.setattr("src.config.embedding_model_status.version", lambda name: "changed-version")
+
+    assert cli.main(["--check", "--json"]) == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "inkompatibel"
+    assert payload["manifest_sha256"] is None
+    assert "Modellbibliothek" in payload["message"]
+    with pytest.raises(PreparedModelUnavailableError):
+        prepared_model_path("dense_model")
+
+
 @pytest.mark.parametrize("deep", [False, True])
 def test_check_json_reports_component_symlink_loop(tmp_path, monkeypatch, capsys, deep):
     _write_inventory(tmp_path)
@@ -179,7 +200,14 @@ def test_deep_inventory_check_accepts_valid_artifact_hashes(tmp_path):
 
 @pytest.mark.parametrize("deep", [False, True])
 def test_inventory_checks_never_open_network_connections(tmp_path, monkeypatch, deep):
-    _write_inventory(tmp_path)
+    manifest = _write_inventory(tmp_path)
+    versions = manifest.library_versions
+    monkeypatch.setattr("src.config.embedding_model_status.version", lambda name: {
+        "transformers": versions.transformers,
+        "sentence-transformers": versions.sentence_transformers,
+        "fastembed": versions.fastembed,
+        "huggingface-hub": versions.huggingface_hub,
+    }[name])
 
     def reject_network(*args, **kwargs):
         raise AssertionError("Embedding model inventory checks must remain offline")
@@ -254,8 +282,15 @@ def test_shared_status_model_reports_incompatible_inventory(tmp_path):
     assert result.state is EmbeddingModelReadiness.INCOMPATIBLE
 
 
-def test_shared_status_model_reports_ready_inventory(tmp_path):
+def test_shared_status_model_reports_ready_inventory(tmp_path, monkeypatch):
     manifest = _write_inventory(tmp_path)
+    versions = manifest.library_versions
+    monkeypatch.setattr("src.config.embedding_model_status.version", lambda name: {
+        "transformers": versions.transformers,
+        "sentence-transformers": versions.sentence_transformers,
+        "fastembed": versions.fastembed,
+        "huggingface-hub": versions.huggingface_hub,
+    }[name])
 
     result = check_embedding_model_status(tmp_path)
 

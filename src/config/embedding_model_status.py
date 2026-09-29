@@ -266,6 +266,7 @@ def check_embedding_model_status(
 
     try:
         manifest = load_and_validate_model_inventory(models_dir, deep=deep)
+        _validate_library_versions(manifest)
     except ModelInventoryMissingError as error:
         return EmbeddingModelStatus(EmbeddingModelReadiness.MISSING, str(error))
     except ModelInventoryIncompleteError as error:
@@ -279,6 +280,26 @@ def check_embedding_model_status(
     )
 
 
+def _validate_library_versions(manifest: EmbeddingModelManifest) -> None:
+    """Require the exact library set recorded when the models were prepared."""
+
+    try:
+        installed = ModelLibraryVersions(
+            transformers=version("transformers"),
+            sentence_transformers=version("sentence-transformers"),
+            fastembed=version("fastembed"),
+            huggingface_hub=version("huggingface-hub"),
+        )
+    except PackageNotFoundError as error:
+        raise ModelInventoryIncompatibleError(
+            "Eine erforderliche Modellbibliothek ist nicht installiert."
+        ) from error
+    if manifest.library_versions != installed:
+        raise ModelInventoryIncompatibleError(
+            "Die installierten Modellbibliotheken entsprechen nicht dem vorbereiteten Bestand."
+        )
+
+
 def prepared_model_path(component: str) -> Path:
     """Return a verified local snapshot for a pinned model component."""
 
@@ -289,19 +310,10 @@ def prepared_model_path(component: str) -> Path:
     try:
         models_dir = load_embedding_model_settings().models_dir
         manifest = load_and_validate_model_inventory(models_dir)
-        installed = ModelLibraryVersions(
-            transformers=version("transformers"),
-            sentence_transformers=version("sentence-transformers"),
-            fastembed=version("fastembed"),
-            huggingface_hub=version("huggingface-hub"),
-        )
-        if manifest.library_versions != installed:
-            raise ModelInventoryIncompatibleError(
-                "Die installierten Modellbibliotheken entsprechen nicht dem vorbereiteten Bestand."
-            )
+        _validate_library_versions(manifest)
         relative_path = getattr(manifest, component).relative_path
         return models_dir.joinpath(*PurePosixPath(relative_path).parts).resolve(strict=True)
-    except (EmbeddingModelSettingsError, ModelInventoryError, PackageNotFoundError, OSError, RuntimeError) as error:
+    except (EmbeddingModelSettingsError, ModelInventoryError, OSError, RuntimeError) as error:
         raise PreparedModelUnavailableError(
             "Lokales Embedding-Modell fehlt, ist unvollstaendig oder inkompatibel. "
             "Vorbereitung: python scripts/prepare_embedding_models.py --download"
