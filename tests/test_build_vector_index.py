@@ -247,6 +247,7 @@ def test_landkreis_load_documents_uses_only_local_documents_and_extracted_text(t
         )
 
     rows = build_landkreis_vector_index._load_documents(db_path)
+    assert build_landkreis_vector_index._load_documents(db_path, read_only=True) == rows
 
     assert len(rows) == 1
     assert rows[0]["publication_id"] == "pub-1"

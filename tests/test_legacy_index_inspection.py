@@ -1,0 +1,310 @@
+"""Read-only, deterministic legacy vector inspection with a tiny local store."""
+
+from dataclasses import replace
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+
+from src.config.embedding_models import BM25_MODEL, HARRIER_MODEL, HARRIER_TOKENIZER
+from src.config.index_compatibility import IndexCompatibility
+from src.indexing.legacy_index_inspection import (
+    LegacyInspectionError,
+    SAMPLE_SIZE,
+    inspect_legacy_collection,
+    select_sample_ids,
+)
+from src.qdrant_connection import QdrantConnection
+
+
+@pytest.fixture
+def compatibility() -> IndexCompatibility:
+    return IndexCompatibility(
+        dense_model_id=HARRIER_MODEL.model_id,
+        dense_revision=HARRIER_MODEL.revision,
+        sparse_model_id=BM25_MODEL.model_id,
+        sparse_revision=BM25_MODEL.revision,
+        tokenizer_model_id=HARRIER_TOKENIZER.model_id,
+        tokenizer_revision=HARRIER_TOKENIZER.revision,
+        manifest_sha256="a" * 64,
+        vector_dimension=3,
+        pipeline_version="passages-1",
+    )
+
+
+class Vectorizer:
+    def encode_documents(self, texts):
+        return [
+            {
+                "dense_vector": [1.0, 0.0, 0.0],
+                "sparse_vector": {"indices": [sum(text.encode()) % 1000 + 1], "values": [1.0]},
+            }
+            for text in texts
+        ]
+
+
+def _point(point_id, text, payload):
+    from qdrant_client.models import PointStruct, SparseVector
+
+    vectors = Vectorizer().encode_documents([text])[0]
+    return PointStruct(
+        id=point_id,
+        vector={
+            "harrier": vectors["dense_vector"],
+            "bm25": SparseVector(**vectors["sparse_vector"]),
+        },
+        payload=payload,
+    )
+
+
+def _client(collection="ratsi_passages", *, dimension=3):
+    from qdrant_client import QdrantClient
+    from qdrant_client.models import Distance, SparseVectorParams, VectorParams
+
+    client = QdrantClient(":memory:")
+    client.create_collection(
+        collection,
+        vectors_config={"harrier": VectorParams(size=dimension, distance=Distance.COSINE)},
+        sparse_vectors_config={"bm25": SparseVectorParams()},
+    )
+    return client
+
+
+def _inspect(tmp_path, monkeypatch, client, compatibility, collection="ratsi_passages", **kwargs):
+    calls = []
+
+    def current(*, deep):
+        calls.append(deep)
+        return compatibility
+
+    monkeypatch.setattr("src.indexing.legacy_index_inspection.current_index_compatibility", current)
+    result = inspect_legacy_collection(
+        QdrantConnection(tmp_path / "unused"), client, collection,
+        vectorizer_factory=Vectorizer, **kwargs,
+    )
+    assert calls == [True]
+    return result
+
+
+def test_sample_selection_is_order_independent_and_contract_bound(compatibility):
+    ids = list(range(1, 61))
+    first = select_sample_ids("ratsi_passages", ids, compatibility)
+
+    assert len(first) == SAMPLE_SIZE
+    assert first == select_sample_ids("ratsi_passages", list(reversed(ids)), compatibility)
+    assert first != select_sample_ids("landkreis_publications", ids, compatibility)
+    assert first != select_sample_ids(
+        "ratsi_passages", ids, replace(compatibility, manifest_sha256="b" * 64),
+    )
+
+
+@pytest.mark.integration
+def test_passage_inspection_reads_only_and_checks_fixed_sample(tmp_path, monkeypatch, compatibility):
+    client = _client()
+    try:
+        client.upsert("ratsi_passages", [
+            _point(number, f"text-{number}", {
+                "text": f"text-{number}", "snippet": f"text-{number}",
+                "committed": True, "model": compatibility.dense_model_id,
+                "pipeline_version": compatibility.pipeline_version,
+            })
+            for number in range(1, 41)
+        ])
+
+        class ReadOnlyClient:
+            def __getattr__(self, name):
+                if name not in {"get_collection", "count", "scroll", "retrieve"}:
+                    raise AssertionError(f"Unexpected write call: {name}")
+                return getattr(client, name)
+
+        result = _inspect(tmp_path, monkeypatch, ReadOnlyClient(), compatibility)
+
+        assert result.collection == "ratsi_passages"
+        assert result.point_count == 40
+        assert result.sample_ids == select_sample_ids("ratsi_passages", list(range(1, 41)), compatibility)
+        assert len(result.point_ids_sha256) == 64
+        assert result.compatibility == compatibility
+        assert client.count("ratsi_passages", exact=True).count == 40
+        assert not (tmp_path / "unused").exists()
+    finally:
+        client.close()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("collection", ["ratsi_documents", "landkreis_publications"])
+def test_document_text_is_reconstructed_from_original_builder(
+    tmp_path, monkeypatch, compatibility, collection,
+):
+    from scripts import build_landkreis_vector_index, build_vector_index
+    from src.indexing.id_strategy import stable_document_id
+    from src.indexing.payload_builder import build_document_payload
+
+    if collection == "ratsi_documents":
+        row = {"session_id": "1", "url": "https://example.test/one", "agenda_item": "1",
+               "title": "Rat", "document_type": "protokoll", "local_path": ""}
+        point_id = stable_document_id("1", row["url"], "1")
+        text = build_vector_index._get_document_text(row)
+        payload = build_document_payload(row, search_text=text)
+        monkeypatch.setattr(build_vector_index, "_load_documents", lambda path, *, read_only: [row] if read_only else [])
+    else:
+        row = {"publication_id": "one", "url": "https://example.test/one",
+               "title": "Bekanntmachung", "document_title": "Anlage", "extracted_text": "Prueftext",
+               "local_path": "one.pdf"}
+        point_id = build_landkreis_vector_index._stable_landkreis_qdrant_id("one", row["url"])
+        text = build_landkreis_vector_index._document_text(row)
+        payload = build_landkreis_vector_index._build_payload(row, data_root=tmp_path, search_text=text)
+        monkeypatch.setattr(build_landkreis_vector_index, "_load_documents", lambda path, *, read_only: [row] if read_only else [])
+    client = _client(collection)
+    try:
+        client.upsert(collection, [_point(point_id, text, payload)])
+        result = _inspect(tmp_path, monkeypatch, client, compatibility, collection,
+                          ratsinfo_db=tmp_path / "unused.sqlite",
+                          landkreis_db=tmp_path / "unused-county.sqlite",
+                          landkreis_data_root=tmp_path)
+        assert result.sample_ids == (point_id,)
+        assert result.point_count == 1
+    finally:
+        client.close()
+
+
+@pytest.mark.integration
+def test_missing_source_database_is_not_created(tmp_path, monkeypatch, compatibility):
+    from scripts.build_vector_index import _stable_qdrant_id
+
+    collection = "ratsi_documents"
+    url = "https://example.test/one"
+    point_id = _stable_qdrant_id("1", url, "1")
+    db_path = tmp_path / "missing.sqlite"
+    client = _client(collection)
+    try:
+        client.upsert(collection, [_point(point_id, "Rat protokoll", {
+            "url": url, "snippet": "Rat protokoll",
+        })])
+        with pytest.raises(LegacyInspectionError) as error:
+            _inspect(tmp_path, monkeypatch, client, compatibility, collection,
+                     ratsinfo_db=db_path)
+        assert error.value.code == "source_missing"
+        assert not db_path.exists()
+    finally:
+        client.close()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("change,code", [
+    ("model", "model_mismatch"),
+    ("text", "text_mismatch"),
+    ("dense", "dense_mismatch"),
+    ("sparse", "sparse_indices_mismatch"),
+    ("sparse_values", "sparse_values_mismatch"),
+])
+def test_inspection_rejects_conflicting_evidence(tmp_path, monkeypatch, compatibility, change, code):
+    from qdrant_client.models import SparseVector
+
+    client = _client()
+    try:
+        payload = {"text": "source", "snippet": "source", "committed": True}
+        point = _point(1, "source", payload)
+        if change == "model":
+            point.payload["model"] = "other/model"
+        elif change == "text":
+            point.payload["snippet"] = "changed"
+        elif change == "dense":
+            point.vector["harrier"] = [0.0, 1.0, 0.0]
+        elif change == "sparse":
+            point.vector["bm25"] = SparseVector(indices=[9999], values=[1.0])
+        else:
+            point.vector["bm25"] = SparseVector(
+                indices=point.vector["bm25"].indices,
+                values=[2.0],
+            )
+        client.upsert("ratsi_passages", [point])
+
+        with pytest.raises(LegacyInspectionError) as error:
+            _inspect(tmp_path, monkeypatch, client, compatibility)
+        assert error.value.code == code
+    finally:
+        client.close()
+
+
+@pytest.mark.integration
+def test_inspection_rejects_incomplete_retrieval(tmp_path, monkeypatch, compatibility):
+    client = _client()
+    try:
+        client.upsert("ratsi_passages", [_point(1, "source", {
+            "text": "source", "snippet": "source", "committed": True,
+        })])
+
+        class IncompleteClient:
+            def __getattr__(self, name):
+                if name == "retrieve":
+                    return lambda **kwargs: []
+                return getattr(client, name)
+
+        with pytest.raises(LegacyInspectionError) as error:
+            _inspect(tmp_path, monkeypatch, IncompleteClient(), compatibility)
+        assert error.value.code == "sample_incomplete"
+    finally:
+        client.close()
+
+
+@pytest.mark.integration
+def test_inspection_rejects_collection_changed_during_check(tmp_path, monkeypatch, compatibility):
+    client = _client()
+    payload = {"text": "source", "snippet": "source", "committed": True}
+    try:
+        client.upsert("ratsi_passages", [_point(1, "source", payload)])
+
+        class ChangingClient:
+            scroll_calls = 0
+
+            def __getattr__(self, name):
+                if name != "scroll":
+                    return getattr(client, name)
+
+                def scroll(**kwargs):
+                    self.scroll_calls += 1
+                    if self.scroll_calls == 2:
+                        return [SimpleNamespace(id=2, payload=payload)], None
+                    return client.scroll(**kwargs)
+
+                return scroll
+
+        with pytest.raises(LegacyInspectionError) as error:
+            _inspect(tmp_path, monkeypatch, ChangingClient(), compatibility)
+        assert error.value.code == "collection_changed"
+    finally:
+        client.close()
+
+
+@pytest.mark.integration
+def test_inspection_rejects_wrong_schema_and_marker(tmp_path, monkeypatch, compatibility):
+    client = _client(dimension=4)
+    try:
+        point = _point(1, "source", {
+            "text": "source", "snippet": "source", "committed": True,
+        })
+        point.vector["harrier"] = [1.0, 0.0, 0.0, 0.0]
+        client.upsert("ratsi_passages", [point])
+        with pytest.raises(LegacyInspectionError) as error:
+            _inspect(tmp_path, monkeypatch, client, compatibility)
+        assert error.value.code == "schema_mismatch"
+    finally:
+        client.close()
+
+    client = _client()
+    try:
+        client.upsert("ratsi_passages", [_point(1, "source", {
+            "text": "source", "snippet": "source", "committed": True,
+        })])
+        marker = QdrantConnection(tmp_path / "unused").release_path("ratsi_passages")
+        marker.parent.mkdir(parents=True)
+        marker.write_text('{"model":"other/model"}', encoding="utf-8")
+        with pytest.raises(LegacyInspectionError) as error:
+            _inspect(tmp_path, monkeypatch, client, compatibility)
+        assert error.value.code == "model_mismatch"
+        marker.write_text('{"points_count":2}', encoding="utf-8")
+        with pytest.raises(LegacyInspectionError) as error:
+            _inspect(tmp_path, monkeypatch, client, compatibility)
+        assert error.value.code == "marker_count_mismatch"
+    finally:
+        client.close()

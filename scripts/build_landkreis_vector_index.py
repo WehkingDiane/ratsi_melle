@@ -35,10 +35,11 @@ def _stable_landkreis_qdrant_id(publication_id: str, document_url: str) -> int:
     return stable_document_id("landkreis", publication_id, document_url)
 
 
-def _load_documents(db_path: Path) -> list[dict]:
+def _load_documents(db_path: Path, *, read_only: bool = False) -> list[dict]:
     """Return locally available Landkreis document rows with publication metadata."""
 
-    conn = sqlite3.connect(str(db_path))
+    target = f"{db_path.resolve().as_uri()}?mode=ro" if read_only else str(db_path)
+    conn = sqlite3.connect(target, uri=read_only)
     conn.row_factory = sqlite3.Row
     try:
         rows = conn.execute(

@@ -657,6 +657,38 @@ getrennte Aufbau-Collection an.
 
 ### Einmalige Uebernahme bestehender Collections
 
+M5.4 stellt die rein lesende Funktion `inspect_legacy_collection` unter
+`src/indexing/legacy_index_inspection.py` bereit. Sie verlangt zuerst die
+Tiefenpruefung des aktiven lokalen Modellbestands. Danach prueft sie den
+Collection-Marker und alle vorhandenen Punkt-Hinweise auf Widersprueche,
+das Qdrant-Schema (`harrier`/`bm25`, Cosine, konfigurierte Dimension), die
+exakte Punktzahl und die vollstaendige Liste ganzzahliger Punkt-IDs.
+
+Die Stichprobe umfasst alle Punkte bis zu 32; bei groesseren Collections werden
+32 IDs nach SHA-256-Rang aus Collection, kanonischem Kompatibilitaetsdatensatz
+und Punkt-ID ausgewaehlt. Die Reihenfolge der Qdrant-Scrollseiten beeinflusst
+die Auswahl nicht. Die Funktion liest die ausgewaehlten Payloads und Vektoren
+neu und rekonstruiert den urspruenglichen Embedding-Text: Passagen verwenden
+ihr bestaetigtes `text`-Feld, Ratsinfo-Dokumente die urspruengliche
+Zehn-Seiten-Extraktion aus SQLite und lokaler Datei beziehungsweise den
+bisherigen Metadaten-Fallback, Landkreis-Punkte den urspruenglichen SQLite-Extrakt mit der Standardgrenze von 6000 Zeichen.
+Die Quell-SQLite-Dateien werden dazu im Read-only-Modus geoeffnet; ein
+fehlender Pfad wird nicht als neue Datenbank angelegt. Bei Dokument- und
+Landkreis-Punkten muss das gespeicherte Snippet zum rekonstruierten
+Text passen. Fehlende Quellen oder abweichende Buildparameter koennen daher
+keinen positiven Nachweis liefern.
+
+Die vorbereiteten lokalen Harrier- und BM25-Adapter berechnen die Stichprobe
+neu. Dense-Werte und Sparse-Werte werden mit den im Code festgelegten engen
+Toleranzen verglichen; Sparse-Indizes muessen exakt uebereinstimmen. Eine
+unvollstaendige Stichprobe oder eine waehrend der Pruefung geaenderte
+Punkt-ID-Liste verhindert ein positives Ergebnis. Die Funktion ruft ausschliesslich
+Qdrant-Leseoperationen auf und schreibt weder Marker noch Payloads. Ihr
+Ergebnis bindet Ziel, Collection, exakte Punktzahl, SHA-256 der sortierten
+Punkt-IDs, Stichproben-IDs und aktiven Kompatibilitaetsdatensatz. Das
+persistierte Uebernahmeprotokoll und die abschliessenden Abbruchgruende folgen
+in M5.5; M5.4 bietet noch keinen Freigabeschritt.
+
 Die vor dieser Umstellung aufgebauten Collections enthalten noch keinen
 vollstaendigen Kompatibilitaetsdatensatz. Sie muessen deshalb nicht automatisch
 neu aufgebaut werden. Fuer `ratsi_passages`, `ratsi_documents` und
@@ -899,7 +931,7 @@ bleiben unabgehakt und werden dort beschrieben.
   Datensatz erweitern.
 - [x] **M5.3** Erforderliche Modell- und Pipelineangaben in Punkt-Payloads fuer
   Ratsinfo- und Landkreis-Collections konsistent hinterlegen.
-- [ ] **M5.4** Rein lesende Bestandspruefung und deterministische
+- [x] **M5.4** Rein lesende Bestandspruefung und deterministische
   Vektorstichprobe fuer die einmalige Legacy-Uebernahme implementieren.
 - [ ] **M5.5** Uebernahmeprotokoll, feste Vergleichstoleranzen und eindeutige
   Abbruchgruende fuer unzureichende oder widerspruechliche Nachweise definieren.
@@ -998,8 +1030,16 @@ bleiben unabgehakt und werden dort beschrieben.
   fuer bestehende Snippet-Payloads bestehen; die umfassende Phasenabnahme
   folgt mit M5.9/M5.10.
   Allgemeine Version: `0.5.19`.
-- Naechster regulaerer Punkt: **M5.4**; rein lesende Bestandspruefung und
-  deterministische Vektorstichprobe fuer die Legacy-Uebernahme.
+- M5.4 implementiert die rein lesende Legacy-Bestandspruefung mit
+  Tiefenpruefung des Modellbestands, Schema-/Hinweispruefung, fest auf 32
+  Punkte begrenzter deterministischer Stichprobe und lokaler Neuberechnung
+  beider Vektortypen. Dreizehn gezielte Tests mit kleinem Qdrant-Lokalbestand
+  bestehen, darunter Rekonstruktion fuer alle drei Collections und Abbrueche
+  bei widerspruechlichen Vektoren, Texten, Markern und unvollstaendiger
+  Stichprobe. Es wurden keine echten Modellgewichte geladen. Allgemeine
+  Version: `0.5.20`.
+- Naechster regulaerer Punkt: **M5.5**; Uebernahmeprotokoll,
+  Vergleichstoleranzen und eindeutige Abbruchgruende festlegen.
 
 - Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-
   und Testabdeckung, CLI-/Manifestvertrag, Dokumentation und Versionsstand

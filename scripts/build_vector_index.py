@@ -84,9 +84,10 @@ def _get_document_text(row: dict) -> str:
 # Database helpers
 # ---------------------------------------------------------------------------
 
-def _load_documents(db_path: Path, limit: int | None = None) -> list[dict]:
+def _load_documents(db_path: Path, limit: int | None = None, *, read_only: bool = False) -> list[dict]:
     """Return all documents joined with session metadata."""
-    conn = sqlite3.connect(str(db_path))
+    target = f"{db_path.resolve().as_uri()}?mode=ro" if read_only else str(db_path)
+    conn = sqlite3.connect(target, uri=read_only)
     conn.row_factory = sqlite3.Row
     try:
         query = """
