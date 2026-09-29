@@ -210,10 +210,13 @@ Testverzeichnis; der Projektbestand bleibt unberuehrt. Der Smoke-Test bestaetigt
 keine Modellbereitschaft. Der Volltest prueft Download, Manifest, Tiefenpruefung
 und anschliessende Wiederverwendung bei gesperrtem Netzwerk.
 
-Dieser Zwischenstand schliesst Phase 3 (Vorbereitungsskript) ab. Indexierung,
-Evaluation und Suche werden erst in Phase 4 auf den vorbereiteten lokalen
-Bestand umgestellt; die globale Offlinegarantie fuer diese Verbraucher gilt
-daher noch nicht. Schutz gegen kollidierende Vorbereitungsjobs folgt in Phase 6.
+Indexierung, Evaluation und Suche laden Harrier, den Passage-Tokenizer und BM25
+aus dem freigegebenen lokalen Modellbestand. Fehlende oder inkompatible Modelle
+werden vor dem Laden gemeldet; der Hinweis nennt den Vorbereitungsbefehl. Die
+Websuche verweist zusaetzlich auf den technischen Servicebereich. Nur der
+ausdrueckliche Aufruf mit `--download` darf Modellartefakte beschaffen.
+Die praktische Abnahme mit echten vorbereiteten Modellen folgt in Phase 7;
+Schutz gegen kollidierende Vorbereitungsjobs folgt in Phase 6.
 
 ### Landkreis-Veröffentlichungen
 

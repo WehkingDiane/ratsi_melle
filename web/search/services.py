@@ -153,6 +153,10 @@ def search_semantic_documents(
             query_dense = embedder.embed_query(normalized_query)
             query_sparse = bm25.encode_query(normalized_query)
         except Exception as exc:  # noqa: BLE001 - Model loading can fail independently of Qdrant.
+            from src.config.embedding_model_status import PreparedModelUnavailableError
+
+            if isinstance(exc, PreparedModelUnavailableError):
+                return {"results": [], "error": str(exc), "warning": "", "model_status_unavailable": True}
             return {"results": [], "error": f"Fehler beim Suchmodell: {_safe_search_error_detail(exc, connection.url)}",
                     "warning": ""}
 

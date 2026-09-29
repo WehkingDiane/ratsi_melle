@@ -201,6 +201,7 @@ def test_invalid_qdrant_configuration_is_unavailable_in_vector_status(tmp_path, 
 def test_default_vector_build_targets_server(tmp_path, monkeypatch):
     from qdrant_client import QdrantClient
     from scripts import build_vector_index
+    monkeypatch.setattr('src.indexing.passage_builder.prepared_model_path', lambda component: tmp_path / 'tokenizer')
 
     monkeypatch.delenv("RATSI_QDRANT_MODE")
     monkeypatch.delenv("RATSI_QDRANT_URL", raising=False)
@@ -364,6 +365,7 @@ def test_legacy_and_county_builds_use_configured_server(tmp_path, monkeypatch, r
 def test_passage_build_only_marks_complete_current_documents(tmp_path, monkeypatch, remote):
     import sys
     from src.indexing import passage_builder
+    monkeypatch.setattr(passage_builder, 'prepared_model_path', lambda component: tmp_path / 'tokenizer')
     from scripts import build_vector_index
     from test_passage_index import Tokenizer, Vectorizer, document
     db = tmp_path / 'input.sqlite'
@@ -407,6 +409,7 @@ def test_empty_collection_is_incomplete(tmp_path, remote):
 
 @pytest.mark.integration
 def test_evaluation_cli_uses_server_without_local_storage(tmp_path, monkeypatch, remote):
+    monkeypatch.setattr("huggingface_hub.snapshot_download", Mock(side_effect=AssertionError("Unexpected Hub call")))
     from scripts import evaluate_search, build_vector_index
     store = DocumentVectorStore(tmp_path / 'absent', 'ratsi_passages')
     store.ensure_collection()

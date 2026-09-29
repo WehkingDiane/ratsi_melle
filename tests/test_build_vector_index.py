@@ -251,6 +251,7 @@ def test_landkreis_main_indexes_missing_documents_and_payload(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
+    monkeypatch.setattr("huggingface_hub.snapshot_download", lambda **kwargs: (_ for _ in ()).throw(AssertionError("Unexpected Hub call")))
     doc = {
         "publication_id": "pub-1",
         "source": "amtsblaetter",
@@ -624,6 +625,7 @@ def test_main_reconciles_orphaned_vectors_even_when_nothing_is_new(
     tmp_path: Path,
     capsys,
 ) -> None:
+    monkeypatch.setattr("huggingface_hub.snapshot_download", lambda **kwargs: (_ for _ in ()).throw(AssertionError("Unexpected Hub call")))
     current_doc = _doc("1", "https://example.org/doc-1.pdf")
     current_id = build_vector_index._stable_qdrant_id(
         current_doc["session_id"], current_doc["url"], current_doc["agenda_item"]

@@ -268,7 +268,7 @@ def legacy_main(argv: list[str] | None = None) -> None:
         from src.analysis.bm25_sparse import BM25Encoder
 
         bm25 = BM25Encoder()
-        # Trigger BM25 model download before the main loop
+        # Load the prepared local BM25 snapshot before the main loop.
         bm25._get_model()
 
         # XPU (Intel Arc) has limited free VRAM after loading the model (~1 GB left).
