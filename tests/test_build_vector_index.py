@@ -53,6 +53,12 @@ class _FakeVectorStore:
     def _get_client(self):
         return self
 
+    def acquire_build_lock(self) -> None:
+        pass
+
+    def close(self) -> None:
+        pass
+
     def begin_build(self, compatibility: IndexCompatibility, *, build_options=None) -> None:
         self.build_compatibility = compatibility
         self.build_options = build_options

@@ -695,6 +695,12 @@ Fortsetzung pruefbar. Die Passage-Suche behandelt `ready=false` als nicht
 freigegeben. Der Collection-Marker behaelt nach einer verifizierten Uebernahme
 die Herkunft `legacy_verified`; bereits uebernommene Punkt-Payloads bleiben
 bei spaeteren Ergaenzungen unveraendert.
+Alle drei Builder halten vor dem Oeffnen des Qdrant-Clients eine Sperre fuer
+die jeweilige Collection bis zur Freigabe oder zum Abbruch. Ein zweiter Build
+wartet und prueft nach Freigabe den dann aktuellen Marker und Index erneut.
+Dieselbe Sperrdatei serialisiert auch die Legacy-Uebernahme. Im Serverbetrieb
+muessen alle Builder und Uebernahmeprozesse dieselbe Statuswurzel verwenden;
+unabhaengige Rechner ohne gemeinsame Statuswurzel werden nicht koordiniert.
 Die Websuche vergleicht vor der Query-Kodierung den Marker der tatsaechlich
 ausgewaehlten Collection mit dem aktiven Modellvertrag und weist fehlende oder
 abweichende Vertraege sowie `ready=false` zurueck. Die Evaluations-CLI prueft
@@ -848,9 +854,9 @@ Markerfreigabe versucht der Befehl, seine Payload-Ergaenzungen zu entfernen;
 ein fehlgeschlagener Ruecknahmeversuch meldet `rollback_incomplete`. Qdrant
 bietet keine gemeinsame Transaktion fuer mehrere Payload-Chargen und die
 Markerdatei; der Marker ist daher die verbindliche Freigabegrenze. Waehrend
-der Uebernahme duerfen keine parallelen Builds oder anderen Qdrant-Schreiber
-dieselbe Collection veraendern.
-Parallele `--apply`-Aufrufe fuer dasselbe Ziel und dieselbe Collection werden
+der Uebernahme duerfen andere Qdrant-Schreiber ausserhalb dieser
+Build- und Uebernahmepfade dieselbe Collection nicht veraendern.
+Parallele `--apply`-Aufrufe und Builds fuer dasselbe Ziel und dieselbe Collection werden
 ueber eine dauerhaft liegende Sperrdatei neben dem Freigabemarker serialisiert.
 Alle Prozesse muessen dafuer dieselbe lokale Statuswurzel nutzen.
 

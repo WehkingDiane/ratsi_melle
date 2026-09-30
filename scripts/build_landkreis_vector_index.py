@@ -228,130 +228,134 @@ def _main(argv: list[str] | None = None) -> None:
     HarrierEmbedder, DocumentVectorStore = _validate_runtime_dependencies()
 
     vector_store = DocumentVectorStore(qdrant_dir, collection_name=COLLECTION_NAME)
-    vector_store._get_client()
-    compatibility = current_index_compatibility()
-    build_options = {"max_text_chars": args.max_text_chars}
-    vector_store.begin_build(compatibility, build_options=build_options)
+    try:
+        vector_store.acquire_build_lock()
+        vector_store._get_client()
+        compatibility = current_index_compatibility()
+        build_options = {"max_text_chars": args.max_text_chars}
+        vector_store.begin_build(compatibility, build_options=build_options)
 
-    print("Loading Landkreis documents from database ...")
-    all_docs = _load_documents(db_path)
-    print(f"  Found {len(all_docs)} locally stored Landkreis document(s) in DB.")
+        print("Loading Landkreis documents from database ...")
+        all_docs = _load_documents(db_path)
+        print(f"  Found {len(all_docs)} locally stored Landkreis document(s) in DB.")
 
-    for doc in all_docs:
-        doc["_qdrant_id"] = _stable_landkreis_qdrant_id(
-            str(doc.get("publication_id") or ""),
-            str(doc.get("url") or ""),
-        )
-
-    current_ids = {doc["_qdrant_id"] for doc in all_docs}
-    already_indexed = vector_store.get_indexed_ids()
-    snippet_ids = vector_store.get_ids_with_payload_field("snippet")
-    payload_docs = [
-        doc
-        for doc in all_docs
-        if doc["_qdrant_id"] in already_indexed and doc["_qdrant_id"] not in snippet_ids
-    ]
-    if payload_docs:
-        print(
-            f"  Refreshing snippet payloads for {len(payload_docs)} existing "
-            "Landkreis document(s)."
-        )
-        vector_store.update_payloads(
-            [
-                {
-                    "id": doc["_qdrant_id"],
-                    "payload": _build_payload(
-                        doc,
-                        data_root=data_dir,
-                        search_text=_document_text(doc, max_chars=args.max_text_chars),
-                    ),
-                }
-                for doc in payload_docs
-            ]
-        )
-    missing_docs = [doc for doc in all_docs if doc["_qdrant_id"] not in already_indexed]
-    docs_to_index = missing_docs[: args.limit] if args.limit is not None else missing_docs
-    indexed_count = 0
-
-    if not docs_to_index:
-        print("Nothing to index - all Landkreis documents are already in the vector store.")
-    else:
-        if args.limit is not None and len(missing_docs) > len(docs_to_index):
-            print(
-                f"  {len(already_indexed)} already indexed, "
-                f"{len(missing_docs)} missing, indexing next {len(docs_to_index)}."
+        for doc in all_docs:
+            doc["_qdrant_id"] = _stable_landkreis_qdrant_id(
+                str(doc.get("publication_id") or ""),
+                str(doc.get("url") or ""),
             )
+
+        current_ids = {doc["_qdrant_id"] for doc in all_docs}
+        already_indexed = vector_store.get_indexed_ids()
+        snippet_ids = vector_store.get_ids_with_payload_field("snippet")
+        payload_docs = [
+            doc
+            for doc in all_docs
+            if doc["_qdrant_id"] in already_indexed and doc["_qdrant_id"] not in snippet_ids
+        ]
+        if payload_docs:
+            print(
+                f"  Refreshing snippet payloads for {len(payload_docs)} existing "
+                "Landkreis document(s)."
+            )
+            vector_store.update_payloads(
+                [
+                    {
+                        "id": doc["_qdrant_id"],
+                        "payload": _build_payload(
+                            doc,
+                            data_root=data_dir,
+                            search_text=_document_text(doc, max_chars=args.max_text_chars),
+                        ),
+                    }
+                    for doc in payload_docs
+                ]
+            )
+        missing_docs = [doc for doc in all_docs if doc["_qdrant_id"] not in already_indexed]
+        docs_to_index = missing_docs[: args.limit] if args.limit is not None else missing_docs
+        indexed_count = 0
+
+        if not docs_to_index:
+            print("Nothing to index - all Landkreis documents are already in the vector store.")
         else:
-            print(f"  {len(already_indexed)} already indexed, {len(docs_to_index)} new.")
-        print("Loading embedding models ...")
-        embedder = HarrierEmbedder()
+            if args.limit is not None and len(missing_docs) > len(docs_to_index):
+                print(
+                    f"  {len(already_indexed)} already indexed, "
+                    f"{len(missing_docs)} missing, indexing next {len(docs_to_index)}."
+                )
+            else:
+                print(f"  {len(already_indexed)} already indexed, {len(docs_to_index)} new.")
+            print("Loading embedding models ...")
+            embedder = HarrierEmbedder()
 
-        from src.analysis.bm25_sparse import BM25Encoder
-        from src.analysis.embeddings import _detect_device
+            from src.analysis.bm25_sparse import BM25Encoder
+            from src.analysis.embeddings import _detect_device
 
-        bm25 = BM25Encoder()
-        bm25._get_model()
-        device = _detect_device()
-        batch_size = 1 if device == "xpu" else 32
-        print(
-            f"  Device: {device.upper()}, batch size: {batch_size}, "
-            f"max text chars: {args.max_text_chars}"
+            bm25 = BM25Encoder()
+            bm25._get_model()
+            device = _detect_device()
+            batch_size = 1 if device == "xpu" else 32
+            print(
+                f"  Device: {device.upper()}, batch size: {batch_size}, "
+                f"max text chars: {args.max_text_chars}"
+            )
+
+            vectorizer = HybridVectorizer(embedder, bm25)
+            n = len(docs_to_index)
+            batch_start = 0
+            while batch_start < n:
+                current_batch_size = min(batch_size, n - batch_start)
+                batch = docs_to_index[batch_start : batch_start + current_batch_size]
+                texts: list[str] = []
+                for doc in batch:
+                    global_index = batch_start + len(texts) + 1
+                    title_preview = (doc.get("document_title") or doc.get("title") or "(kein Titel)")[:60]
+                    print(f"  [{global_index}/{n}] {title_preview} ...")
+                    texts.append(_document_text(doc, max_chars=args.max_text_chars))
+
+                try:
+                    vector_results = vectorizer.encode_documents(texts)
+                except Exception as exc:
+                    _clear_torch_cache(device)
+                    if _is_torch_oom(exc) and current_batch_size > 1:
+                        batch_size = max(1, current_batch_size // 2)
+                        print(f"  XPU/torch out of memory; retrying with batch size {batch_size}.")
+                        continue
+                    if _is_torch_oom(exc):
+                        print(
+                            "ERROR: Embedding ran out of XPU/GPU memory. "
+                            "Retry with a lower --max-text-chars value, for example 3000.",
+                            file=sys.stderr,
+                        )
+                    raise
+                points = [
+                    {
+                        "id": doc["_qdrant_id"],
+                        "dense_vector": vectors["dense_vector"],
+                        "sparse_vector": vectors["sparse_vector"],
+                        "payload": with_index_compatibility(
+                            _build_payload(doc, data_root=data_dir, search_text=text), compatibility,
+                        ),
+                    }
+                    for doc, text, vectors in zip(batch, texts, vector_results)
+                ]
+                vector_store.upsert_batch(points)
+                indexed_count += len(batch)
+                batch_start += current_batch_size
+                _clear_torch_cache(device)
+
+        _reconcile_orphaned_vectors(
+            vector_store,
+            already_indexed,
+            current_ids,
+            allow_delete=args.limit is None,
         )
 
-        vectorizer = HybridVectorizer(embedder, bm25)
-        n = len(docs_to_index)
-        batch_start = 0
-        while batch_start < n:
-            current_batch_size = min(batch_size, n - batch_start)
-            batch = docs_to_index[batch_start : batch_start + current_batch_size]
-            texts: list[str] = []
-            for doc in batch:
-                global_index = batch_start + len(texts) + 1
-                title_preview = (doc.get("document_title") or doc.get("title") or "(kein Titel)")[:60]
-                print(f"  [{global_index}/{n}] {title_preview} ...")
-                texts.append(_document_text(doc, max_chars=args.max_text_chars))
-
-            try:
-                vector_results = vectorizer.encode_documents(texts)
-            except Exception as exc:
-                _clear_torch_cache(device)
-                if _is_torch_oom(exc) and current_batch_size > 1:
-                    batch_size = max(1, current_batch_size // 2)
-                    print(f"  XPU/torch out of memory; retrying with batch size {batch_size}.")
-                    continue
-                if _is_torch_oom(exc):
-                    print(
-                        "ERROR: Embedding ran out of XPU/GPU memory. "
-                        "Retry with a lower --max-text-chars value, for example 3000.",
-                        file=sys.stderr,
-                    )
-                raise
-            points = [
-                {
-                    "id": doc["_qdrant_id"],
-                    "dense_vector": vectors["dense_vector"],
-                    "sparse_vector": vectors["sparse_vector"],
-                    "payload": with_index_compatibility(
-                        _build_payload(doc, data_root=data_dir, search_text=text), compatibility,
-                    ),
-                }
-                for doc, text, vectors in zip(batch, texts, vector_results)
-            ]
-            vector_store.upsert_batch(points)
-            indexed_count += len(batch)
-            batch_start += current_batch_size
-            _clear_torch_cache(device)
-
-    _reconcile_orphaned_vectors(
-        vector_store,
-        already_indexed,
-        current_ids,
-        allow_delete=args.limit is None,
-    )
-
-    total_now = vector_store.count()
-    vector_store.finish_build(compatibility, build_options=build_options)
-    print(f"\nIndexed {indexed_count} new Landkreis documents. Total: {total_now}")
+        total_now = vector_store.count()
+        vector_store.finish_build(compatibility, build_options=build_options)
+        print(f"\nIndexed {indexed_count} new Landkreis documents. Total: {total_now}")
+    finally:
+        vector_store.close()
 
 
 def main(argv: list[str] | None = None) -> None:

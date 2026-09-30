@@ -1,7 +1,9 @@
 """Build preflight rejects unverified indexes before any Qdrant mutation."""
 
 from dataclasses import replace
+from concurrent.futures import ThreadPoolExecutor
 import json
+from threading import Event
 
 import pytest
 
@@ -43,6 +45,61 @@ def _store(tmp_path, collection, compatibility=None):
                                     if compatibility else {})},
     )])
     return store
+
+
+@pytest.mark.integration
+def test_concurrent_builds_serialize_before_readiness_and_writes(tmp_path, compatibility):
+    collection = "ratsi_passages"
+    first = _store(tmp_path, collection, compatibility)
+    second = DocumentVectorStore(tmp_path / "unused", collection_name=collection)
+    second.connection = first.connection
+    second._client = first._client
+    second_entered = Event()
+    second_acquired = Event()
+    first.connection.write_readiness(first._client, {"ready": True, "provenance": "native"},
+                                     collection=collection, compatibility=compatibility)
+
+    def run_second():
+        second_entered.set()
+        second.begin_build(compatibility)
+        second_acquired.set()
+        return json.loads(first.connection.release_path(collection).read_text())["ready"]
+
+    try:
+        first.begin_build(compatibility)
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(run_second)
+            try:
+                assert second_entered.wait(timeout=5)
+                assert not second_acquired.wait(timeout=0.1)
+            finally:
+                first.finish_build(compatibility)
+            assert future.result(timeout=5) is False
+            second.finish_build(compatibility)
+        assert json.loads(first.connection.release_path(collection).read_text())["ready"] is True
+    finally:
+        second._client = None  # Both stores share the in-memory client.
+        second.close()
+        first.close()
+
+
+@pytest.mark.integration
+def test_failed_build_releases_collection_lock(tmp_path, compatibility):
+    collection = "ratsi_passages"
+    first = _store(tmp_path, collection, compatibility)
+    second = DocumentVectorStore(tmp_path / "unused", collection_name=collection)
+    second.connection = first.connection
+    second._client = first._client
+    first.connection.write_readiness(first._client, {"ready": True, "provenance": "native"},
+                                     collection=collection, compatibility=compatibility)
+    try:
+        first.begin_build(compatibility)
+        first._client = None  # Keep the shared in-memory client open for the second builder.
+        first.close()  # A builder can stop before publishing readiness.
+        second.begin_build(compatibility)
+        second.finish_build(compatibility)
+    finally:
+        second.close()
 
 
 @pytest.mark.integration

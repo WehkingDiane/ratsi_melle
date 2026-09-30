@@ -156,6 +156,7 @@ def main(argv=None):
         parser.error(f"Database not found: {args.db}")
     store = DocumentVectorStore(args.qdrant_dir, collection_name=COLLECTION)
     try:
+        store.acquire_build_lock()
         store._get_client()
         compatibility = current_index_compatibility()
         store.begin_build(compatibility)

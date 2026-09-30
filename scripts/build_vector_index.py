@@ -214,126 +214,130 @@ def legacy_main(argv: list[str] | None = None) -> None:
     HarrierEmbedder, DocumentVectorStore = _validate_runtime_dependencies()
 
     vector_store = DocumentVectorStore(qdrant_dir)
-    vector_store._get_client()
-    compatibility = current_index_compatibility()
-    vector_store.begin_build(compatibility)
+    try:
+        vector_store.acquire_build_lock()
+        vector_store._get_client()
+        compatibility = current_index_compatibility()
+        vector_store.begin_build(compatibility)
 
-    print("Loading documents from database …")
-    all_docs = _load_documents(db_path)
-    total_in_db = len(all_docs)
-    print(f"  Found {total_in_db} document(s) in DB.")
+        print("Loading documents from database …")
+        all_docs = _load_documents(db_path)
+        total_in_db = len(all_docs)
+        print(f"  Found {total_in_db} document(s) in DB.")
 
-    # Use stable hash IDs (not SQLite autoincrement) to survive index refreshes
-    for doc in all_docs:
-        doc["_qdrant_id"] = stable_document_id(
-            str(doc.get("session_id") or ""),
-            str(doc.get("url") or ""),
-            str(doc.get("agenda_item") or ""),
-        )
-
-    current_ids = {d["_qdrant_id"] for d in all_docs}
-    already_indexed = vector_store.get_indexed_ids()
-    snippet_ids = vector_store.get_ids_with_payload_field("snippet")
-    payload_docs = [
-        doc
-        for doc in all_docs
-        if doc["_qdrant_id"] in already_indexed and doc["_qdrant_id"] not in snippet_ids
-    ]
-    if payload_docs:
-        print(f"  Refreshing snippet payloads for {len(payload_docs)} existing document(s).")
-        vector_store.update_payloads(
-            [
-                {
-                    "id": doc["_qdrant_id"],
-                    "payload": build_document_payload(
-                        doc,
-                        search_text=_get_document_text(doc),
-                    ),
-                }
-                for doc in payload_docs
-            ]
-        )
-    missing_docs = [d for d in all_docs if d["_qdrant_id"] not in already_indexed]
-    docs_to_index = missing_docs[: args.limit] if args.limit is not None else missing_docs
-    indexed_count = 0
-
-    if not docs_to_index:
-        print("Nothing to index – all documents are already in the vector store.")
-    else:
-        if args.limit is not None and len(missing_docs) > len(docs_to_index):
-            print(
-                f"  {len(already_indexed)} already indexed, "
-                f"{len(missing_docs)} missing, indexing next {len(docs_to_index)}."
+        # Use stable hash IDs (not SQLite autoincrement) to survive index refreshes
+        for doc in all_docs:
+            doc["_qdrant_id"] = stable_document_id(
+                str(doc.get("session_id") or ""),
+                str(doc.get("url") or ""),
+                str(doc.get("agenda_item") or ""),
             )
-        else:
-            print(f"  {len(already_indexed)} already indexed, {len(docs_to_index)} new.")
-        print("Loading embedding models …")
-        embedder = HarrierEmbedder()
 
-        from src.analysis.bm25_sparse import BM25Encoder
-
-        bm25 = BM25Encoder()
-        # Load the prepared local BM25 snapshot before the main loop.
-        bm25._get_model()
-
-        # XPU (Intel Arc) has limited free VRAM after loading the model (~1 GB left).
-        # Use smaller batches to avoid OOM; CPU can handle larger batches.
-        from src.analysis.embeddings import _detect_device
-
-        device = _detect_device()
-        batch_size = 4 if device == "xpu" else 32
-        print(f"  Device: {device.upper()}, batch size: {batch_size}")
-
-        n = len(docs_to_index)
-        vectorizer = HybridVectorizer(embedder, bm25)
-
-        for batch_start in range(0, n, batch_size):
-            batch = docs_to_index[batch_start : batch_start + batch_size]
-
-            texts: list[str] = []
-            for doc in batch:
-                global_index = batch_start + len(texts) + 1
-                title_preview = (doc.get("title") or "(kein Titel)")[:60]
-                print(f"  [{global_index}/{n}] {title_preview} …")
-                texts.append(_get_document_text(doc))
-
-            vector_results = vectorizer.encode_documents(texts)
-
-            points: list[dict] = []
-            for doc, text, vectors in zip(batch, texts, vector_results):
-                points.append(
+        current_ids = {d["_qdrant_id"] for d in all_docs}
+        already_indexed = vector_store.get_indexed_ids()
+        snippet_ids = vector_store.get_ids_with_payload_field("snippet")
+        payload_docs = [
+            doc
+            for doc in all_docs
+            if doc["_qdrant_id"] in already_indexed and doc["_qdrant_id"] not in snippet_ids
+        ]
+        if payload_docs:
+            print(f"  Refreshing snippet payloads for {len(payload_docs)} existing document(s).")
+            vector_store.update_payloads(
+                [
                     {
                         "id": doc["_qdrant_id"],
-                        "dense_vector": vectors["dense_vector"],
-                        "sparse_vector": vectors["sparse_vector"],
-                        "payload": with_index_compatibility(
-                            build_document_payload(doc, search_text=text), compatibility,
+                        "payload": build_document_payload(
+                            doc,
+                            search_text=_get_document_text(doc),
                         ),
                     }
+                    for doc in payload_docs
+                ]
+            )
+        missing_docs = [d for d in all_docs if d["_qdrant_id"] not in already_indexed]
+        docs_to_index = missing_docs[: args.limit] if args.limit is not None else missing_docs
+        indexed_count = 0
+
+        if not docs_to_index:
+            print("Nothing to index – all documents are already in the vector store.")
+        else:
+            if args.limit is not None and len(missing_docs) > len(docs_to_index):
+                print(
+                    f"  {len(already_indexed)} already indexed, "
+                    f"{len(missing_docs)} missing, indexing next {len(docs_to_index)}."
                 )
+            else:
+                print(f"  {len(already_indexed)} already indexed, {len(docs_to_index)} new.")
+            print("Loading embedding models …")
+            embedder = HarrierEmbedder()
 
-            vector_store.upsert_batch(points)
-            indexed_count += len(batch)
+            from src.analysis.bm25_sparse import BM25Encoder
 
-            # Free unused XPU/GPU memory after each batch to prevent OOM
-            try:
-                import torch
+            bm25 = BM25Encoder()
+            # Load the prepared local BM25 snapshot before the main loop.
+            bm25._get_model()
 
-                if device == "xpu" and torch.xpu.is_available():
-                    torch.xpu.empty_cache()
-            except Exception:
-                pass
+            # XPU (Intel Arc) has limited free VRAM after loading the model (~1 GB left).
+            # Use smaller batches to avoid OOM; CPU can handle larger batches.
+            from src.analysis.embeddings import _detect_device
 
-    _reconcile_orphaned_vectors(
-        vector_store,
-        already_indexed,
-        current_ids,
-        allow_delete=args.limit is None,
-    )
+            device = _detect_device()
+            batch_size = 4 if device == "xpu" else 32
+            print(f"  Device: {device.upper()}, batch size: {batch_size}")
 
-    total_now = vector_store.count()
-    vector_store.finish_build(compatibility)
-    print(f"\nIndexed {indexed_count} new documents. Total: {total_now}")
+            n = len(docs_to_index)
+            vectorizer = HybridVectorizer(embedder, bm25)
+
+            for batch_start in range(0, n, batch_size):
+                batch = docs_to_index[batch_start : batch_start + batch_size]
+
+                texts: list[str] = []
+                for doc in batch:
+                    global_index = batch_start + len(texts) + 1
+                    title_preview = (doc.get("title") or "(kein Titel)")[:60]
+                    print(f"  [{global_index}/{n}] {title_preview} …")
+                    texts.append(_get_document_text(doc))
+
+                vector_results = vectorizer.encode_documents(texts)
+
+                points: list[dict] = []
+                for doc, text, vectors in zip(batch, texts, vector_results):
+                    points.append(
+                        {
+                            "id": doc["_qdrant_id"],
+                            "dense_vector": vectors["dense_vector"],
+                            "sparse_vector": vectors["sparse_vector"],
+                            "payload": with_index_compatibility(
+                                build_document_payload(doc, search_text=text), compatibility,
+                            ),
+                        }
+                    )
+
+                vector_store.upsert_batch(points)
+                indexed_count += len(batch)
+
+                # Free unused XPU/GPU memory after each batch to prevent OOM
+                try:
+                    import torch
+
+                    if device == "xpu" and torch.xpu.is_available():
+                        torch.xpu.empty_cache()
+                except Exception:
+                    pass
+
+        _reconcile_orphaned_vectors(
+            vector_store,
+            already_indexed,
+            current_ids,
+            allow_delete=args.limit is None,
+        )
+
+        total_now = vector_store.count()
+        vector_store.finish_build(compatibility)
+        print(f"\nIndexed {indexed_count} new documents. Total: {total_now}")
+    finally:
+        vector_store.close()
 
 
 def main(argv: list[str] | None = None) -> None:
