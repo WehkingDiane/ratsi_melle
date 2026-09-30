@@ -748,7 +748,7 @@ Kompatibilitaetsdatensatz atomar in den Freigabemetadaten, ergaenzt erforderlich
 Punkt-Payloads ohne Neuberechnung der Vektoren und kennzeichnet die Herkunft als
 `legacy_verified`. Die Collection bleibt waehrend der Pruefung suchbar. Vorhandene
 Vektoren werden weder geloescht noch ueberschrieben; bei einem Abbruch bleibt der
-alte Stand weiterhin nutzbar und die Uebernahme gilt als nicht erfolgt.
+alte Freigabemarker erhalten und die Uebernahme gilt als nicht erfolgt.
 Das Pruefergebnis ist an Ziel, Collection, Punktanzahl, einen Digest der Punkt-IDs
 und den aktiven Kompatibilitaetsdatensatz gebunden. Der Schreibschritt prueft diese
 Bindung erneut und lehnt ein veraltetes Ergebnis ab.
@@ -759,6 +759,31 @@ fordert einen getrennten Neuaufbau an. Eine Uebernahme ist pro Collection und
 Kompatibilitaetsdatensatz nur einmal moeglich. Nach einer spaeteren Aenderung von
 Modellrevision, Vektordimension oder Pipeline-Version ist keine erneute
 Legacy-Uebernahme zulaessig; dann bleibt der vollstaendige Neuaufbau verbindlich.
+
+M5.6 stellt `scripts/migrate_legacy_index.py` bereit. Beispiel fuer eine lokale
+oder per `RATSI_QDRANT_URL` konfigurierte Passage-Collection:
+
+```bash
+python scripts/migrate_legacy_index.py --inspect --collection ratsi_passages --report data/db/legacy_passages_inspection.json
+python scripts/migrate_legacy_index.py --apply --collection ratsi_passages --report data/db/legacy_passages_inspection.json --confirm-collection ratsi_passages
+```
+
+Der zweite Befehl verlangt die ausgeschriebene Collection als Bestaetigung.
+Vor dem ersten Payload-Schreibzugriff prueft er den erfolgreichen Bericht,
+das genaue Qdrant-Ziel, den aktiven Modellvertrag und die deterministische
+Vektorstichprobe erneut. Punktzahl und Punkt-ID-Digest muessen vor und nach
+dem Backfill passen. Fehlende `index_compatibility`-Payloads erhalten den
+Vertrag und `index_provenance=legacy_verified`; bereits kompatibel
+vektorisierte Punkte behalten ihre bisherige Punkt-Herkunft. Erst nach dem
+Ruecklesecheck wird der Freigabemarker mit `provenance=legacy_verified`
+atomar veroeffentlicht. Eine Collection mit schon vorhandenem Vertrag im
+Marker kann nicht erneut als Legacy uebernommen werden. Bei Fehlern vor der
+Markerfreigabe versucht der Befehl, seine Payload-Ergaenzungen zu entfernen;
+ein fehlgeschlagener Ruecknahmeversuch meldet `rollback_incomplete`. Qdrant
+bietet keine gemeinsame Transaktion fuer mehrere Payload-Chargen und die
+Markerdatei; der Marker ist daher die verbindliche Freigabegrenze. Waehrend
+der Uebernahme duerfen keine parallelen Builds oder anderen Qdrant-Schreiber
+dieselbe Collection veraendern.
 
 CLI und Service-Oberflaeche unterscheiden einen nativ mit dem aktuellen Vertrag
 gebauten Index von `legacy_verified`. Die eingeschraenkte Provenienz bleibt auch
@@ -958,7 +983,7 @@ bleiben unabgehakt und werden dort beschrieben.
   Vektorstichprobe fuer die einmalige Legacy-Uebernahme implementieren.
 - [x] **M5.5** Uebernahmeprotokoll, feste Vergleichstoleranzen und eindeutige
   Abbruchgruende fuer unzureichende oder widerspruechliche Nachweise definieren.
-- [ ] **M5.6** Ausdruecklich bestaetigte, atomare Freigabe als `legacy_verified`
+- [x] **M5.6** Ausdruecklich bestaetigte, atomare Freigabe als `legacy_verified`
   und Payload-Backfill ohne Veraenderung vorhandener Vektoren implementieren.
 - [ ] **M5.7** Kompatibilitaetspruefung vor dem ersten Schreibzugriff eines Builds
   durchsetzen.
@@ -1066,7 +1091,12 @@ bleiben unabgehakt und werden dort beschrieben.
   Zieladresse, UTC-Zeitpunkt, feste absolute und relative Toleranzen sowie
   stabile Abbruchcodes sind dokumentiert; keine Freigabe oder Qdrant-Aenderung.
   Allgemeine Version: `0.5.21`.
-- Naechster regulaerer Punkt: **M5.6**; bestaetigte Freigabe und Payload-Backfill.
+- M5.6 fuehrt die bestaetigte Uebernahme nach erneuter Bestandspruefung aus.
+  Fehlende Punkt-Payloads werden ohne Vektorschreibzugriff ergaenzt und vor
+  der atomaren Markerfreigabe zurueckgelesen; bei Fehlern erfolgt ein
+  Rollback-Versuch. Ein CLI bietet getrennte Pruef- und Freigabebefehle.
+  25 gezielte Legacy- und CLI-Tests bestehen. Allgemeine Version: `0.5.22`.
+- Naechster regulaerer Punkt: **M5.7**; Kompatibilitaetspruefung vor Build-Schreibzugriff.
 
 - Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-
   und Testabdeckung, CLI-/Manifestvertrag, Dokumentation und Versionsstand

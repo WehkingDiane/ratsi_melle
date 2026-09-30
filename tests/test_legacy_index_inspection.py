@@ -19,6 +19,7 @@ from src.indexing.legacy_index_inspection import (
     target_sha256,
 )
 from src.indexing.legacy_inspection_report import inspect_and_write_report
+from src.indexing.legacy_index_migration import LegacyMigrationError, apply_verified_legacy_report
 from src.qdrant_connection import QdrantConnection
 
 
@@ -192,6 +193,147 @@ def test_report_persists_specific_abort_without_partial_release_evidence(
         assert report["point_count"] is None
         assert report["point_ids_sha256"] is None
         assert report["compatibility"] is None
+    finally:
+        client.close()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("server", [False, True])
+def test_confirmed_release_backfills_only_legacy_points_and_preserves_vectors(
+    tmp_path, monkeypatch, compatibility, server,
+):
+    monkeypatch.setattr("src.indexing.legacy_index_inspection.current_index_compatibility",
+                        lambda *, deep: compatibility)
+    client = _client()
+    connection = QdrantConnection(
+        tmp_path / "store", "https://user:secret@example.test/qdrant" if server else "",
+        tmp_path / "server_state",
+    )
+    try:
+        legacy = _point(1, "old text", {"text": "old text", "snippet": "old text", "committed": True})
+        native = _point(2, "new text", {"text": "new text", "snippet": "new text",
+                                         "committed": True,
+                                         "index_compatibility": compatibility.as_dict()})
+        client.upsert("ratsi_passages", [legacy, native])
+        before = {point.id: point.vector for point in client.retrieve(
+            "ratsi_passages", ids=[1, 2], with_vectors=True,
+        )}
+        report_path = tmp_path / "inspection.json"
+        inspect_and_write_report(connection, client, "ratsi_passages", report_path,
+                                 vectorizer_factory=Vectorizer)
+        with pytest.raises(LegacyMigrationError) as error:
+            apply_verified_legacy_report(connection, client, "ratsi_passages", report_path,
+                                         confirm_collection="ratsi_documents",
+                                         inspection_options={"vectorizer_factory": Vectorizer})
+        assert error.value.code == "confirmation_required"
+        assert not connection.release_path("ratsi_passages").exists()
+        result = apply_verified_legacy_report(
+            connection, client, "ratsi_passages", report_path,
+            confirm_collection="ratsi_passages",
+            inspection_options={"vectorizer_factory": Vectorizer},
+        )
+        assert result["backfilled_points"] == 1
+        after = {point.id: point for point in client.retrieve(
+            "ratsi_passages", ids=[1, 2], with_vectors=True,
+        )}
+        assert {point_id: point.vector for point_id, point in after.items()} == before
+        assert after[1].payload["index_compatibility"] == compatibility.as_dict()
+        assert after[1].payload["index_provenance"] == "legacy_verified"
+        assert "index_provenance" not in after[2].payload
+        marker = json.loads(connection.release_path("ratsi_passages").read_text())
+        assert marker["provenance"] == "legacy_verified"
+        assert marker["compatibility"] == compatibility.as_dict()
+        assert marker["points_count"] == 2
+        assert "secret" not in connection.release_path("ratsi_passages").read_text()
+        if server:
+            assert "url_sha256" in marker
+        with pytest.raises(LegacyMigrationError) as error:
+            apply_verified_legacy_report(connection, client, "ratsi_passages", report_path,
+                                         confirm_collection="ratsi_passages",
+                                         inspection_options={"vectorizer_factory": Vectorizer})
+        assert error.value.code == "already_released"
+    finally:
+        client.close()
+
+
+@pytest.mark.integration
+def test_changed_point_ids_reject_release_before_payload_writes(tmp_path, monkeypatch, compatibility):
+    monkeypatch.setattr("src.indexing.legacy_index_inspection.current_index_compatibility",
+                        lambda *, deep: compatibility)
+    client = _client()
+    connection = QdrantConnection(tmp_path / "store")
+    try:
+        client.upsert("ratsi_passages", [_point(1, "one", {
+            "text": "one", "snippet": "one", "committed": True,
+        })])
+        report_path = tmp_path / "inspection.json"
+        inspect_and_write_report(connection, client, "ratsi_passages", report_path,
+                                 vectorizer_factory=Vectorizer)
+        client.upsert("ratsi_passages", [_point(2, "two", {
+            "text": "two", "snippet": "two", "committed": True,
+        })])
+        with pytest.raises(LegacyMigrationError) as error:
+            apply_verified_legacy_report(connection, client, "ratsi_passages", report_path,
+                                         confirm_collection="ratsi_passages",
+                                         inspection_options={"vectorizer_factory": Vectorizer})
+        assert error.value.code == "report_stale"
+        assert not connection.release_path("ratsi_passages").exists()
+        assert all("index_compatibility" not in point.payload for point in client.retrieve(
+            "ratsi_passages", ids=[1, 2], with_payload=True,
+        ))
+    finally:
+        client.close()
+
+
+def test_report_for_other_target_is_rejected_before_inspection(tmp_path, monkeypatch):
+    first = QdrantConnection(tmp_path / "one")
+    second = QdrantConnection(tmp_path / "two")
+    report_path = tmp_path / "inspection.json"
+    report_path.write_text(json.dumps({
+        "report_version": 1, "checked_at": "2026-01-01T00:00:00+00:00",
+        "result": "verified", "abort_code": None,
+        "collection": "ratsi_passages", "target_sha256": target_sha256(first),
+        "sample_limit": SAMPLE_SIZE,
+        "tolerances": {"dense_abs": 1e-4, "dense_rel": 1e-4,
+                       "sparse_abs": 1e-4, "sparse_rel": 1e-4,
+                       "sparse_indices": "exact"},
+    }))
+    monkeypatch.setattr("src.indexing.legacy_index_migration.inspect_legacy_collection",
+                        lambda *args, **kwargs: pytest.fail("Inspection should not start"))
+    with pytest.raises(LegacyMigrationError) as error:
+        apply_verified_legacy_report(second, None, "ratsi_passages", report_path,
+                                     confirm_collection="ratsi_passages")
+    assert error.value.code == "report_target_mismatch"
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("failure", [OSError, KeyboardInterrupt])
+def test_failed_marker_publication_rolls_back_payload(tmp_path, monkeypatch, compatibility, failure):
+    monkeypatch.setattr("src.indexing.legacy_index_inspection.current_index_compatibility",
+                        lambda *, deep: compatibility)
+    client = _client()
+    connection = QdrantConnection(tmp_path / "store")
+    try:
+        client.upsert("ratsi_passages", [_point(1, "one", {
+            "text": "one", "snippet": "one", "committed": True,
+        })])
+        report_path = tmp_path / "inspection.json"
+        inspect_and_write_report(connection, client, "ratsi_passages", report_path,
+                                 vectorizer_factory=Vectorizer)
+        def fail(*args, **kwargs):
+            raise failure("injected marker failure")
+        monkeypatch.setattr(QdrantConnection, "write_readiness", fail)
+        expected_error = LegacyMigrationError if failure is OSError else KeyboardInterrupt
+        with pytest.raises(expected_error) as error:
+            apply_verified_legacy_report(connection, client, "ratsi_passages", report_path,
+                                         confirm_collection="ratsi_passages",
+                                         inspection_options={"vectorizer_factory": Vectorizer})
+        if failure is OSError:
+            assert error.value.code == "release_failed"
+        payload = client.retrieve("ratsi_passages", ids=[1], with_payload=True)[0].payload
+        assert "index_compatibility" not in payload
+        assert "index_provenance" not in payload
+        assert not connection.release_path("ratsi_passages").exists()
     finally:
         client.close()
 

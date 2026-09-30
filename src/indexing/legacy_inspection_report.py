@@ -24,6 +24,18 @@ from src.qdrant_connection import QdrantConnection
 REPORT_VERSION = 1
 
 
+def report_tolerances() -> dict:
+    """Return the fixed numerical comparison contract of a legacy inspection."""
+
+    return {
+        "dense_abs": DENSE_ABS_TOLERANCE,
+        "dense_rel": DENSE_REL_TOLERANCE,
+        "sparse_abs": SPARSE_ABS_TOLERANCE,
+        "sparse_rel": SPARSE_REL_TOLERANCE,
+        "sparse_indices": "exact",
+    }
+
+
 def inspect_and_write_report(
     connection: QdrantConnection, client, collection: str, report_path: Path, **inspection_options,
 ) -> dict:
@@ -45,13 +57,7 @@ def inspect_and_write_report(
         "sample_limit": SAMPLE_SIZE,
         "sample_count": 0,
         "sample_ids": [],
-        "tolerances": {
-            "dense_abs": DENSE_ABS_TOLERANCE,
-            "dense_rel": DENSE_REL_TOLERANCE,
-            "sparse_abs": SPARSE_ABS_TOLERANCE,
-            "sparse_rel": SPARSE_REL_TOLERANCE,
-            "sparse_indices": "exact",
-        },
+        "tolerances": report_tolerances(),
         "compatibility": None,
         "result": "aborted",
         "abort_code": None,
