@@ -512,12 +512,16 @@ def test_empty_collection_is_incomplete(tmp_path, remote):
 
 
 @pytest.mark.integration
-def test_evaluation_cli_uses_server_without_local_storage(tmp_path, monkeypatch, remote):
+def test_evaluation_cli_uses_server_without_local_storage(tmp_path, monkeypatch, remote, compatibility):
     monkeypatch.setattr("huggingface_hub.snapshot_download", Mock(side_effect=AssertionError("Unexpected Hub call")))
     from scripts import evaluate_search, build_vector_index
     store = DocumentVectorStore(tmp_path / 'absent', 'ratsi_passages')
     store.ensure_collection()
     store.upsert_batch([point()])
+    store.connection.write_readiness(remote, {"ready": True}, collection="ratsi_passages",
+                                     compatibility=compatibility)
+    monkeypatch.setattr('src.config.index_compatibility.current_index_compatibility',
+                        lambda: compatibility)
     db = tmp_path / 'input.sqlite'
     db.touch()
     benchmark = tmp_path / 'benchmark.json'
@@ -536,3 +540,42 @@ def test_evaluation_cli_uses_server_without_local_storage(tmp_path, monkeypatch,
     assert report['indexed_points'] == 1
     assert report['metrics']['hit_at_k'] == 1
     assert not (tmp_path / 'absent').exists()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("marker_state", ["missing", "different", "pending"])
+def test_evaluation_rejects_incompatible_index_before_loading_encoders(
+    tmp_path, monkeypatch, remote, compatibility, marker_state,
+):
+    from dataclasses import replace
+    from scripts import evaluate_search, build_vector_index
+
+    store = DocumentVectorStore(tmp_path / 'absent', 'ratsi_passages')
+    store.ensure_collection()
+    store.upsert_batch([point()])
+    if marker_state != "missing":
+        stored = (replace(compatibility, manifest_sha256="b" * 64)
+                  if marker_state == "different" else compatibility)
+        store.connection.write_readiness(
+            remote, {"ready": marker_state != "pending"},
+            collection="ratsi_passages", compatibility=stored,
+        )
+    monkeypatch.setattr('src.config.index_compatibility.current_index_compatibility',
+                        lambda: compatibility)
+    monkeypatch.setattr(build_vector_index, '_load_documents', lambda db: [])
+    monkeypatch.setattr(evaluate_search, 'validate_sources', lambda *_args: [])
+    monkeypatch.setattr('src.analysis.embeddings.HarrierEmbedder',
+                        lambda: pytest.fail("Dense encoder loaded before compatibility check"))
+    monkeypatch.setattr('src.analysis.bm25_sparse.BM25Encoder',
+                        lambda: pytest.fail("Sparse encoder loaded before compatibility check"))
+    db = tmp_path / 'input.sqlite'
+    db.touch()
+    benchmark = tmp_path / 'benchmark.json'
+    benchmark.write_text(json.dumps({'queries': [{'id': 'q', 'query': 'Test',
+        'relevant': [{'url': '', 'page': None, 'evidence': 'Test'}]}]}))
+    output = tmp_path / 'report.json'
+
+    with pytest.raises(RuntimeError, match="inkompatibel"):
+        evaluate_search.main(['--db', str(db), '--benchmark', str(benchmark),
+                              '--output', str(output)])
+    assert not output.exists()

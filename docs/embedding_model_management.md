@@ -672,7 +672,9 @@ die Herkunft `legacy_verified`; bereits uebernommene Punkt-Payloads bleiben
 bei spaeteren Ergaenzungen unveraendert.
 Die Websuche vergleicht vor der Query-Kodierung den Marker der tatsaechlich
 ausgewaehlten Collection mit dem aktiven Modellvertrag und weist fehlende oder
-abweichende Vertraege zurueck.
+abweichende Vertraege sowie `ready=false` zurueck. Die Evaluations-CLI prueft
+ihre ausdruecklich gewaehlte Collection auf dieselbe Weise, bevor sie Encoder
+startet oder Ergebnisse schreibt.
 
 M5.8 gibt bei einer inkompatiblen Fortsetzung in allen drei Build-CLIs nur
 eine `ERROR: Index <Collection> inkompatibel: ...`-Zeile mit dem Grund und dem
@@ -764,7 +766,7 @@ Eingabeparameter. Abbruchcodes sind nach Ursache getrennt:
 
 | Ursache | `abort_code` |
 | --- | --- |
-| Modellbestand oder Schema | `model_unavailable`, `schema_mismatch`, `collection_empty` |
+| Modellbestand oder Schema | `model_unavailable`, `schema_mismatch`, `collection_missing`, `collection_empty` |
 | Marker, Modell- oder Pipelinehinweise | `marker_invalid`, `marker_target_mismatch`, `marker_collection_mismatch`, `marker_count_mismatch`, `model_mismatch`, `pipeline_mismatch`, `contract_invalid`, `contract_mismatch` |
 | Punktliste und Payload | `point_ids_invalid`, `payload_missing`, `scroll_incomplete`, `point_count_mismatch`, `collection_changed` |
 | Quelltext | `source_missing`, `source_ambiguous`, `text_unavailable`, `text_mismatch` |
@@ -797,6 +799,10 @@ python scripts/migrate_legacy_index.py --apply --collection ratsi_passages --rep
 ```
 
 Der zweite Befehl verlangt die ausgeschriebene Collection als Bestaetigung.
+Im lokalen Modus koennen beide Befehle mit `--qdrant-dir PFAD` denselben
+abweichenden Qdrant-Speicher wie die Build-CLIs auswaehlen; im Servermodus gilt
+weiterhin `RATSI_QDRANT_URL`. Eine fehlende Collection erzeugt ein Protokoll mit
+`abort_code=collection_missing`.
 Vor dem ersten Payload-Schreibzugriff prueft er den erfolgreichen Bericht,
 das genaue Qdrant-Ziel, den aktiven Modellvertrag und die deterministische
 Vektorstichprobe erneut. Punktzahl und Punkt-ID-Digest muessen vor und nach
@@ -812,6 +818,9 @@ bietet keine gemeinsame Transaktion fuer mehrere Payload-Chargen und die
 Markerdatei; der Marker ist daher die verbindliche Freigabegrenze. Waehrend
 der Uebernahme duerfen keine parallelen Builds oder anderen Qdrant-Schreiber
 dieselbe Collection veraendern.
+Parallele `--apply`-Aufrufe fuer dasselbe Ziel und dieselbe Collection werden
+ueber eine dauerhaft liegende Sperrdatei neben dem Freigabemarker serialisiert.
+Alle Prozesse muessen dafuer dieselbe lokale Statuswurzel nutzen.
 
 Die Freigabemarker unterscheiden einen nativ mit dem aktuellen Vertrag gebauten
 Index von `legacy_verified`. Die eingeschraenkte Provenienz bleibt auch nach
@@ -1155,6 +1164,12 @@ bleiben unabgehakt und werden dort beschrieben.
   Modellvertraege vor der Query-Kodierung; die Legacy-Pruefung verlangt
   `committed=true` fuer alle Passagen; Builds pruefen das Qdrant-Vektorschema
   auch bei leeren vorhandenen Collections. Allgemeine Version: `0.5.25`.
+- Weitere PR-Review-Nachbesserung: parallele Migrationen teilen sich eine
+  pro Collection gesperrte Freigabe; fehlende Collections liefern einen
+  strukturierten Abbruch; die Evaluations-CLI und Websuche sperren
+  `ready=false` und inkompatible Marker; die Migration akzeptiert einen
+  eigenen lokalen Qdrant-Pfad. Der Standardtestlauf besteht mit 708 Tests
+  (7 `live`-Tests ausgeschlossen). Allgemeine Version: `0.5.26`.
 - Naechster regulaerer Punkt: **M6.1**; Modellstatus in die Service-Fassade aufnehmen.
 
 - Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-

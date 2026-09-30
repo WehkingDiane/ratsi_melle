@@ -274,6 +274,8 @@ def inspect_legacy_collection(
     except PreparedModelUnavailableError as error:
         raise LegacyInspectionError("model_unavailable", "Aktiver lokaler Modellbestand ist nicht vollstaendig geprueft.") from error
     marker = _check_marker(connection, collection, compatibility)
+    if collection not in {item.name for item in client.get_collections().collections}:
+        raise LegacyInspectionError("collection_missing", "Collection ist nicht vorhanden.")
     info = client.get_collection(collection_name=collection)
     _check_schema(info, compatibility)
     point_count = client.count(collection_name=collection, exact=True).count

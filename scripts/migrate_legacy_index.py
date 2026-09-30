@@ -16,6 +16,7 @@ from src.indexing.legacy_index_migration import LegacyMigrationError, apply_veri
 from src.indexing.legacy_inspection_report import inspect_and_write_report
 from src.indexing.legacy_index_inspection import LegacyInspectionError
 from src.qdrant_connection import QdrantConnection
+from src.paths import QDRANT_DIR
 
 
 COLLECTIONS = ("ratsi_passages", "ratsi_documents", "landkreis_publications")
@@ -29,6 +30,8 @@ def main(argv: list[str] | None = None) -> int:
     action.add_argument("--inspect", action="store_true", help="Write a read-only inspection report")
     action.add_argument("--apply", action="store_true", help="Apply a verified report")
     parser.add_argument("--collection", required=True, choices=COLLECTIONS)
+    parser.add_argument("--qdrant-dir", type=Path, default=QDRANT_DIR,
+                        help="Local storage when RATSI_QDRANT_MODE=local and RATSI_QDRANT_URL is unset")
     parser.add_argument("--report", required=True, type=Path)
     parser.add_argument("--confirm-collection", choices=COLLECTIONS,
                         help="Repeat the collection name to authorize payload and marker writes")
@@ -38,7 +41,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.inspect and args.confirm_collection:
         parser.error("--inspect does not accept --confirm-collection")
 
-    connection = QdrantConnection.from_env()
+    connection = QdrantConnection.from_env(args.qdrant_dir)
     client = connection.create_client()
     try:
         if args.inspect:

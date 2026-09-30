@@ -56,7 +56,7 @@ class QdrantConnection:
         directory = self.state_dir / sha256(self.url.encode()).hexdigest() if self.url else self.path
         return directory / f"{collection}.ready.json"
 
-    def read_index_compatibility(self, collection: str) -> IndexCompatibility | None:
+    def read_index_compatibility(self, collection: str, *, require_ready: bool = False) -> IndexCompatibility | None:
         """Read a marker's validated model contract without changing the store."""
         try:
             marker = json.loads(self.release_path(collection).read_text(encoding="utf-8"))
@@ -64,9 +64,24 @@ class QdrantConnection:
                 return None
             if self.url and marker.get("url_sha256") != sha256(self.url.encode()).hexdigest():
                 return None
+            if require_ready and marker.get("ready") is False:
+                return None
             return IndexCompatibility.from_dict(marker.get("compatibility"))
         except (OSError, UnicodeError, ValueError, TypeError):
             return None
+
+    def require_search_compatibility(self, collection: str) -> None:
+        """Reject a missing, pending or stale contract before query encoding."""
+
+        from src.config.index_compatibility import current_index_compatibility
+
+        active = current_index_compatibility()
+        if self.read_index_compatibility(collection, require_ready=True) != active:
+            raise RuntimeError(
+                f"Index {collection} inkompatibel oder nicht freigegeben: "
+                "Modell- oder Pipelinevertrag fehlt, weicht ab oder ist noch im Aufbau. "
+                "Index pruefen und uebernehmen oder neu aufbauen."
+            )
 
     def create_client(self):
         """Open only the selected backend; never fall back after server errors."""

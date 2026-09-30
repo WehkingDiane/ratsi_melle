@@ -1,8 +1,10 @@
 """Read-only, deterministic legacy vector inspection with a tiny local store."""
 
 from dataclasses import replace
+from concurrent.futures import ThreadPoolExecutor
 import json
 from pathlib import Path
+from threading import Event
 from types import SimpleNamespace
 
 import pytest
@@ -139,6 +141,30 @@ def test_missing_model_inventory_has_a_persisted_abort_code(tmp_path, monkeypatc
     assert report["result"] == "aborted"
     assert report["abort_code"] == "model_unavailable"
     assert "Private model path" not in path.read_text()
+
+
+@pytest.mark.integration
+def test_missing_collection_writes_structured_abort_without_traceback(
+    tmp_path, monkeypatch, compatibility, capsys,
+):
+    from scripts.migrate_legacy_index import main
+
+    monkeypatch.setenv("RATSI_QDRANT_MODE", "local")
+    monkeypatch.delenv("RATSI_QDRANT_URL", raising=False)
+    monkeypatch.setattr("src.indexing.legacy_index_inspection.current_index_compatibility",
+                        lambda *, deep: compatibility)
+    client = _client("ratsi_documents")
+    monkeypatch.setattr(QdrantConnection, "create_client", lambda self: client)
+    report_path = tmp_path / "missing.json"
+
+    result = main(["--inspect", "--collection", "ratsi_passages", "--report",
+                   str(report_path), "--qdrant-dir", str(tmp_path / "store")])
+
+    assert result == 1
+    assert json.loads(report_path.read_text())["abort_code"] == "collection_missing"
+    output = capsys.readouterr()
+    assert json.loads(output.out)["abort_code"] == "collection_missing"
+    assert "Traceback" not in output.out + output.err
 
 
 def test_failed_report_replace_preserves_previous_report(tmp_path, monkeypatch):
@@ -555,6 +581,62 @@ def test_failed_rollback_keeps_marker_unreleased_and_retry_finishes_backfill(
 
 
 @pytest.mark.integration
+def test_competing_migrations_cannot_rollback_a_published_release(
+    tmp_path, monkeypatch, compatibility,
+):
+    monkeypatch.setattr("src.indexing.legacy_index_inspection.current_index_compatibility",
+                        lambda *, deep: compatibility)
+    client = _client()
+    connection = QdrantConnection(tmp_path / "store")
+    client.upsert("ratsi_passages", [_point(1, "source", {
+        "text": "source", "snippet": "source", "committed": True,
+    })])
+    report_path = tmp_path / "inspection.json"
+    inspect_and_write_report(connection, client, "ratsi_passages", report_path,
+                             vectorizer_factory=Vectorizer)
+    first_write = Event()
+    release_first = Event()
+
+    class PausedClient:
+        def __getattr__(self, name):
+            return getattr(client, name)
+
+        def set_payload(self, **kwargs):
+            client.set_payload(**kwargs)
+            first_write.set()
+            assert release_first.wait(5)
+
+    def apply(using):
+        return apply_verified_legacy_report(
+            connection, using, "ratsi_passages", report_path,
+            confirm_collection="ratsi_passages",
+            inspection_options={"vectorizer_factory": Vectorizer},
+        )
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            first = pool.submit(apply, PausedClient())
+            assert first_write.wait(5)
+            second = pool.submit(apply, client)
+            try:
+                with pytest.raises(TimeoutError):
+                    second.result(timeout=0.1)
+            finally:
+                release_first.set()
+            assert first.result(timeout=5)["backfilled_points"] == 1
+            with pytest.raises(LegacyMigrationError) as error:
+                second.result(timeout=5)
+        assert error.value.code == "already_released"
+        assert connection.read_index_compatibility("ratsi_passages") == compatibility
+        point = client.retrieve("ratsi_passages", ids=[1])[0]
+        assert point.payload["index_compatibility"] == compatibility.as_dict()
+        assert point.payload["index_provenance"] == "legacy_verified"
+    finally:
+        release_first.set()
+        client.close()
+
+
+@pytest.mark.integration
 def test_passage_inspection_reads_only_and_checks_fixed_sample(tmp_path, monkeypatch, compatibility):
     client = _client()
     try:
@@ -569,7 +651,7 @@ def test_passage_inspection_reads_only_and_checks_fixed_sample(tmp_path, monkeyp
 
         class ReadOnlyClient:
             def __getattr__(self, name):
-                if name not in {"get_collection", "count", "scroll", "retrieve"}:
+                if name not in {"get_collections", "get_collection", "count", "scroll", "retrieve"}:
                     raise AssertionError(f"Unexpected write call: {name}")
                 return getattr(client, name)
 

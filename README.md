@@ -320,7 +320,9 @@ Exitcode 1 und einer kurzen Meldung: vollstaendiger Neuaufbau oder getrennte
 Aufbau-Collection erforderlich. Der bestehende Index bleibt dabei unveraendert.
 Die Websuche vergleicht den Marker der tatsaechlich ausgewaehlten Collection mit
 dem aktiven Modellvertrag, bevor sie Suchvektoren berechnet. Bei fehlendem oder
-abweichendem Vertrag zeigt sie einen Fehler statt Ergebnisse aus einem alten Index.
+abweichendem Vertrag oder `ready=false` zeigt sie einen Fehler statt Ergebnisse
+aus einem alten oder noch nicht freigegebenen Index. Die Evaluations-CLI nutzt
+dieselbe Pruefung vor der Query-Kodierung.
 
 Für die Standardadresse ist diese Einstellung nicht mehr nötig. Ein anderer
 Server wird unter WSL mit `export RATSI_QDRANT_URL=...` gewählt. Änderungen an der

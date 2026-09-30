@@ -247,6 +247,7 @@ def test_semantic_search_rejects_incompatible_selected_collection_before_encodin
     tmp_path, monkeypatch, source, selected, marker_state,
 ):
     from src.analysis import vector_store
+    from src.qdrant_connection import QdrantConnection
 
     qdrant_dir = tmp_path / "qdrant"
     qdrant_dir.mkdir()
@@ -254,8 +255,11 @@ def test_semantic_search_rejects_incompatible_selected_collection_before_encodin
     calls = []
 
     class FakeConnection:
-        def read_index_compatibility(self, collection):
+        require_search_compatibility = QdrantConnection.require_search_compatibility
+
+        def read_index_compatibility(self, collection, *, require_ready=False):
             calls.append(("marker", collection))
+            assert require_ready
             return None if marker_state == "missing" else object()
 
     class FakeStore:
@@ -286,8 +290,13 @@ def test_semantic_search_rejects_incompatible_selected_collection_before_encodin
 
 
 @pytest.mark.integration
-def test_semantic_search_rejects_stale_passage_marker_in_qdrant(
-    tmp_path, monkeypatch,
+@pytest.mark.parametrize("source,collection,pending", [
+    ("ratsinfo", "ratsi_passages", False),
+    ("ratsinfo", "ratsi_documents", True),
+    ("landkreis", "landkreis_publications", True),
+])
+def test_semantic_search_rejects_stale_or_pending_marker_in_qdrant(
+    tmp_path, monkeypatch, source, collection, pending,
 ):
     from dataclasses import replace
     from qdrant_client import QdrantClient
@@ -309,12 +318,12 @@ def test_semantic_search_rejects_stale_passage_marker_in_qdrant(
     qdrant_dir.mkdir()
     client = QdrantClient(":memory:")
     client.create_collection(
-        "ratsi_passages",
+        collection,
         vectors_config={"harrier": VectorParams(size=active.vector_dimension,
                                                  distance=Distance.COSINE)},
         sparse_vectors_config={"bm25": SparseVectorParams()},
     )
-    client.upsert("ratsi_passages", [PointStruct(
+    client.upsert(collection, [PointStruct(
         id=1,
         vector={"harrier": [1.0] + [0.0] * (active.vector_dimension - 1),
                 "bm25": SparseVector(indices=[1], values=[1.0])},
@@ -323,8 +332,10 @@ def test_semantic_search_rejects_stale_passage_marker_in_qdrant(
     monkeypatch.setenv("RATSI_QDRANT_MODE", "local")
     monkeypatch.delenv("RATSI_QDRANT_URL", raising=False)
     connection = QdrantConnection.from_env(qdrant_dir)
-    connection.write_readiness(client, {"ready": True}, collection="ratsi_passages",
-                               compatibility=replace(active, manifest_sha256="b" * 64))
+    connection.write_readiness(
+        client, {"ready": not pending}, collection=collection,
+        compatibility=active if pending else replace(active, manifest_sha256="b" * 64),
+    )
     monkeypatch.setattr(QdrantConnection, "create_client", lambda self: client)
     monkeypatch.setattr(search_services, "QDRANT_DIR", qdrant_dir)
     monkeypatch.setattr(search_services, "_semantic_search_dependency_error", lambda: "")
@@ -332,10 +343,10 @@ def test_semantic_search_rejects_stale_passage_marker_in_qdrant(
     monkeypatch.setattr(search_services, "_get_semantic_resources",
                         lambda: pytest.fail("Query encoders must not load"))
 
-    response = search_services.search_semantic_documents("Schule")
+    response = search_services.search_semantic_documents("Schule", source=source)
 
     assert response["results"] == []
-    assert "Index ratsi_passages inkompatibel" in response["error"]
+    assert f"Index {collection} inkompatibel" in response["error"]
 
 
 def test_semantic_result_filters_preserve_relevance_order() -> None:

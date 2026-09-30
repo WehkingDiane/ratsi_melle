@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from datetime import datetime
 import json
+import os
 from pathlib import Path
 
 from src.config.index_compatibility import IndexCompatibility
@@ -30,6 +32,34 @@ class LegacyMigrationError(ValueError):
     def __init__(self, code: str, message: str) -> None:
         self.code = code
         super().__init__(message)
+
+
+@contextmanager
+def _migration_lock(connection: QdrantConnection, collection: str):
+    """Serialize releases for one target and collection across processes."""
+
+    path = connection.release_path(collection).with_suffix(".migration.lock")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # Keep the lock file: removing it could let a third process lock a new inode
+    # while another process is still waiting on the old one.
+    with path.open("a+b") as stream:
+        if os.name == "nt":
+            import msvcrt
+
+            stream.seek(0)
+            msvcrt.locking(stream.fileno(), msvcrt.LK_LOCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            if os.name == "nt":
+                stream.seek(0)
+                msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
 
 
 def _read_report(path: Path) -> dict:
@@ -109,6 +139,18 @@ def apply_verified_legacy_report(
 
     if confirm_collection != collection:
         raise LegacyMigrationError("confirmation_required", "Collection muss ausdruecklich bestaetigt werden.")
+    with _migration_lock(connection, collection):
+        return _apply_verified_legacy_report(
+            connection, client, collection, report_path, inspection_options=inspection_options,
+        )
+
+
+def _apply_verified_legacy_report(
+    connection: QdrantConnection, client, collection: str, report_path: Path, *,
+    inspection_options: dict | None,
+) -> dict:
+    """Keep the lock through marker publication or payload rollback."""
+
     report = _read_report(Path(report_path))
     if report.get("collection") != collection or report.get("target_sha256") != target_sha256(connection):
         raise LegacyMigrationError("report_target_mismatch", "Pruefprotokoll gehoert zu einem anderen Ziel.")

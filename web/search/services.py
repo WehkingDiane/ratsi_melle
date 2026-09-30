@@ -271,17 +271,11 @@ def _create_vector_store(qdrant_dir: Path, collection_name: str = RATSINFO_COLLE
     """Open a searchable store only when its model contract is current."""
 
     from src.analysis.vector_store import DocumentVectorStore
-    from src.config.index_compatibility import current_index_compatibility
 
     store = DocumentVectorStore(qdrant_dir, collection_name=collection_name)
     try:
         store.require_available(prefer_passages=True)
-        active = current_index_compatibility()
-        if store.connection.read_index_compatibility(store.collection_name) != active:
-            raise RuntimeError(
-                f"Index {store.collection_name} inkompatibel: Modell- oder Pipelinevertrag "
-                "fehlt oder weicht ab. Index pruefen und uebernehmen oder neu aufbauen."
-            )
+        store.connection.require_search_compatibility(store.collection_name)
     except Exception:
         store.close()
         raise
