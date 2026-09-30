@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 from src.config.index_compatibility import IndexCompatibility
+from src.indexing.legacy_index_inspection import LegacyInspectionError, _check_schema
 from src.qdrant_connection import QdrantConnection
 
 
@@ -25,7 +26,13 @@ def check_build_compatibility(
     """Return existing provenance, rejecting missing or different release contracts."""
 
     names = {item.name for item in client.get_collections().collections}
-    if collection not in names or client.count(collection_name=collection, exact=True).count == 0:
+    if collection not in names:
+        return "native"
+    try:
+        _check_schema(client.get_collection(collection_name=collection), compatibility)
+    except LegacyInspectionError as error:
+        raise _incompatible(collection, "Qdrant-Vektorschema entspricht nicht dem aktiven Vertrag.") from error
+    if client.count(collection_name=collection, exact=True).count == 0:
         return "native"
     stored = connection.read_index_compatibility(collection)
     if stored is None:

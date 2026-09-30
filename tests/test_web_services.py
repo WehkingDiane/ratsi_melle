@@ -237,6 +237,107 @@ def test_semantic_search_documents_uses_vector_store(workspace_tmp: Path, monkey
     assert response["results"][0]["snippet"] == "Windkraft wird in Riemsloh beraten."
 
 
+@pytest.mark.parametrize("source,selected", [
+    ("ratsinfo", "ratsi_passages"),
+    ("ratsinfo", "ratsi_documents"),
+    ("landkreis", "landkreis_publications"),
+])
+@pytest.mark.parametrize("marker_state", ["missing", "different"])
+def test_semantic_search_rejects_incompatible_selected_collection_before_encoding(
+    tmp_path, monkeypatch, source, selected, marker_state,
+):
+    from src.analysis import vector_store
+
+    qdrant_dir = tmp_path / "qdrant"
+    qdrant_dir.mkdir()
+    active = object()
+    calls = []
+
+    class FakeConnection:
+        def read_index_compatibility(self, collection):
+            calls.append(("marker", collection))
+            return None if marker_state == "missing" else object()
+
+    class FakeStore:
+        connection = FakeConnection()
+
+        def __init__(self, _path, collection_name):
+            self.collection_name = collection_name
+
+        def require_available(self, *, prefer_passages):
+            assert prefer_passages
+            self.collection_name = selected
+
+        def close(self):
+            calls.append(("close", self.collection_name))
+
+    monkeypatch.setattr(search_services, "QDRANT_DIR", qdrant_dir)
+    monkeypatch.setattr(search_services, "_semantic_search_dependency_error", lambda: "")
+    monkeypatch.setattr(vector_store, "DocumentVectorStore", FakeStore)
+    monkeypatch.setattr("src.config.index_compatibility.current_index_compatibility", lambda: active)
+    monkeypatch.setattr(search_services, "_get_semantic_resources",
+                        lambda: pytest.fail("Query encoders must not load"))
+
+    response = search_services.search_semantic_documents("Schule", source=source)
+
+    assert response["results"] == []
+    assert "inkompatibel" in response["error"]
+    assert calls == [("marker", selected), ("close", selected)]
+
+
+@pytest.mark.integration
+def test_semantic_search_rejects_stale_passage_marker_in_qdrant(
+    tmp_path, monkeypatch,
+):
+    from dataclasses import replace
+    from qdrant_client import QdrantClient
+    from qdrant_client.models import Distance, PointStruct, SparseVector, SparseVectorParams, VectorParams
+
+    from src.config.embedding_models import BM25_MODEL, HARRIER_MODEL, HARRIER_TOKENIZER
+    from src.config.index_compatibility import IndexCompatibility
+    from src.qdrant_connection import QdrantConnection
+
+    active = IndexCompatibility(
+        dense_model_id=HARRIER_MODEL.model_id, dense_revision=HARRIER_MODEL.revision,
+        sparse_model_id=BM25_MODEL.model_id, sparse_revision=BM25_MODEL.revision,
+        tokenizer_model_id=HARRIER_TOKENIZER.model_id,
+        tokenizer_revision=HARRIER_TOKENIZER.revision,
+        manifest_sha256="a" * 64, vector_dimension=HARRIER_MODEL.vector_dimension,
+        pipeline_version="passages-1",
+    )
+    qdrant_dir = tmp_path / "qdrant"
+    qdrant_dir.mkdir()
+    client = QdrantClient(":memory:")
+    client.create_collection(
+        "ratsi_passages",
+        vectors_config={"harrier": VectorParams(size=active.vector_dimension,
+                                                 distance=Distance.COSINE)},
+        sparse_vectors_config={"bm25": SparseVectorParams()},
+    )
+    client.upsert("ratsi_passages", [PointStruct(
+        id=1,
+        vector={"harrier": [1.0] + [0.0] * (active.vector_dimension - 1),
+                "bm25": SparseVector(indices=[1], values=[1.0])},
+        payload={"committed": True},
+    )])
+    monkeypatch.setenv("RATSI_QDRANT_MODE", "local")
+    monkeypatch.delenv("RATSI_QDRANT_URL", raising=False)
+    connection = QdrantConnection.from_env(qdrant_dir)
+    connection.write_readiness(client, {"ready": True}, collection="ratsi_passages",
+                               compatibility=replace(active, manifest_sha256="b" * 64))
+    monkeypatch.setattr(QdrantConnection, "create_client", lambda self: client)
+    monkeypatch.setattr(search_services, "QDRANT_DIR", qdrant_dir)
+    monkeypatch.setattr(search_services, "_semantic_search_dependency_error", lambda: "")
+    monkeypatch.setattr("src.config.index_compatibility.current_index_compatibility", lambda: active)
+    monkeypatch.setattr(search_services, "_get_semantic_resources",
+                        lambda: pytest.fail("Query encoders must not load"))
+
+    response = search_services.search_semantic_documents("Schule")
+
+    assert response["results"] == []
+    assert "Index ratsi_passages inkompatibel" in response["error"]
+
+
 def test_semantic_result_filters_preserve_relevance_order() -> None:
     results = [
         {"rank": 1, "date": "2026-03-11", "committee": "Rat", "document_type": "vorlage"},

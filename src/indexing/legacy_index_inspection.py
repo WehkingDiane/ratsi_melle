@@ -136,6 +136,8 @@ def _scan_point_ids(client, collection: str, compatibility: IndexCompatibility) 
             if not isinstance(record.payload, dict):
                 raise LegacyInspectionError("payload_missing", "Ein Punkt besitzt kein pruefbares Payload.")
             _check_hints(record.payload, compatibility)
+            if collection == "ratsi_passages" and record.payload.get("committed") is not True:
+                raise LegacyInspectionError("text_unavailable", "Passage ist nicht bestaetigt.")
             seen.add(record.id)
             ids.append(record.id)
         if next_offset is None:

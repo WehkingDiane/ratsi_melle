@@ -309,13 +309,18 @@ python scripts/build_vector_index.py
 ```
 
 Bei einer bereits gefuellten Collection prueft der Build vor Aenderungen den
-passenden Kompatibilitaetsmarker. Alte Collections ohne diesen Nachweis muessen
+passenden Kompatibilitaetsmarker. Auch das Vektorschema jeder vorhandenen
+Collection wird vor Aenderungen geprueft, selbst wenn sie leer ist. Alte
+Collections ohne Kompatibilitaetsnachweis muessen
 zuerst mit dem [Legacy-Pruef- und Uebernahmepfad](docs/embedding_model_management.md#einmalige-uebernahme-bestehender-collections)
 verifiziert werden. Eine unterbrochene Fortsetzung behaelt den Modellvertrag
 im Marker, auch wenn der Passage-Index voruebergehend nicht freigegeben ist.
 Bei einem fehlenden oder abweichenden Vertrag beendet sich der Build mit
 Exitcode 1 und einer kurzen Meldung: vollstaendiger Neuaufbau oder getrennte
 Aufbau-Collection erforderlich. Der bestehende Index bleibt dabei unveraendert.
+Die Websuche vergleicht den Marker der tatsaechlich ausgewaehlten Collection mit
+dem aktiven Modellvertrag, bevor sie Suchvektoren berechnet. Bei fehlendem oder
+abweichendem Vertrag zeigt sie einen Fehler statt Ergebnisse aus einem alten Index.
 
 Für die Standardadresse ist diese Einstellung nicht mehr nötig. Ein anderer
 Server wird unter WSL mit `export RATSI_QDRANT_URL=...` gewählt. Änderungen an der

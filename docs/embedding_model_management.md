@@ -660,13 +660,19 @@ Payload-Aktualisierung und Vektor-Upsert um. Bei einer nichtleeren Collection
 muss ein gueltiger, ziel- und collectionsgebundener Freigabemarker exakt den
 aktiven Kompatibilitaetsdatensatz enthalten. Ein fehlender, ungueltiger oder
 abweichender Marker bricht den Build vor dem ersten Qdrant-Schreibzugriff ab.
-Leere oder neue Collections duerfen mit dem aktiven Vertrag beginnen. Jeder
+Neue Collections duerfen mit dem aktiven Vertrag beginnen. Bereits vorhandene
+leere Collections muessen dafuer ebenfalls das erwartete
+Vektorschema besitzen. Ein alter Marker allein legitimiert kein zwischenzeitlich
+neu angelegtes, inkompatibles Qdrant-Schema. Jeder
 Build haelt einen Marker mit `ready=false` und Vertrag fest, bis der Lauf
 erfolgreich freigegeben ist; dadurch bleibt eine unterbrochene inkrementelle
 Fortsetzung pruefbar. Die Passage-Suche behandelt `ready=false` als nicht
 freigegeben. Der Collection-Marker behaelt nach einer verifizierten Uebernahme
 die Herkunft `legacy_verified`; bereits uebernommene Punkt-Payloads bleiben
 bei spaeteren Ergaenzungen unveraendert.
+Die Websuche vergleicht vor der Query-Kodierung den Marker der tatsaechlich
+ausgewaehlten Collection mit dem aktiven Modellvertrag und weist fehlende oder
+abweichende Vertraege zurueck.
 
 M5.8 gibt bei einer inkompatiblen Fortsetzung in allen drei Build-CLIs nur
 eine `ERROR: Index <Collection> inkompatibel: ...`-Zeile mit dem Grund und dem
@@ -724,6 +730,8 @@ Die Uebernahme laeuft zunaechst strikt lesend und erfordert:
   Dense-Dimension 1024
 - vorhandene Modell- und Pipelinehinweise ohne bekannten Widerspruch zur aktiven
   Konfiguration
+- fuer jede Passage in der vollstaendigen Punktliste `committed=true`, auch
+  ausserhalb der deterministischen Vektorstichprobe
 - fuer jeden geprueften Punkt einen unveraenderten, exakt rekonstruierbaren
   urspruenglichen Embedding-Text
 - eine deterministisch aus Collection, Punkt-IDs und aktivem
@@ -1143,6 +1151,10 @@ bleiben unabgehakt und werden dort beschrieben.
   Service-Darstellung und zu einer unvollstaendigen Payload-Ruecknahme wurden
   an den implementierten Stand angepasst. `VERSION` bleibt fuer diesen
   Pruef- und Dokumentationsschritt bei `0.5.24`.
+- PR-Review-Nachbesserung: Die Websuche sperrt fehlende oder abweichende
+  Modellvertraege vor der Query-Kodierung; die Legacy-Pruefung verlangt
+  `committed=true` fuer alle Passagen; Builds pruefen das Qdrant-Vektorschema
+  auch bei leeren vorhandenen Collections. Allgemeine Version: `0.5.25`.
 - Naechster regulaerer Punkt: **M6.1**; Modellstatus in die Service-Fassade aufnehmen.
 
 - Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-

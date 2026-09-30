@@ -121,6 +121,49 @@ def test_different_contract_rejects_existing_collection_without_marker_change(
 
 
 @pytest.mark.integration
+@pytest.mark.parametrize("schema", ["dimension", "distance", "vectors", "sparse"])
+@pytest.mark.parametrize("empty", [False, True])
+def test_stale_marker_does_not_authorize_recreated_collection_schema(
+    tmp_path, compatibility, schema, empty,
+):
+    from qdrant_client.models import Distance, PointStruct, SparseVectorParams, VectorParams
+
+    collection = "landkreis_publications"
+    store = _store(tmp_path, collection)
+    client = store._get_client()
+    connection = store.connection
+    try:
+        connection.write_readiness(client, {"ready": True, "provenance": "native"},
+                                   collection=collection, compatibility=compatibility)
+        marker_before = connection.release_path(collection).read_bytes()
+        client.delete_collection(collection)
+        name = "other" if schema == "vectors" else "harrier"
+        dimension = 3 if schema == "dimension" else compatibility.vector_dimension
+        distance = Distance.DOT if schema == "distance" else Distance.COSINE
+        sparse = {} if schema == "sparse" else {"bm25": SparseVectorParams()}
+        client.create_collection(
+            collection,
+            vectors_config={name: VectorParams(size=dimension, distance=distance)},
+            sparse_vectors_config=sparse,
+        )
+        if not empty:
+            client.upsert(collection, [PointStruct(
+                id=1, vector={name: [1.0] + [0.0] * (dimension - 1)}, payload={"text": "existing"},
+            )])
+        original_set_payload = client.set_payload
+        client.set_payload = lambda *args, **kwargs: pytest.fail("Unexpected payload write")
+        try:
+            with pytest.raises(IndexBuildCompatibilityError, match="Vektorschema"):
+                store.begin_build(compatibility)
+        finally:
+            client.set_payload = original_set_payload
+        assert connection.release_path(collection).read_bytes() == marker_before
+        assert client.count(collection, exact=True).count == (0 if empty else 1)
+    finally:
+        store.close()
+
+
+@pytest.mark.integration
 @pytest.mark.parametrize("builder,collection", [
     ("passages", "ratsi_passages"),
     ("legacy", "ratsi_documents"),

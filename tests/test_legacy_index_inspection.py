@@ -347,6 +347,36 @@ def test_changed_sample_vector_rejects_release_with_unchanged_point_ids(
         client.close()
 
 
+@pytest.mark.integration
+def test_unsampled_uncommitted_passage_rejects_legacy_report(
+    tmp_path, monkeypatch, compatibility,
+):
+    monkeypatch.setattr("src.indexing.legacy_index_inspection.current_index_compatibility",
+                        lambda *, deep: compatibility)
+    client = _client()
+    connection = QdrantConnection(tmp_path / "store")
+    try:
+        ids = list(range(1, SAMPLE_SIZE + 9))
+        sample = set(select_sample_ids("ratsi_passages", ids, compatibility))
+        uncommitted_id = next(point_id for point_id in ids if point_id not in sample)
+        client.upsert("ratsi_passages", [
+            _point(point_id, f"source-{point_id}", {
+                "text": f"source-{point_id}", "snippet": f"source-{point_id}",
+                "committed": point_id != uncommitted_id,
+            })
+            for point_id in ids
+        ])
+        report = inspect_and_write_report(
+            connection, client, "ratsi_passages", tmp_path / "inspection.json",
+            vectorizer_factory=Vectorizer,
+        )
+        assert report["result"] == "aborted"
+        assert report["abort_code"] == "text_unavailable"
+        assert not connection.release_path("ratsi_passages").exists()
+    finally:
+        client.close()
+
+
 def test_report_for_other_target_is_rejected_before_inspection(tmp_path, monkeypatch):
     first = QdrantConnection(tmp_path / "one")
     second = QdrantConnection(tmp_path / "two")

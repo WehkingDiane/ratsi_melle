@@ -149,6 +149,10 @@ den Collection-Namen und den vollstaendigen Kompatibilitaetsdatensatz aus
 Modell-IDs und Revisionen, Manifest-Hash, Vektordimension und Pipeline-Version.
 Der lokale Marker enthaelt denselben Kompatibilitaetsdatensatz und
 Collection-Namen.
+Baut ein Indexer eine vorhandene Collection fort, muss auch deren Qdrant-Schema
+mit Vektornamen, Dense-Dimension und Cosine-Distanz passen; das gilt selbst fuer
+eine leere Collection. Die Websuche vergleicht den Marker der ausgewaehlten
+Collection vor der Query-Kodierung mit dem aktiven Modellvertrag.
 Bisherige Marker mit Klartext-URL werden nicht mehr akzeptiert; ein vollständiger
 Passage-Build schreibt einen neuen Marker. Die
 Suche prüft, dass Punktzahl und Anzahl der `committed`-Punkte dazu passen.
