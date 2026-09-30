@@ -660,6 +660,12 @@ Payload-Aktualisierung und Vektor-Upsert um. Bei einer nichtleeren Collection
 muss ein gueltiger, ziel- und collectionsgebundener Freigabemarker exakt den
 aktiven Kompatibilitaetsdatensatz enthalten. Ein fehlender, ungueltiger oder
 abweichender Marker bricht den Build vor dem ersten Qdrant-Schreibzugriff ab.
+Der Marker erfasst die Punktzahl auch bei lokalem Qdrant; Build und Suche
+vergleichen diese Zahl und die Kompatibilitaetsdaten aller Punkte mit dem
+aktuellen Vertrag. Ein alter Marker fuer eine ersetzte Collection mit gleicher
+Punktzahl und abweichenden oder fehlenden Payloads wird daher abgelehnt.
+Bestehende Marker ohne Punktzahl muessen durch einen getrennten Neuaufbau oder
+eine erneute verifizierte Uebernahme ersetzt werden.
 Neue Collections duerfen mit dem aktiven Vertrag beginnen. Bereits vorhandene
 leere Collections muessen dafuer ebenfalls das erwartete
 Vektorschema besitzen. Ein alter Marker allein legitimiert kein zwischenzeitlich

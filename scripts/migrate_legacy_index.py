@@ -42,6 +42,9 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--inspect does not accept --confirm-collection")
 
     connection = QdrantConnection.from_env(args.qdrant_dir)
+    if not connection.url and not connection.path.is_dir():
+        print(json.dumps({"result": "aborted", "abort_code": "store_missing"}), file=sys.stderr)
+        return 1
     client = connection.create_client()
     try:
         if args.inspect:

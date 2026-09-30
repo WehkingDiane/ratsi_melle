@@ -26,6 +26,7 @@ def test_custom_local_qdrant_path_is_used_for_both_migration_actions(
     monkeypatch.setenv("RATSI_QDRANT_MODE", "local")
     monkeypatch.delenv("RATSI_QDRANT_URL", raising=False)
     selected = tmp_path / "custom_store"
+    selected.mkdir()
     seen = []
 
     class Client:
@@ -51,3 +52,19 @@ def test_custom_local_qdrant_path_is_used_for_both_migration_actions(
 
     assert main(args) == 0
     assert seen == [selected]
+
+
+@pytest.mark.parametrize("action", ["inspect", "apply"])
+def test_missing_local_store_does_not_open_or_create_qdrant(tmp_path, monkeypatch, capsys, action):
+    monkeypatch.setenv("RATSI_QDRANT_MODE", "local")
+    monkeypatch.delenv("RATSI_QDRANT_URL", raising=False)
+    selected = tmp_path / "missing"
+    monkeypatch.setattr(QdrantConnection, "create_client",
+                        lambda self: pytest.fail("Missing store must not be opened"))
+    args = [f"--{action}", "--collection", "ratsi_passages", "--report",
+            str(tmp_path / "report.json"), "--qdrant-dir", str(selected)]
+    if action == "apply":
+        args.extend(["--confirm-collection", "ratsi_passages"])
+    assert main(args) == 1
+    assert '"abort_code": "store_missing"' in capsys.readouterr().err
+    assert not selected.exists()

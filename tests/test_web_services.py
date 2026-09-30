@@ -262,6 +262,9 @@ def test_semantic_search_rejects_incompatible_selected_collection_before_encodin
             assert require_ready
             return None if marker_state == "missing" else object()
 
+        def collection_contents_match(self, client, collection, compatibility):
+            pytest.fail("Mismatched marker must reject before scanning")
+
     class FakeStore:
         connection = FakeConnection()
 
@@ -271,6 +274,9 @@ def test_semantic_search_rejects_incompatible_selected_collection_before_encodin
         def require_available(self, *, prefer_passages):
             assert prefer_passages
             self.collection_name = selected
+
+        def _get_client(self):
+            return object()
 
         def close(self):
             calls.append(("close", self.collection_name))

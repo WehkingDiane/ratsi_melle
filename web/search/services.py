@@ -275,7 +275,7 @@ def _create_vector_store(qdrant_dir: Path, collection_name: str = RATSINFO_COLLE
     store = DocumentVectorStore(qdrant_dir, collection_name=collection_name)
     try:
         store.require_available(prefer_passages=True)
-        store.connection.require_search_compatibility(store.collection_name)
+        store.connection.require_search_compatibility(store.collection_name, store._get_client())
     except Exception:
         store.close()
         raise

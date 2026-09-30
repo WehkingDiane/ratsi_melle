@@ -27,7 +27,7 @@ def compatibility() -> IndexCompatibility:
     )
 
 
-def _store(tmp_path, collection):
+def _store(tmp_path, collection, compatibility=None):
     from qdrant_client import QdrantClient
     from qdrant_client.models import PointStruct, SparseVector
 
@@ -39,7 +39,8 @@ def _store(tmp_path, collection):
     client.upsert(collection, [PointStruct(
         id=1, vector={"harrier": [1.0] + [0.0] * 1023,
                       "bm25": SparseVector(indices=[1], values=[1.0])},
-        payload={"text": "legacy"},
+        payload={"text": "legacy", **({"index_compatibility": compatibility.as_dict()}
+                                    if compatibility else {})},
     )])
     return store
 
@@ -74,7 +75,7 @@ def test_nonempty_collection_without_contract_is_rejected_before_writes(
     "ratsi_passages", "ratsi_documents", "landkreis_publications",
 ])
 def test_matching_contract_survives_in_progress_build(tmp_path, compatibility, provenance, collection):
-    store = _store(tmp_path, collection)
+    store = _store(tmp_path, collection, compatibility)
     connection = store.connection
     client = store._get_client()
     try:
@@ -98,6 +99,72 @@ def test_matching_contract_survives_in_progress_build(tmp_path, compatibility, p
             assert connection.passages_ready(client)
         assert json.loads(marker_path.read_text())["provenance"] == provenance
         assert client.retrieve(collection, ids=[1], with_vectors=True)[0].vector == before
+    finally:
+        store.close()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("replacement", ["different_count", "missing_contract", "foreign_contract"])
+def test_stale_marker_rejects_replaced_collection_before_writes(tmp_path, compatibility, replacement):
+    from qdrant_client.models import PointStruct, SparseVector
+
+    collection = "landkreis_publications"
+    store = _store(tmp_path, collection, compatibility)
+    client = store._get_client()
+    connection = store.connection
+    try:
+        connection.write_readiness(client, {"provenance": "native"},
+                                   collection=collection, compatibility=compatibility)
+        marker = connection.release_path(collection).read_bytes()
+        client.delete_collection(collection)
+        store.ensure_collection()
+        payload = {"text": "replaced"}
+        if replacement == "foreign_contract":
+            payload["index_compatibility"] = replace(compatibility, manifest_sha256="b" * 64).as_dict()
+        client.upsert(collection, [PointStruct(
+            id=2, vector={"harrier": [1.0] + [0.0] * 1023,
+                          "bm25": SparseVector(indices=[1], values=[1.0])}, payload=payload,
+        )])
+        if replacement == "different_count":
+            client.upsert(collection, [PointStruct(
+                id=3, vector={"harrier": [1.0] + [0.0] * 1023,
+                              "bm25": SparseVector(indices=[1], values=[1.0])},
+                payload={"index_compatibility": compatibility.as_dict()},
+            )])
+        original_upsert = client.upsert
+        client.upsert = lambda *args, **kwargs: pytest.fail("Unexpected vector write")
+        try:
+            with pytest.raises(IndexBuildCompatibilityError, match="Punktbestand"):
+                store.begin_build(compatibility)
+        finally:
+            client.upsert = original_upsert
+        assert connection.release_path(collection).read_bytes() == marker
+    finally:
+        store.close()
+
+
+@pytest.mark.integration
+def test_search_rejects_stale_marker_on_equal_size_replacement(tmp_path, monkeypatch, compatibility):
+    from qdrant_client.models import PointStruct, SparseVector
+
+    collection = "ratsi_documents"
+    store = _store(tmp_path, collection, compatibility)
+    client = store._get_client()
+    connection = store.connection
+    try:
+        connection.write_readiness(client, {"ready": True},
+                                   collection=collection, compatibility=compatibility)
+        client.delete_collection(collection)
+        store.ensure_collection()
+        client.upsert(collection, [PointStruct(
+            id=2, vector={"harrier": [1.0] + [0.0] * 1023,
+                          "bm25": SparseVector(indices=[1], values=[1.0])},
+            payload={"text": "foreign"},
+        )])
+        monkeypatch.setattr("src.config.index_compatibility.current_index_compatibility",
+                            lambda: compatibility)
+        with pytest.raises(RuntimeError, match="Punktbestand"):
+            connection.require_search_compatibility(collection, client)
     finally:
         store.close()
 

@@ -43,6 +43,8 @@ def check_build_compatibility(
         raise _incompatible(
             collection, "Bestehende Collection hat einen anderen Modell- oder Pipelinevertrag."
         )
+    if not connection.collection_contents_match(client, collection, compatibility):
+        raise _incompatible(collection, "Freigabemarker und Qdrant-Punktbestand stimmen nicht ueberein.")
     try:
         marker = json.loads(connection.release_path(collection).read_text(encoding="utf-8"))
     except (OSError, UnicodeError, ValueError) as error:

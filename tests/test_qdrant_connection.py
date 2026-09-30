@@ -36,12 +36,14 @@ def compatibility():
     )
 
 
-def point(pid=1, committed=True):
+def point(pid=1, committed=True, compatibility=None):
     return {"id": pid, "dense_vector": [1.0] + [0.0] * 1023,
             "sparse_vector": {"indices": [1], "values": [1.0]},
             "payload": {"document_id": 10, "committed": committed,
                         "chunk_count": 1, "chunk_index": 0, "generation": "first",
-                        "text": "Test", "title": "Title", "session_id": "1"}}
+                        "text": "Test", "title": "Title", "session_id": "1",
+                        **({"index_compatibility": compatibility.as_dict()}
+                           if compatibility else {})}}
 
 
 @pytest.fixture
@@ -220,11 +222,12 @@ def test_collection_release_marker_round_trips_compatibility(tmp_path, compatibi
     assert connection.read_index_compatibility(collection) == compatibility
     assert "secret" not in path.as_posix() + path.read_text(encoding="utf-8")
     if server:
-        client.count.assert_called_once_with(collection, exact=True)
+        client.count.assert_called_once_with(collection_name=collection, exact=True)
         assert marker["points_count"] == 2
         assert marker["url_sha256"] == __import__("hashlib").sha256(url.encode()).hexdigest()
     else:
-        client.count.assert_not_called()
+        client.count.assert_called_once_with(collection_name=collection, exact=True)
+        assert marker["points_count"] == 2
         assert "url_sha256" not in marker
     connection.clear_readiness(collection)
     assert not path.exists()
@@ -233,6 +236,7 @@ def test_collection_release_marker_round_trips_compatibility(tmp_path, compatibi
 def test_release_marker_rejects_wrong_target_or_invalid_contract(tmp_path, compatibility):
     connection = QdrantConnection(tmp_path / "local")
     client = Mock()
+    client.count.return_value.count = 0
     connection.write_readiness(client, {}, collection="ratsi_documents", compatibility=compatibility)
     marker_path = connection.release_path("ratsi_documents")
     marker = json.loads(marker_path.read_text(encoding="utf-8"))
@@ -273,8 +277,10 @@ def test_failed_marker_replace_keeps_previous_release(tmp_path, monkeypatch, com
         return original_replace(source, destination)
 
     monkeypatch.setattr(Path, "replace", fail_replace)
+    client = Mock()
+    client.count.return_value.count = 0
     with pytest.raises(OSError, match="interrupted"):
-        connection.write_readiness(Mock(), {}, compatibility=compatibility)
+        connection.write_readiness(client, {}, compatibility=compatibility)
     assert path.read_text(encoding="utf-8") == "previous release"
     assert list(path.parent.glob("*.tmp")) == []
 
@@ -517,7 +523,7 @@ def test_evaluation_cli_uses_server_without_local_storage(tmp_path, monkeypatch,
     from scripts import evaluate_search, build_vector_index
     store = DocumentVectorStore(tmp_path / 'absent', 'ratsi_passages')
     store.ensure_collection()
-    store.upsert_batch([point()])
+    store.upsert_batch([point(compatibility=compatibility)])
     store.connection.write_readiness(remote, {"ready": True}, collection="ratsi_passages",
                                      compatibility=compatibility)
     monkeypatch.setattr('src.config.index_compatibility.current_index_compatibility',

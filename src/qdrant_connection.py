@@ -70,7 +70,39 @@ class QdrantConnection:
         except (OSError, UnicodeError, ValueError, TypeError):
             return None
 
-    def require_search_compatibility(self, collection: str) -> None:
+    def collection_contents_match(self, client, collection: str, compatibility: IndexCompatibility) -> bool:
+        """Check the marker's point count and every stored point contract."""
+        try:
+            marker = json.loads(self.release_path(collection).read_text(encoding="utf-8"))
+            expected_count = marker.get("points_count")
+            if type(expected_count) is not int or expected_count < 0:
+                return False
+            if client.count(collection_name=collection, exact=True).count != expected_count:
+                return False
+            offset = None
+            seen = set()
+            while True:
+                records, next_offset = client.scroll(
+                    collection_name=collection, with_payload=True, with_vectors=False,
+                    limit=256, offset=offset,
+                )
+                for record in records:
+                    if record.id in seen or not isinstance(record.payload, dict):
+                        return False
+                    seen.add(record.id)
+                    if IndexCompatibility.from_dict(record.payload.get("index_compatibility")) != compatibility:
+                        return False
+                if next_offset is None:
+                    return len(seen) == expected_count and client.count(
+                        collection_name=collection, exact=True,
+                    ).count == expected_count
+                if not records or next_offset == offset or len(seen) > expected_count:
+                    return False
+                offset = next_offset
+        except (OSError, UnicodeError, ValueError, TypeError, KeyError, AttributeError):
+            return False
+
+    def require_search_compatibility(self, collection: str, client=None) -> None:
         """Reject a missing, pending or stale contract before query encoding."""
 
         from src.config.index_compatibility import current_index_compatibility
@@ -82,6 +114,18 @@ class QdrantConnection:
                 "Modell- oder Pipelinevertrag fehlt, weicht ab oder ist noch im Aufbau. "
                 "Index pruefen und uebernehmen oder neu aufbauen."
             )
+        owned_client = client is None
+        if owned_client:
+            client = self.create_client()
+        try:
+            if not self.collection_contents_match(client, collection, active):
+                raise RuntimeError(
+                    f"Index {collection} inkompatibel: Punktbestand und Freigabemarker "
+                    "stimmen nicht ueberein. Index pruefen oder neu aufbauen."
+                )
+        finally:
+            if owned_client:
+                client.close()
 
     def create_client(self):
         """Open only the selected backend; never fall back after server errors."""
@@ -137,8 +181,9 @@ class QdrantConnection:
         if compatibility is not None:
             marker.update(collection=collection, compatibility=compatibility.as_dict())
         if self.url:
-            marker.update(url_sha256=sha256(self.url.encode()).hexdigest(),
-                          points_count=client.count(collection, exact=True).count)
+            marker["url_sha256"] = sha256(self.url.encode()).hexdigest()
+        if self.url or compatibility is not None:
+            marker["points_count"] = client.count(collection_name=collection, exact=True).count
         path.parent.mkdir(parents=True, exist_ok=True)
         temporary = path.with_name(f".{path.name}.{uuid4().hex}.tmp")
         try:

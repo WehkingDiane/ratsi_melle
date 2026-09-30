@@ -309,7 +309,9 @@ python scripts/build_vector_index.py
 ```
 
 Bei einer bereits gefuellten Collection prueft der Build vor Aenderungen den
-passenden Kompatibilitaetsmarker. Auch das Vektorschema jeder vorhandenen
+passenden Kompatibilitaetsmarker, die Punktzahl und die Kompatibilitaetsdaten
+aller vorhandenen Punkte. Die Suche prueft denselben Bestand vor der Abfrage.
+Auch das Vektorschema jeder vorhandenen
 Collection wird vor Aenderungen geprueft, selbst wenn sie leer ist. Alte
 Collections ohne Kompatibilitaetsnachweis muessen
 zuerst mit dem [Legacy-Pruef- und Uebernahmepfad](docs/embedding_model_management.md#einmalige-uebernahme-bestehender-collections)
