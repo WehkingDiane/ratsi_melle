@@ -163,6 +163,14 @@ class QdrantConnection:
                     f"Index {collection} inkompatibel oder nicht freigegeben: "
                     "Freigabemarker wurde geaendert oder ist noch im Aufbau."
                 )
+            from src.indexing.legacy_index_inspection import LegacyInspectionError, _check_schema
+
+            try:
+                _check_schema(client.get_collection(collection_name=collection), active)
+            except LegacyInspectionError as error:
+                raise RuntimeError(
+                    f"Index {collection} inkompatibel: Qdrant-Vektorschema weicht vom aktiven Vertrag ab."
+                ) from error
             count = client.count(collection_name=collection, exact=True).count
             cache_key = (str(marker_path.resolve()), collection)
             with _search_cache_lock:

@@ -723,8 +723,37 @@ def test_document_text_is_reconstructed_from_original_builder(
         assert migrated.payload["index_compatibility"] == compatibility.as_dict()
         assert migrated.payload["index_provenance"] == "legacy_verified"
         assert connection.read_index_compatibility(collection) == compatibility
+        marker = json.loads(connection.release_path(collection).read_text(encoding="utf-8"))
+        if collection == "landkreis_publications":
+            from scripts.build_landkreis_vector_index import DEFAULT_MAX_TEXT_CHARS
+            from src.indexing.build_compatibility import check_build_compatibility
+
+            options = {"max_text_chars": DEFAULT_MAX_TEXT_CHARS}
+            assert marker["build_options"] == options
+            assert check_build_compatibility(connection, client, collection, compatibility,
+                                             build_options=options) == "legacy_verified"
+        else:
+            assert "build_options" not in marker
     finally:
         client.close()
+
+
+@pytest.mark.parametrize("sparse", ["idf", "float16"])
+def test_schema_rejects_sparse_scoring_changes(compatibility, sparse):
+    from qdrant_client.models import (
+        Datatype, Distance, Modifier, SparseIndexParams, SparseVectorParams, VectorParams,
+    )
+    from src.indexing.legacy_index_inspection import _check_schema
+
+    sparse_params = (SparseVectorParams(modifier=Modifier.IDF) if sparse == "idf"
+                     else SparseVectorParams(index=SparseIndexParams(datatype=Datatype.FLOAT16)))
+    info = SimpleNamespace(config=SimpleNamespace(params=SimpleNamespace(
+        vectors={"harrier": VectorParams(size=compatibility.vector_dimension,
+                                         distance=Distance.COSINE)},
+        sparse_vectors={"bm25": sparse_params},
+    )))
+    with pytest.raises(LegacyInspectionError, match="Vektorschema"):
+        _check_schema(info, compatibility)
 
 
 @pytest.mark.integration

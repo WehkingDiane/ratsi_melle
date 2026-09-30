@@ -204,11 +204,18 @@ def _apply_verified_legacy_report(
             if point_id in missing and payload.get(PROVENANCE_KEY) != LEGACY_PROVENANCE:
                 raise LegacyMigrationError("backfill_incomplete", "Herkunfts-Payload ist unvollstaendig.")
         _check_marker_unreleased(connection, collection)
+        metadata = {"ready": True, "provenance": LEGACY_PROVENANCE,
+                    "points_count": inspection.point_count,
+                    "inspection_sha256": inspection.point_ids_sha256,
+                    "inspection_checked_at": report["checked_at"]}
+        if collection == "landkreis_publications":
+            from scripts.build_landkreis_vector_index import DEFAULT_MAX_TEXT_CHARS
+
+            # Legacy inspection recalculates Landkreis vectors with this default.
+            metadata["build_options"] = {"max_text_chars": DEFAULT_MAX_TEXT_CHARS}
         connection.write_readiness(
             client,
-            {"ready": True, "provenance": LEGACY_PROVENANCE, "points_count": inspection.point_count,
-             "inspection_sha256": inspection.point_ids_sha256,
-             "inspection_checked_at": report["checked_at"]},
+            metadata,
             collection=collection, compatibility=inspection.compatibility,
         )
     except BaseException as operation_error:

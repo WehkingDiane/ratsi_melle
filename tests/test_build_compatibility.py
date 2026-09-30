@@ -290,6 +290,39 @@ def test_search_rejects_marker_revoked_between_its_reads(tmp_path, monkeypatch, 
 
 
 @pytest.mark.integration
+def test_search_rejects_recreated_schema_even_with_cached_matching_vectors(
+    tmp_path, monkeypatch, compatibility,
+):
+    from qdrant_client.models import Distance, PointStruct, SparseVectorParams, VectorParams
+
+    collection = "ratsi_documents"
+    store = _store(tmp_path, collection, compatibility)
+    connection = store.connection
+    client = store._get_client()
+    try:
+        connection.write_readiness(client, {"ready": True},
+                                   collection=collection, compatibility=compatibility)
+        monkeypatch.setattr("src.config.index_compatibility.current_index_compatibility",
+                            lambda: compatibility)
+        connection.require_search_compatibility(collection, client)  # Populate the search cache.
+        original = client.retrieve(collection, ids=[1], with_vectors=True, with_payload=True)[0]
+        client.delete_collection(collection)
+        client.create_collection(
+            collection,
+            vectors_config={"harrier": VectorParams(size=compatibility.vector_dimension,
+                                                     distance=Distance.DOT)},
+            sparse_vectors_config={"bm25": SparseVectorParams()},
+        )
+        client.upsert(collection, [PointStruct(id=original.id, vector=original.vector,
+                                              payload=original.payload)])
+        assert client.count(collection_name=collection, exact=True).count == 1
+        with pytest.raises(RuntimeError, match="Vektorschema"):
+            connection.require_search_compatibility(collection, client)
+    finally:
+        store.close()
+
+
+@pytest.mark.integration
 def test_copied_payload_with_foreign_vector_rejects_build_and_search(
     tmp_path, monkeypatch, compatibility,
 ):

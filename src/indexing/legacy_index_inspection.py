@@ -114,6 +114,9 @@ def _check_schema(info, compatibility: IndexCompatibility) -> None:
             and dense["harrier"].size == compatibility.vector_dimension
             and dense["harrier"].distance == Distance.COSINE
             and isinstance(sparse, dict) and set(sparse) == {"bm25"}
+            and sparse["bm25"].modifier is None
+            and (sparse["bm25"].index is None
+                 or sparse["bm25"].index.datatype is None)
         )
     except (AttributeError, KeyError, TypeError):
         valid = False

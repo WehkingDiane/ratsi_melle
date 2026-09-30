@@ -685,6 +685,9 @@ Neue Collections duerfen mit dem aktiven Vertrag beginnen. Bereits vorhandene
 leere Collections muessen dafuer ebenfalls das erwartete
 Vektorschema besitzen. Ein alter Marker allein legitimiert kein zwischenzeitlich
 neu angelegtes, inkompatibles Qdrant-Schema. Jeder
+Schemaabgleich umfasst neben dem Dense-Distanzmass auch BM25-Modifikator und
+Sparse-Datentyp. Die Suche prueft das aktuelle Collection-Schema vor einem
+moeglichen Cache-Treffer erneut. Jeder
 Build haelt einen Marker mit `ready=false` und Vertrag fest, bis der Lauf
 erfolgreich freigegeben ist; dadurch bleibt eine unterbrochene inkrementelle
 Fortsetzung pruefbar. Die Passage-Suche behandelt `ready=false` als nicht

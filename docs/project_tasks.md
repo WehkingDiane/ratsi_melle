@@ -82,6 +82,7 @@ Jeder offene Punkt kann eine grobe Aufwandseinstufung und eine Modell-Empfehlung
 #### Konkrete Aufgaben
 
 - Volltext-, PDF- und OCR-Randfälle im Analyse- und Suchpfad robuster behandeln `[Schwer · GPT-6 Astra / Medium]`
+- Landkreis-Collection `landkreis_publications` nach Abschluss der Indexkompatibilitaets-Aenderungen aus den vorhandenen Quelldaten getrennt neu aufbauen; zuvor gewaehltes `--max-text-chars` festlegen und dieselbe Grenze fuer spaetere inkrementelle Laeufe beibehalten. Den Melle-Index (`ratsi_passages`/`ratsi_documents`) dabei nicht neu aufbauen oder loeschen. `[Mittel · GPT-6 Sol / Medium]`
 - Optionale OCR-Werkzeuge und das Verhalten bei großen Dateien betrieblich absichern `[Mittel · GPT-6 Sol / Low]`
 - Standardlauf von `scripts/build_vector_index.py` auf 100 Dokumente begrenzen; einen vollständigen Durchlauf nur mit einem ausdrücklichen Parameter wie `--all` starten `[Leicht · GPT-6 Luna / Medium]`
 - Fortschrittsanzeige für `scripts/build_vector_index.py` ergänzen: Gesamtzahl, bereits indexierte und noch ausstehende Dokumente sowie laufender Fortschritt `[Mittel · GPT-6 Sol / Low]`
