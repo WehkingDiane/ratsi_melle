@@ -70,28 +70,34 @@ def test_nonempty_collection_without_contract_is_rejected_before_writes(
 
 @pytest.mark.integration
 @pytest.mark.parametrize("provenance", ["native", "legacy_verified"])
-def test_matching_contract_survives_in_progress_build(tmp_path, compatibility, provenance):
-    store = _store(tmp_path, "ratsi_passages")
+@pytest.mark.parametrize("collection", [
+    "ratsi_passages", "ratsi_documents", "landkreis_publications",
+])
+def test_matching_contract_survives_in_progress_build(tmp_path, compatibility, provenance, collection):
+    store = _store(tmp_path, collection)
     connection = store.connection
     client = store._get_client()
     try:
         connection.write_readiness(client, {"provenance": provenance},
-                                   compatibility=compatibility)
-        before = client.retrieve("ratsi_passages", ids=[1], with_vectors=True)[0].vector
+                                   collection=collection, compatibility=compatibility)
+        before = client.retrieve(collection, ids=[1], with_vectors=True)[0].vector
         store.begin_build(compatibility)
-        pending = json.loads(connection.ready_path.read_text())
+        marker_path = connection.release_path(collection)
+        pending = json.loads(marker_path.read_text())
         assert pending["ready"] is False
         assert pending["provenance"] == provenance
-        assert connection.read_index_compatibility("ratsi_passages") == compatibility
-        assert not connection.passages_ready(client)
+        assert connection.read_index_compatibility(collection) == compatibility
+        if collection == "ratsi_passages":
+            assert not connection.passages_ready(client)
         with pytest.raises(RuntimeError, match="Kompatibilitaetspruefung"):
             store.finish_build(replace(compatibility, manifest_sha256="b" * 64))
-        assert not connection.passages_ready(client)
+        assert json.loads(marker_path.read_text())["ready"] is False
         store.begin_build(compatibility)  # Resume after an interrupted build.
         store.finish_build(compatibility)
-        assert connection.passages_ready(client)
-        assert json.loads(connection.ready_path.read_text())["provenance"] == provenance
-        assert client.retrieve("ratsi_passages", ids=[1], with_vectors=True)[0].vector == before
+        if collection == "ratsi_passages":
+            assert connection.passages_ready(client)
+        assert json.loads(marker_path.read_text())["provenance"] == provenance
+        assert client.retrieve(collection, ids=[1], with_vectors=True)[0].vector == before
     finally:
         store.close()
 

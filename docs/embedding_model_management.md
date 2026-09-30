@@ -1009,7 +1009,7 @@ bleiben unabgehakt und werden dort beschrieben.
   durchsetzen.
 - [x] **M5.8** Inkompatible inkrementelle Fortsetzung mit kurzer Meldung und
   Hinweis auf Neuaufbau beziehungsweise Aufbau-Collection verhindern.
-- [ ] **M5.9** Migrations-, Stichproben-, Abbruch-, Atomizitaets- und
+- [x] **M5.9** Migrations-, Stichproben-, Abbruch-, Atomizitaets- und
   Wiederanlauftests fuer native, uebernommene und inkompatible Indexstaende
   ergaenzen.
 - [ ] **M5.10** Phase 5 pruefen und als eigenen Zwischenstand committen.
@@ -1125,7 +1125,15 @@ bleiben unabgehakt und werden dort beschrieben.
   Exitcode `1` und Hinweis auf Neuaufbau oder Aufbau-Collection. Tests pruefen
   fehlende und abweichende Marker ohne Qdrant-Schreibzugriff oder Traceback.
   Allgemeine Version: `0.5.24`.
-- Naechster regulaerer Punkt: **M5.9**; Migrations- und Wiederanlauftests.
+- M5.9 ergaenzt End-to-End-Uebernahmen fuer Ratsinfo-Dokumente und Landkreis,
+  Matrix-Tests fuer native und `legacy_verified`-Fortsetzungen aller drei
+  Collections, einen nach dem Bericht geaenderten Stichprobenvektor sowie
+  atomare Protokollablage. Fehler in einer teilweise geschriebenen Payload-
+  Charge und bei der Ruecknahme lassen den alten Marker bestehen; Wiederanlauf
+  mit demselben Bericht ist geprueft. Die 108 betroffenen Tests bestehen ohne
+  echte Modellgewichte oder produktive Qdrant-Aenderungen. `VERSION` bleibt
+  fuer diesen reinen Testschritt bei `0.5.24`.
+- Naechster regulaerer Punkt: **M5.10**; Phase 5 pruefen und separat committen.
 
 - Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-
   und Testabdeckung, CLI-/Manifestvertrag, Dokumentation und Versionsstand

@@ -141,6 +141,28 @@ def test_missing_model_inventory_has_a_persisted_abort_code(tmp_path, monkeypatc
     assert "Private model path" not in path.read_text()
 
 
+def test_failed_report_replace_preserves_previous_report(tmp_path, monkeypatch):
+    def missing(*, deep):
+        raise PreparedModelUnavailableError("missing")
+
+    monkeypatch.setattr("src.indexing.legacy_index_inspection.current_index_compatibility", missing)
+    path = tmp_path / "inspection.json"
+    path.write_bytes(b"previous audit")
+    original_replace = Path.replace
+
+    def fail_replace(source, destination):
+        if destination == path:
+            raise OSError("injected atomic replace failure")
+        return original_replace(source, destination)
+
+    monkeypatch.setattr(Path, "replace", fail_replace)
+    with pytest.raises(OSError, match="atomic replace"):
+        inspect_and_write_report(QdrantConnection(tmp_path / "store"), None,
+                                 "ratsi_passages", path)
+    assert path.read_bytes() == b"previous audit"
+    assert not list(tmp_path.glob("*.tmp"))
+
+
 @pytest.mark.integration
 def test_report_persists_verified_evidence_without_text_or_vectors(tmp_path, monkeypatch, compatibility):
     monkeypatch.setattr("src.indexing.legacy_index_inspection.current_index_compatibility",
@@ -285,6 +307,46 @@ def test_changed_point_ids_reject_release_before_payload_writes(tmp_path, monkey
         client.close()
 
 
+@pytest.mark.integration
+def test_changed_sample_vector_rejects_release_with_unchanged_point_ids(
+    tmp_path, monkeypatch, compatibility,
+):
+    monkeypatch.setattr("src.indexing.legacy_index_inspection.current_index_compatibility",
+                        lambda *, deep: compatibility)
+    client = _client()
+    connection = QdrantConnection(tmp_path / "store")
+    try:
+        client.upsert("ratsi_passages", [
+            _point(number, f"source-{number}", {
+                "text": f"source-{number}", "snippet": f"source-{number}",
+                "committed": True,
+            })
+            for number in range(1, 41)
+        ])
+        report_path = tmp_path / "inspection.json"
+        report = inspect_and_write_report(connection, client, "ratsi_passages", report_path,
+                                          vectorizer_factory=Vectorizer)
+        assert report["sample_count"] == SAMPLE_SIZE
+        assert len(set(report["sample_ids"])) == SAMPLE_SIZE
+        selected_id = report["sample_ids"][0]
+        changed = client.retrieve("ratsi_passages", ids=[selected_id], with_vectors=True)[0]
+        changed.vector["harrier"] = [0.0, 1.0, 0.0]
+        client.upsert("ratsi_passages", [changed])
+        with pytest.raises(LegacyInspectionError) as error:
+            apply_verified_legacy_report(
+                connection, client, "ratsi_passages", report_path,
+                confirm_collection="ratsi_passages",
+                inspection_options={"vectorizer_factory": Vectorizer},
+            )
+        assert error.value.code == "dense_mismatch"
+        assert not connection.release_path("ratsi_passages").exists()
+        assert all("index_compatibility" not in point.payload for point in client.retrieve(
+            "ratsi_passages", ids=list(range(1, 41)), with_payload=True,
+        ))
+    finally:
+        client.close()
+
+
 def test_report_for_other_target_is_rejected_before_inspection(tmp_path, monkeypatch):
     first = QdrantConnection(tmp_path / "one")
     second = QdrantConnection(tmp_path / "two")
@@ -334,6 +396,130 @@ def test_failed_marker_publication_rolls_back_payload(tmp_path, monkeypatch, com
         assert "index_compatibility" not in payload
         assert "index_provenance" not in payload
         assert not connection.release_path("ratsi_passages").exists()
+    finally:
+        client.close()
+
+
+@pytest.mark.integration
+def test_partial_backfill_failure_rolls_back_and_can_resume_with_same_report(
+    tmp_path, monkeypatch, compatibility,
+):
+    from src.indexing import legacy_index_migration
+
+    monkeypatch.setattr("src.indexing.legacy_index_inspection.current_index_compatibility",
+                        lambda *, deep: compatibility)
+    monkeypatch.setattr(legacy_index_migration, "BACKFILL_SIZE", 2)
+    client = _client()
+    connection = QdrantConnection(tmp_path / "store")
+    marker_path = connection.release_path("ratsi_passages")
+    marker_path.parent.mkdir(parents=True)
+    original_marker = b'{"model":"' + compatibility.dense_model_id.encode() + b'"}'
+    marker_path.write_bytes(original_marker)
+    try:
+        client.upsert("ratsi_passages", [
+            _point(number, f"source-{number}", {
+                "text": f"source-{number}", "snippet": f"source-{number}",
+                "committed": True,
+            })
+            for number in range(1, 4)
+        ])
+        before = {point.id: point.vector for point in client.retrieve(
+            "ratsi_passages", ids=[1, 2, 3], with_vectors=True,
+        )}
+        report_path = tmp_path / "inspection.json"
+        inspect_and_write_report(connection, client, "ratsi_passages", report_path,
+                                 vectorizer_factory=Vectorizer)
+
+        class FailAfterSecondBatch:
+            writes = 0
+
+            def __getattr__(self, name):
+                return getattr(client, name)
+
+            def set_payload(self, **kwargs):
+                self.writes += 1
+                result = client.set_payload(**kwargs)
+                if self.writes == 2:
+                    raise OSError("injected partial batch failure")
+                return result
+
+        with pytest.raises(LegacyMigrationError) as error:
+            apply_verified_legacy_report(
+                connection, FailAfterSecondBatch(), "ratsi_passages", report_path,
+                confirm_collection="ratsi_passages",
+                inspection_options={"vectorizer_factory": Vectorizer},
+            )
+        assert error.value.code == "release_failed"
+        assert marker_path.read_bytes() == original_marker
+        rolled_back = client.retrieve("ratsi_passages", ids=[1, 2, 3], with_vectors=True)
+        assert all("index_compatibility" not in point.payload
+                   and "index_provenance" not in point.payload for point in rolled_back)
+        assert {point.id: point.vector for point in rolled_back} == before
+
+        result = apply_verified_legacy_report(
+            connection, client, "ratsi_passages", report_path,
+            confirm_collection="ratsi_passages",
+            inspection_options={"vectorizer_factory": Vectorizer},
+        )
+        assert result["backfilled_points"] == 3
+        assert connection.read_index_compatibility("ratsi_passages") == compatibility
+        assert all(point.payload["index_provenance"] == "legacy_verified"
+                   for point in client.retrieve("ratsi_passages", ids=[1, 2, 3]))
+    finally:
+        client.close()
+
+
+@pytest.mark.integration
+def test_failed_rollback_keeps_marker_unreleased_and_retry_finishes_backfill(
+    tmp_path, monkeypatch, compatibility,
+):
+    from src.indexing import legacy_index_migration
+
+    monkeypatch.setattr("src.indexing.legacy_index_inspection.current_index_compatibility",
+                        lambda *, deep: compatibility)
+    monkeypatch.setattr(legacy_index_migration, "BACKFILL_SIZE", 1)
+    client = _client()
+    connection = QdrantConnection(tmp_path / "store")
+    try:
+        client.upsert("ratsi_passages", [
+            _point(number, f"source-{number}", {
+                "text": f"source-{number}", "snippet": f"source-{number}", "committed": True,
+            })
+            for number in (1, 2)
+        ])
+        report_path = tmp_path / "inspection.json"
+        inspect_and_write_report(connection, client, "ratsi_passages", report_path,
+                                 vectorizer_factory=Vectorizer)
+
+        class InterruptedClient:
+            def __getattr__(self, name):
+                return getattr(client, name)
+
+            def set_payload(self, **kwargs):
+                client.set_payload(**kwargs)
+                raise OSError("write acknowledgement lost")
+
+            def delete_payload(self, **kwargs):
+                raise OSError("rollback unavailable")
+
+        with pytest.raises(LegacyMigrationError) as error:
+            apply_verified_legacy_report(
+                connection, InterruptedClient(), "ratsi_passages", report_path,
+                confirm_collection="ratsi_passages",
+                inspection_options={"vectorizer_factory": Vectorizer},
+            )
+        assert error.value.code == "rollback_incomplete"
+        assert not connection.release_path("ratsi_passages").exists()
+        partial = client.retrieve("ratsi_passages", ids=[1, 2], with_payload=True)
+        assert sum("index_compatibility" in point.payload for point in partial) == 1
+
+        result = apply_verified_legacy_report(
+            connection, client, "ratsi_passages", report_path,
+            confirm_collection="ratsi_passages",
+            inspection_options={"vectorizer_factory": Vectorizer},
+        )
+        assert result["backfilled_points"] == 1
+        assert connection.read_index_compatibility("ratsi_passages") == compatibility
     finally:
         client.close()
 
@@ -403,6 +589,24 @@ def test_document_text_is_reconstructed_from_original_builder(
                           landkreis_data_root=tmp_path)
         assert result.sample_ids == (point_id,)
         assert result.point_count == 1
+        connection = QdrantConnection(tmp_path / "unused")
+        report_path = tmp_path / f"{collection}.inspection.json"
+        options = {"ratsinfo_db": tmp_path / "unused.sqlite",
+                   "landkreis_db": tmp_path / "unused-county.sqlite",
+                   "landkreis_data_root": tmp_path, "vectorizer_factory": Vectorizer}
+        before = client.retrieve(collection, ids=[point_id], with_vectors=True)[0].vector
+        report = inspect_and_write_report(connection, client, collection, report_path, **options)
+        assert report["result"] == "verified"
+        released = apply_verified_legacy_report(
+            connection, client, collection, report_path,
+            confirm_collection=collection, inspection_options=options,
+        )
+        assert released["backfilled_points"] == 1
+        migrated = client.retrieve(collection, ids=[point_id], with_vectors=True)[0]
+        assert migrated.vector == before
+        assert migrated.payload["index_compatibility"] == compatibility.as_dict()
+        assert migrated.payload["index_provenance"] == "legacy_verified"
+        assert connection.read_index_compatibility(collection) == compatibility
     finally:
         client.close()
 
