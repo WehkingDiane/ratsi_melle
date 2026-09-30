@@ -34,6 +34,13 @@ def compatibility() -> IndexCompatibility:
     )
 
 
+@pytest.fixture(autouse=True)
+def prepared_build_contract(monkeypatch, compatibility):
+    """Build workflow tests use a fixed local contract without model downloads."""
+    monkeypatch.setattr(build_vector_index, "current_index_compatibility", lambda: compatibility)
+    monkeypatch.setattr(build_landkreis_vector_index, "current_index_compatibility", lambda: compatibility)
+
+
 class _FakeVectorStore:
     def __init__(self, indexed_ids: set[int], count: int) -> None:
         self._indexed_ids = set(indexed_ids)
@@ -42,6 +49,15 @@ class _FakeVectorStore:
         self.upserted_batches: list[list[dict]] = []
         self.payload_ids = set(indexed_ids)
         self.updated_payloads: list[list[dict]] = []
+
+    def _get_client(self):
+        return self
+
+    def begin_build(self, compatibility: IndexCompatibility) -> None:
+        self.build_compatibility = compatibility
+
+    def finish_build(self, compatibility: IndexCompatibility) -> None:
+        assert compatibility == self.build_compatibility
 
     def ensure_collection(self) -> None:
         pass

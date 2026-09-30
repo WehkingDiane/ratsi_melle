@@ -213,7 +213,9 @@ def legacy_main(argv: list[str] | None = None) -> None:
     HarrierEmbedder, DocumentVectorStore = _validate_runtime_dependencies()
 
     vector_store = DocumentVectorStore(qdrant_dir)
-    vector_store.ensure_collection()
+    vector_store._get_client()
+    compatibility = current_index_compatibility()
+    vector_store.begin_build(compatibility)
 
     print("Loading documents from database …")
     all_docs = _load_documents(db_path)
@@ -264,7 +266,6 @@ def legacy_main(argv: list[str] | None = None) -> None:
             )
         else:
             print(f"  {len(already_indexed)} already indexed, {len(docs_to_index)} new.")
-        compatibility = current_index_compatibility()
         print("Loading embedding models …")
         embedder = HarrierEmbedder()
 
@@ -330,6 +331,7 @@ def legacy_main(argv: list[str] | None = None) -> None:
     )
 
     total_now = vector_store.count()
+    vector_store.finish_build(compatibility)
     print(f"\nIndexed {indexed_count} new documents. Total: {total_now}")
 
 

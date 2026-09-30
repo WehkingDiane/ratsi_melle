@@ -637,8 +637,8 @@ zusammen mit dem Collection-Namen. Servermarker behalten ausserdem URL-Hash
 und exakte Punktzahl. Der Leser validiert Collection, URL-Bindung und alle
 Kompatibilitaetsfelder; alte Marker ohne Datensatz liefern keinen
 Kompatibilitaetsnachweis. Die Aufnahme neuer Freigabeschreibvorgaenge fuer
-`ratsi_documents` und `landkreis_publications` folgt mit der Build-Sperre in
-M5.7; alte Collections werden hier nicht nachtraeglich als kompatibel markiert.
+`ratsi_documents` und `landkreis_publications` ist mit M5.7 umgesetzt; alte
+Collections werden dadurch nicht nachtraeglich als kompatibel markiert.
 
 M5.3 schreibt bei neu berechneten Punkten aller drei Collections denselben
 vollstaendigen Datensatz unter dem Payload-Feld `index_compatibility`. Dieser
@@ -654,6 +654,19 @@ Vor dem ersten Schreibzugriff vergleicht ein Builder den vorhandenen Indexstand
 mit der aktiven Modellkonfiguration. Bei einer Abweichung darf er die Collection
 nicht inkrementell erweitern. Er fordert einen vollstaendigen Neuaufbau oder eine
 getrennte Aufbau-Collection an.
+
+M5.7 setzt diese Schranke fuer alle drei Collections vor Collection-Erzeugung,
+Payload-Aktualisierung und Vektor-Upsert um. Bei einer nichtleeren Collection
+muss ein gueltiger, ziel- und collectionsgebundener Freigabemarker exakt den
+aktiven Kompatibilitaetsdatensatz enthalten. Ein fehlender, ungueltiger oder
+abweichender Marker bricht den Build vor dem ersten Qdrant-Schreibzugriff ab.
+Leere oder neue Collections duerfen mit dem aktiven Vertrag beginnen. Jeder
+Build haelt einen Marker mit `ready=false` und Vertrag fest, bis der Lauf
+erfolgreich freigegeben ist; dadurch bleibt eine unterbrochene inkrementelle
+Fortsetzung pruefbar. Die Passage-Suche behandelt `ready=false` als nicht
+freigegeben. Der Collection-Marker behaelt nach einer verifizierten Uebernahme
+die Herkunft `legacy_verified`; bereits uebernommene Punkt-Payloads bleiben
+bei spaeteren Ergaenzungen unveraendert.
 
 ### Einmalige Uebernahme bestehender Collections
 
@@ -985,7 +998,7 @@ bleiben unabgehakt und werden dort beschrieben.
   Abbruchgruende fuer unzureichende oder widerspruechliche Nachweise definieren.
 - [x] **M5.6** Ausdruecklich bestaetigte, atomare Freigabe als `legacy_verified`
   und Payload-Backfill ohne Veraenderung vorhandener Vektoren implementieren.
-- [ ] **M5.7** Kompatibilitaetspruefung vor dem ersten Schreibzugriff eines Builds
+- [x] **M5.7** Kompatibilitaetspruefung vor dem ersten Schreibzugriff eines Builds
   durchsetzen.
 - [ ] **M5.8** Inkompatible inkrementelle Fortsetzung mit kurzer Meldung und
   Hinweis auf Neuaufbau beziehungsweise Aufbau-Collection verhindern.
@@ -1096,7 +1109,12 @@ bleiben unabgehakt und werden dort beschrieben.
   der atomaren Markerfreigabe zurueckgelesen; bei Fehlern erfolgt ein
   Rollback-Versuch. Ein CLI bietet getrennte Pruef- und Freigabebefehle.
   25 gezielte Legacy- und CLI-Tests bestehen. Allgemeine Version: `0.5.22`.
-- Naechster regulaerer Punkt: **M5.7**; Kompatibilitaetspruefung vor Build-Schreibzugriff.
+- M5.7 prueft alle drei Builder vor ihrem ersten Qdrant-Schreibzugriff gegen
+  einen passenden Freigabemarker. Neue Builds und Fortsetzungen halten den
+  Vertrag mit `ready=false` fest und stellen nach Abschluss `ready=true` her;
+  `legacy_verified` bleibt erhalten. Gezielte Build- und Qdrant-Tests bestehen.
+  Allgemeine Version: `0.5.23`.
+- Naechster regulaerer Punkt: **M5.8**; kurze Fehlermeldung und Neuaufbau-Hinweis.
 
 - Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-
   und Testabdeckung, CLI-/Manifestvertrag, Dokumentation und Versionsstand

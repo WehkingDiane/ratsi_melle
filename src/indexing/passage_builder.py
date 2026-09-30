@@ -156,9 +156,9 @@ def main(argv=None):
         parser.error(f"Database not found: {args.db}")
     store = DocumentVectorStore(args.qdrant_dir, collection_name=COLLECTION)
     try:
-        store.ensure_collection()
+        store._get_client()
         compatibility = current_index_compatibility()
-        store.connection.clear_readiness()
+        store.begin_build(compatibility)
         tokenizer = _load_tokenizer()
         result = build_passage_index(
             _load_documents(args.db), store, tokenizer,
@@ -177,9 +177,7 @@ def main(argv=None):
         complete = {parent for (parent, _), chunks in generations.items()
                     if len(chunks) == chunks[0].get("chunk_count") and all(c.get("committed") for c in chunks)}
         if expected and expected <= complete and not result["failures"] and not result["pending_documents"]:
-            store.connection.write_readiness(
-                store._get_client(), {}, compatibility=compatibility,
-            )
+            store.finish_build(compatibility)
         result["ready"] = store.connection.passages_ready(store._get_client())
         print(json.dumps(result, ensure_ascii=False))
         if result["failures"]:

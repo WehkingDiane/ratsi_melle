@@ -95,6 +95,8 @@ class QdrantConnection:
             return False
         if not isinstance(marker, dict):
             return False
+        if marker.get("ready") is False:
+            return False
         if not self.url:
             return True  # Preserve existing local marker format.
         if marker.get("url_sha256") != sha256(self.url.encode()).hexdigest() or not marker.get("points_count"):

@@ -442,9 +442,10 @@ def test_tiny_migration_and_return_to_local(tmp_path, monkeypatch, remote):
     ('scripts.build_vector_index', 'ratsi_documents'),
     ('scripts.build_landkreis_vector_index', 'landkreis_publications'),
 ])
-def test_legacy_and_county_builds_use_configured_server(tmp_path, monkeypatch, remote, module_name, collection):
+def test_legacy_and_county_builds_use_configured_server(tmp_path, monkeypatch, remote, compatibility, module_name, collection):
     import importlib
     module = importlib.import_module(module_name)
+    monkeypatch.setattr(module, 'current_index_compatibility', lambda: compatibility)
     db = tmp_path / 'input.sqlite'
     db.touch()
     monkeypatch.setattr(module, '_load_documents', lambda db: [])
@@ -483,7 +484,9 @@ def test_passage_build_only_marks_complete_current_documents(tmp_path, monkeypat
                           for point in points)
     source.write_text('Changed document source')
     passage_builder.main(args + ['--limit', '1'])
-    assert not config.ready_path.exists()
+    assert config.ready_path.exists()
+    assert not config.passages_ready(remote)
+    assert config.read_index_compatibility('ratsi_passages') == compatibility
     passage_builder.main(args + ['--limit', '1'])
     assert config.passages_ready(remote)
     assert not (tmp_path / 'absent').exists()

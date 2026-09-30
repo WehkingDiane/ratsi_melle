@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from src.qdrant_connection import QdrantConnection, collection_state
+from src.config.index_compatibility import IndexCompatibility
 from src.config.embedding_models import HARRIER_MODEL
 
 _COLLECTION_NAME = "ratsi_documents"
@@ -34,6 +35,8 @@ class DocumentVectorStore:
         self.connection = QdrantConnection.from_env(qdrant_path)
         self.collection_name = collection_name
         self._client: Any = None
+        self._build_provenance: str | None = None
+        self._build_compatibility: IndexCompatibility | None = None
 
     # ------------------------------------------------------------------
     # Private helpers
@@ -50,6 +53,33 @@ class DocumentVectorStore:
         self._client = None
         if client is not None:
             client.close()
+
+    def begin_build(self, compatibility: IndexCompatibility) -> None:
+        """Check an existing collection before its first build write."""
+        from src.indexing.build_compatibility import check_build_compatibility
+
+        self._build_provenance = None
+        self._build_compatibility = None
+        client = self._get_client()
+        provenance = check_build_compatibility(
+            self.connection, client, self.collection_name, compatibility,
+        )
+        self.ensure_collection()
+        self.connection.write_readiness(
+            client, {"ready": False, "provenance": provenance},
+            collection=self.collection_name, compatibility=compatibility,
+        )
+        self._build_provenance = provenance
+        self._build_compatibility = compatibility
+
+    def finish_build(self, compatibility: IndexCompatibility) -> None:
+        """Atomically publish the completed generation and its provenance."""
+        if self._build_provenance is None or self._build_compatibility != compatibility:
+            raise RuntimeError("Build wurde nicht mit Kompatibilitaetspruefung begonnen.")
+        self.connection.write_readiness(
+            self._get_client(), {"ready": True, "provenance": self._build_provenance},
+            collection=self.collection_name, compatibility=compatibility,
+        )
 
     def get_point_payloads(self) -> dict[int, dict]:
         """Read passage metadata; propagate failures to prevent unsafe cleanup."""

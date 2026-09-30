@@ -308,6 +308,12 @@ Host und Port; Verbindungsfehler geben keine Zugangsdaten aus.
 python scripts/build_vector_index.py
 ```
 
+Bei einer bereits gefuellten Collection prueft der Build vor Aenderungen den
+passenden Kompatibilitaetsmarker. Alte Collections ohne diesen Nachweis muessen
+zuerst mit dem [Legacy-Pruef- und Uebernahmepfad](docs/embedding_model_management.md#einmalige-uebernahme-bestehender-collections)
+verifiziert werden. Eine unterbrochene Fortsetzung behaelt den Modellvertrag
+im Marker, auch wenn der Passage-Index voruebergehend nicht freigegeben ist.
+
 Für die Standardadresse ist diese Einstellung nicht mehr nötig. Ein anderer
 Server wird unter WSL mit `export RATSI_QDRANT_URL=...` gewählt. Änderungen an der
 Umgebung werden nach einem Neustart der betroffenen Prozesse wirksam. Die
