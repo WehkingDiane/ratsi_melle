@@ -15,11 +15,36 @@ if str(REPO_ROOT) not in sys.path:
 from src.indexing.legacy_index_migration import LegacyMigrationError, apply_verified_legacy_report
 from src.indexing.legacy_inspection_report import inspect_and_write_report
 from src.indexing.legacy_index_inspection import LegacyInspectionError
-from src.qdrant_connection import QdrantConnection
+from src.qdrant_connection import QdrantConnection, QdrantServerUnavailableError
 from src.paths import QDRANT_DIR
 
 
 COLLECTIONS = ("ratsi_passages", "ratsi_documents", "landkreis_publications")
+
+
+def _local_store_exists(path: Path) -> bool:
+    """Recognize an initialized local Qdrant store before opening its client."""
+
+    metadata = path / "meta.json"
+    if not path.is_dir() or metadata.is_symlink() or not metadata.is_file():
+        return False
+    try:
+        stored = json.loads(metadata.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError):
+        return False
+    return (isinstance(stored, dict)
+            and isinstance(stored.get("collections"), dict)
+            and isinstance(stored.get("aliases"), dict))
+
+
+def _abort_preflight(connection: QdrantConnection, args, code: str) -> int:
+    """Persist inspection failure without opening or modifying the Qdrant store."""
+
+    if args.inspect:
+        inspect_and_write_report(connection, None, args.collection, args.report, abort_code=code)
+    print(json.dumps({"result": "aborted", "abort_code": code}, ensure_ascii=False),
+          file=sys.stderr)
+    return 1
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -42,11 +67,11 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--inspect does not accept --confirm-collection")
 
     connection = QdrantConnection.from_env(args.qdrant_dir)
-    if not connection.url and not connection.path.is_dir():
-        print(json.dumps({"result": "aborted", "abort_code": "store_missing"}), file=sys.stderr)
-        return 1
-    client = connection.create_client()
+    if not connection.url and not _local_store_exists(connection.path):
+        return _abort_preflight(connection, args, "store_missing")
+    client = None
     try:
+        client = connection.create_client()
         if args.inspect:
             result = inspect_and_write_report(connection, client, args.collection, args.report)
             print(json.dumps({"result": result["result"], "abort_code": result["abort_code"],
@@ -58,12 +83,15 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(json.dumps(result, ensure_ascii=False))
         return 0
+    except QdrantServerUnavailableError:
+        return _abort_preflight(connection, args, "qdrant_unavailable")
     except (LegacyMigrationError, LegacyInspectionError) as error:
         print(json.dumps({"result": "aborted", "abort_code": error.code}, ensure_ascii=False),
               file=sys.stderr)
         return 1
     finally:
-        client.close()
+        if client is not None:
+            client.close()
 
 
 if __name__ == "__main__":

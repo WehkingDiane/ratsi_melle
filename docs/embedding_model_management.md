@@ -815,6 +815,11 @@ Im lokalen Modus koennen beide Befehle mit `--qdrant-dir PFAD` denselben
 abweichenden Qdrant-Speicher wie die Build-CLIs auswaehlen; im Servermodus gilt
 weiterhin `RATSI_QDRANT_URL`. Eine fehlende Collection erzeugt ein Protokoll mit
 `abort_code=collection_missing`.
+Vor dem Oeffnen eines lokalen Speichers muss eine gueltige Qdrant-`meta.json`
+vorliegen; ein beliebiges oder leeres Verzeichnis wird mit `store_missing`
+abgewiesen, ohne Qdrant-Dateien anzulegen. Ist der Server nicht erreichbar,
+meldet der Befehl `qdrant_unavailable`. Bei `--inspect` werden beide
+Vorabfehler auch als abgebrochene Inspektionsberichte gespeichert.
 Vor dem ersten Payload-Schreibzugriff prueft er den erfolgreichen Bericht,
 das genaue Qdrant-Ziel, den aktiven Modellvertrag und die deterministische
 Vektorstichprobe erneut. Punktzahl und Punkt-ID-Digest muessen vor und nach

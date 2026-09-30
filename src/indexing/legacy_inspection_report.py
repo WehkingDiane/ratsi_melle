@@ -37,7 +37,8 @@ def report_tolerances() -> dict:
 
 
 def inspect_and_write_report(
-    connection: QdrantConnection, client, collection: str, report_path: Path, **inspection_options,
+    connection: QdrantConnection, client, collection: str, report_path: Path, *,
+    abort_code: str | None = None, **inspection_options,
 ) -> dict:
     """Inspect without Qdrant writes and atomically save success or a known abort reason.
 
@@ -62,19 +63,22 @@ def inspect_and_write_report(
         "result": "aborted",
         "abort_code": None,
     }
-    try:
-        inspection = inspect_legacy_collection(connection, client, collection, **inspection_options)
-    except LegacyInspectionError as error:
-        report["abort_code"] = error.code
+    if abort_code is not None:
+        report["abort_code"] = abort_code
     else:
-        report.update(
-            point_count=inspection.point_count,
-            point_ids_sha256=inspection.point_ids_sha256,
-            sample_count=len(inspection.sample_ids),
-            sample_ids=list(inspection.sample_ids),
-            compatibility=inspection.compatibility.as_dict(),
-            result="verified",
-        )
+        try:
+            inspection = inspect_legacy_collection(connection, client, collection, **inspection_options)
+        except LegacyInspectionError as error:
+            report["abort_code"] = error.code
+        else:
+            report.update(
+                point_count=inspection.point_count,
+                point_ids_sha256=inspection.point_ids_sha256,
+                sample_count=len(inspection.sample_ids),
+                sample_ids=list(inspection.sample_ids),
+                compatibility=inspection.compatibility.as_dict(),
+                result="verified",
+            )
 
     path = Path(report_path)
     path.parent.mkdir(parents=True, exist_ok=True)

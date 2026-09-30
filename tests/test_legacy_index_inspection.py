@@ -157,6 +157,9 @@ def test_missing_collection_writes_structured_abort_without_traceback(
     monkeypatch.setattr(QdrantConnection, "create_client", lambda self: client)
     report_path = tmp_path / "missing.json"
     (tmp_path / "store").mkdir()
+    (tmp_path / "store" / "meta.json").write_text(
+        '{"collections":{},"aliases":{}}', encoding="utf-8",
+    )
 
     result = main(["--inspect", "--collection", "ratsi_passages", "--report",
                    str(report_path), "--qdrant-dir", str(tmp_path / "store")])
