@@ -12,6 +12,13 @@ class IndexBuildCompatibilityError(ValueError):
     """An existing nonempty collection cannot be continued with this contract."""
 
 
+def _incompatible(collection: str, reason: str) -> IndexBuildCompatibilityError:
+    return IndexBuildCompatibilityError(
+        f"Index {collection} inkompatibel: {reason} "
+        "Vollstaendiger Neuaufbau oder getrennte Aufbau-Collection erforderlich."
+    )
+
+
 def check_build_compatibility(
     connection: QdrantConnection, client, collection: str, compatibility: IndexCompatibility,
 ) -> str:
@@ -22,18 +29,18 @@ def check_build_compatibility(
         return "native"
     stored = connection.read_index_compatibility(collection)
     if stored is None:
-        raise IndexBuildCompatibilityError(
-            f"Bestehende Collection {collection} hat keinen gueltigen Kompatibilitaetsmarker."
+        raise _incompatible(
+            collection, "Bestehende Collection hat keinen gueltigen Kompatibilitaetsmarker."
         )
     if stored != compatibility:
-        raise IndexBuildCompatibilityError(
-            f"Bestehende Collection {collection} hat einen anderen Modell- oder Pipelinevertrag."
+        raise _incompatible(
+            collection, "Bestehende Collection hat einen anderen Modell- oder Pipelinevertrag."
         )
     try:
         marker = json.loads(connection.release_path(collection).read_text(encoding="utf-8"))
     except (OSError, UnicodeError, ValueError) as error:
-        raise IndexBuildCompatibilityError("Freigabemarker ist nicht lesbar.") from error
+        raise _incompatible(collection, "Freigabemarker ist nicht lesbar.") from error
     provenance = marker.get("provenance", "native")
     if provenance not in {"native", "legacy_verified"}:
-        raise IndexBuildCompatibilityError("Freigabemarker hat eine ungueltige Herkunft.")
+        raise _incompatible(collection, "Freigabemarker hat eine ungueltige Herkunft.")
     return provenance

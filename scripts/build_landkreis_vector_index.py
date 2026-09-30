@@ -18,6 +18,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from src.indexing.id_strategy import stable_document_id
+from src.indexing.build_compatibility import IndexBuildCompatibilityError
 from src.config.index_compatibility import current_index_compatibility, with_index_compatibility
 from src.indexing.reconciliation import find_orphaned_ids
 from src.indexing.vectorizer import HybridVectorizer
@@ -356,7 +357,7 @@ def main(argv: list[str] | None = None) -> None:
     """Run the Landkreis build with concise remote-Qdrant diagnostics."""
     try:
         _main(argv)
-    except QdrantServerUnavailableError as exc:
+    except (QdrantServerUnavailableError, IndexBuildCompatibilityError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         raise SystemExit(1) from None
 

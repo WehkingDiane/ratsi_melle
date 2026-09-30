@@ -313,6 +313,9 @@ passenden Kompatibilitaetsmarker. Alte Collections ohne diesen Nachweis muessen
 zuerst mit dem [Legacy-Pruef- und Uebernahmepfad](docs/embedding_model_management.md#einmalige-uebernahme-bestehender-collections)
 verifiziert werden. Eine unterbrochene Fortsetzung behaelt den Modellvertrag
 im Marker, auch wenn der Passage-Index voruebergehend nicht freigegeben ist.
+Bei einem fehlenden oder abweichenden Vertrag beendet sich der Build mit
+Exitcode 1 und einer kurzen Meldung: vollstaendiger Neuaufbau oder getrennte
+Aufbau-Collection erforderlich. Der bestehende Index bleibt dabei unveraendert.
 
 Für die Standardadresse ist diese Einstellung nicht mehr nötig. Ein anderer
 Server wird unter WSL mit `export RATSI_QDRANT_URL=...` gewählt. Änderungen an der

@@ -112,3 +112,61 @@ def test_different_contract_rejects_existing_collection_without_marker_change(
         assert connection.release_path("landkreis_publications").read_bytes() == old_marker
     finally:
         store.close()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("builder,collection", [
+    ("passages", "ratsi_passages"),
+    ("legacy", "ratsi_documents"),
+    ("landkreis", "landkreis_publications"),
+])
+@pytest.mark.parametrize("marker_state", ["missing", "different"])
+def test_build_cli_reports_incompatible_continuation_without_traceback_or_writes(
+    tmp_path, monkeypatch, capsys, compatibility, builder, collection, marker_state,
+):
+    from scripts import build_landkreis_vector_index, build_vector_index
+    from src.indexing import passage_builder
+    from src.qdrant_connection import QdrantConnection
+
+    store = _store(tmp_path, collection)
+    client = store._get_client()
+    target = QdrantConnection(tmp_path / "target")
+    if marker_state == "different":
+        other = replace(compatibility, manifest_sha256="b" * 64)
+        target.write_readiness(client, {"provenance": "native"},
+                               collection=collection, compatibility=other)
+    marker_path = target.release_path(collection)
+    original_marker = marker_path.read_bytes() if marker_path.exists() else None
+    monkeypatch.setattr(QdrantConnection, "create_client", lambda self: client)
+    monkeypatch.setattr(client, "upsert", lambda *args, **kwargs: pytest.fail("Vector write"))
+    monkeypatch.setattr(client, "set_payload", lambda *args, **kwargs: pytest.fail("Payload write"))
+    monkeypatch.setattr(client, "create_collection", lambda *args, **kwargs: pytest.fail("Collection write"))
+    db = tmp_path / "input.sqlite"
+    db.touch()
+    args = ["--db", str(db), "--qdrant-dir", str(target.path)]
+    if builder == "landkreis":
+        module = build_landkreis_vector_index
+        monkeypatch.setattr(module, "_validate_runtime_dependencies", lambda: (object, DocumentVectorStore))
+    else:
+        module = build_vector_index
+        if builder == "legacy":
+            args.append("--legacy-document-index")
+            monkeypatch.setattr(module, "_validate_runtime_dependencies", lambda: (object, DocumentVectorStore))
+        else:
+            monkeypatch.setattr(passage_builder, "current_index_compatibility", lambda: compatibility)
+    if builder != "passages":
+        monkeypatch.setattr(module, "current_index_compatibility", lambda: compatibility)
+
+    try:
+        with pytest.raises(SystemExit) as error:
+            module.main(args)
+        assert error.value.code == 1
+        message = capsys.readouterr().err
+        assert message.startswith(f"ERROR: Index {collection} inkompatibel:")
+        assert "Neuaufbau oder getrennte Aufbau-Collection" in message
+        assert message.count("\n") == 1
+        assert "Traceback" not in message
+        assert (marker_path.read_bytes() if marker_path.exists() else None) == original_marker
+    finally:
+        if builder != "passages":
+            store.close()

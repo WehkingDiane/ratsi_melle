@@ -668,6 +668,13 @@ freigegeben. Der Collection-Marker behaelt nach einer verifizierten Uebernahme
 die Herkunft `legacy_verified`; bereits uebernommene Punkt-Payloads bleiben
 bei spaeteren Ergaenzungen unveraendert.
 
+M5.8 gibt bei einer inkompatiblen Fortsetzung in allen drei Build-CLIs nur
+eine `ERROR: Index <Collection> inkompatibel: ...`-Zeile mit dem Grund und dem
+Hinweis auf vollstaendigen Neuaufbau oder eine getrennte Aufbau-Collection
+aus. Der Exitcode ist `1`; ein Python-Traceback oder ein Qdrant-Schreibzugriff
+folgt auf diesen Abbruch nicht. Bei einer alten Collection ohne gueltigen
+Marker ist alternativ der einmalige Legacy-Pruefpfad unten verfuegbar.
+
 ### Einmalige Uebernahme bestehender Collections
 
 M5.4 stellt die rein lesende Funktion `inspect_legacy_collection` unter
@@ -1000,7 +1007,7 @@ bleiben unabgehakt und werden dort beschrieben.
   und Payload-Backfill ohne Veraenderung vorhandener Vektoren implementieren.
 - [x] **M5.7** Kompatibilitaetspruefung vor dem ersten Schreibzugriff eines Builds
   durchsetzen.
-- [ ] **M5.8** Inkompatible inkrementelle Fortsetzung mit kurzer Meldung und
+- [x] **M5.8** Inkompatible inkrementelle Fortsetzung mit kurzer Meldung und
   Hinweis auf Neuaufbau beziehungsweise Aufbau-Collection verhindern.
 - [ ] **M5.9** Migrations-, Stichproben-, Abbruch-, Atomizitaets- und
   Wiederanlauftests fuer native, uebernommene und inkompatible Indexstaende
@@ -1114,7 +1121,11 @@ bleiben unabgehakt und werden dort beschrieben.
   Vertrag mit `ready=false` fest und stellen nach Abschluss `ready=true` her;
   `legacy_verified` bleibt erhalten. Gezielte Build- und Qdrant-Tests bestehen.
   Allgemeine Version: `0.5.23`.
-- Naechster regulaerer Punkt: **M5.8**; kurze Fehlermeldung und Neuaufbau-Hinweis.
+- M5.8 liefert fuer alle drei Builds eine einzeilige CLI-Meldung mit Grund,
+  Exitcode `1` und Hinweis auf Neuaufbau oder Aufbau-Collection. Tests pruefen
+  fehlende und abweichende Marker ohne Qdrant-Schreibzugriff oder Traceback.
+  Allgemeine Version: `0.5.24`.
+- Naechster regulaerer Punkt: **M5.9**; Migrations- und Wiederanlauftests.
 
 - Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-
   und Testabdeckung, CLI-/Manifestvertrag, Dokumentation und Versionsstand

@@ -27,6 +27,7 @@ if str(_REPO_ROOT) not in sys.path:
 from src.fetching.storage_layout import resolve_local_file_path
 from src.config.index_compatibility import current_index_compatibility, with_index_compatibility
 from src.indexing.id_strategy import stable_document_id
+from src.indexing.build_compatibility import IndexBuildCompatibilityError
 from src.indexing.payload_builder import build_document_payload, resolve_local_path as _resolved_payload_local_path
 from src.indexing.reconciliation import find_orphaned_ids
 from src.indexing.vectorizer import HybridVectorizer
@@ -345,7 +346,7 @@ def main(argv: list[str] | None = None) -> None:
             return
         from src.indexing.passage_builder import main as build_passages
         build_passages(arguments)
-    except QdrantServerUnavailableError as exc:
+    except (QdrantServerUnavailableError, IndexBuildCompatibilityError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         raise SystemExit(1) from None
 
