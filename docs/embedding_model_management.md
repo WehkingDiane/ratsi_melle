@@ -685,7 +685,8 @@ Neue Collections duerfen mit dem aktiven Vertrag beginnen. Bereits vorhandene
 leere Collections muessen dafuer ebenfalls das erwartete
 Vektorschema besitzen. Ein alter Marker allein legitimiert kein zwischenzeitlich
 neu angelegtes, inkompatibles Qdrant-Schema. Jeder
-Schemaabgleich umfasst neben dem Dense-Distanzmass auch BM25-Modifikator und
+Schemaabgleich umfasst neben dem Dense-Distanzmass den Dense-Datentyp,
+vektorspezifische HNSW- und Quantisierungsoptionen sowie BM25-Modifikator und
 Sparse-Datentyp. Die Suche prueft das aktuelle Collection-Schema vor einem
 moeglichen Cache-Treffer erneut. Jeder
 Build haelt einen Marker mit `ready=false` und Vertrag fest, bis der Lauf
@@ -831,7 +832,9 @@ Vor dem Oeffnen eines lokalen Speichers muss eine gueltige Qdrant-`meta.json`
 vorliegen; ein beliebiges oder leeres Verzeichnis wird mit `store_missing`
 abgewiesen, ohne Qdrant-Dateien anzulegen. Ist der Server nicht erreichbar,
 meldet der Befehl `qdrant_unavailable`. Bei `--inspect` werden beide
-Vorabfehler auch als abgebrochene Inspektionsberichte gespeichert.
+Vorabfehler auch als abgebrochene Inspektionsberichte gespeichert. Ein
+Verbindungsabbruch waehrend der lesenden Inspektion erhaelt denselben Abort-Code
+und schreibt ebenfalls einen Bericht.
 Vor dem ersten Payload-Schreibzugriff prueft er den erfolgreichen Bericht,
 das genaue Qdrant-Ziel, den aktiven Modellvertrag und die deterministische
 Vektorstichprobe erneut. Punktzahl und Punkt-ID-Digest muessen vor und nach

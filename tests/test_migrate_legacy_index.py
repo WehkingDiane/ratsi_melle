@@ -1,6 +1,7 @@
 """The migration CLI requires confirmation before opening Qdrant."""
 
 import json
+from unittest.mock import Mock
 
 import pytest
 
@@ -125,3 +126,31 @@ def test_server_unavailable_returns_structured_abort(tmp_path, monkeypatch, caps
         assert json.loads(report.read_text())["abort_code"] == "qdrant_unavailable"
     else:
         assert not report.exists()
+
+
+@pytest.mark.parametrize("transport", ["qdrant", "httpx", "grpc", "server_error"])
+def test_inspection_rpc_failure_writes_aborted_report(
+    tmp_path, monkeypatch, capsys, transport,
+):
+    import grpc
+    import httpx
+    from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedResponse
+
+    errors = {
+        "qdrant": ResponseHandlingException(ConnectionError("disconnected")),
+        "httpx": httpx.ConnectError("disconnected"),
+        "grpc": grpc.RpcError(),
+        "server_error": UnexpectedResponse(503, "Unavailable", b"", httpx.Headers()),
+    }
+    monkeypatch.setenv("RATSI_QDRANT_URL", "http://test.invalid:6333")
+    monkeypatch.setattr("src.indexing.legacy_index_inspection.current_index_compatibility",
+                        lambda *, deep: object())
+    client = Mock()
+    client.get_collections.side_effect = errors[transport]
+    monkeypatch.setattr(QdrantConnection, "create_client", lambda self: client)
+    report = tmp_path / "inspection.json"
+
+    assert main(["--inspect", "--collection", "ratsi_passages", "--report", str(report)]) == 1
+    assert json.loads(report.read_text())["abort_code"] == "qdrant_unavailable"
+    assert json.loads(capsys.readouterr().out)["abort_code"] == "qdrant_unavailable"
+    client.close.assert_called_once()

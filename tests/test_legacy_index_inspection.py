@@ -756,6 +756,24 @@ def test_schema_rejects_sparse_scoring_changes(compatibility, sparse):
         _check_schema(info, compatibility)
 
 
+@pytest.mark.parametrize("dense_setting", ["float16", "hnsw"])
+def test_schema_rejects_non_native_dense_settings(compatibility, dense_setting):
+    from qdrant_client.models import (
+        Datatype, Distance, HnswConfigDiff, SparseVectorParams, VectorParams,
+    )
+    from src.indexing.legacy_index_inspection import _check_schema
+
+    changes = ({"datatype": Datatype.FLOAT16} if dense_setting == "float16"
+               else {"hnsw_config": HnswConfigDiff(m=32)})
+    info = SimpleNamespace(config=SimpleNamespace(params=SimpleNamespace(
+        vectors={"harrier": VectorParams(size=compatibility.vector_dimension,
+                                         distance=Distance.COSINE, **changes)},
+        sparse_vectors={"bm25": SparseVectorParams()},
+    )))
+    with pytest.raises(LegacyInspectionError, match="Vektorschema"):
+        _check_schema(info, compatibility)
+
+
 @pytest.mark.integration
 def test_missing_source_database_is_not_created(tmp_path, monkeypatch, compatibility):
     from scripts.build_vector_index import _stable_qdrant_id

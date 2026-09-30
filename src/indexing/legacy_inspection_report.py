@@ -8,6 +8,10 @@ import os
 from pathlib import Path
 from uuid import uuid4
 
+import grpc
+import httpx
+from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedResponse
+
 from src.indexing.legacy_index_inspection import (
     DENSE_ABS_TOLERANCE,
     DENSE_REL_TOLERANCE,
@@ -70,6 +74,12 @@ def inspect_and_write_report(
             inspection = inspect_legacy_collection(connection, client, collection, **inspection_options)
         except LegacyInspectionError as error:
             report["abort_code"] = error.code
+        except (ResponseHandlingException, httpx.TransportError, grpc.RpcError, OSError):
+            report["abort_code"] = "qdrant_unavailable"
+        except UnexpectedResponse as error:
+            if error.status_code is None or error.status_code < 500:
+                raise
+            report["abort_code"] = "qdrant_unavailable"
         else:
             report.update(
                 point_count=inspection.point_count,

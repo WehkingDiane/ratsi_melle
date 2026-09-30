@@ -113,6 +113,10 @@ def _check_schema(info, compatibility: IndexCompatibility) -> None:
             isinstance(dense, dict) and set(dense) == {"harrier"}
             and dense["harrier"].size == compatibility.vector_dimension
             and dense["harrier"].distance == Distance.COSINE
+            and dense["harrier"].datatype is None
+            and dense["harrier"].hnsw_config is None
+            and dense["harrier"].quantization_config is None
+            and dense["harrier"].multivector_config is None
             and isinstance(sparse, dict) and set(sparse) == {"bm25"}
             and sparse["bm25"].modifier is None
             and (sparse["bm25"].index is None
