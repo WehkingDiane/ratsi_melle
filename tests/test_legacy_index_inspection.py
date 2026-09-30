@@ -1,19 +1,24 @@
 """Read-only, deterministic legacy vector inspection with a tiny local store."""
 
 from dataclasses import replace
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 from src.config.embedding_models import BM25_MODEL, HARRIER_MODEL, HARRIER_TOKENIZER
+from src.config.embedding_model_status import PreparedModelUnavailableError
 from src.config.index_compatibility import IndexCompatibility
 from src.indexing.legacy_index_inspection import (
     LegacyInspectionError,
     SAMPLE_SIZE,
+    _compare_vectors,
     inspect_legacy_collection,
     select_sample_ids,
+    target_sha256,
 )
+from src.indexing.legacy_inspection_report import inspect_and_write_report
 from src.qdrant_connection import QdrantConnection
 
 
@@ -96,6 +101,99 @@ def test_sample_selection_is_order_independent_and_contract_bound(compatibility)
     assert first != select_sample_ids(
         "ratsi_passages", ids, replace(compatibility, manifest_sha256="b" * 64),
     )
+
+
+def test_target_digest_distinguishes_full_urls_and_local_paths(tmp_path):
+    first = QdrantConnection(tmp_path / "one", "https://user:secret@example.test/one")
+    second = QdrantConnection(tmp_path / "one", "https://user:secret@example.test/two")
+    assert first.target == second.target == "https://example.test"
+    assert target_sha256(first) != target_sha256(second)
+    assert target_sha256(QdrantConnection(tmp_path / "one")) != target_sha256(
+        QdrantConnection(tmp_path / "two")
+    )
+
+
+def test_vector_tolerances_are_fixed_and_sparse_indices_exact():
+    stored = {"harrier": [1.0, 0.0], "bm25": {"indices": [2], "values": [1.0]}}
+    near = {"dense_vector": [1.00001, 0.00001],
+            "sparse_vector": {"indices": [2], "values": [1.00001]}}
+    _compare_vectors(stored, near, 2)
+    with pytest.raises(LegacyInspectionError, match="Dense") as error:
+        _compare_vectors(stored, {**near, "dense_vector": [1.001, 0.0]}, 2)
+    assert error.value.code == "dense_mismatch"
+    with pytest.raises(LegacyInspectionError) as error:
+        _compare_vectors(stored, {**near, "sparse_vector": {"indices": [3], "values": [1.0]}}, 2)
+    assert error.value.code == "sparse_indices_mismatch"
+
+
+def test_missing_model_inventory_has_a_persisted_abort_code(tmp_path, monkeypatch):
+    def missing(*, deep):
+        raise PreparedModelUnavailableError("Private model path")
+
+    monkeypatch.setattr("src.indexing.legacy_index_inspection.current_index_compatibility", missing)
+    path = tmp_path / "inspection.json"
+    report = inspect_and_write_report(
+        QdrantConnection(tmp_path / "store"), None, "ratsi_passages", path,
+    )
+    assert report["result"] == "aborted"
+    assert report["abort_code"] == "model_unavailable"
+    assert "Private model path" not in path.read_text()
+
+
+@pytest.mark.integration
+def test_report_persists_verified_evidence_without_text_or_vectors(tmp_path, monkeypatch, compatibility):
+    monkeypatch.setattr("src.indexing.legacy_index_inspection.current_index_compatibility",
+                        lambda *, deep: compatibility)
+    client = _client()
+    try:
+        client.upsert("ratsi_passages", [_point(1, "private source text", {
+            "text": "private source text", "snippet": "private source text", "committed": True,
+        })])
+        path = tmp_path / "reports" / "inspection.json"
+        report = inspect_and_write_report(
+            QdrantConnection(tmp_path / "unused"), client, "ratsi_passages", path,
+            vectorizer_factory=Vectorizer,
+        )
+        assert json.loads(path.read_text()) == report
+        assert report["result"] == "verified"
+        assert report["abort_code"] is None
+        assert report["point_count"] == report["sample_count"] == 1
+        assert report["sample_ids"] == [1]
+        assert report["compatibility"] == compatibility.as_dict()
+        assert report["tolerances"] == {
+            "dense_abs": 1e-4, "dense_rel": 1e-4, "sparse_abs": 1e-4,
+            "sparse_rel": 1e-4, "sparse_indices": "exact",
+        }
+        assert "private source text" not in path.read_text()
+        assert not list(path.parent.glob("*.tmp"))
+    finally:
+        client.close()
+
+
+@pytest.mark.integration
+def test_report_persists_specific_abort_without_partial_release_evidence(
+    tmp_path, monkeypatch, compatibility,
+):
+    monkeypatch.setattr("src.indexing.legacy_index_inspection.current_index_compatibility",
+                        lambda *, deep: compatibility)
+    client = _client()
+    try:
+        client.upsert("ratsi_passages", [_point(1, "source", {
+            "text": "source", "snippet": "changed", "committed": True,
+        })])
+        path = tmp_path / "inspection.json"
+        report = inspect_and_write_report(
+            QdrantConnection(tmp_path / "unused"), client, "ratsi_passages", path,
+            vectorizer_factory=Vectorizer,
+        )
+        assert json.loads(path.read_text()) == report
+        assert report["result"] == "aborted"
+        assert report["abort_code"] == "text_mismatch"
+        assert report["point_count"] is None
+        assert report["point_ids_sha256"] is None
+        assert report["compatibility"] is None
+    finally:
+        client.close()
 
 
 @pytest.mark.integration

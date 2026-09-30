@@ -18,7 +18,9 @@ from src.qdrant_connection import QdrantConnection
 
 SAMPLE_SIZE = 32
 DENSE_ABS_TOLERANCE = 1e-4
+DENSE_REL_TOLERANCE = 1e-4
 SPARSE_ABS_TOLERANCE = 1e-4
+SPARSE_REL_TOLERANCE = 1e-4
 
 _COLLECTIONS = frozenset({"ratsi_passages", "ratsi_documents", "landkreis_publications"})
 
@@ -36,6 +38,7 @@ class LegacyInspection:
     """Read-only evidence bound to one target, collection and point-ID set."""
 
     target: str
+    target_sha256: str
     collection: str
     point_count: int
     point_ids_sha256: str
@@ -56,6 +59,13 @@ def select_sample_ids(collection: str, point_ids: list[int], compatibility: Inde
 
 def _point_ids_sha256(point_ids: list[int]) -> str:
     return sha256(json.dumps(sorted(point_ids), separators=(",", ":")).encode()).hexdigest()
+
+
+def target_sha256(connection: QdrantConnection) -> str:
+    """Bind evidence to the full server URL or resolved local store path."""
+
+    identity = "url\0" + connection.url if connection.url else "path\0" + str(connection.path.resolve())
+    return sha256(identity.encode()).hexdigest()
 
 
 def _check_hints(payload: dict, compatibility: IndexCompatibility) -> None:
@@ -163,7 +173,7 @@ def _compare_vectors(stored: dict, recalculated: dict, dimension: int) -> None:
     try:
         dense_equal = all(
             math.isfinite(float(old)) and math.isfinite(float(new))
-            and math.isclose(float(old), float(new), rel_tol=DENSE_ABS_TOLERANCE, abs_tol=DENSE_ABS_TOLERANCE)
+            and math.isclose(float(old), float(new), rel_tol=DENSE_REL_TOLERANCE, abs_tol=DENSE_ABS_TOLERANCE)
             for old, new in zip(dense, expected_dense, strict=True)
         )
     except (TypeError, ValueError) as error:
@@ -174,7 +184,7 @@ def _compare_vectors(stored: dict, recalculated: dict, dimension: int) -> None:
     new_sparse = _sparse_pairs(recalculated.get("sparse_vector"))
     if [index for index, _ in old_sparse] != [index for index, _ in new_sparse]:
         raise LegacyInspectionError("sparse_indices_mismatch", "Sparse-Indizes stimmen nicht mit der Neuberechnung ueberein.")
-    if not all(math.isclose(old, new, rel_tol=SPARSE_ABS_TOLERANCE, abs_tol=SPARSE_ABS_TOLERANCE)
+    if not all(math.isclose(old, new, rel_tol=SPARSE_REL_TOLERANCE, abs_tol=SPARSE_ABS_TOLERANCE)
                for (_, old), (_, new) in zip(old_sparse, new_sparse, strict=True)):
         raise LegacyInspectionError("sparse_values_mismatch", "Sparse-Werte stimmen nicht mit der Neuberechnung ueberein.")
 
@@ -255,7 +265,12 @@ def inspect_legacy_collection(
 
     if collection not in _COLLECTIONS:
         raise ValueError("Unknown legacy collection")
-    compatibility = current_index_compatibility(deep=True)
+    from src.config.embedding_model_status import PreparedModelUnavailableError
+
+    try:
+        compatibility = current_index_compatibility(deep=True)
+    except PreparedModelUnavailableError as error:
+        raise LegacyInspectionError("model_unavailable", "Aktiver lokaler Modellbestand ist nicht vollstaendig geprueft.") from error
     marker = _check_marker(connection, collection, compatibility)
     info = client.get_collection(collection_name=collection)
     _check_schema(info, compatibility)
@@ -299,7 +314,8 @@ def inspect_legacy_collection(
     if _point_ids_sha256(current_ids) != _point_ids_sha256(ids) or len(current_ids) != point_count:
         raise LegacyInspectionError("collection_changed", "Collection wurde waehrend der Pruefung veraendert.")
     return LegacyInspection(
-        target=connection.target, collection=collection, point_count=point_count,
+        target=connection.target, target_sha256=target_sha256(connection),
+        collection=collection, point_count=point_count,
         point_ids_sha256=_point_ids_sha256(ids), sample_ids=sample_ids,
         compatibility=compatibility,
     )

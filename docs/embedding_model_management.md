@@ -686,8 +686,8 @@ Punkt-ID-Liste verhindert ein positives Ergebnis. Die Funktion ruft ausschliessl
 Qdrant-Leseoperationen auf und schreibt weder Marker noch Payloads. Ihr
 Ergebnis bindet Ziel, Collection, exakte Punktzahl, SHA-256 der sortierten
 Punkt-IDs, Stichproben-IDs und aktiven Kompatibilitaetsdatensatz. Das
-persistierte Uebernahmeprotokoll und die abschliessenden Abbruchgruende folgen
-in M5.5; M5.4 bietet noch keinen Freigabeschritt.
+persistierte Uebernahmeprotokoll und die abschliessenden Abbruchgruende sind
+in M5.5 definiert. Die Pruefung bietet noch keinen Freigabeschritt.
 
 Die vor dieser Umstellung aufgebauten Collections enthalten noch keinen
 vollstaendigen Kompatibilitaetsdatensatz. Sie muessen deshalb nicht automatisch
@@ -718,6 +718,29 @@ mathematischer Nachweis fuer jeden Punkt. Das Uebernahmeprotokoll enthaelt daher
 Collection, Punktanzahl, Stichprobenumfang und -IDs, Vergleichstoleranzen,
 Kompatibilitaetsdatensatz, Ergebnis und Zeitpunkt. Secrets, Dokumenttexte und
 vollstaendige Vektoren werden darin nicht gespeichert.
+
+`inspect_and_write_report(connection, client, collection, report_path)` schreibt
+das JSON-Protokoll atomar an einen explizit angegebenen Pfad. Es enthaelt
+`report_version=1`, einen UTC-Zeitpunkt, die oeffentliche Zielanzeige und
+`target_sha256` des vollstaendigen Server-URL beziehungsweise des aufgeloesten
+lokalen Store-Pfads. Bei `result=verified` sind exakte Punktanzahl, SHA-256
+der sortierten Punkt-IDs, Stichprobenumfang und -IDs sowie der aktive
+Kompatibilitaetsdatensatz enthalten. `result=aborted` traegt genau einen
+`abort_code`; unvollstaendige Punkt- und Vertragsnachweise bleiben `null`.
+Das Protokoll allein gibt noch keine Collection frei.
+
+Die Stichprobe umfasst maximal 32 Punkte. Dense- und Sparse-Werte verwenden
+jeweils absolute und relative Toleranz `1e-4` nach `math.isclose`; Sparse-Indizes
+muessen exakt gleich sein. Diese Werte stehen auch im Protokoll und sind keine
+Eingabeparameter. Abbruchcodes sind nach Ursache getrennt:
+
+| Ursache | `abort_code` |
+| --- | --- |
+| Modellbestand oder Schema | `model_unavailable`, `schema_mismatch`, `collection_empty` |
+| Marker, Modell- oder Pipelinehinweise | `marker_invalid`, `marker_target_mismatch`, `marker_collection_mismatch`, `marker_count_mismatch`, `model_mismatch`, `pipeline_mismatch`, `contract_invalid`, `contract_mismatch` |
+| Punktliste und Payload | `point_ids_invalid`, `payload_missing`, `scroll_incomplete`, `point_count_mismatch`, `collection_changed` |
+| Quelltext | `source_missing`, `source_ambiguous`, `text_unavailable`, `text_mismatch` |
+| Stichprobe und Vektoren | `sample_incomplete`, `vector_invalid`, `dense_mismatch`, `sparse_indices_mismatch`, `sparse_values_mismatch` |
 
 Nur wenn alle Voraussetzungen und Vergleiche erfolgreich sind, darf ein zweiter,
 ausdruecklich bestaetigter Schritt Metadaten schreiben. Er hinterlegt den aktiven
@@ -933,7 +956,7 @@ bleiben unabgehakt und werden dort beschrieben.
   Ratsinfo- und Landkreis-Collections konsistent hinterlegen.
 - [x] **M5.4** Rein lesende Bestandspruefung und deterministische
   Vektorstichprobe fuer die einmalige Legacy-Uebernahme implementieren.
-- [ ] **M5.5** Uebernahmeprotokoll, feste Vergleichstoleranzen und eindeutige
+- [x] **M5.5** Uebernahmeprotokoll, feste Vergleichstoleranzen und eindeutige
   Abbruchgruende fuer unzureichende oder widerspruechliche Nachweise definieren.
 - [ ] **M5.6** Ausdruecklich bestaetigte, atomare Freigabe als `legacy_verified`
   und Payload-Backfill ohne Veraenderung vorhandener Vektoren implementieren.
@@ -1038,8 +1061,12 @@ bleiben unabgehakt und werden dort beschrieben.
   bei widerspruechlichen Vektoren, Texten, Markern und unvollstaendiger
   Stichprobe. Es wurden keine echten Modellgewichte geladen. Allgemeine
   Version: `0.5.20`.
-- Naechster regulaerer Punkt: **M5.5**; Uebernahmeprotokoll,
-  Vergleichstoleranzen und eindeutige Abbruchgruende festlegen.
+- M5.5 schreibt ein atomisches JSON-Pruefprotokoll fuer erfolgreiche und
+  abgebrochene Legacy-Pruefungen. Zielbindung per SHA-256 der vollstaendigen
+  Zieladresse, UTC-Zeitpunkt, feste absolute und relative Toleranzen sowie
+  stabile Abbruchcodes sind dokumentiert; keine Freigabe oder Qdrant-Aenderung.
+  Allgemeine Version: `0.5.21`.
+- Naechster regulaerer Punkt: **M5.6**; bestaetigte Freigabe und Payload-Backfill.
 
 - Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-
   und Testabdeckung, CLI-/Manifestvertrag, Dokumentation und Versionsstand
