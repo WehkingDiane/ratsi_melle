@@ -660,10 +660,16 @@ Payload-Aktualisierung und Vektor-Upsert um. Bei einer nichtleeren Collection
 muss ein gueltiger, ziel- und collectionsgebundener Freigabemarker exakt den
 aktiven Kompatibilitaetsdatensatz enthalten. Ein fehlender, ungueltiger oder
 abweichender Marker bricht den Build vor dem ersten Qdrant-Schreibzugriff ab.
-Der Marker erfasst die Punktzahl auch bei lokalem Qdrant; Build und Suche
-vergleichen diese Zahl und die Kompatibilitaetsdaten aller Punkte mit dem
-aktuellen Vertrag. Ein alter Marker fuer eine ersetzte Collection mit gleicher
-Punktzahl und abweichenden oder fehlenden Payloads wird daher abgelehnt.
+Der Marker erfasst die Punktzahl auch bei lokalem Qdrant. Ein freigegebener
+Marker enthaelt ausserdem einen Digest der Punkt-IDs und Vektoren. Build und
+Suche vergleichen den gesamten Vektorbestand und die Kompatibilitaetsdaten
+aller Punkte mit dem aktuellen Vertrag; dies verursacht bei grossen Collections
+einen vollstaendigen Lesevorgang vor jeder Suche. Ein alter Marker fuer eine
+ersetzte Collection mit gleicher Punktzahl und abweichenden Vektoren oder
+Payloads wird abgelehnt. Bei einem Marker mit `ready=false` darf die Punktzahl
+durch den angefangenen Build wachsen oder schrumpfen; alle vorhandenen Punkte
+muessen weiterhin den aktiven Vertrag tragen. Nach erfolgreichem Abschluss
+wird der Digest fuer den neuen Bestand geschrieben.
 Bestehende Marker ohne Punktzahl muessen durch einen getrennten Neuaufbau oder
 eine erneute verifizierte Uebernahme ersetzt werden.
 Neue Collections duerfen mit dem aktiven Vertrag beginnen. Bereits vorhandene

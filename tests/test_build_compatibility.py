@@ -79,7 +79,7 @@ def test_matching_contract_survives_in_progress_build(tmp_path, compatibility, p
     connection = store.connection
     client = store._get_client()
     try:
-        connection.write_readiness(client, {"provenance": provenance},
+        connection.write_readiness(client, {"ready": True, "provenance": provenance},
                                    collection=collection, compatibility=compatibility)
         before = client.retrieve(collection, ids=[1], with_vectors=True)[0].vector
         store.begin_build(compatibility)
@@ -113,7 +113,7 @@ def test_stale_marker_rejects_replaced_collection_before_writes(tmp_path, compat
     client = store._get_client()
     connection = store.connection
     try:
-        connection.write_readiness(client, {"provenance": "native"},
+        connection.write_readiness(client, {"ready": True, "provenance": "native"},
                                    collection=collection, compatibility=compatibility)
         marker = connection.release_path(collection).read_bytes()
         client.delete_collection(collection)
@@ -165,6 +165,62 @@ def test_search_rejects_stale_marker_on_equal_size_replacement(tmp_path, monkeyp
                             lambda: compatibility)
         with pytest.raises(RuntimeError, match="Punktbestand"):
             connection.require_search_compatibility(collection, client)
+    finally:
+        store.close()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("collection", ["ratsi_passages", "ratsi_documents", "landkreis_publications"])
+def test_pending_build_resumes_after_new_points(tmp_path, compatibility, collection):
+    from qdrant_client.models import PointStruct, SparseVector
+
+    store = _store(tmp_path, collection, compatibility)
+    client = store._get_client()
+    try:
+        store.connection.write_readiness(client, {"ready": True},
+                                         collection=collection, compatibility=compatibility)
+        store.begin_build(compatibility)
+        client.upsert(collection, [PointStruct(
+            id=2, vector={"harrier": [0.0, 1.0] + [0.0] * 1022,
+                          "bm25": SparseVector(indices=[2], values=[1.0])},
+            payload={"index_compatibility": compatibility.as_dict()},
+        )])
+        assert client.count(collection, exact=True).count == 2
+        store.begin_build(compatibility)
+        store.finish_build(compatibility)
+        assert store.connection.collection_contents_match(client, collection, compatibility)
+    finally:
+        store.close()
+
+
+@pytest.mark.integration
+def test_copied_payload_with_foreign_vector_rejects_build_and_search(
+    tmp_path, monkeypatch, compatibility,
+):
+    from qdrant_client.models import PointStruct, SparseVector
+
+    collection = "ratsi_documents"
+    store = _store(tmp_path, collection, compatibility)
+    client = store._get_client()
+    connection = store.connection
+    try:
+        connection.write_readiness(client, {"ready": True},
+                                   collection=collection, compatibility=compatibility)
+        marker = connection.release_path(collection).read_bytes()
+        client.delete_collection(collection)
+        store.ensure_collection()
+        client.upsert(collection, [PointStruct(
+            id=1, vector={"harrier": [0.0, 1.0] + [0.0] * 1022,
+                          "bm25": SparseVector(indices=[2], values=[1.0])},
+            payload={"index_compatibility": compatibility.as_dict(), "text": "legacy"},
+        )])
+        with pytest.raises(IndexBuildCompatibilityError, match="Punktbestand"):
+            store.begin_build(compatibility)
+        monkeypatch.setattr("src.config.index_compatibility.current_index_compatibility",
+                            lambda: compatibility)
+        with pytest.raises(RuntimeError, match="Punktbestand"):
+            connection.require_search_compatibility(collection, client)
+        assert connection.release_path(collection).read_bytes() == marker
     finally:
         store.close()
 

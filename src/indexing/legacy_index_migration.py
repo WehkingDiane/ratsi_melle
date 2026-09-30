@@ -206,7 +206,7 @@ def _apply_verified_legacy_report(
         _check_marker_unreleased(connection, collection)
         connection.write_readiness(
             client,
-            {"provenance": LEGACY_PROVENANCE, "points_count": inspection.point_count,
+            {"ready": True, "provenance": LEGACY_PROVENANCE, "points_count": inspection.point_count,
              "inspection_sha256": inspection.point_ids_sha256,
              "inspection_checked_at": report["checked_at"]},
             collection=collection, compatibility=inspection.compatibility,

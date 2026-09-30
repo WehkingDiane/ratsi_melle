@@ -70,36 +70,58 @@ class QdrantConnection:
         except (OSError, UnicodeError, ValueError, TypeError):
             return None
 
-    def collection_contents_match(self, client, collection: str, compatibility: IndexCompatibility) -> bool:
-        """Check the marker's point count and every stored point contract."""
+    def _point_snapshot(self, client, collection: str, compatibility: IndexCompatibility,
+                        *, check_contract: bool = True) -> tuple[int, str] | None:
+        """Read a complete, stable point list and hash IDs with their stored vectors."""
         try:
-            marker = json.loads(self.release_path(collection).read_text(encoding="utf-8"))
-            expected_count = marker.get("points_count")
+            expected_count = client.count(collection_name=collection, exact=True).count
             if type(expected_count) is not int or expected_count < 0:
-                return False
-            if client.count(collection_name=collection, exact=True).count != expected_count:
-                return False
+                return None
             offset = None
             seen = set()
+            digest = sha256()
             while True:
                 records, next_offset = client.scroll(
-                    collection_name=collection, with_payload=True, with_vectors=False,
+                    collection_name=collection, with_payload=check_contract, with_vectors=True,
                     limit=256, offset=offset,
                 )
                 for record in records:
-                    if record.id in seen or not isinstance(record.payload, dict):
-                        return False
+                    if record.id in seen or record.vector is None:
+                        return None
                     seen.add(record.id)
-                    if IndexCompatibility.from_dict(record.payload.get("index_compatibility")) != compatibility:
-                        return False
+                    if check_contract:
+                        if not isinstance(record.payload, dict) or IndexCompatibility.from_dict(
+                            record.payload.get("index_compatibility")
+                        ) != compatibility:
+                            return None
+                    point = record.model_dump(mode="json", include={"id", "vector"})
+                    digest.update(json.dumps(point, sort_keys=True, separators=(",", ":")).encode())
+                    digest.update(b"\n")
                 if next_offset is None:
-                    return len(seen) == expected_count and client.count(
+                    if len(seen) != expected_count or client.count(
                         collection_name=collection, exact=True,
-                    ).count == expected_count
+                    ).count != expected_count:
+                        return None
+                    return expected_count, digest.hexdigest()
                 if not records or next_offset == offset or len(seen) > expected_count:
-                    return False
+                    return None
                 offset = next_offset
         except (OSError, UnicodeError, ValueError, TypeError, KeyError, AttributeError):
+            return None
+
+    def collection_contents_match(self, client, collection: str, compatibility: IndexCompatibility) -> bool:
+        """Allow pending additions; require an exact vector snapshot for releases."""
+        try:
+            marker = json.loads(self.release_path(collection).read_text(encoding="utf-8"))
+            snapshot = self._point_snapshot(client, collection, compatibility)
+            if snapshot is None:
+                return False
+            if marker.get("ready") is False:
+                return True
+            return (type(marker.get("points_count")) is int
+                    and marker["points_count"] == snapshot[0]
+                    and marker.get("vectors_sha256") == snapshot[1])
+        except (OSError, UnicodeError, ValueError, TypeError, AttributeError):
             return False
 
     def require_search_compatibility(self, collection: str, client=None) -> None:
@@ -184,6 +206,11 @@ class QdrantConnection:
             marker["url_sha256"] = sha256(self.url.encode()).hexdigest()
         if self.url or compatibility is not None:
             marker["points_count"] = client.count(collection_name=collection, exact=True).count
+        if compatibility is not None and marker.get("ready") is True:
+            snapshot = self._point_snapshot(client, collection, compatibility, check_contract=False)
+            if snapshot is None or snapshot[0] != marker["points_count"]:
+                raise ValueError("Qdrant-Punktbestand konnte nicht stabil gelesen werden.")
+            marker["vectors_sha256"] = snapshot[1]
         path.parent.mkdir(parents=True, exist_ok=True)
         temporary = path.with_name(f".{path.name}.{uuid4().hex}.tmp")
         try:
