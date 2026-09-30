@@ -667,7 +667,9 @@ aller Punkte mit dem aktuellen Vertrag. Erfolgreiche Suchpruefungen werden je
 Prozess bis zu fuenf Minuten zwischengespeichert; Marker- oder
 Punktzahlaenderungen erzwingen sofort eine neue Pruefung. Ein Austausch bei
 gleicher Punktzahl und unveraendertem Marker kann waehrend dieser Frist
-unentdeckt bleiben. Ein alter Marker fuer eine
+unentdeckt bleiben. Der Cache gilt nur fuer einen Marker, dessen gelesener
+Stand ausdruecklich `ready=true` enthaelt; ein inzwischen ausstehender Build
+wird vor der Abfrage abgewiesen. Ein alter Marker fuer eine
 ersetzte Collection mit gleicher Punktzahl und abweichenden Vektoren oder
 Payloads wird abgelehnt. Bei einem Marker mit `ready=false` darf die Punktzahl
 durch den angefangenen Build wachsen oder schrumpfen; alle vorhandenen Punkte

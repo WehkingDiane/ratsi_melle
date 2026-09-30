@@ -147,6 +147,22 @@ class QdrantConnection:
         try:
             marker_path = self.release_path(collection)
             marker_bytes = marker_path.read_bytes()
+            try:
+                marker = json.loads(marker_bytes)
+                released = (
+                    isinstance(marker, dict)
+                    and marker.get("ready") is True
+                    and marker.get("collection") == collection
+                    and (not self.url or marker.get("url_sha256") == sha256(self.url.encode()).hexdigest())
+                    and IndexCompatibility.from_dict(marker.get("compatibility")) == active
+                )
+            except (UnicodeError, ValueError, TypeError):
+                released = False
+            if not released:
+                raise RuntimeError(
+                    f"Index {collection} inkompatibel oder nicht freigegeben: "
+                    "Freigabemarker wurde geaendert oder ist noch im Aufbau."
+                )
             count = client.count(collection_name=collection, exact=True).count
             cache_key = (str(marker_path.resolve()), collection)
             with _search_cache_lock:
