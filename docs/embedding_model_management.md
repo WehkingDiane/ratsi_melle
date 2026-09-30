@@ -805,9 +805,10 @@ Markerdatei; der Marker ist daher die verbindliche Freigabegrenze. Waehrend
 der Uebernahme duerfen keine parallelen Builds oder anderen Qdrant-Schreiber
 dieselbe Collection veraendern.
 
-CLI und Service-Oberflaeche unterscheiden einen nativ mit dem aktuellen Vertrag
-gebauten Index von `legacy_verified`. Die eingeschraenkte Provenienz bleibt auch
-nach erfolgreichen inkrementellen Ergaenzungen sichtbar.
+Die Freigabemarker unterscheiden einen nativ mit dem aktuellen Vertrag gebauten
+Index von `legacy_verified`. Die eingeschraenkte Provenienz bleibt auch nach
+erfolgreichen inkrementellen Ergaenzungen erhalten. Die Darstellung in der
+Service-Oberflaeche folgt in Phase 6.
 
 Ein Modellwechsel folgt spaeter diesem Ablauf:
 
@@ -896,8 +897,9 @@ abgesichert sind:
 6. Harrier, Tokenizer und BM25 werden gemeinsam validiert.
 7. Ein bestehender Legacy-Index kann nur nach erfolgreicher deterministischer
    Vektorstichprobe und ausdruecklicher Bestaetigung als `legacy_verified`
-   uebernommen werden; ein Fehler hinterlaesst ihn unveraendert und nicht
-   freigegeben.
+   uebernommen werden; ein Fehler laesst den Freigabemarker unveraendert. Falls
+   eine Payload-Ruecknahme fehlschlaegt, koennen einzelne Metadaten ergaenzt
+   bleiben, aber die Collection wird nicht freigegeben.
 8. Ein inkompatibler Modell- oder Pipelinestand verhindert Schreibzugriffe auf
    eine bestehende Collection; die Legacy-Uebernahme kann diese Sperre nach einer
    echten Vertragsaenderung nicht umgehen.
@@ -1012,7 +1014,7 @@ bleiben unabgehakt und werden dort beschrieben.
 - [x] **M5.9** Migrations-, Stichproben-, Abbruch-, Atomizitaets- und
   Wiederanlauftests fuer native, uebernommene und inkompatible Indexstaende
   ergaenzen.
-- [ ] **M5.10** Phase 5 pruefen und als eigenen Zwischenstand committen.
+- [x] **M5.10** Phase 5 pruefen und als eigenen Zwischenstand committen.
 
 ### Phase 6: Service-Oberflaeche
 
@@ -1133,7 +1135,15 @@ bleiben unabgehakt und werden dort beschrieben.
   mit demselben Bericht ist geprueft. Die 108 betroffenen Tests bestehen ohne
   echte Modellgewichte oder produktive Qdrant-Aenderungen. `VERSION` bleibt
   fuer diesen reinen Testschritt bei `0.5.24`.
-- Naechster regulaerer Punkt: **M5.10**; Phase 5 pruefen und separat committen.
+- M5.10 prueft den Gesamtdiff von Phase 5 gegen M5.1 bis M5.9, die drei
+  Build-Einstiege, den Migrationspfad, Freigabemarker, Punkt-Payloads,
+  Versionsstand und die betroffenen Anleitungen. Die regulaeren Tests bestehen
+  mit 438 Tests, die Integrationstests mit 245 Tests; der gesamte Standardlauf
+  besteht mit 683 Tests (7 `live`-Tests ausgeschlossen). Zwei Aussagen zur
+  Service-Darstellung und zu einer unvollstaendigen Payload-Ruecknahme wurden
+  an den implementierten Stand angepasst. `VERSION` bleibt fuer diesen
+  Pruef- und Dokumentationsschritt bei `0.5.24`.
+- Naechster regulaerer Punkt: **M6.1**; Modellstatus in die Service-Fassade aufnehmen.
 
 - Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-
   und Testabdeckung, CLI-/Manifestvertrag, Dokumentation und Versionsstand
