@@ -90,6 +90,10 @@ Jeder offene Punkt kann eine grobe Aufwandseinstufung und eine Modell-Empfehlung
 - Reproduzierbare lokale Modellverwaltung gemäß [Konzept zur Embedding-Modellverwaltung](embedding_model_management.md) umsetzen, einschließlich Vorbereitungsskript, strikt lokalem Modellbetrieb, Indexkompatibilität und Einbindung in die Service-Oberfläche unter `/daten/vektor/`. Umsetzung phasenweise in Branches strukturieren: `main` → `codex/feature/embedding-model-management` → `codex/feature/embedding-model-management-phase-N`; jede Phase erhält eigene Zwischenstand-Commits. `[Schwer · GPT-6 Astra / High]`
 - Recherchekatalog über weitere Zeiträume, Protokolle und echte Nutzerfragen erweitern; Abschnitts- und Legacy-Index mit `scripts/evaluate_search.py` vergleichen `[Mittel · GPT-6 Sol / Medium]`
 
+#### Hinweis für Phase 6
+
+Vor der Implementierung der Service-Oberfläche die gemeinsamen Zustände und Regeln für Modellvorbereitung, Index-Build, Fortsetzung, Legacy-Prüfung, Übernahme und Suche festhalten. Die Fälle lokal/Server, leer/bestehend, freigegeben/im Aufbau, Melle/Landkreis und Abbruch mitten im Vorgang als kompakte Testmatrix durchgehen. Danach den gesamten Phase-6-Workflow samt Fehler- und Parallelfällen testen und den PR-Diff einmal zusammenhängend prüfen; Codex-Reviews dienen anschließend als zusätzliche Kontrolle. Auswirkungen auf bestehende Melle-Indizes vor Änderungen an Freigabe- oder Datenformaten ausdrücklich prüfen, ohne ihren Neuaufbau vorauszusetzen.
+
 ### 3.4 Analyse und Artefakte
 
 #### Konkrete Aufgaben
