@@ -22,6 +22,7 @@ def _incompatible(collection: str, reason: str) -> IndexBuildCompatibilityError:
 
 def check_build_compatibility(
     connection: QdrantConnection, client, collection: str, compatibility: IndexCompatibility,
+    *, build_options: dict | None = None,
 ) -> str:
     """Return existing provenance, rejecting missing or different release contracts."""
 
@@ -43,6 +44,13 @@ def check_build_compatibility(
         raise _incompatible(
             collection, "Bestehende Collection hat einen anderen Modell- oder Pipelinevertrag."
         )
+    if build_options is not None:
+        try:
+            marker = json.loads(connection.release_path(collection).read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, ValueError) as error:
+            raise _incompatible(collection, "Build-Optionen im Freigabemarker sind nicht lesbar.") from error
+        if marker.get("build_options") != build_options:
+            raise _incompatible(collection, "Bestehende Collection hat andere Build-Optionen.")
     if not connection.collection_contents_match(client, collection, compatibility):
         raise _incompatible(collection, "Freigabemarker und Qdrant-Punktbestand stimmen nicht ueberein.")
     try:

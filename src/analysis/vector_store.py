@@ -37,6 +37,7 @@ class DocumentVectorStore:
         self._client: Any = None
         self._build_provenance: str | None = None
         self._build_compatibility: IndexCompatibility | None = None
+        self._build_options: dict | None = None
 
     # ------------------------------------------------------------------
     # Private helpers
@@ -54,30 +55,36 @@ class DocumentVectorStore:
         if client is not None:
             client.close()
 
-    def begin_build(self, compatibility: IndexCompatibility) -> None:
+    def begin_build(self, compatibility: IndexCompatibility, *, build_options: dict | None = None) -> None:
         """Check an existing collection before its first build write."""
         from src.indexing.build_compatibility import check_build_compatibility
 
         self._build_provenance = None
         self._build_compatibility = None
+        self._build_options = None
         client = self._get_client()
         provenance = check_build_compatibility(
             self.connection, client, self.collection_name, compatibility,
+            build_options=build_options,
         )
         self.ensure_collection()
         self.connection.write_readiness(
-            client, {"ready": False, "provenance": provenance},
+            client, {"ready": False, "provenance": provenance,
+                     **({"build_options": build_options} if build_options is not None else {})},
             collection=self.collection_name, compatibility=compatibility,
         )
         self._build_provenance = provenance
         self._build_compatibility = compatibility
+        self._build_options = build_options
 
-    def finish_build(self, compatibility: IndexCompatibility) -> None:
+    def finish_build(self, compatibility: IndexCompatibility, *, build_options: dict | None = None) -> None:
         """Atomically publish the completed generation and its provenance."""
-        if self._build_provenance is None or self._build_compatibility != compatibility:
+        if (self._build_provenance is None or self._build_compatibility != compatibility
+                or self._build_options != build_options):
             raise RuntimeError("Build wurde nicht mit Kompatibilitaetspruefung begonnen.")
         self.connection.write_readiness(
-            self._get_client(), {"ready": True, "provenance": self._build_provenance},
+            self._get_client(), {"ready": True, "provenance": self._build_provenance,
+                                 **({"build_options": build_options} if build_options is not None else {})},
             collection=self.collection_name, compatibility=compatibility,
         )
 

@@ -311,7 +311,12 @@ python scripts/build_vector_index.py
 Bei einer bereits gefuellten Collection prueft der Build vor Aenderungen den
 passenden Kompatibilitaetsmarker, die Punktzahl, Vektoren und Kompatibilitaetsdaten
 aller vorhandenen Punkte. Die Suche prueft denselben Bestand vor der Abfrage;
-bei grossen Collections kostet dies einen vollstaendigen Lesevorgang je Suche.
+bei grossen Collections wird eine erfolgreiche Pruefung bis zu fuenf Minuten
+zwischengespeichert. Bei Marker- oder Punktzahlaenderungen erfolgt die Pruefung
+sofort erneut; ein Austausch mit gleicher Punktzahl kann bis zum Ablauf des
+Caches unentdeckt bleiben.
+Landkreis-Builds speichern die Grenze von `--max-text-chars` im Marker und
+lehnen eine Fortsetzung mit abweichender Grenze ab.
 Auch das Vektorschema jeder vorhandenen
 Collection wird vor Aenderungen geprueft, selbst wenn sie leer ist. Alte
 Collections ohne Kompatibilitaetsnachweis muessen

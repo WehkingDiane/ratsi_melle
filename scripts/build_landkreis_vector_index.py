@@ -230,7 +230,8 @@ def _main(argv: list[str] | None = None) -> None:
     vector_store = DocumentVectorStore(qdrant_dir, collection_name=COLLECTION_NAME)
     vector_store._get_client()
     compatibility = current_index_compatibility()
-    vector_store.begin_build(compatibility)
+    build_options = {"max_text_chars": args.max_text_chars}
+    vector_store.begin_build(compatibility, build_options=build_options)
 
     print("Loading Landkreis documents from database ...")
     all_docs = _load_documents(db_path)
@@ -349,7 +350,7 @@ def _main(argv: list[str] | None = None) -> None:
     )
 
     total_now = vector_store.count()
-    vector_store.finish_build(compatibility)
+    vector_store.finish_build(compatibility, build_options=build_options)
     print(f"\nIndexed {indexed_count} new Landkreis documents. Total: {total_now}")
 
 

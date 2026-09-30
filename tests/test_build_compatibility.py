@@ -194,6 +194,72 @@ def test_pending_build_resumes_after_new_points(tmp_path, compatibility, collect
 
 
 @pytest.mark.integration
+def test_landkreis_text_limit_cannot_change_between_incremental_builds(tmp_path, compatibility):
+    collection = "landkreis_publications"
+    store = _store(tmp_path, collection, compatibility)
+    connection = store.connection
+    try:
+        connection.write_readiness(store._get_client(),
+                                   {"ready": True, "build_options": {"max_text_chars": 6000}},
+                                   collection=collection, compatibility=compatibility)
+        store.begin_build(compatibility, build_options={"max_text_chars": 6000})
+        store.finish_build(compatibility, build_options={"max_text_chars": 6000})
+        marker = connection.release_path(collection).read_bytes()
+        with pytest.raises(IndexBuildCompatibilityError, match="Build-Optionen"):
+            store.begin_build(compatibility, build_options={"max_text_chars": 3000})
+        assert connection.release_path(collection).read_bytes() == marker
+        store.begin_build(compatibility, build_options={"max_text_chars": 6000})
+    finally:
+        store.close()
+
+
+@pytest.mark.integration
+def test_search_reuses_recent_vector_check_then_revalidates(tmp_path, monkeypatch, compatibility):
+    from qdrant_client.models import PointStruct, SparseVector
+    from src import qdrant_connection
+
+    collection = "ratsi_documents"
+    store = _store(tmp_path, collection, compatibility)
+    connection = store.connection
+    client = store._get_client()
+    try:
+        connection.write_readiness(client, {"ready": True},
+                                   collection=collection, compatibility=compatibility)
+        monkeypatch.setattr("src.config.index_compatibility.current_index_compatibility",
+                            lambda: compatibility)
+        now = [100.0]
+        monkeypatch.setattr(qdrant_connection, "monotonic", lambda: now[0])
+        calls = []
+        original = QdrantConnection.collection_contents_match
+
+        def checked(self, *args):
+            calls.append(True)
+            return original(self, *args)
+
+        monkeypatch.setattr(QdrantConnection, "collection_contents_match", checked)
+        connection.require_search_compatibility(collection, client)
+        connection.require_search_compatibility(collection, client)
+        assert len(calls) == 1
+        marker_path = connection.release_path(collection)
+        marker = json.loads(marker_path.read_text(encoding="utf-8"))
+        marker["inspection_checked_at"] = "changed"
+        marker_path.write_text(json.dumps(marker), encoding="utf-8")
+        connection.require_search_compatibility(collection, client)
+        assert len(calls) == 2
+        client.upsert(collection, [PointStruct(
+            id=1, vector={"harrier": [0.0, 1.0] + [0.0] * 1022,
+                          "bm25": SparseVector(indices=[2], values=[1.0])},
+            payload={"index_compatibility": compatibility.as_dict()},
+        )])
+        now[0] += qdrant_connection._SEARCH_CACHE_SECONDS + 1
+        with pytest.raises(RuntimeError, match="Punktbestand"):
+            connection.require_search_compatibility(collection, client)
+        assert len(calls) == 3
+    finally:
+        store.close()
+
+
+@pytest.mark.integration
 def test_copied_payload_with_foreign_vector_rejects_build_and_search(
     tmp_path, monkeypatch, compatibility,
 ):

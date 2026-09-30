@@ -663,13 +663,20 @@ abweichender Marker bricht den Build vor dem ersten Qdrant-Schreibzugriff ab.
 Der Marker erfasst die Punktzahl auch bei lokalem Qdrant. Ein freigegebener
 Marker enthaelt ausserdem einen Digest der Punkt-IDs und Vektoren. Build und
 Suche vergleichen den gesamten Vektorbestand und die Kompatibilitaetsdaten
-aller Punkte mit dem aktuellen Vertrag; dies verursacht bei grossen Collections
-einen vollstaendigen Lesevorgang vor jeder Suche. Ein alter Marker fuer eine
+aller Punkte mit dem aktuellen Vertrag. Erfolgreiche Suchpruefungen werden je
+Prozess bis zu fuenf Minuten zwischengespeichert; Marker- oder
+Punktzahlaenderungen erzwingen sofort eine neue Pruefung. Ein Austausch bei
+gleicher Punktzahl und unveraendertem Marker kann waehrend dieser Frist
+unentdeckt bleiben. Ein alter Marker fuer eine
 ersetzte Collection mit gleicher Punktzahl und abweichenden Vektoren oder
 Payloads wird abgelehnt. Bei einem Marker mit `ready=false` darf die Punktzahl
 durch den angefangenen Build wachsen oder schrumpfen; alle vorhandenen Punkte
 muessen weiterhin den aktiven Vertrag tragen. Nach erfolgreichem Abschluss
 wird der Digest fuer den neuen Bestand geschrieben.
+Landkreis-Builds speichern `max_text_chars` als Build-Option im Marker und
+verweigern eine inkrementelle Fortsetzung mit einem anderen Wert. Aeltere
+Landkreis-Marker ohne diese Option benoetigen einen getrennten Neuaufbau,
+weil sich ihr tatsaechliches Textlimit nicht belegen laesst.
 Bestehende Marker ohne Punktzahl muessen durch einen getrennten Neuaufbau oder
 eine erneute verifizierte Uebernahme ersetzt werden.
 Neue Collections duerfen mit dem aktiven Vertrag beginnen. Bereits vorhandene

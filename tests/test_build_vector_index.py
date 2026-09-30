@@ -53,11 +53,13 @@ class _FakeVectorStore:
     def _get_client(self):
         return self
 
-    def begin_build(self, compatibility: IndexCompatibility) -> None:
+    def begin_build(self, compatibility: IndexCompatibility, *, build_options=None) -> None:
         self.build_compatibility = compatibility
+        self.build_options = build_options
 
-    def finish_build(self, compatibility: IndexCompatibility) -> None:
+    def finish_build(self, compatibility: IndexCompatibility, *, build_options=None) -> None:
         assert compatibility == self.build_compatibility
+        assert build_options == self.build_options
 
     def ensure_collection(self) -> None:
         pass

@@ -7,6 +7,8 @@ from hashlib import sha256
 import json
 import os
 from pathlib import Path
+from threading import Lock
+from time import monotonic
 from urllib.parse import urlsplit
 from uuid import uuid4
 
@@ -20,6 +22,9 @@ class QdrantServerUnavailableError(RuntimeError):
 
 
 _INDEX_COLLECTIONS = frozenset({"ratsi_passages", "ratsi_documents", "landkreis_publications"})
+_SEARCH_CACHE_SECONDS = 300
+_search_cache_lock = Lock()
+_search_cache: dict[tuple[str, str], tuple[bytes, int, float]] = {}
 
 
 @dataclass(frozen=True)
@@ -140,11 +145,27 @@ class QdrantConnection:
         if owned_client:
             client = self.create_client()
         try:
+            marker_path = self.release_path(collection)
+            marker_bytes = marker_path.read_bytes()
+            count = client.count(collection_name=collection, exact=True).count
+            cache_key = (str(marker_path.resolve()), collection)
+            with _search_cache_lock:
+                cached = _search_cache.get(cache_key)
+            marker_digest = sha256(marker_bytes).digest()
+            if cached is not None and cached[:2] == (marker_digest, count) and monotonic() < cached[2]:
+                return
             if not self.collection_contents_match(client, collection, active):
                 raise RuntimeError(
                     f"Index {collection} inkompatibel: Punktbestand und Freigabemarker "
                     "stimmen nicht ueberein. Index pruefen oder neu aufbauen."
                 )
+            if marker_path.read_bytes() != marker_bytes:
+                raise RuntimeError(f"Index {collection} wurde waehrend der Pruefung geaendert.")
+            with _search_cache_lock:
+                if len(_search_cache) >= 64:
+                    _search_cache.clear()
+                _search_cache[cache_key] = (marker_digest, count,
+                                            monotonic() + _SEARCH_CACHE_SECONDS)
         finally:
             if owned_client:
                 client.close()
