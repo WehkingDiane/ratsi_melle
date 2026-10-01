@@ -615,17 +615,140 @@ Der fuer eine Collection freigegebene Indexstand enthaelt mindestens:
 - Vektordimension
 - Pipeline-Version
 
+Seit M5.1 erzeugt `src/config/index_compatibility.py` den unveraenderlichen
+`IndexCompatibility`-Datensatz aus den zentralen Dense-, Sparse- und
+Tokenizer-IDs samt Commit-SHAs, der Vektordimension, der fachlichen
+Pipeline-Version und dem SHA-256-Wert des aktiven Modellmanifests. Die Erzeugung
+setzt eine erfolgreiche gemeinsame lokale Bestandspruefung einschliesslich der
+installierten Bibliotheksversionen voraus. Ungueltige IDs, Revisionen, Hashes,
+Dimensionen und leere Pipeline-Versionen werden abgelehnt. `as_dict()` liefert
+die JSON-faehigen Pflichtfelder fuer die folgenden Freigabemarker und Payloads.
+
 Diese Angaben werden in den bestehenden Freigabe- beziehungsweise Buildmetadaten
 und in den fuer die Nachvollziehbarkeit erforderlichen Punkt-Payloads gefuehrt.
 Die konkrete Speicherung muss fuer lokalen und Serverbetrieb denselben
-Kompatibilitaetsvertrag liefern.
+Kompatibilitaetsvertrag liefern. M5.2 ergaenzt dafuer die gemeinsame
+`QdrantConnection`-Marker-API: Pro Collection (`ratsi_passages`,
+`ratsi_documents`, `landkreis_publications`) gibt es einen eigenen
+`<Collection>.ready.json`-Pfad. Lokal liegt er im Qdrant-Verzeichnis, im
+Serverbetrieb unter der SHA-256-adressierten URL-Statuswurzel. Neue
+Passage-Freigaben speichern den vollstaendigen Datensatz als `compatibility`
+zusammen mit dem Collection-Namen. Servermarker behalten ausserdem URL-Hash
+und exakte Punktzahl. Der Leser validiert Collection, URL-Bindung und alle
+Kompatibilitaetsfelder; alte Marker ohne Datensatz liefern keinen
+Kompatibilitaetsnachweis. Die Aufnahme neuer Freigabeschreibvorgaenge fuer
+`ratsi_documents` und `landkreis_publications` ist mit M5.7 umgesetzt; alte
+Collections werden dadurch nicht nachtraeglich als kompatibel markiert.
+
+M5.3 schreibt bei neu berechneten Punkten aller drei Collections denselben
+vollstaendigen Datensatz unter dem Payload-Feld `index_compatibility`. Dieser
+enthaelt Dense-, Sparse- und Tokenizer-ID samt Revision, Manifest-Hash,
+Vektordimension und Pipeline-Version. Bei Passagen bleiben die bisherigen Felder
+`model` und `pipeline_version` fuer vorhandene Verbraucher bestehen. Der neue
+Datensatz wird erst nach der Fingerprint-Berechnung an den Punkt angefuegt;
+Snippet-Aktualisierungen vorhandener Punkte setzen ihn nicht, da dabei keine
+Vektoren neu berechnet werden. Alt-Punkte ohne Datensatz werden erst nach
+verifizierter Uebernahme beziehungsweise getrenntem Neuaufbau behandelt.
 
 Vor dem ersten Schreibzugriff vergleicht ein Builder den vorhandenen Indexstand
 mit der aktiven Modellkonfiguration. Bei einer Abweichung darf er die Collection
 nicht inkrementell erweitern. Er fordert einen vollstaendigen Neuaufbau oder eine
 getrennte Aufbau-Collection an.
 
+M5.7 setzt diese Schranke fuer alle drei Collections vor Collection-Erzeugung,
+Payload-Aktualisierung und Vektor-Upsert um. Bei einer nichtleeren Collection
+muss ein gueltiger, ziel- und collectionsgebundener Freigabemarker exakt den
+aktiven Kompatibilitaetsdatensatz enthalten. Ein fehlender, ungueltiger oder
+abweichender Marker bricht den Build vor dem ersten Qdrant-Schreibzugriff ab.
+Der Marker erfasst die Punktzahl auch bei lokalem Qdrant. Ein freigegebener
+Marker enthaelt ausserdem einen Digest der Punkt-IDs und Vektoren. Build und
+Suche vergleichen den gesamten Vektorbestand und die Kompatibilitaetsdaten
+aller Punkte mit dem aktuellen Vertrag. Erfolgreiche Suchpruefungen werden je
+Prozess bis zu fuenf Minuten zwischengespeichert; Marker- oder
+Punktzahlaenderungen erzwingen sofort eine neue Pruefung. Ein Austausch bei
+gleicher Punktzahl und unveraendertem Marker kann waehrend dieser Frist
+unentdeckt bleiben. Der Cache gilt nur fuer einen Marker, dessen gelesener
+Stand ausdruecklich `ready=true` enthaelt; ein inzwischen ausstehender Build
+wird vor der Abfrage abgewiesen. Auch bei einem Cache-Treffer wird der Marker
+nach der Qdrant-Abfrage erneut gelesen; ein zwischenzeitlich widerrufener
+Stand wird abgewiesen. Ein alter Marker fuer eine
+ersetzte Collection mit gleicher Punktzahl und abweichenden Vektoren oder
+Payloads wird abgelehnt. Bei einem Marker mit `ready=false` darf die Punktzahl
+durch den angefangenen Build wachsen oder schrumpfen; alle vorhandenen Punkte
+muessen weiterhin den aktiven Vertrag tragen. Nach erfolgreichem Abschluss
+wird der Digest fuer den neuen Bestand geschrieben.
+Landkreis-Builds speichern `max_text_chars` als Build-Option im Marker und
+verweigern eine inkrementelle Fortsetzung mit einem anderen Wert. Aeltere
+Landkreis-Marker ohne diese Option benoetigen einen getrennten Neuaufbau,
+weil sich ihr tatsaechliches Textlimit nicht belegen laesst.
+Bestehende Marker ohne Punktzahl muessen durch einen getrennten Neuaufbau oder
+eine erneute verifizierte Uebernahme ersetzt werden.
+Neue Collections duerfen mit dem aktiven Vertrag beginnen. Bereits vorhandene
+leere Collections muessen dafuer ebenfalls das erwartete
+Vektorschema besitzen. Ein alter Marker allein legitimiert kein zwischenzeitlich
+neu angelegtes, inkompatibles Qdrant-Schema. Jeder
+Schemaabgleich umfasst neben dem Dense-Distanzmass den Dense-Datentyp,
+vektorspezifische HNSW- und Quantisierungsoptionen sowie BM25-Modifikator und
+Sparse-Datentyp. Die Suche prueft das aktuelle Collection-Schema vor einem
+moeglichen Cache-Treffer erneut. Jeder
+Build haelt einen Marker mit `ready=false` und Vertrag fest, bis der Lauf
+erfolgreich freigegeben ist; dadurch bleibt eine unterbrochene inkrementelle
+Fortsetzung pruefbar. Die Passage-Suche behandelt `ready=false` als nicht
+freigegeben. Der Collection-Marker behaelt nach einer verifizierten Uebernahme
+die Herkunft `legacy_verified`; bereits uebernommene Punkt-Payloads bleiben
+bei spaeteren Ergaenzungen unveraendert.
+Alle drei Builder halten vor dem Oeffnen des Qdrant-Clients eine Sperre fuer
+die jeweilige Collection bis zur Freigabe oder zum Abbruch. Ein zweiter Build
+wartet und prueft nach Freigabe den dann aktuellen Marker und Index erneut.
+Dieselbe Sperrdatei serialisiert auch die Legacy-Uebernahme. Im Serverbetrieb
+muessen alle Builder und Uebernahmeprozesse dieselbe Statuswurzel verwenden;
+unabhaengige Rechner ohne gemeinsame Statuswurzel werden nicht koordiniert.
+Die Websuche vergleicht vor der Query-Kodierung den Marker der tatsaechlich
+ausgewaehlten Collection mit dem aktiven Modellvertrag und weist fehlende oder
+abweichende Vertraege sowie `ready=false` zurueck. Die Evaluations-CLI prueft
+ihre ausdruecklich gewaehlte Collection auf dieselbe Weise, bevor sie Encoder
+startet oder Ergebnisse schreibt.
+
+M5.8 gibt bei einer inkompatiblen Fortsetzung in allen drei Build-CLIs nur
+eine `ERROR: Index <Collection> inkompatibel: ...`-Zeile mit dem Grund und dem
+Hinweis auf vollstaendigen Neuaufbau oder eine getrennte Aufbau-Collection
+aus. Der Exitcode ist `1`; ein Python-Traceback oder ein Qdrant-Schreibzugriff
+folgt auf diesen Abbruch nicht. Bei einer alten Collection ohne gueltigen
+Marker ist alternativ der einmalige Legacy-Pruefpfad unten verfuegbar.
+
 ### Einmalige Uebernahme bestehender Collections
+
+M5.4 stellt die rein lesende Funktion `inspect_legacy_collection` unter
+`src/indexing/legacy_index_inspection.py` bereit. Sie verlangt zuerst die
+Tiefenpruefung des aktiven lokalen Modellbestands. Danach prueft sie den
+Collection-Marker und alle vorhandenen Punkt-Hinweise auf Widersprueche,
+das Qdrant-Schema (`harrier`/`bm25`, Cosine, konfigurierte Dimension), die
+exakte Punktzahl und die vollstaendige Liste ganzzahliger Punkt-IDs.
+
+Die Stichprobe umfasst alle Punkte bis zu 32; bei groesseren Collections werden
+32 IDs nach SHA-256-Rang aus Collection, kanonischem Kompatibilitaetsdatensatz
+und Punkt-ID ausgewaehlt. Die Reihenfolge der Qdrant-Scrollseiten beeinflusst
+die Auswahl nicht. Die Funktion liest die ausgewaehlten Payloads und Vektoren
+neu und rekonstruiert den urspruenglichen Embedding-Text: Passagen verwenden
+ihr bestaetigtes `text`-Feld, Ratsinfo-Dokumente die urspruengliche
+Zehn-Seiten-Extraktion aus SQLite und lokaler Datei beziehungsweise den
+bisherigen Metadaten-Fallback, Landkreis-Punkte den urspruenglichen SQLite-Extrakt mit der Standardgrenze von 6000 Zeichen.
+Die Quell-SQLite-Dateien werden dazu im Read-only-Modus geoeffnet; ein
+fehlender Pfad wird nicht als neue Datenbank angelegt. Bei Dokument- und
+Landkreis-Punkten muss das gespeicherte Snippet zum rekonstruierten
+Text passen. Fehlende Quellen oder abweichende Buildparameter koennen daher
+keinen positiven Nachweis liefern.
+
+Die vorbereiteten lokalen Harrier- und BM25-Adapter berechnen die Stichprobe
+neu. Dense-Werte und Sparse-Werte werden mit den im Code festgelegten engen
+Toleranzen verglichen; Sparse-Indizes muessen exakt uebereinstimmen. Eine
+unvollstaendige Stichprobe oder eine waehrend der Pruefung geaenderte
+Punkt-ID-Liste verhindert ein positives Ergebnis. Die Funktion ruft ausschliesslich
+Qdrant-Leseoperationen auf und schreibt weder Marker noch Payloads. Ihr
+Ergebnis bindet Ziel, Collection, exakte Punktzahl, SHA-256 der sortierten
+Punkt-IDs, Stichproben-IDs und aktiven Kompatibilitaetsdatensatz. Das
+persistierte Uebernahmeprotokoll und die abschliessenden Abbruchgruende sind
+in M5.5 definiert. Die Pruefung bietet noch keinen Freigabeschritt.
 
 Die vor dieser Umstellung aufgebauten Collections enthalten noch keinen
 vollstaendigen Kompatibilitaetsdatensatz. Sie muessen deshalb nicht automatisch
@@ -642,6 +765,8 @@ Die Uebernahme laeuft zunaechst strikt lesend und erfordert:
   Dense-Dimension 1024
 - vorhandene Modell- und Pipelinehinweise ohne bekannten Widerspruch zur aktiven
   Konfiguration
+- fuer jede Passage in der vollstaendigen Punktliste `committed=true`, auch
+  ausserhalb der deterministischen Vektorstichprobe
 - fuer jeden geprueften Punkt einen unveraenderten, exakt rekonstruierbaren
   urspruenglichen Embedding-Text
 - eine deterministisch aus Collection, Punkt-IDs und aktivem
@@ -657,13 +782,36 @@ Collection, Punktanzahl, Stichprobenumfang und -IDs, Vergleichstoleranzen,
 Kompatibilitaetsdatensatz, Ergebnis und Zeitpunkt. Secrets, Dokumenttexte und
 vollstaendige Vektoren werden darin nicht gespeichert.
 
+`inspect_and_write_report(connection, client, collection, report_path)` schreibt
+das JSON-Protokoll atomar an einen explizit angegebenen Pfad. Es enthaelt
+`report_version=1`, einen UTC-Zeitpunkt, die oeffentliche Zielanzeige und
+`target_sha256` des vollstaendigen Server-URL beziehungsweise des aufgeloesten
+lokalen Store-Pfads. Bei `result=verified` sind exakte Punktanzahl, SHA-256
+der sortierten Punkt-IDs, Stichprobenumfang und -IDs sowie der aktive
+Kompatibilitaetsdatensatz enthalten. `result=aborted` traegt genau einen
+`abort_code`; unvollstaendige Punkt- und Vertragsnachweise bleiben `null`.
+Das Protokoll allein gibt noch keine Collection frei.
+
+Die Stichprobe umfasst maximal 32 Punkte. Dense- und Sparse-Werte verwenden
+jeweils absolute und relative Toleranz `1e-4` nach `math.isclose`; Sparse-Indizes
+muessen exakt gleich sein. Diese Werte stehen auch im Protokoll und sind keine
+Eingabeparameter. Abbruchcodes sind nach Ursache getrennt:
+
+| Ursache | `abort_code` |
+| --- | --- |
+| Modellbestand oder Schema | `model_unavailable`, `schema_mismatch`, `collection_missing`, `collection_empty` |
+| Marker, Modell- oder Pipelinehinweise | `marker_invalid`, `marker_target_mismatch`, `marker_collection_mismatch`, `marker_count_mismatch`, `model_mismatch`, `pipeline_mismatch`, `contract_invalid`, `contract_mismatch` |
+| Punktliste und Payload | `point_ids_invalid`, `payload_missing`, `scroll_incomplete`, `point_count_mismatch`, `collection_changed` |
+| Quelltext | `source_missing`, `source_ambiguous`, `text_unavailable`, `text_mismatch` |
+| Stichprobe und Vektoren | `sample_incomplete`, `vector_invalid`, `dense_mismatch`, `sparse_indices_mismatch`, `sparse_values_mismatch` |
+
 Nur wenn alle Voraussetzungen und Vergleiche erfolgreich sind, darf ein zweiter,
 ausdruecklich bestaetigter Schritt Metadaten schreiben. Er hinterlegt den aktiven
 Kompatibilitaetsdatensatz atomar in den Freigabemetadaten, ergaenzt erforderliche
 Punkt-Payloads ohne Neuberechnung der Vektoren und kennzeichnet die Herkunft als
 `legacy_verified`. Die Collection bleibt waehrend der Pruefung suchbar. Vorhandene
 Vektoren werden weder geloescht noch ueberschrieben; bei einem Abbruch bleibt der
-alte Stand weiterhin nutzbar und die Uebernahme gilt als nicht erfolgt.
+alte Freigabemarker erhalten und die Uebernahme gilt als nicht erfolgt.
 Das Pruefergebnis ist an Ziel, Collection, Punktanzahl, einen Digest der Punkt-IDs
 und den aktiven Kompatibilitaetsdatensatz gebunden. Der Schreibschritt prueft diese
 Bindung erneut und lehnt ein veraltetes Ergebnis ab.
@@ -675,9 +823,52 @@ Kompatibilitaetsdatensatz nur einmal moeglich. Nach einer spaeteren Aenderung vo
 Modellrevision, Vektordimension oder Pipeline-Version ist keine erneute
 Legacy-Uebernahme zulaessig; dann bleibt der vollstaendige Neuaufbau verbindlich.
 
-CLI und Service-Oberflaeche unterscheiden einen nativ mit dem aktuellen Vertrag
-gebauten Index von `legacy_verified`. Die eingeschraenkte Provenienz bleibt auch
-nach erfolgreichen inkrementellen Ergaenzungen sichtbar.
+M5.6 stellt `scripts/migrate_legacy_index.py` bereit. Beispiel fuer eine lokale
+oder per `RATSI_QDRANT_URL` konfigurierte Passage-Collection:
+
+```bash
+python scripts/migrate_legacy_index.py --inspect --collection ratsi_passages --report data/db/legacy_passages_inspection.json
+python scripts/migrate_legacy_index.py --apply --collection ratsi_passages --report data/db/legacy_passages_inspection.json --confirm-collection ratsi_passages
+```
+
+Der zweite Befehl verlangt die ausgeschriebene Collection als Bestaetigung.
+Im lokalen Modus koennen beide Befehle mit `--qdrant-dir PFAD` denselben
+abweichenden Qdrant-Speicher wie die Build-CLIs auswaehlen; im Servermodus gilt
+weiterhin `RATSI_QDRANT_URL`. Eine fehlende Collection erzeugt ein Protokoll mit
+`abort_code=collection_missing`.
+Vor dem Oeffnen eines lokalen Speichers muss eine gueltige Qdrant-`meta.json`
+vorliegen; ein beliebiges oder leeres Verzeichnis wird mit `store_missing`
+abgewiesen, ohne Qdrant-Dateien anzulegen. Ist der Server nicht erreichbar,
+meldet der Befehl `qdrant_unavailable`. Bei `--inspect` werden beide
+Vorabfehler auch als abgebrochene Inspektionsberichte gespeichert. Ein
+Verbindungsabbruch waehrend der lesenden Inspektion erhaelt denselben Abort-Code
+und schreibt ebenfalls einen Bericht.
+Ein Verbindungsabbruch oder Serverfehler waehrend der erneuten Pruefung bei
+`--apply` endet mit `qdrant_unavailable` und Exitcode 1 ohne Traceback; ein
+bestehender Inspektionsbericht wird dabei nicht ueberschrieben.
+Vor dem ersten Payload-Schreibzugriff prueft er den erfolgreichen Bericht,
+das genaue Qdrant-Ziel, den aktiven Modellvertrag und die deterministische
+Vektorstichprobe erneut. Punktzahl und Punkt-ID-Digest muessen vor und nach
+dem Backfill passen. Fehlende `index_compatibility`-Payloads erhalten den
+Vertrag und `index_provenance=legacy_verified`; bereits kompatibel
+vektorisierte Punkte behalten ihre bisherige Punkt-Herkunft. Erst nach dem
+Ruecklesecheck wird der Freigabemarker mit `provenance=legacy_verified`
+atomar veroeffentlicht. Eine Collection mit schon vorhandenem Vertrag im
+Marker kann nicht erneut als Legacy uebernommen werden. Bei Fehlern vor der
+Markerfreigabe versucht der Befehl, seine Payload-Ergaenzungen zu entfernen;
+ein fehlgeschlagener Ruecknahmeversuch meldet `rollback_incomplete`. Qdrant
+bietet keine gemeinsame Transaktion fuer mehrere Payload-Chargen und die
+Markerdatei; der Marker ist daher die verbindliche Freigabegrenze. Waehrend
+der Uebernahme duerfen andere Qdrant-Schreiber ausserhalb dieser
+Build- und Uebernahmepfade dieselbe Collection nicht veraendern.
+Parallele `--apply`-Aufrufe und Builds fuer dasselbe Ziel und dieselbe Collection werden
+ueber eine dauerhaft liegende Sperrdatei neben dem Freigabemarker serialisiert.
+Alle Prozesse muessen dafuer dieselbe lokale Statuswurzel nutzen.
+
+Die Freigabemarker unterscheiden einen nativ mit dem aktuellen Vertrag gebauten
+Index von `legacy_verified`. Die eingeschraenkte Provenienz bleibt auch nach
+erfolgreichen inkrementellen Ergaenzungen erhalten. Die Darstellung in der
+Service-Oberflaeche folgt in Phase 6.
 
 Ein Modellwechsel folgt spaeter diesem Ablauf:
 
@@ -766,8 +957,9 @@ abgesichert sind:
 6. Harrier, Tokenizer und BM25 werden gemeinsam validiert.
 7. Ein bestehender Legacy-Index kann nur nach erfolgreicher deterministischer
    Vektorstichprobe und ausdruecklicher Bestaetigung als `legacy_verified`
-   uebernommen werden; ein Fehler hinterlaesst ihn unveraendert und nicht
-   freigegeben.
+   uebernommen werden; ein Fehler laesst den Freigabemarker unveraendert. Falls
+   eine Payload-Ruecknahme fehlschlaegt, koennen einzelne Metadaten ergaenzt
+   bleiben, aber die Collection wird nicht freigegeben.
 8. Ein inkompatibler Modell- oder Pipelinestand verhindert Schreibzugriffe auf
    eine bestehende Collection; die Legacy-Uebernahme kann diese Sperre nach einer
    echten Vertragsaenderung nicht umgehen.
@@ -863,26 +1055,26 @@ bleiben unabgehakt und werden dort beschrieben.
 
 ### Phase 5: Indexkompatibilitaet
 
-- [ ] **M5.1** Kompatibilitaetsdatensatz aus Modell-IDs, Revisionen,
+- [x] **M5.1** Kompatibilitaetsdatensatz aus Modell-IDs, Revisionen,
   Manifest-Hash, Dimension und Pipeline-Version zentral erzeugen.
-- [ ] **M5.2** Lokale und serverbezogene Qdrant-Freigabemetadaten um diesen
+- [x] **M5.2** Lokale und serverbezogene Qdrant-Freigabemetadaten um diesen
   Datensatz erweitern.
-- [ ] **M5.3** Erforderliche Modell- und Pipelineangaben in Punkt-Payloads fuer
+- [x] **M5.3** Erforderliche Modell- und Pipelineangaben in Punkt-Payloads fuer
   Ratsinfo- und Landkreis-Collections konsistent hinterlegen.
-- [ ] **M5.4** Rein lesende Bestandspruefung und deterministische
+- [x] **M5.4** Rein lesende Bestandspruefung und deterministische
   Vektorstichprobe fuer die einmalige Legacy-Uebernahme implementieren.
-- [ ] **M5.5** Uebernahmeprotokoll, feste Vergleichstoleranzen und eindeutige
+- [x] **M5.5** Uebernahmeprotokoll, feste Vergleichstoleranzen und eindeutige
   Abbruchgruende fuer unzureichende oder widerspruechliche Nachweise definieren.
-- [ ] **M5.6** Ausdruecklich bestaetigte, atomare Freigabe als `legacy_verified`
+- [x] **M5.6** Ausdruecklich bestaetigte, atomare Freigabe als `legacy_verified`
   und Payload-Backfill ohne Veraenderung vorhandener Vektoren implementieren.
-- [ ] **M5.7** Kompatibilitaetspruefung vor dem ersten Schreibzugriff eines Builds
+- [x] **M5.7** Kompatibilitaetspruefung vor dem ersten Schreibzugriff eines Builds
   durchsetzen.
-- [ ] **M5.8** Inkompatible inkrementelle Fortsetzung mit kurzer Meldung und
+- [x] **M5.8** Inkompatible inkrementelle Fortsetzung mit kurzer Meldung und
   Hinweis auf Neuaufbau beziehungsweise Aufbau-Collection verhindern.
-- [ ] **M5.9** Migrations-, Stichproben-, Abbruch-, Atomizitaets- und
+- [x] **M5.9** Migrations-, Stichproben-, Abbruch-, Atomizitaets- und
   Wiederanlauftests fuer native, uebernommene und inkompatible Indexstaende
   ergaenzen.
-- [ ] **M5.10** Phase 5 pruefen und als eigenen Zwischenstand committen.
+- [x] **M5.10** Phase 5 pruefen und als eigenen Zwischenstand committen.
 
 ### Phase 6: Service-Oberflaeche
 
@@ -947,8 +1139,81 @@ bleiben unabgehakt und werden dort beschrieben.
   echten Modellgewichte heruntergeladen.
   Die praktischen Builds und die Suche mit echten vorbereiteten Modellen bleiben
   Teil der Gesamtabnahme in Phase 7. Allgemeine Version: `0.5.17`.
-- Naechster regulaerer Punkt: **M5.1**; zentralen Kompatibilitaetsdatensatz fuer
-  die Indexfreigabe erzeugen.
+- Phase 5 begonnen auf `codex/feature/embedding-model-management-phase-5`:
+  M5.1 fuehrt den zentralen `IndexCompatibility`-Datensatz ein. Er wird nur aus
+  einem lokal geprueften Modellbestand erzeugt und enthaelt alle neun Pflichtfelder
+  fuer spaetere Qdrant-Freigaben. Zehn gezielte Tests bestehen. Noch keine
+  Freigabemarker, Payloads oder bestehenden Collections wurden veraendert;
+  `VERSION` bleibt fuer diesen internen Baustein bei `0.5.17`.
+- M5.2 erweitert die lokale und URL-bezogene Marker-API fuer alle drei
+  Collections. Neue Passage-Freigaben enthalten den geprueften
+  Kompatibilitaetsdatensatz; Marker werden atomar geschrieben und beim Lesen
+  an Collection und Serverziel gebunden. Die gezielten Qdrant- und
+  Kompatibilitaetstests bestehen mit 49 Tests; ein breiterer Lauf wurde
+  nach 73 bestandenen Tests wegen eines langsam laufenden Folgetests
+  abgebrochen. Die Legacy- und Landkreis-Builder erhalten
+  ihren Freigabeschreibvorgang erst mit M5.7, damit vorhandene Daten nicht
+  ungeprueft gestempelt werden. Allgemeine Version: `0.5.18`.
+- M5.3 schreibt `index_compatibility` in neu vektorisierte Passage-, Legacy-
+  und Landkreis-Punkte. Bestehende Punkte erhalten bei reinen Snippet-Updates
+  keine neue Herkunftsangabe. Drei Build-Integrationstests und zwei Tests
+  fuer bestehende Snippet-Payloads bestehen; die umfassende Phasenabnahme
+  folgt mit M5.9/M5.10.
+  Allgemeine Version: `0.5.19`.
+- M5.4 implementiert die rein lesende Legacy-Bestandspruefung mit
+  Tiefenpruefung des Modellbestands, Schema-/Hinweispruefung, fest auf 32
+  Punkte begrenzter deterministischer Stichprobe und lokaler Neuberechnung
+  beider Vektortypen. Dreizehn gezielte Tests mit kleinem Qdrant-Lokalbestand
+  bestehen, darunter Rekonstruktion fuer alle drei Collections und Abbrueche
+  bei widerspruechlichen Vektoren, Texten, Markern und unvollstaendiger
+  Stichprobe. Es wurden keine echten Modellgewichte geladen. Allgemeine
+  Version: `0.5.20`.
+- M5.5 schreibt ein atomisches JSON-Pruefprotokoll fuer erfolgreiche und
+  abgebrochene Legacy-Pruefungen. Zielbindung per SHA-256 der vollstaendigen
+  Zieladresse, UTC-Zeitpunkt, feste absolute und relative Toleranzen sowie
+  stabile Abbruchcodes sind dokumentiert; keine Freigabe oder Qdrant-Aenderung.
+  Allgemeine Version: `0.5.21`.
+- M5.6 fuehrt die bestaetigte Uebernahme nach erneuter Bestandspruefung aus.
+  Fehlende Punkt-Payloads werden ohne Vektorschreibzugriff ergaenzt und vor
+  der atomaren Markerfreigabe zurueckgelesen; bei Fehlern erfolgt ein
+  Rollback-Versuch. Ein CLI bietet getrennte Pruef- und Freigabebefehle.
+  25 gezielte Legacy- und CLI-Tests bestehen. Allgemeine Version: `0.5.22`.
+- M5.7 prueft alle drei Builder vor ihrem ersten Qdrant-Schreibzugriff gegen
+  einen passenden Freigabemarker. Neue Builds und Fortsetzungen halten den
+  Vertrag mit `ready=false` fest und stellen nach Abschluss `ready=true` her;
+  `legacy_verified` bleibt erhalten. Gezielte Build- und Qdrant-Tests bestehen.
+  Allgemeine Version: `0.5.23`.
+- M5.8 liefert fuer alle drei Builds eine einzeilige CLI-Meldung mit Grund,
+  Exitcode `1` und Hinweis auf Neuaufbau oder Aufbau-Collection. Tests pruefen
+  fehlende und abweichende Marker ohne Qdrant-Schreibzugriff oder Traceback.
+  Allgemeine Version: `0.5.24`.
+- M5.9 ergaenzt End-to-End-Uebernahmen fuer Ratsinfo-Dokumente und Landkreis,
+  Matrix-Tests fuer native und `legacy_verified`-Fortsetzungen aller drei
+  Collections, einen nach dem Bericht geaenderten Stichprobenvektor sowie
+  atomare Protokollablage. Fehler in einer teilweise geschriebenen Payload-
+  Charge und bei der Ruecknahme lassen den alten Marker bestehen; Wiederanlauf
+  mit demselben Bericht ist geprueft. Die 108 betroffenen Tests bestehen ohne
+  echte Modellgewichte oder produktive Qdrant-Aenderungen. `VERSION` bleibt
+  fuer diesen reinen Testschritt bei `0.5.24`.
+- M5.10 prueft den Gesamtdiff von Phase 5 gegen M5.1 bis M5.9, die drei
+  Build-Einstiege, den Migrationspfad, Freigabemarker, Punkt-Payloads,
+  Versionsstand und die betroffenen Anleitungen. Die regulaeren Tests bestehen
+  mit 438 Tests, die Integrationstests mit 245 Tests; der gesamte Standardlauf
+  besteht mit 683 Tests (7 `live`-Tests ausgeschlossen). Zwei Aussagen zur
+  Service-Darstellung und zu einer unvollstaendigen Payload-Ruecknahme wurden
+  an den implementierten Stand angepasst. `VERSION` bleibt fuer diesen
+  Pruef- und Dokumentationsschritt bei `0.5.24`.
+- PR-Review-Nachbesserung: Die Websuche sperrt fehlende oder abweichende
+  Modellvertraege vor der Query-Kodierung; die Legacy-Pruefung verlangt
+  `committed=true` fuer alle Passagen; Builds pruefen das Qdrant-Vektorschema
+  auch bei leeren vorhandenen Collections. Allgemeine Version: `0.5.25`.
+- Weitere PR-Review-Nachbesserung: parallele Migrationen teilen sich eine
+  pro Collection gesperrte Freigabe; fehlende Collections liefern einen
+  strukturierten Abbruch; die Evaluations-CLI und Websuche sperren
+  `ready=false` und inkompatible Marker; die Migration akzeptiert einen
+  eigenen lokalen Qdrant-Pfad. Der Standardtestlauf besteht mit 708 Tests
+  (7 `live`-Tests ausgeschlossen). Allgemeine Version: `0.5.26`.
+- Naechster regulaerer Punkt: **M6.1**; Modellstatus in die Service-Fassade aufnehmen.
 
 - Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-
   und Testabdeckung, CLI-/Manifestvertrag, Dokumentation und Versionsstand

@@ -23,7 +23,9 @@ Der Landkreis-Builder bleibt ein eigener Dokumentindex.
   Ueberlappung. Seiten bleiben getrennt; innerhalb einer Seite werden bevorzugt
   Absatzgrenzen genutzt. Kurze Seiten ergeben kuerzere Abschnitte.
 - Payloads enthalten Dokument-ID, URL, Sitzung, TOP-Zuordnung aus dem Index,
-  Seitenzahl, Text, Zeichenpositionen, Extraktionsmethode und Modell-/Pipelineversion.
+  Seitenzahl, Text, Zeichenpositionen, Extraktionsmethode und bei neu
+  berechneten Vektoren den vollstaendigen Modell-/Pipelinevertrag im Feld
+  `index_compatibility`.
   Eine neue TOP-Zuordnung innerhalb sitzungsweiter Protokolle wird nicht abgeleitet.
 - Die Suche zeigt einzelne Fundstellen mit Seitenzahl und einem Link zur lokalen
   PDF-Seite. Mehrere relevante Abschnitte eines Dokuments koennen erscheinen.
@@ -142,7 +144,17 @@ Vor jedem Passage-Build wird dessen Freigabe zurückgenommen. Erst ein fehlerfre
 Lauf mit vollständigen, bestätigten Generationen aller aktuellen Dokumente und
 ohne ausstehende Änderungen schreibt den Marker atomar. Auch `--limit` prüft die
 Fingerprints aller Dokumente; die Grenze beschränkt nur die neu aufgebauten
-Dokumente. Der Servermarker enthält nur den SHA-256-Hash der URL und die exakte Punktzahl.
+Dokumente. Der Servermarker enthält den SHA-256-Hash der URL, die exakte Punktzahl,
+den Collection-Namen und den vollstaendigen Kompatibilitaetsdatensatz aus
+Modell-IDs und Revisionen, Manifest-Hash, Vektordimension und Pipeline-Version.
+Der lokale Marker enthaelt denselben Kompatibilitaetsdatensatz und
+Collection-Namen.
+Baut ein Indexer eine vorhandene Collection fort, muss auch deren Qdrant-Schema
+mit Vektornamen, Dense-Dimension und Cosine-Distanz passen; das gilt selbst fuer
+eine leere Collection. Die Websuche vergleicht den Marker der ausgewaehlten
+Collection vor der Query-Kodierung mit dem aktiven Modellvertrag. Die Evaluation
+prueft ihre ausdruecklich gewaehlte Collection ebenso; `ready=false` sperrt
+beide Pfade bis zur Freigabe.
 Bisherige Marker mit Klartext-URL werden nicht mehr akzeptiert; ein vollständiger
 Passage-Build schreibt einen neuen Marker. Die
 Suche prüft, dass Punktzahl und Anzahl der `committed`-Punkte dazu passen.

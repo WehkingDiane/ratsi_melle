@@ -308,6 +308,30 @@ Host und Port; Verbindungsfehler geben keine Zugangsdaten aus.
 python scripts/build_vector_index.py
 ```
 
+Bei einer bereits gefuellten Collection prueft der Build vor Aenderungen den
+passenden Kompatibilitaetsmarker, die Punktzahl, Vektoren und Kompatibilitaetsdaten
+aller vorhandenen Punkte. Die Suche prueft denselben Bestand vor der Abfrage;
+bei grossen Collections wird eine erfolgreiche Pruefung bis zu fuenf Minuten
+zwischengespeichert. Bei Marker- oder Punktzahlaenderungen erfolgt die Pruefung
+sofort erneut; ein Austausch mit gleicher Punktzahl kann bis zum Ablauf des
+Caches unentdeckt bleiben.
+Landkreis-Builds speichern die Grenze von `--max-text-chars` im Marker und
+lehnen eine Fortsetzung mit abweichender Grenze ab.
+Auch das Vektorschema jeder vorhandenen
+Collection wird vor Aenderungen geprueft, selbst wenn sie leer ist. Alte
+Collections ohne Kompatibilitaetsnachweis muessen
+zuerst mit dem [Legacy-Pruef- und Uebernahmepfad](docs/embedding_model_management.md#einmalige-uebernahme-bestehender-collections)
+verifiziert werden. Eine unterbrochene Fortsetzung behaelt den Modellvertrag
+im Marker, auch wenn der Passage-Index voruebergehend nicht freigegeben ist.
+Bei einem fehlenden oder abweichenden Vertrag beendet sich der Build mit
+Exitcode 1 und einer kurzen Meldung: vollstaendiger Neuaufbau oder getrennte
+Aufbau-Collection erforderlich. Der bestehende Index bleibt dabei unveraendert.
+Die Websuche vergleicht den Marker der tatsaechlich ausgewaehlten Collection mit
+dem aktiven Modellvertrag, bevor sie Suchvektoren berechnet. Bei fehlendem oder
+abweichendem Vertrag oder `ready=false` zeigt sie einen Fehler statt Ergebnisse
+aus einem alten oder noch nicht freigegebenen Index. Die Evaluations-CLI nutzt
+dieselbe Pruefung vor der Query-Kodierung.
+
 Für die Standardadresse ist diese Einstellung nicht mehr nötig. Ein anderer
 Server wird unter WSL mit `export RATSI_QDRANT_URL=...` gewählt. Änderungen an der
 Umgebung werden nach einem Neustart der betroffenen Prozesse wirksam. Die

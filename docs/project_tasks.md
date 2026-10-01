@@ -82,12 +82,17 @@ Jeder offene Punkt kann eine grobe Aufwandseinstufung und eine Modell-Empfehlung
 #### Konkrete Aufgaben
 
 - Volltext-, PDF- und OCR-Randfälle im Analyse- und Suchpfad robuster behandeln `[Schwer · GPT-6 Astra / Medium]`
+- Landkreis-Collection `landkreis_publications` nach Abschluss der Indexkompatibilitaets-Aenderungen aus den vorhandenen Quelldaten getrennt neu aufbauen; zuvor gewaehltes `--max-text-chars` festlegen und dieselbe Grenze fuer spaetere inkrementelle Laeufe beibehalten. Den Melle-Index (`ratsi_passages`/`ratsi_documents`) dabei nicht neu aufbauen oder loeschen. `[Mittel · GPT-6 Sol / Medium]`
 - Optionale OCR-Werkzeuge und das Verhalten bei großen Dateien betrieblich absichern `[Mittel · GPT-6 Sol / Low]`
 - Standardlauf von `scripts/build_vector_index.py` auf 100 Dokumente begrenzen; einen vollständigen Durchlauf nur mit einem ausdrücklichen Parameter wie `--all` starten `[Leicht · GPT-6 Luna / Medium]`
 - Fortschrittsanzeige für `scripts/build_vector_index.py` ergänzen: Gesamtzahl, bereits indexierte und noch ausstehende Dokumente sowie laufender Fortschritt `[Mittel · GPT-6 Sol / Low]`
 - Dauerhaften Zwischenstand für lange Indexläufe speichern, einschließlich erledigter, offener und fehlgeschlagener Dokumente, damit Abbrüche nachvollziehbar sind und Läufe gezielt fortgesetzt werden können `[Schwer · GPT-6 Astra / Medium]`
 - Reproduzierbare lokale Modellverwaltung gemäß [Konzept zur Embedding-Modellverwaltung](embedding_model_management.md) umsetzen, einschließlich Vorbereitungsskript, strikt lokalem Modellbetrieb, Indexkompatibilität und Einbindung in die Service-Oberfläche unter `/daten/vektor/`. Umsetzung phasenweise in Branches strukturieren: `main` → `codex/feature/embedding-model-management` → `codex/feature/embedding-model-management-phase-N`; jede Phase erhält eigene Zwischenstand-Commits. `[Schwer · GPT-6 Astra / High]`
 - Recherchekatalog über weitere Zeiträume, Protokolle und echte Nutzerfragen erweitern; Abschnitts- und Legacy-Index mit `scripts/evaluate_search.py` vergleichen `[Mittel · GPT-6 Sol / Medium]`
+
+#### Hinweis für Phase 6
+
+Vor der Implementierung der Service-Oberfläche die gemeinsamen Zustände und Regeln für Modellvorbereitung, Index-Build, Fortsetzung, Legacy-Prüfung, Übernahme und Suche festhalten. Die Fälle lokal/Server, leer/bestehend, freigegeben/im Aufbau, Melle/Landkreis und Abbruch mitten im Vorgang als kompakte Testmatrix durchgehen. Danach den gesamten Phase-6-Workflow samt Fehler- und Parallelfällen testen und den PR-Diff einmal zusammenhängend prüfen; Codex-Reviews dienen anschließend als zusätzliche Kontrolle. Auswirkungen auf bestehende Melle-Indizes vor Änderungen an Freigabe- oder Datenformaten ausdrücklich prüfen, ohne ihren Neuaufbau vorauszusetzen.
 
 ### 3.4 Analyse und Artefakte
 

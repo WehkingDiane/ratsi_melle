@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from src.qdrant_connection import QdrantConnection, collection_state
+from src.config.index_compatibility import IndexCompatibility
 from src.config.embedding_models import HARRIER_MODEL
 
 _COLLECTION_NAME = "ratsi_documents"
@@ -34,6 +35,10 @@ class DocumentVectorStore:
         self.connection = QdrantConnection.from_env(qdrant_path)
         self.collection_name = collection_name
         self._client: Any = None
+        self._build_provenance: str | None = None
+        self._build_compatibility: IndexCompatibility | None = None
+        self._build_options: dict | None = None
+        self._build_lock: Any = None
 
     # ------------------------------------------------------------------
     # Private helpers
@@ -45,11 +50,70 @@ class DocumentVectorStore:
         return self._client
 
     def close(self) -> None:
-        """Close the Qdrant client and release any local storage lock."""
+        """Close the client and release the collection build lock."""
         client = self._client
         self._client = None
-        if client is not None:
-            client.close()
+        try:
+            if client is not None:
+                client.close()
+        finally:
+            self._release_build_lock()
+
+    def acquire_build_lock(self) -> None:
+        """Serialize build and migration writes for this collection."""
+        if self._build_lock is None:
+            from src.indexing.legacy_index_migration import _migration_lock
+
+            lock = _migration_lock(self.connection, self.collection_name)
+            lock.__enter__()
+            self._build_lock = lock
+
+    def _release_build_lock(self) -> None:
+        lock = self._build_lock
+        self._build_lock = None
+        if lock is not None:
+            lock.__exit__(None, None, None)
+
+    def begin_build(self, compatibility: IndexCompatibility, *, build_options: dict | None = None) -> None:
+        """Check an existing collection before its first build write."""
+        from src.indexing.build_compatibility import check_build_compatibility
+
+        self.acquire_build_lock()
+        try:
+            self._build_provenance = None
+            self._build_compatibility = None
+            self._build_options = None
+            client = self._get_client()
+            provenance = check_build_compatibility(
+                self.connection, client, self.collection_name, compatibility,
+                build_options=build_options,
+            )
+            self.ensure_collection()
+            self.connection.write_readiness(
+                client, {"ready": False, "provenance": provenance,
+                         **({"build_options": build_options} if build_options is not None else {})},
+                collection=self.collection_name, compatibility=compatibility,
+            )
+            self._build_provenance = provenance
+            self._build_compatibility = compatibility
+            self._build_options = build_options
+        except BaseException:
+            self._release_build_lock()
+            raise
+
+    def finish_build(self, compatibility: IndexCompatibility, *, build_options: dict | None = None) -> None:
+        """Atomically publish the completed generation and its provenance."""
+        if (self._build_lock is None or self._build_provenance is None or self._build_compatibility != compatibility
+                or self._build_options != build_options):
+            raise RuntimeError("Build wurde nicht mit Kompatibilitaetspruefung begonnen.")
+        try:
+            self.connection.write_readiness(
+                self._get_client(), {"ready": True, "provenance": self._build_provenance,
+                                     **({"build_options": build_options} if build_options is not None else {})},
+                collection=self.collection_name, compatibility=compatibility,
+            )
+        finally:
+            self._release_build_lock()
 
     def get_point_payloads(self) -> dict[int, dict]:
         """Read passage metadata; propagate failures to prevent unsafe cleanup."""

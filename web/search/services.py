@@ -139,6 +139,10 @@ def search_semantic_documents(
         try:
             store = _create_vector_store(qdrant_dir, source_config["collection_name"])
         except Exception as exc:  # noqa: BLE001 - Preflight reports unavailable indexes.
+            from src.config.embedding_model_status import PreparedModelUnavailableError
+
+            if isinstance(exc, PreparedModelUnavailableError):
+                return {"results": [], "error": str(exc), "warning": "", "model_status_unavailable": True}
             detail = _safe_search_error_detail(exc, connection.url)
             if "doesn't exist" in str(exc) or "not found" in str(exc).lower() or "Collection fehlt" in str(exc):
                 error = source_config["missing_collection_text"]
@@ -264,13 +268,14 @@ def _get_semantic_resources():
 
 
 def _create_vector_store(qdrant_dir: Path, collection_name: str = RATSINFO_COLLECTION_NAME):
-    """Create a request-local vector store so Qdrant locks are not cached."""
+    """Open a searchable store only when its model contract is current."""
 
     from src.analysis.vector_store import DocumentVectorStore
 
     store = DocumentVectorStore(qdrant_dir, collection_name=collection_name)
     try:
         store.require_available(prefer_passages=True)
+        store.connection.require_search_compatibility(store.collection_name, store._get_client())
     except Exception:
         store.close()
         raise
