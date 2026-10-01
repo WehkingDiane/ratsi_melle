@@ -840,7 +840,8 @@ Der zweite Befehl verlangt die ausgeschriebene Collection als Bestaetigung.
 Bei einem mit einer eigenen SQLite-Datei aufgebauten `ratsi_documents`-Index
 muss auf beiden Befehlen derselbe Parameter `--source-db PFAD` angegeben werden.
 Der Bericht bindet diesen aufgeloesten Pfad; `--apply` lehnt eine andere Quelle
-vor der erneuten Pruefung und vor Schreibzugriffen ab.
+vor der erneuten Pruefung und vor Schreibzugriffen ab. Auch ein bei der
+Vorabpruefung abgebrochener Bericht nennt die tatsaechlich gewaehlte Quelle.
 Die Legacy-Uebernahme von `landkreis_publications` wird mit
 `rebuild_required` abgewiesen, auch wenn ein frueherer Bericht vorliegt: Das
 urspruengliche Textlimit ist nicht zuverlaessig nachweisbar. Stattdessen wird

@@ -88,6 +88,35 @@ def test_custom_source_db_is_forwarded_to_document_inspection_and_recheck(
     client.close.assert_called_once()
 
 
+@pytest.mark.parametrize("failure", ["missing_store", "server_unavailable"])
+def test_preflight_abort_report_keeps_selected_document_source(
+    tmp_path, monkeypatch, capsys, failure,
+):
+    selected = tmp_path / "custom.sqlite"
+    report = tmp_path / "inspection.json"
+    args = ["--inspect", "--collection", "ratsi_documents", "--report", str(report),
+            "--source-db", str(selected)]
+    if failure == "missing_store":
+        monkeypatch.setenv("RATSI_QDRANT_MODE", "local")
+        monkeypatch.delenv("RATSI_QDRANT_URL", raising=False)
+        args.extend(["--qdrant-dir", str(tmp_path / "missing")])
+        expected = "store_missing"
+        monkeypatch.setattr(QdrantConnection, "create_client",
+                            lambda self: pytest.fail("Missing store must not be opened"))
+    else:
+        monkeypatch.setenv("RATSI_QDRANT_URL", "http://test.invalid:6333")
+        expected = "qdrant_unavailable"
+        monkeypatch.setattr(QdrantConnection, "create_client",
+                            Mock(side_effect=QdrantServerUnavailableError("unavailable")))
+
+    assert main(args) == 1
+    saved = json.loads(report.read_text(encoding="utf-8"))
+    assert saved["result"] == "aborted"
+    assert saved["abort_code"] == expected
+    assert saved["source_db"] == str(selected.resolve())
+    assert json.loads(capsys.readouterr().err)["abort_code"] == expected
+
+
 @pytest.mark.parametrize("action", ["inspect", "apply"])
 def test_landkreis_legacy_migration_refuses_before_opening_qdrant(
     tmp_path, monkeypatch, capsys, action,

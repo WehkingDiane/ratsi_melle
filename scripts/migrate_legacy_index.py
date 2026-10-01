@@ -41,11 +41,12 @@ def _local_store_exists(path: Path) -> bool:
             and isinstance(stored.get("aliases"), dict))
 
 
-def _abort_preflight(connection: QdrantConnection, args, code: str) -> int:
+def _abort_preflight(connection: QdrantConnection, args, code: str, *, inspection_options: dict) -> int:
     """Persist inspection failure without opening or modifying the Qdrant store."""
 
     if args.inspect:
-        inspect_and_write_report(connection, None, args.collection, args.report, abort_code=code)
+        inspect_and_write_report(connection, None, args.collection, args.report,
+                                 abort_code=code, **inspection_options)
     print(json.dumps({"result": "aborted", "abort_code": code}, ensure_ascii=False),
           file=sys.stderr)
     return 1
@@ -74,12 +75,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.source_db is not None and args.collection != "ratsi_documents":
         parser.error("--source-db is only available for ratsi_documents")
 
+    inspection_options = {"ratsinfo_db": args.source_db} if args.source_db is not None else {}
     connection = QdrantConnection.from_env(args.qdrant_dir)
     if args.collection == "landkreis_publications":
-        return _abort_preflight(connection, args, "rebuild_required")
+        return _abort_preflight(connection, args, "rebuild_required",
+                                inspection_options=inspection_options)
     if not connection.url and not _local_store_exists(connection.path):
-        return _abort_preflight(connection, args, "store_missing")
-    inspection_options = {"ratsinfo_db": args.source_db} if args.source_db is not None else {}
+        return _abort_preflight(connection, args, "store_missing",
+                                inspection_options=inspection_options)
     client = None
     try:
         client = connection.create_client()
@@ -96,16 +99,19 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result, ensure_ascii=False))
         return 0
     except QdrantServerUnavailableError:
-        return _abort_preflight(connection, args, "qdrant_unavailable")
+        return _abort_preflight(connection, args, "qdrant_unavailable",
+                                inspection_options=inspection_options)
     except (ResponseHandlingException, httpx.TransportError, grpc.RpcError,
             ConnectionError, TimeoutError):
         if not connection.url:
             raise
-        return _abort_preflight(connection, args, "qdrant_unavailable")
+        return _abort_preflight(connection, args, "qdrant_unavailable",
+                                inspection_options=inspection_options)
     except UnexpectedResponse as error:
         if not connection.url or error.status_code is None or error.status_code < 500:
             raise
-        return _abort_preflight(connection, args, "qdrant_unavailable")
+        return _abort_preflight(connection, args, "qdrant_unavailable",
+                                inspection_options=inspection_options)
     except (LegacyMigrationError, LegacyInspectionError) as error:
         print(json.dumps({"result": "aborted", "abort_code": error.code}, ensure_ascii=False),
               file=sys.stderr)
