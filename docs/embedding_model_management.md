@@ -957,6 +957,45 @@ Nur das Vorbereitungsskript meldet Netzwerkfehler von Modellquellen. Indexer und
 Suche kennen keinen Modell-Onlinepfad und melden daher ausschliesslich den lokalen
 Vorbereitungszustand.
 
+### Vorabvertrag fuer Phase 6
+
+Vor M6.1 die vorhandenen Service-Fassaden, Command Builder, Jobpersistenz,
+Status-API und die CLI-Ausgaben gemeinsam gegen folgende Regeln pruefen. Die
+Oberflaeche zeigt Zustaende aus den bestehenden Status- und Berichtsfunktionen;
+sie erfindet keine zweite Modell- oder Indexpruefung. Ein schneller Seitenaufruf
+startet weder eine Tiefenpruefung noch einen Download oder einen Qdrant-Build.
+Die letzte **ausgefuehrte** Pruefung stammt aus einem zugeordneten Servicejob;
+der Erstellungszeitpunkt des Manifests ist kein Pruefzeitpunkt. Fehlt ein solcher
+Job, zeigt die Seite keinen angeblichen Prueferfolg.
+
+| Aktion oder Zustand | Verbindliche Grenze und erwartetes Ergebnis |
+| --- | --- |
+| Statusseite, lokal oder Server | Bereitschaft je Harrier, Tokenizer und BM25 samt konfigurierten und vorbereiteten Revisionen aus dem gemeinsamen Manifest; fehlende oder ungueltige Konfiguration wird als Zustand angezeigt. Keine Modell-Netzabfrage, kein Anlegen eines Qdrant-Stores. Speicherbedarf nur aus lokal lesbaren Daten. |
+| Lokale Pruefung | Fester Aufruf `prepare_embedding_models.py --check --json`; kein Modell-Download und keine freie Pfad- oder Modellwahl. `fehlt`, `unvollstaendig` und `inkompatibel` bleiben im Ergebnis unterscheidbar, auch wenn der Job mit Exitcode 1 endet. |
+| Vorbereitung | Fester Aufruf `--download --json` erst nach serverseitig gepruefter Bestaetigung. Token nur ueber die vorhandene Secret-Verwaltung; weder Kommando, persistierte Jobdaten noch Ausgabe, Fehler oder Logs enthalten ihn. Kein freier Hub-Parameter. |
+| Legacy-Pruefung | Nur `ratsi_passages` und `ratsi_documents`; Landkreis liefert `rebuild_required` und verweist auf den getrennten Neuaufbau. Ziel, Quell-SQLite fuer `ratsi_documents` und Berichtspfad kommen aus serverseitiger Konfiguration, nicht aus POST-Feldern. Der Bericht ist je Ziel und Collection eindeutig abgelegt und wird vor Anzeige geprueft. |
+| Legacy-Uebernahme | Eigene POST-Aktion mit CSRF und konkreter Bestaetigung der Collection. Nur ein verifizierter Bericht der aktuellen Version fuer genau Ziel, Collection und Quelle wird angeboten. Die CLI prueft unter der Collection-Sperre erneut; ein geaenderter oder inzwischen freigegebener Bestand endet ohne weitere Freigabe. |
+| Parallele oder unterbrochene Jobs | Eine atomare Entscheidung vor Jobstart verhindert doppelte Schreibjobs auch ueber mehrere Webprozesse. Modellvorbereitung, Build und Uebernahme respektieren die benoetigten gemeinsamen Sperren auch bei direktem CLI-Start. Der Sperrbereich reicht bis Abschluss oder Abbruch; Wiederanlauf prueft den tatsaechlichen Bestand statt einen alten Jobstatus als Freigabe zu nutzen. Lock-Reihenfolge und gemeinsame Statuswurzel fuer Serverprozesse festlegen. |
+
+Die Testmatrix wird vor den Views erstellt und nach Implementierung als
+Workflow-Tests ausgefuehrt: Modellbestand bereit/fehlt/unvollstaendig/
+inkompatibel; Qdrant lokal/Server und erreichbar/nicht erreichbar; Collection
+leer/alt/verifiziert/im Aufbau; gueltiger/veralteter/fremder Bericht;
+Melle-Dokumente mit Standard- und eigener Quell-SQLite; Landkreis mit
+`rebuild_required`; parallele Starts aus zwei Webprozessen und aus der CLI;
+Abbruch vor und nach einem Teil-Download beziehungsweise Payload-Backfill.
+Dabei auch GET ohne Nebenwirkungen, unzulaessige POST-Felder, fehlende oder
+falsche Bestaetigung, CSRF, Job-Restart und Token in allen gespeicherten sowie
+angezeigten Ausgabekanaelen abdecken. Keine Tests mit echten Downloads oder
+produktiven Qdrant-Bestaenden in der regulaeren Suite.
+Phase 6 loest keinen Neuaufbau der Melle-Collections aus; der Landkreis-Neuaufbau
+bleibt die separate Aufgabe in `docs/project_tasks.md`.
+
+Vor einem Phase-6-PR den Gesamtdiff einmal gegen diese Matrix und die
+Freigabe-/Sperrpfade lesen. Gezielt betroffene Unit- und Integrationstests
+ausfuehren und den regulaeren Testlauf nur mit nachvollziehbarer, erlaubter
+Umgebung durchfuehren. Neue Reviews sind anschliessend eine weitere Kontrolle.
+
 ## Tests und Abnahme
 
 Die Umsetzung ist abgeschlossen, wenn folgende Eigenschaften automatisiert
@@ -1103,6 +1142,9 @@ Neuaufbaupfad; `ratsi_documents` verlangt einen quellgebundenen Bericht.
 
 ### Phase 6: Service-Oberflaeche
 
+- [ ] **M6.0** Vorabvertrag und Testmatrix oben gegen die bestehenden
+  Service-, Job-, Modell- und Qdrant-Pfade abgleichen; offene Entscheidungen
+  vor der View-Implementierung festhalten.
 - [ ] **M6.1** Modellstatus in die Service-Fassade und Statusantworten des
   Datenbereichs aufnehmen.
 - [ ] **M6.2** Statusdarstellung fuer Harrier, Tokenizer und BM25 unter
@@ -1113,14 +1155,17 @@ Neuaufbaupfad; `ratsi_documents` verlangt einen quellgebundenen Bericht.
 - [ ] **M6.5** Freie Modell-IDs, Revisionen, Zielpfade und zusaetzliche
   Kommandoargumente in Formular und Command Builder ausschliessen.
 - [ ] **M6.6** Feste rein lesende Serviceaktion fuer die Legacy-Bestandspruefung
-  und Darstellung des Uebernahmeprotokolls implementieren.
+  und Darstellung des Uebernahmeprotokolls implementieren; nur Melle-Collections,
+  mit serverseitig gebundenem Ziel, Quellpfad und Berichtspfad.
 - [ ] **M6.7** Bestaetigungspflichtige Uebernahmeaktion nur fuer ein erfolgreiches,
   noch aktuelles Pruefergebnis erlauben; freie Collection-, Stichproben- oder
-  Toleranzparameter ausschliessen.
+  Toleranzparameter ausschliessen. Programmatische erneute Pruefung unter
+  Collection-Sperre bleibt verbindlich.
 - [ ] **M6.8** Fortschritt und Ergebnis ueber die bestehende Servicejob- und
   Jobdetail-Infrastruktur anzeigen.
 - [ ] **M6.9** Kollidierende parallele Modellvorbereitungen, Legacy-Uebernahmen
-  und Vektor-Builds verhindern oder sicher serialisieren.
+  und Vektor-Builds auch ueber Webprozesse und direkte CLI-Aufrufe verhindern
+  oder sicher serialisieren; Abbruch und Wiederanlauf einbeziehen.
 - [ ] **M6.10** CSRF-Schutz, Befehls-Allowlist, Bestaetigungsbindung,
   Secret-Redaktion, Statuswerte und Jobstart mit Web- und Service-Tests
   absichern.

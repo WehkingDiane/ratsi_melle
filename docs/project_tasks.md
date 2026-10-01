@@ -92,7 +92,7 @@ Jeder offene Punkt kann eine grobe Aufwandseinstufung und eine Modell-Empfehlung
 
 #### Hinweis für Phase 6
 
-Vor der Implementierung der Service-Oberfläche die gemeinsamen Zustände und Regeln für Modellvorbereitung, Index-Build, Fortsetzung, Legacy-Prüfung, Übernahme und Suche festhalten. Die Fälle lokal/Server, leer/bestehend, freigegeben/im Aufbau, Melle/Landkreis und Abbruch mitten im Vorgang als kompakte Testmatrix durchgehen. Danach den gesamten Phase-6-Workflow samt Fehler- und Parallelfällen testen und den PR-Diff einmal zusammenhängend prüfen; Codex-Reviews dienen anschließend als zusätzliche Kontrolle. Auswirkungen auf bestehende Melle-Indizes vor Änderungen an Freigabe- oder Datenformaten ausdrücklich prüfen, ohne ihren Neuaufbau vorauszusetzen.
+Vor der Implementierung der Service-Oberfläche M6.0 und den Vorabvertrag in [embedding_model_management.md](embedding_model_management.md#vorabvertrag-fuer-phase-6) durcharbeiten: Statusquelle und letzte Prüfung, feste Aktionen, Melle-Quellbindung, Landkreis-Neuaufbau, Bestätigungen und Sperren über Webprozesse und CLI festlegen. Die Fälle lokal/Server, leer/bestehend, freigegeben/im Aufbau und Abbruch mitten im Vorgang als kompakte Testmatrix durchgehen. Danach den gesamten Phase-6-Workflow samt Fehler- und Parallelfällen testen und den PR-Diff einmal zusammenhängend prüfen; Codex-Reviews dienen anschließend als zusätzliche Kontrolle. Auswirkungen auf bestehende Melle-Indizes vor Änderungen an Freigabe- oder Datenformaten ausdrücklich prüfen, ohne ihren Neuaufbau vorauszusetzen.
 
 ### 3.4 Analyse und Artefakte
 
