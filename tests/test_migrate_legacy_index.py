@@ -154,3 +154,51 @@ def test_inspection_rpc_failure_writes_aborted_report(
     assert json.loads(report.read_text())["abort_code"] == "qdrant_unavailable"
     assert json.loads(capsys.readouterr().out)["abort_code"] == "qdrant_unavailable"
     client.close.assert_called_once()
+
+
+@pytest.mark.parametrize("transport", ["qdrant", "httpx", "grpc", "server_error"])
+def test_apply_rpc_failure_after_connect_returns_structured_abort(
+    tmp_path, monkeypatch, capsys, transport,
+):
+    import grpc
+    import httpx
+    from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedResponse
+
+    errors = {
+        "qdrant": ResponseHandlingException(ConnectionError("disconnected")),
+        "httpx": httpx.ConnectError("disconnected"),
+        "grpc": grpc.RpcError(),
+        "server_error": UnexpectedResponse(503, "Unavailable", b"", httpx.Headers()),
+    }
+    monkeypatch.setenv("RATSI_QDRANT_URL", "http://test.invalid:6333")
+    client = Mock()
+    monkeypatch.setattr(QdrantConnection, "create_client", lambda self: client)
+    monkeypatch.setattr(migrate_legacy_index, "apply_verified_legacy_report",
+                        Mock(side_effect=errors[transport]))
+    report = tmp_path / "existing.json"
+    report.write_text("previous audit", encoding="utf-8")
+
+    assert main(["--apply", "--collection", "ratsi_passages", "--report", str(report),
+                 "--confirm-collection", "ratsi_passages"]) == 1
+    output = capsys.readouterr()
+    assert json.loads(output.err) == {"result": "aborted", "abort_code": "qdrant_unavailable"}
+    assert "Traceback" not in output.err
+    assert report.read_text(encoding="utf-8") == "previous audit"
+    client.close.assert_called_once()
+
+
+def test_apply_client_error_is_not_reported_as_server_outage(tmp_path, monkeypatch):
+    import httpx
+    from qdrant_client.http.exceptions import UnexpectedResponse
+
+    monkeypatch.setenv("RATSI_QDRANT_URL", "http://test.invalid:6333")
+    client = Mock()
+    monkeypatch.setattr(QdrantConnection, "create_client", lambda self: client)
+    error = UnexpectedResponse(400, "Bad request", b"", httpx.Headers())
+    monkeypatch.setattr(migrate_legacy_index, "apply_verified_legacy_report",
+                        Mock(side_effect=error))
+
+    with pytest.raises(UnexpectedResponse):
+        main(["--apply", "--collection", "ratsi_passages", "--report",
+              str(tmp_path / "existing.json"), "--confirm-collection", "ratsi_passages"])
+    client.close.assert_called_once()

@@ -177,6 +177,8 @@ class QdrantConnection:
                 cached = _search_cache.get(cache_key)
             marker_digest = sha256(marker_bytes).digest()
             if cached is not None and cached[:2] == (marker_digest, count) and monotonic() < cached[2]:
+                if marker_path.read_bytes() != marker_bytes:
+                    raise RuntimeError(f"Index {collection} wurde waehrend der Pruefung geaendert.")
                 return
             if not self.collection_contents_match(client, collection, active):
                 raise RuntimeError(

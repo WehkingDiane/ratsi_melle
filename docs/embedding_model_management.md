@@ -669,7 +669,9 @@ Punktzahlaenderungen erzwingen sofort eine neue Pruefung. Ein Austausch bei
 gleicher Punktzahl und unveraendertem Marker kann waehrend dieser Frist
 unentdeckt bleiben. Der Cache gilt nur fuer einen Marker, dessen gelesener
 Stand ausdruecklich `ready=true` enthaelt; ein inzwischen ausstehender Build
-wird vor der Abfrage abgewiesen. Ein alter Marker fuer eine
+wird vor der Abfrage abgewiesen. Auch bei einem Cache-Treffer wird der Marker
+nach der Qdrant-Abfrage erneut gelesen; ein zwischenzeitlich widerrufener
+Stand wird abgewiesen. Ein alter Marker fuer eine
 ersetzte Collection mit gleicher Punktzahl und abweichenden Vektoren oder
 Payloads wird abgelehnt. Bei einem Marker mit `ready=false` darf die Punktzahl
 durch den angefangenen Build wachsen oder schrumpfen; alle vorhandenen Punkte
@@ -841,6 +843,9 @@ meldet der Befehl `qdrant_unavailable`. Bei `--inspect` werden beide
 Vorabfehler auch als abgebrochene Inspektionsberichte gespeichert. Ein
 Verbindungsabbruch waehrend der lesenden Inspektion erhaelt denselben Abort-Code
 und schreibt ebenfalls einen Bericht.
+Ein Verbindungsabbruch oder Serverfehler waehrend der erneuten Pruefung bei
+`--apply` endet mit `qdrant_unavailable` und Exitcode 1 ohne Traceback; ein
+bestehender Inspektionsbericht wird dabei nicht ueberschrieben.
 Vor dem ersten Payload-Schreibzugriff prueft er den erfolgreichen Bericht,
 das genaue Qdrant-Ziel, den aktiven Modellvertrag und die deterministische
 Vektorstichprobe erneut. Punktzahl und Punkt-ID-Digest muessen vor und nach

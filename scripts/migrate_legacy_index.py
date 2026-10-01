@@ -7,6 +7,10 @@ import json
 from pathlib import Path
 import sys
 
+import grpc
+import httpx
+from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedResponse
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
@@ -84,6 +88,15 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result, ensure_ascii=False))
         return 0
     except QdrantServerUnavailableError:
+        return _abort_preflight(connection, args, "qdrant_unavailable")
+    except (ResponseHandlingException, httpx.TransportError, grpc.RpcError,
+            ConnectionError, TimeoutError):
+        if not connection.url:
+            raise
+        return _abort_preflight(connection, args, "qdrant_unavailable")
+    except UnexpectedResponse as error:
+        if not connection.url or error.status_code is None or error.status_code < 500:
+            raise
         return _abort_preflight(connection, args, "qdrant_unavailable")
     except (LegacyMigrationError, LegacyInspectionError) as error:
         print(json.dumps({"result": "aborted", "abort_code": error.code}, ensure_ascii=False),

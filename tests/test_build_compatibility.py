@@ -317,6 +317,35 @@ def test_search_reuses_recent_vector_check_then_revalidates(tmp_path, monkeypatc
 
 
 @pytest.mark.integration
+def test_cached_search_rejects_marker_revoked_during_count(tmp_path, monkeypatch, compatibility):
+    collection = "ratsi_documents"
+    store = _store(tmp_path, collection, compatibility)
+    connection = store.connection
+    client = store._get_client()
+    try:
+        connection.write_readiness(client, {"ready": True},
+                                   collection=collection, compatibility=compatibility)
+        monkeypatch.setattr("src.config.index_compatibility.current_index_compatibility",
+                            lambda: compatibility)
+        connection.require_search_compatibility(collection, client)  # Populate the cache.
+        original_count = client.count
+
+        def revoke_at_count(*args, **kwargs):
+            result = original_count(*args, **kwargs)
+            marker_path = connection.release_path(collection)
+            marker = json.loads(marker_path.read_text(encoding="utf-8"))
+            marker["ready"] = False
+            marker_path.write_text(json.dumps(marker), encoding="utf-8")
+            return result
+
+        monkeypatch.setattr(client, "count", revoke_at_count)
+        with pytest.raises(RuntimeError, match="waehrend der Pruefung geaendert"):
+            connection.require_search_compatibility(collection, client)
+    finally:
+        store.close()
+
+
+@pytest.mark.integration
 def test_search_rejects_marker_revoked_between_its_reads(tmp_path, monkeypatch, compatibility):
     collection = "ratsi_documents"
     store = _store(tmp_path, collection, compatibility)
