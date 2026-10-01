@@ -1207,7 +1207,7 @@ Orientierung und sind keine Vorgabe fuer die Bearbeitung.
   Datenbereichs aufnehmen. `[Mittel · GPT-6 Sol / Medium]`
 - [x] **M6.2** Statusdarstellung fuer Harrier, Tokenizer und BM25 unter
   `/daten/vektor/` ergaenzen. `[Mittel · GPT-6 Sol / Medium]`
-- [ ] **M6.3** Feste Serviceaktion fuer die rein lokale Pruefung implementieren.
+- [x] **M6.3** Feste Serviceaktion fuer die rein lokale Pruefung implementieren.
   `[Leicht · GPT-6 Luna / Medium]`
 - [ ] **M6.4** Feste, bestaetigungspflichtige Serviceaktion fuer die Vorbereitung
   der konfigurierten Revisionen implementieren. `[Mittel · GPT-6 Sol / Medium]`
@@ -1360,7 +1360,14 @@ Orientierung und sind keine Vorgabe fuer die Bearbeitung.
   bei einem Gesamtfehler; sie startet keinen Modelljob. Gespeicherte
   Pruefhistorie folgt in M6.8. 87 Web- und JavaScript-Tests bestehen.
   Allgemeine Version: `0.5.39`.
-- Naechster regulaerer Punkt: **M6.3**; feste lokale Pruefaktion implementieren.
+- **M6.3** umgesetzt: „Lokal pruefen“ startet `check_embedding_models` als
+  bestehenden Servicejob mit festem `--check --json`. CSRF bleibt verbindlich;
+  Zusatzfelder und doppelte Parameter werden vor Jobstart abgewiesen. Auch bei
+  Exitcode 1 bleibt der fachliche Status in der Jobausgabe erhalten. Tests
+  pruefen den Befehlsvertrag, POST/CSRF und einen echten CLI-Unterprozess mit
+  fehlendem Bestand. Allgemeine Version: `0.5.40`.
+- Naechster regulaerer Punkt: **M6.4**; bestaetigte Vorbereitung mit den
+  verbindlichen Sperr-/Persistenzvoraussetzungen aus M6.8/M6.9 implementieren.
 
 - Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-
   und Testabdeckung, CLI-/Manifestvertrag, Dokumentation und Versionsstand

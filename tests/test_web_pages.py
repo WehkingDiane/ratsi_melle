@@ -125,6 +125,75 @@ def test_model_service_facade_does_not_query_qdrant(tmp_path, monkeypatch):
     assert not (tmp_path / "missing_models").exists()
 
 
+def test_local_model_check_form_and_post_use_existing_job(client, monkeypatch):
+    from data_tools import views
+    from core.service_jobs import ServiceJob
+    import sys
+
+    captured = []
+
+    def start_job(action, command, cwd):
+        captured.append((action, command, cwd))
+        return ServiceJob("model-check-123", action, command)
+
+    monkeypatch.setattr(views.service_jobs, "start_service_job", start_job)
+    page = client.get("/daten/vektor/")
+    soup = BeautifulSoup(page.content, "html.parser")
+    form = soup.select_one('#embedding-model-status input[value="check_embedding_models"]').find_parent("form")
+    assert form["method"] == "post"
+    assert form.select_one('input[name="csrfmiddlewaretoken"]')
+    assert form.select_one("button").get_text(strip=True) == "Lokal prüfen"
+
+    response = client.post("/daten/vektor/", {"action": "check_embedding_models"})
+
+    assert response.status_code == 302
+    assert response.headers["Location"] == "/daten/jobs/model-check-123/"
+    assert captured == [(
+        "check_embedding_models",
+        [sys.executable, "scripts/prepare_embedding_models.py", "--check", "--json"],
+        views.services.REPO_ROOT,
+    )]
+
+
+@pytest.mark.parametrize("data", [
+    {"action": "check_embedding_models", "model_id": "other/model"},
+    {"action": "check_embedding_models", "download": "1"},
+    {"action": ["build_vector_index", "check_embedding_models"]},
+])
+def test_local_model_check_rejects_manipulated_post(client, monkeypatch, data):
+    from data_tools import views
+
+    def reject_start(*args, **kwargs):
+        raise AssertionError("Invalid model-check POST must not start a job")
+
+    monkeypatch.setattr(views.service_jobs, "start_service_job", reject_start)
+    response = client.post("/daten/vektor/", data)
+    assert response.status_code == 200
+    assert "Modellprüfung" in response.content.decode()
+
+
+def test_local_model_check_requires_csrf(client, monkeypatch):
+    from django.test import Client
+    from data_tools import views
+    from core.service_jobs import ServiceJob
+
+    strict_client = Client(enforce_csrf_checks=True)
+    starts = []
+
+    def start_job(action, command, cwd):
+        starts.append(action)
+        return ServiceJob("csrf-model-check", action, command)
+
+    monkeypatch.setattr(views.service_jobs, "start_service_job", start_job)
+    assert strict_client.post("/daten/vektor/", {"action": "check_embedding_models"}).status_code == 403
+    assert not starts
+    page = strict_client.get("/daten/vektor/")
+    token = BeautifulSoup(page.content, "html.parser").select_one('input[name="csrfmiddlewaretoken"]')["value"]
+    response = strict_client.post("/daten/vektor/", {"action": "check_embedding_models", "csrfmiddlewaretoken": token})
+    assert response.status_code == 302
+    assert starts == ["check_embedding_models"]
+
+
 @pytest.mark.parametrize("state", ["bereit", "fehlt", "unvollstaendig", "inkompatibel", "settings"])
 def test_vector_page_displays_verified_model_components(client, tmp_path, monkeypatch, state):
     from core.services import status as status_service

@@ -24,6 +24,12 @@
     <div><dt>Gesamtgröße der Pflichtdateien</dt><dd data-model-field="size_bytes" data-model-format="bytes" data-model-empty="Nicht verifiziert">{% if models.size_bytes is not None %}{{ models.size_bytes|filesizeformat }}{% else %}Nicht verifiziert{% endif %}</dd></div>
   </dl>
   <p class="muted">Die Schnellprüfung nutzt den lokalen Bestand. Größen umfassen die erfassten Pflichtdateien; gemeinsam genutzte Dateien zählen im Gesamtwert einmal. Alte Modellstände und Caches sind nicht enthalten.</p>
+  <form method="post" class="form-stack">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="check_embedding_models">
+    <button class="button utility" type="submit">Lokal prüfen</button>
+    <p class="muted">Prüft den konfigurierten Modellbestand ohne Download. Ergebnis und Abschlussstatus erscheinen auf der Jobdetailseite.</p>
+  </form>
   <div class="grid three-columns" aria-live="polite">
     {% for name, component in models.components.items %}
     <article data-model-component="{{ name }}">
