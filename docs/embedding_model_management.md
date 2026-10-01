@@ -1205,7 +1205,7 @@ Orientierung und sind keine Vorgabe fuer die Bearbeitung.
   vor der View-Implementierung festhalten. `[Schwer · GPT-6 Astra / High]`
 - [x] **M6.1** Modellstatus in die Service-Fassade und Statusantworten des
   Datenbereichs aufnehmen. `[Mittel · GPT-6 Sol / Medium]`
-- [ ] **M6.2** Statusdarstellung fuer Harrier, Tokenizer und BM25 unter
+- [x] **M6.2** Statusdarstellung fuer Harrier, Tokenizer und BM25 unter
   `/daten/vektor/` ergaenzen. `[Mittel · GPT-6 Sol / Medium]`
 - [ ] **M6.3** Feste Serviceaktion fuer die rein lokale Pruefung implementieren.
   `[Leicht · GPT-6 Luna / Medium]`
@@ -1354,7 +1354,13 @@ Orientierung und sind keine Vorgabe fuer die Bearbeitung.
   Pruefhistorie; deren Zuordnung folgt in M6.8. 162 gezielte Modell-, CLI-,
   Kompatibilitaets-, Webseiten- und Servicestatus-Tests bestehen, ohne echte
   Modelle oder produktive Qdrant-Bestaende. Allgemeine Version: `0.5.38`.
-- Naechster regulaerer Punkt: **M6.2**; Modellstatus auf `/daten/vektor/` darstellen.
+- **M6.2** umgesetzt: `/daten/vektor/` zeigt den gemeinsamen Modellstatus sowie
+  Harrier, Tokenizer und BM25 mit konfigurierten/vorbereiteten Revisionen und
+  Pflichtdateigroessen. Die manuelle Aktualisierung entfernt alte Einzelwerte
+  bei einem Gesamtfehler; sie startet keinen Modelljob. Gespeicherte
+  Pruefhistorie folgt in M6.8. 87 Web- und JavaScript-Tests bestehen.
+  Allgemeine Version: `0.5.39`.
+- Naechster regulaerer Punkt: **M6.3**; feste lokale Pruefaktion implementieren.
 
 - Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-
   und Testabdeckung, CLI-/Manifestvertrag, Dokumentation und Versionsstand

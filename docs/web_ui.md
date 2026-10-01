@@ -228,8 +228,12 @@ Caches oder alten Modellstände. Diese Schnellprüfung lädt keine Modelle,
 verwendet kein Modellnetzwerk und verändert keine Dateien.
 
 Die Service-Fassade stellt dieselben Werte über `embedding_model_status()` ohne
-Qdrant-Abfrage bereit. Die sichtbare Darstellung auf `/daten/vektor/` folgt in
-M6.2; gespeicherte Prüfläufe werden erst in M6.8 zugeordnet. Manifestdatum und
+Qdrant-Abfrage bereit. Auf `/daten/vektor/` zeigt „Lokale Embedding-Modelle“
+den gemeinsamen Status und die Angaben zu Harrier, Tokenizer und BM25.
+„Modellstatus aktualisieren“ erneuert diese Werte ohne Seitenwechsel. Bei einem
+Gesamtfehler zeigen die Karten „Nicht einzeln verifiziert“ und ersetzen alte
+Revisionen und Größen durch „Nicht verifiziert“. Gespeicherte Prüfläufe
+werden erst in M6.8 zugeordnet. Manifestdatum und
 Zeitpunkt des Seitenaufrufs werden nicht als letzte ausgeführte Prüfung
 ausgegeben.
 

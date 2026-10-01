@@ -12,6 +12,36 @@
 
 {% include "core/partials/service_result.html" %}
 
+{% with models=status.embedding_models %}
+<section class="panel service-status" data-service-status data-status-url="{% url 'data_tools:service_status' %}" id="embedding-model-status">
+  <div class="service-status-header">
+    <h2>Lokale Embedding-Modelle</h2>
+    <button class="button utility small" type="button" data-service-status-refresh>Modellstatus aktualisieren</button>
+  </div>
+  <dl class="facts" aria-live="polite">
+    <div><dt>Gemeinsamer Modellbestand</dt><dd data-model-field="status" data-model-format="status" class="{% if models.status == 'bereit' %}status-ok{% else %}status-warning{% endif %}">{% if models.status == 'unvollstaendig' %}unvollständig{% else %}{{ models.status|default:"Nicht verfügbar" }}{% endif %}</dd></div>
+    <div><dt>Ergebnis der aktuellen Schnellprüfung</dt><dd data-model-field="message">{{ models.message|default:"Nicht verfügbar" }}</dd></div>
+    <div><dt>Gesamtgröße der Pflichtdateien</dt><dd data-model-field="size_bytes" data-model-format="bytes" data-model-empty="Nicht verifiziert">{% if models.size_bytes is not None %}{{ models.size_bytes|filesizeformat }}{% else %}Nicht verifiziert{% endif %}</dd></div>
+  </dl>
+  <p class="muted">Die Schnellprüfung nutzt den lokalen Bestand. Größen umfassen die erfassten Pflichtdateien; gemeinsam genutzte Dateien zählen im Gesamtwert einmal. Alte Modellstände und Caches sind nicht enthalten.</p>
+  <div class="grid three-columns" aria-live="polite">
+    {% for name, component in models.components.items %}
+    <article data-model-component="{{ name }}">
+      <h3>{{ component.label }}</h3>
+      <dl class="facts">
+        <div><dt>Modell</dt><dd data-model-field="components.{{ name }}.model_id">{{ component.model_id }}</dd></div>
+        <div><dt>Einzelbereitschaft</dt><dd data-model-field="components.{{ name }}.status" data-model-format="status" data-model-empty="Nicht einzeln verifiziert" class="{% if component.status == 'bereit' %}status-ok{% else %}status-muted{% endif %}">{{ component.status|default:"Nicht einzeln verifiziert" }}</dd></div>
+        <div><dt>Konfigurierte Revision</dt><dd data-model-field="components.{{ name }}.configured_revision">{{ component.configured_revision }}</dd></div>
+        <div><dt>Vorbereitete Revision</dt><dd data-model-field="components.{{ name }}.prepared_revision" data-model-empty="Nicht verifiziert">{{ component.prepared_revision|default:"Nicht verifiziert" }}</dd></div>
+        <div><dt>Größe der Pflichtdateien</dt><dd data-model-field="components.{{ name }}.size_bytes" data-model-format="bytes" data-model-empty="Nicht verifiziert">{% if component.size_bytes is not None %}{{ component.size_bytes|filesizeformat }}{% else %}Nicht verifiziert{% endif %}</dd></div>
+      </dl>
+    </article>
+    {% endfor %}
+  </div>
+  <p class="muted service-status-feedback" data-service-status-feedback aria-live="polite" hidden></p>
+</section>
+{% endwith %}
+
 <section class="grid two-columns">
   <article class="panel">
     <h2>Ratsinfo-Vektorindex bauen</h2>

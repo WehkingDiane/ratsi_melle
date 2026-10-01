@@ -125,6 +125,67 @@ def test_model_service_facade_does_not_query_qdrant(tmp_path, monkeypatch):
     assert not (tmp_path / "missing_models").exists()
 
 
+@pytest.mark.parametrize("state", ["bereit", "fehlt", "unvollstaendig", "inkompatibel", "settings"])
+def test_vector_page_displays_verified_model_components(client, tmp_path, monkeypatch, state):
+    from core.services import status as status_service
+    from data_tools import services as data_services
+    from src.config import embedding_model_status as model_status
+    from test_embedding_model_status import _mock_library_versions, _write_inventory
+
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path / "models"))
+    monkeypatch.setattr(status_service, "probe_qdrant", lambda connection: {
+        "state": "unavailable", "available": False, "message": "Qdrant nicht erreichbar",
+    })
+    monkeypatch.setattr(data_services, "vector_index_status", lambda: {})
+    monkeypatch.setattr(data_services, "landkreis_vector_index_status", lambda: {})
+    if state != "fehlt":
+        manifest = _write_inventory(tmp_path / "models")
+        _mock_library_versions(monkeypatch, manifest)
+    if state == "unvollstaendig":
+        (tmp_path / "models/dense_model/snapshot/model.safetensors").unlink()
+    elif state == "inkompatibel":
+        monkeypatch.setattr(model_status, "version", lambda name: "changed")
+    elif state == "settings":
+        monkeypatch.setenv("RATSI_MODELS_DIR", " ")
+    original_load = model_status.load_and_validate_model_inventory
+    checks = []
+
+    def record_check(path, *, deep=False):
+        checks.append(deep)
+        return original_load(path, deep=deep)
+
+    def reject_job(*args, **kwargs):
+        raise AssertionError("Model display must not start a service job")
+
+    monkeypatch.setattr(model_status, "load_and_validate_model_inventory", record_check)
+    monkeypatch.setattr("core.service_jobs.start_service_job", reject_job)
+    response = client.get("/daten/vektor/")
+
+    assert response.status_code == 200
+    assert checks == ([] if state == "settings" else [False])
+    panel = BeautifulSoup(response.content, "html.parser").select_one("#embedding-model-status")
+    assert panel.select_one("[data-service-status-refresh]")
+    assert len(panel.select("[data-model-component]")) == 3
+    expected = "inkompatibel" if state == "settings" else state.replace("unvollstaendig", "unvollständig")
+    assert panel.select_one('[data-model-field="status"]').get_text(strip=True) == expected
+    for component in panel.select("[data-model-component]"):
+        name = component["data-model-component"]
+        assert component.select_one("h3").get_text() in {"Harrier", "Tokenizer", "BM25"}
+        revision = component.select_one(f'[data-model-field="components.{name}.prepared_revision"]')
+        readiness = component.select_one(f'[data-model-field="components.{name}.status"]')
+        if state == "bereit":
+            assert revision.get_text(strip=True) == getattr(manifest, name).resolved_revision
+            assert readiness.get_text(strip=True) == "bereit"
+            assert "status-ok" in readiness["class"]
+        else:
+            assert revision.get_text(strip=True) == "Nicht verifiziert"
+            assert readiness.get_text(strip=True) == "Nicht einzeln verifiziert"
+            assert "status-ok" not in readiness["class"]
+    assert "Letzte Prüfung" not in panel.get_text()
+    if state == "fehlt":
+        assert not (tmp_path / "models").exists()
+
+
 def test_nested_pages_use_absolute_static_urls(client) -> None:
     response = client.get("/analyse/starten/")
     content = response.content.decode("utf-8")
