@@ -117,7 +117,7 @@ Buttons folgen einem funktionsbezogenen Farbschema: `primary` ist auslösenden H
 - `/daten/jobs/<job_id>/` zeigt Status und Ausgabe eines gestarteten Datenjobs. Die letzten 50 Datenjobs werden in `data/db/service_jobs.sqlite` gespeichert und bleiben nach einem Serverneustart sichtbar; zuvor laufende Jobs werden dabei als unterbrochen markiert.
 - `/daten/jobs/<job_id>/status/` liefert den aktuellen Datenjobstatus als JSON für die automatische Logaktualisierung.
 - Die Datenjob-ID wird als `run_id` an das gestartete Skript weitergegeben. Damit lassen sich die begrenzte Ausgabe in der Weboberfläche und das vollständige rotierende Log unter `logs/<skriptname>.log` eindeutig zuordnen.
-- `/daten/status/` liefert den frisch berechneten Rohdaten-, Datenbank- und Vektorindexstatus als JSON für die manuelle Aktualisierung.
+- `/daten/status/` liefert den frisch berechneten Rohdaten-, Datenbank-, Vektorindex- und lokalen Modellstatus als JSON für die manuelle Aktualisierung.
 - `/veroeffentlichung/` ist ein Platzhalter für Publikations- und Reviewfunktionen.
 - `/suche/` durchsucht lokal indexierte Dokumentinhalte semantisch über den Qdrant-Vektorindex. Die Suche nutzt Harrier-Dense-Embeddings, BM25-Sparse-Vektoren und RRF-Rangfusion. Bei aktiven Datums-, Gremiums- oder Dokumenttypfiltern werden bis zu 100 semantische Kandidaten geladen, anschließend gefiltert und erst danach auf 20 sichtbare Treffer begrenzt. Dadurch können relevante gefilterte Dokumente auch dann erscheinen, wenn sie im ungefilterten Ranking hinter Platz 20 liegen. Neu aufgebaute Vektorindizes liefern außerdem kurze Textausschnitte. Die Quellen-Auswahl bietet Ratsinfo als Standard und Landkreis als getrennte Collection `landkreis_publications`; beim Wechsel zu Landkreis werden die dort nicht anwendbaren Ratsinfo-Filter Gremium und Dokumenttyp verworfen.
 - Ratsinfo nutzt nach vollstaendigem Erstaufbau `ratsi_passages`. Die Treffer zeigen einzelne Abschnitte, Seitenzahlen und Links zur lokalen PDF-Fundstelle. Bis zur Umschaltung bleibt `ratsi_documents` aktiv. Details zu Migration und Messung stehen in [search_quality.md](search_quality.md).
@@ -215,6 +215,23 @@ Gerenderte Prompt-Snapshots und private Prompt-Artefakte werden nicht als normal
 Fehlende Datenquellen führen nicht zu Fehlern. Die Oberfläche zeigt stattdessen leere Listen oder Hinweise. Eine fehlerhafte private Prompt-Vorlagen-Datei blockiert die Analyse- und Vorlagenseiten nicht; die UI zeigt dann keine Vorlagen an, bis die private Datei repariert ist.
 
 ### Qdrant-Verbindung und Status
+
+Der Datenstatus enthält unter `status.embedding_models` die lokale Bereitschaft
+(`bereit`, `fehlt`, `unvollstaendig` oder `inkompatibel`) und die Komponenten
+`dense_model`, `tokenizer` und `sparse_model`. Konfigurierte Revisionen sind
+immer enthalten; vorbereitete Revisionen und Größen stammen nur aus einem
+gemeinsam validierten Manifest einschließlich des Bibliotheksvergleichs.
+Bei einem Gesamtfehler sind diese Einzelwerte und die Einzelbereitschaft `null`.
+`size_scope=required_artifacts` bezeichnet die erfassten Pflichtdateien; der
+Gesamtwert zählt gemeinsam referenzierte Dateien einmal und umfasst keine
+Caches oder alten Modellstände. Diese Schnellprüfung lädt keine Modelle,
+verwendet kein Modellnetzwerk und verändert keine Dateien.
+
+Die Service-Fassade stellt dieselben Werte über `embedding_model_status()` ohne
+Qdrant-Abfrage bereit. Die sichtbare Darstellung auf `/daten/vektor/` folgt in
+M6.2; gespeicherte Prüfläufe werden erst in M6.8 zugeordnet. Manifestdatum und
+Zeitpunkt des Seitenaufrufs werden nicht als letzte ausgeführte Prüfung
+ausgegeben.
 
 Django und seine Build-Unterprozesse nutzen standardmäßig denselben Qdrant-Server
 `http://127.0.0.1:6333` wie die CLI. `RATSI_QDRANT_URL` wählt einen anderen Server.

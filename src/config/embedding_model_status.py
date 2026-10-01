@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from hashlib import sha256
 from importlib.metadata import PackageNotFoundError, version
@@ -66,6 +66,7 @@ class EmbeddingModelStatus:
     state: EmbeddingModelReadiness
     message: str
     manifest_sha256: str | None = None
+    manifest: EmbeddingModelManifest | None = field(default=None, repr=False, compare=False)
 
     def as_dict(self) -> dict[str, str | None]:
         """Return a JSON-compatible representation for CLI and web callers."""
@@ -74,6 +75,41 @@ class EmbeddingModelStatus:
             "status": self.state.value,
             "message": self.message,
             "manifest_sha256": self.manifest_sha256,
+        }
+
+    def inventory_dict(self) -> dict[str, object]:
+        """Describe verified components from this check's single manifest snapshot.
+
+        Sizes cover declared required artifacts, not caches or old inventories.
+        A failed joint check cannot diagnose individual component readiness.
+        """
+
+        manifest = self.manifest if self.state is EmbeddingModelReadiness.READY else None
+        components = {}
+        files: dict[str, int] = {}
+        for name, label, definition in (
+            ("dense_model", "Harrier", HARRIER_MODEL),
+            ("tokenizer", "Tokenizer", HARRIER_TOKENIZER),
+            ("sparse_model", "BM25", BM25_MODEL),
+        ):
+            prepared = getattr(manifest, name) if manifest is not None else None
+            components[name] = {
+                "label": label,
+                "model_id": definition.model_id,
+                "configured_revision": definition.revision,
+                "prepared_revision": prepared.resolved_revision if prepared else None,
+                "status": "bereit" if prepared else None,
+                "size_bytes": sum(a.size_bytes for a in prepared.artifacts) if prepared else None,
+            }
+            if prepared:
+                for artifact in prepared.artifacts:
+                    path = str(PurePosixPath(prepared.relative_path) / artifact.relative_path)
+                    files[path] = artifact.size_bytes
+        return {
+            **self.as_dict(),
+            "components": components,
+            "size_bytes": sum(files.values()) if manifest is not None else None,
+            "size_scope": "required_artifacts",
         }
 
 
@@ -277,7 +313,31 @@ def check_embedding_model_status(
         EmbeddingModelReadiness.READY,
         "Lokale Embedding-Modelle sind bereit.",
         manifest.manifest_sha256,
+        manifest=manifest,
     )
+
+
+def embedding_model_inventory_status() -> dict[str, object]:
+    """Return a lightweight offline inventory summary for configured web services."""
+
+    from src.config.settings import EmbeddingModelSettingsError, load_embedding_model_settings
+
+    models_dir = None
+    try:
+        models_dir = load_embedding_model_settings().models_dir.resolve()
+        result = check_embedding_model_status(models_dir)
+    except EmbeddingModelSettingsError as error:
+        result = EmbeddingModelStatus(EmbeddingModelReadiness.INCOMPATIBLE, str(error))
+    except (OSError, RuntimeError):
+        result = EmbeddingModelStatus(
+            EmbeddingModelReadiness.INCOMPLETE,
+            "Der lokale Modellbestand kann nicht gelesen werden.",
+        )
+    return {
+        **result.inventory_dict(),
+        "check_level": "fast",
+        "models_dir": str(models_dir) if models_dir else None,
+    }
 
 
 def _validate_library_versions(manifest: EmbeddingModelManifest) -> None:

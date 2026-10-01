@@ -6,6 +6,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from src.config.embedding_model_status import embedding_model_inventory_status
 from src.config.settings import QdrantSettingsError
 from src.qdrant_connection import QdrantConnection, probe_qdrant
 
@@ -37,6 +38,7 @@ def service_status() -> dict[str, Any]:
         qdrant_target = connection.target
 
     return {
+        "embedding_models": embedding_model_inventory_status(),
         "local_index_exists": local_session_count is not None or local_document_count is not None,
         "online_index_exists": online_session_count is not None,
         "qdrant_exists": qdrant["available"],

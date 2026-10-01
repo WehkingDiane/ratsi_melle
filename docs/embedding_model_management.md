@@ -1203,7 +1203,7 @@ Orientierung und sind keine Vorgabe fuer die Bearbeitung.
 - [x] **M6.0** Vorabvertrag und Testmatrix oben gegen die bestehenden
   Service-, Job-, Modell- und Qdrant-Pfade abgleichen; offene Entscheidungen
   vor der View-Implementierung festhalten. `[Schwer · GPT-6 Astra / High]`
-- [ ] **M6.1** Modellstatus in die Service-Fassade und Statusantworten des
+- [x] **M6.1** Modellstatus in die Service-Fassade und Statusantworten des
   Datenbereichs aufnehmen. `[Mittel · GPT-6 Sol / Medium]`
 - [ ] **M6.2** Statusdarstellung fuer Harrier, Tokenizer und BM25 unter
   `/daten/vektor/` ergaenzen. `[Mittel · GPT-6 Sol / Medium]`
@@ -1346,7 +1346,15 @@ Orientierung und sind keine Vorgabe fuer die Bearbeitung.
   `ready=false` und inkompatible Marker; die Migration akzeptiert einen
   eigenen lokalen Qdrant-Pfad. Der Standardtestlauf besteht mit 708 Tests
   (7 `live`-Tests ausgeschlossen). Allgemeine Version: `0.5.26`.
-- Naechster regulaerer Punkt: **M6.1**; Modellstatus in die Service-Fassade aufnehmen.
+- **M6.1** umgesetzt: `status.embedding_models` und die Daten-Service-Fassade
+  liefern denselben schnellen Offline-Status aus einer validierten
+  Manifestaufnahme, einschliesslich Bibliotheksvergleich. Vorbereitete
+  Revisionen und Pflichtdateigroessen bleiben bei Gesamtfehlern unbekannt;
+  gemeinsame Dateien werden im Gesamtwert einmal gezaehlt. Keine erfundene
+  Pruefhistorie; deren Zuordnung folgt in M6.8. 162 gezielte Modell-, CLI-,
+  Kompatibilitaets-, Webseiten- und Servicestatus-Tests bestehen, ohne echte
+  Modelle oder produktive Qdrant-Bestaende. Allgemeine Version: `0.5.38`.
+- Naechster regulaerer Punkt: **M6.2**; Modellstatus auf `/daten/vektor/` darstellen.
 
 - Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-
   und Testabdeckung, CLI-/Manifestvertrag, Dokumentation und Versionsstand

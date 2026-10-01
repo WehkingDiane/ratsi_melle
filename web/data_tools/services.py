@@ -8,6 +8,7 @@ from typing import Any
 from core.services import paths
 from core.services import status
 from core.services.commands import build_service_command as _build_service_command
+from src.config.embedding_model_status import embedding_model_inventory_status as _embedding_model_inventory_status
 from src.indexing.vector_status import landkreis_vector_index_status as _landkreis_vector_index_status
 from src.indexing.vector_status import vector_index_status as _vector_index_status
 
@@ -35,6 +36,12 @@ def build_service_command(action: str, data: dict[str, Any]) -> tuple[list[str] 
 def service_status() -> dict[str, Any]:
     _sync_paths()
     return status.service_status()
+
+
+def embedding_model_status() -> dict[str, object]:
+    """Return the shared offline model summary without querying Qdrant."""
+
+    return _embedding_model_inventory_status()
 
 
 def vector_index_status() -> dict[str, Any]:

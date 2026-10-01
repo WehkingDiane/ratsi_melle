@@ -79,6 +79,52 @@ def test_invalid_qdrant_settings_keep_status_and_search_pages_available(client, 
         assert "secret" not in response.content.decode("utf-8")
 
 
+@pytest.mark.parametrize("state", ["bereit", "fehlt", "unvollstaendig", "inkompatibel", "settings"])
+def test_data_status_api_includes_shared_model_inventory(client, tmp_path, monkeypatch, state):
+    from core.services import status as status_service
+    from data_tools import services as data_services
+    from test_embedding_model_status import _mock_library_versions, _write_inventory
+
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path / "models"))
+    monkeypatch.setattr(status_service, "probe_qdrant", lambda connection: {
+        "state": "unavailable", "available": False, "message": "Qdrant nicht erreichbar",
+    })
+    if state != "fehlt":
+        manifest = _write_inventory(tmp_path / "models")
+        _mock_library_versions(monkeypatch, manifest)
+    if state == "unvollstaendig":
+        (tmp_path / "models/dense_model/snapshot/model.safetensors").unlink()
+    elif state == "inkompatibel":
+        monkeypatch.setattr("src.config.embedding_model_status.version", lambda name: "changed")
+    elif state == "settings":
+        monkeypatch.setenv("RATSI_MODELS_DIR", " ")
+
+    response = client.get("/daten/status/")
+
+    assert response.status_code == 200
+    status = response.json()["status"]
+    models = status["embedding_models"]
+    assert models == data_services.embedding_model_status()
+    assert models["status"] == ("inkompatibel" if state == "settings" else state)
+    assert set(models["components"]) == {"dense_model", "tokenizer", "sparse_model"}
+    assert status["qdrant_state"] == "unavailable"
+    assert "last_check" not in models  # Job evidence is added in M6.8.
+
+
+def test_model_service_facade_does_not_query_qdrant(tmp_path, monkeypatch):
+    from core.services import status as status_service
+    from data_tools import services as data_services
+
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path / "missing_models"))
+
+    def reject_probe(*args, **kwargs):
+        raise AssertionError("Model-only status must not query Qdrant")
+
+    monkeypatch.setattr(status_service, "probe_qdrant", reject_probe)
+    assert data_services.embedding_model_status()["status"] == "fehlt"
+    assert not (tmp_path / "missing_models").exists()
+
+
 def test_nested_pages_use_absolute_static_urls(client) -> None:
     response = client.get("/analyse/starten/")
     content = response.content.decode("utf-8")
