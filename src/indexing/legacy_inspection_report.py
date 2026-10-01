@@ -22,10 +22,11 @@ from src.indexing.legacy_index_inspection import (
     inspect_legacy_collection,
     target_sha256,
 )
+from src.paths import LOCAL_INDEX_DB
 from src.qdrant_connection import QdrantConnection
 
 
-REPORT_VERSION = 1
+REPORT_VERSION = 2
 
 
 def report_tolerances() -> dict:
@@ -57,6 +58,8 @@ def inspect_and_write_report(
         "target": connection.target,
         "target_sha256": target_sha256(connection),
         "collection": collection,
+        "source_db": (str(Path(inspection_options.get("ratsinfo_db", LOCAL_INDEX_DB)).resolve())
+                      if collection == "ratsi_documents" else None),
         "point_count": None,
         "point_ids_sha256": None,
         "sample_limit": SAMPLE_SIZE,
@@ -67,7 +70,9 @@ def inspect_and_write_report(
         "result": "aborted",
         "abort_code": None,
     }
-    if abort_code is not None:
+    if collection == "landkreis_publications":
+        report["abort_code"] = "rebuild_required"
+    elif abort_code is not None:
         report["abort_code"] = abort_code
     else:
         try:

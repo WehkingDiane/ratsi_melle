@@ -18,6 +18,7 @@ from src.indexing.legacy_index_inspection import (
     target_sha256,
 )
 from src.indexing.legacy_inspection_report import REPORT_VERSION, report_tolerances
+from src.paths import LOCAL_INDEX_DB
 from src.qdrant_connection import QdrantConnection
 
 
@@ -139,6 +140,8 @@ def apply_verified_legacy_report(
 
     if confirm_collection != collection:
         raise LegacyMigrationError("confirmation_required", "Collection muss ausdruecklich bestaetigt werden.")
+    if collection == "landkreis_publications":
+        raise LegacyMigrationError("rebuild_required", "Landkreis-Collection muss getrennt neu aufgebaut werden.")
     with _migration_lock(connection, collection):
         return _apply_verified_legacy_report(
             connection, client, collection, report_path, inspection_options=inspection_options,
@@ -154,6 +157,10 @@ def _apply_verified_legacy_report(
     report = _read_report(Path(report_path))
     if report.get("collection") != collection or report.get("target_sha256") != target_sha256(connection):
         raise LegacyMigrationError("report_target_mismatch", "Pruefprotokoll gehoert zu einem anderen Ziel.")
+    expected_source = (str(Path((inspection_options or {}).get("ratsinfo_db", LOCAL_INDEX_DB)).resolve())
+                       if collection == "ratsi_documents" else None)
+    if report.get("source_db") != expected_source:
+        raise LegacyMigrationError("source_mismatch", "Pruefprotokoll gehoert zu einer anderen Quelldatenbank.")
     _check_marker_unreleased(connection, collection)
     inspection = inspect_legacy_collection(connection, client, collection, **(inspection_options or {}))
     expected = {
