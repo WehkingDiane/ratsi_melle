@@ -977,17 +977,33 @@ Job, zeigt die Seite keinen angeblichen Prueferfolg.
 | Legacy-Uebernahme | Eigene POST-Aktion mit CSRF und konkreter Bestaetigung der Collection. Nur ein verifizierter Bericht der aktuellen Version fuer genau Ziel, Collection und Quelle wird angeboten. Die CLI prueft unter der Collection-Sperre erneut; ein geaenderter oder inzwischen freigegebener Bestand endet ohne weitere Freigabe. |
 | Parallele oder unterbrochene Jobs | Eine atomare Entscheidung vor Jobstart verhindert doppelte Schreibjobs auch ueber mehrere Webprozesse. Modellvorbereitung, Build und Uebernahme respektieren die benoetigten gemeinsamen Sperren auch bei direktem CLI-Start. Der Sperrbereich reicht bis Abschluss oder Abbruch; Wiederanlauf prueft den tatsaechlichen Bestand statt einen alten Jobstatus als Freigabe zu nutzen. Lock-Reihenfolge und gemeinsame Statuswurzel fuer Serverprozesse festlegen. |
 
-Die Testmatrix wird vor den Views erstellt und nach Implementierung als
-Workflow-Tests ausgefuehrt: Modellbestand bereit/fehlt/unvollstaendig/
-inkompatibel; Qdrant lokal/Server und erreichbar/nicht erreichbar; Collection
-leer/alt/verifiziert/im Aufbau; gueltiger/veralteter/fremder Bericht;
-Melle-Dokumente mit Standard- und eigener Quell-SQLite; Landkreis mit
-`rebuild_required`; parallele Starts aus zwei Webprozessen und aus der CLI;
-Abbruch vor und nach einem Teil-Download beziehungsweise Payload-Backfill.
-Dabei auch GET ohne Nebenwirkungen, unzulaessige POST-Felder, fehlende oder
-falsche Bestaetigung, CSRF, Job-Restart und Token in allen gespeicherten sowie
-angezeigten Ausgabekanaelen abdecken. Keine Tests mit echten Downloads oder
-produktiven Qdrant-Bestaenden in der regulaeren Suite.
+Abgleich mit dem Bestand vor M6.1 (M6.0):
+
+| Bestehender Pfad | Entscheidung fuer die Umsetzung |
+| --- | --- |
+| `web/data_tools/services.py`, `web/core/services/status.py`, `src/config/embedding_model_status.py` | Die Fassade liefert Modellstatus aus `check_embedding_model_status()` und den gepinnten Definitionen in `src/config/embedding_models.py`. Manifestwerte fuer vorbereitete Revisionen und Artefaktgroessen nur nach erfolgreicher Validierung lesen. Bei fehlendem oder ungueltigem Manifest den gemeinsamen Fehler anzeigen und Einzelwerte als unbekannt kennzeichnen, statt Bereitschaft zu behaupten. Der bisherige Vektorstatus darf eigenstaendig Qdrant abfragen; die Modellanzeige fuegt keinen Qdrant-Zugriff hinzu. |
+| `scripts/prepare_embedding_models.py`, `src/embedding_model_preparation.py` | `--check --json` liefert `status`, `message`, `manifest_sha256`, `check_level`; bei Fehlerstatus Exitcode 1, bei ungueltiger Konfiguration 2. `--download --json` gibt ein anderes Ergebnisformat aus. Jobresultate je Aktion auswerten, Exitcode und fachlichen Status getrennt anzeigen. Kein `--check-updates` in Phase 6: die CLI bietet es derzeit nicht an. Der vorbereitete Bestand wechselt atomar per Manifest, aber parallele Downloads sind noch nicht serialisiert. |
+| `web/core/services/commands.py`, `web/data_tools/views.py` | Neue Aktionen ausschliesslich ueber feste Befehle und eine je Aktion gepruefte Menge an POST-Feldern aufbauen. Die bestehenden Build-Formulare besitzen eigene optionale Parameter; diese duerfen nicht in Modell- oder Legacy-Aktionen uebernommen werden. Bestaetigung und erlaubte Collection serverseitig pruefen, bevor ein Job angelegt wird. |
+| `web/core/service_jobs.py`, `src/paths.py` | Jobdaten liegen in `data/db/service_jobs.sqlite`; die aktuelle In-Memory-Sperre und das Loeschen/Neuschreiben aller Jobzeilen sind nicht prozesssicher. Eine transaktionale, prozessuebergreifende Jobreservierung und zeilenweise Persistenz fuer neue Aktionen vor Threadstart einfuehren. Letzte **ausgefuehrte** Pruefung nur aus einem zugeordneten, noch gespeicherten Pruefjob mit auswertbarem Ergebnis anzeigen; nach Ausdünnung der Jobhistorie wieder „keine Pruefung“. Startzeit ist nicht gleich Pruefergebnis. |
+| `scripts/migrate_legacy_index.py`, `src/indexing/legacy_inspection_report.py`, `src/indexing/legacy_index_migration.py` | Die CLI kennt `--inspect`/`--apply`, `--collection`, `--report`, bei `ratsi_documents` `--source-db` und bei Apply `--confirm-collection`. Nur zwei Melle-Collections in der Web-Allowlist. Ziel aus `QdrantConnection.from_env`, Quell-DB aus `LOCAL_INDEX_DB` und Berichtspfad aus einer privaten, fuer alle Webprozesse gemeinsamen Zustandswurzel ableiten; Schluessel mindestens aus vollstaendigem Ziel-Hash und Collection bilden. Bericht vor Anzeige und Angebot gegen Version, Erfolg, Ziel, Collection und Quellpfad validieren; Apply prueft unter Sperre ohnehin erneut. Landkreis wird als `rebuild_required` ohne Uebernahme behandelt. |
+| `src/analysis/vector_store.py`, `src/indexing/legacy_index_migration.py`, beide Build-CLIs | Build und Uebernahme derselben Collection verwenden bereits dieselbe `_migration_lock()` am `release_path`; diese Sperre beibehalten. Zusaetzlich eine prozessuebergreifende Modellvorbereitungssperre auf Basis des aufgeloesten `RATSI_MODELS_DIR` fuer Vorbereitung und Builds vor Modellpruefung/-initialisierung bis zum Build-Ende einfuehren. Einheitliche Reihenfolge: Modellsperre, dann Collection-Sperre; Uebernahme ohne Modellinitialisierung benoetigt nur die Collection-Sperre. Sperrdateien nicht nach Freigabe loeschen. Fuer Serverbetrieb muessen alle Prozesse dieselben Modell- und `RATSI_QDRANT_STATE_DIR`-Pfade sehen; nicht gemeinsam bereitgestellte Pfade sind keine sichere Betriebsart und werden in der Anleitung ausgeschlossen. |
+| `src/config/secrets.py`, `web/core/service_jobs.py` | Hub-Token ausschliesslich im Vorbereitungsprozess per vorhandener Secret-Funktion beziehen. Die Jobausgabe vereinigt stdout und stderr und persistiert beides samt letzter Zeile; deshalb vor jeder Speicherung, Statusantwort und Logausgabe Token und sensible URL-Bestandteile redigieren. Weder Token noch freier Pfad werden Teil der Befehlsliste. |
+
+Die folgenden Faelle bilden die Testmatrix fuer M6.1 bis M6.10; vor dem
+Phase-6-PR werden sie als Workflow-Tests mit Fake-CLI und isolierten Qdrant-
+Bestanden nachgeprueft:
+
+| Fall | Eingaben und erwartete Grenze |
+| --- | --- |
+| T6-A Status | Bereit/fehlt/unvollstaendig/inkompatibel, ungueltiges `RATSI_MODELS_DIR`, abweichende Bibliotheksversion, lokal/Server und Qdrant erreichbar/nicht erreichbar. GET und Status-API loesen weder Download, Tiefenpruefung noch Qdrant-Build aus; pro Komponente keine erfundene Revision oder Pruefzeit. |
+| T6-B Modellaktionen | `--check --json` ohne Netz und Dateiaenderung, Exitcode 0/1/2; `--download --json` nur nach richtiger Bestaetigung. Unbekannte Aktion, zusaetzliche Modell-ID, Revision, Zielpfad, CLI-Argumente und manipulierte POST-Felder werden abgewiesen. Fehlendes/ungueltiges CSRF-Token startet keinen Job. |
+| T6-C Legacy-Pruefung | Lokales und Server-Ziel; leere, alte, bereits freigegebene und im Aufbau befindliche Collection. `ratsi_documents` mit Standard- und serverseitig konfigurierter Quell-SQLite, Bericht je Ziel/Collection eindeutig. Landkreis liefert `rebuild_required` und erzeugt keinen Uebernahmejob. |
+| T6-D Legacy-Freigabe | Gueltiger, veralteter, abgebrochener, fremder oder unlesbarer Bericht; falsches Ziel, Collection, Quelle oder Format. Fehlende/falsche Bestaetigung und freie Stichproben-/Toleranzwerte werden abgewiesen; erneute CLI-Pruefung unter Collection-Sperre, keine Freigabe bei geaendertem Bestand, sicherer Abbruch auch nach teilweisem Payload-Backfill. |
+| T6-E Parallelitaet | Zwei gleichzeitige POSTs aus getrennten Webprozessen sowie direkter CLI-Start gegen Webjob: genau ein kollidierender Schreibjob laeuft. Verschiedene Collections bleiben nur dann parallel, wenn keine gemeinsame Modellsperre benoetigt wird. Unterbrechung vor/nach Teil-Download und bei Backfill, Neustart mit verbliebenem Jobdatensatz und erneute Bestandspruefung vor Freigabe. |
+| T6-F Jobs und Secrets | Letzte Pruefung fehlt/aktiv/erfolgreich/fehlgeschlagen/aus Historie entfernt; Jobdetail und Status-API stimmen ueberein. Token und URL-Geheimnisse erscheinen weder in Befehlsliste, SQLite, Ausgabe, letzter Zeile, JSON-Antwort noch Log, auch bei Fehlermeldung und abgebrochenem Prozess. |
+
+Keine Tests mit echten Downloads oder produktiven Qdrant-Bestaenden in der
+regulaeren Suite.
 Phase 6 loest keinen Neuaufbau der Melle-Collections aus; der Landkreis-Neuaufbau
 bleibt die separate Aufgabe in `docs/project_tasks.md`.
 
@@ -1146,7 +1162,7 @@ Die Modell- und Reasoning-Empfehlungen folgen der aktuellen Uebersicht in
 [`project_tasks.md`](project_tasks.md#aktuelle-gpt-modellreihe). Sie dienen als
 Orientierung und sind keine Vorgabe fuer die Bearbeitung.
 
-- [ ] **M6.0** Vorabvertrag und Testmatrix oben gegen die bestehenden
+- [x] **M6.0** Vorabvertrag und Testmatrix oben gegen die bestehenden
   Service-, Job-, Modell- und Qdrant-Pfade abgleichen; offene Entscheidungen
   vor der View-Implementierung festhalten. `[Schwer · GPT-6 Astra / High]`
 - [ ] **M6.1** Modellstatus in die Service-Fassade und Statusantworten des
