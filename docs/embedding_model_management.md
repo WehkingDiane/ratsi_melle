@@ -1142,34 +1142,43 @@ Neuaufbaupfad; `ratsi_documents` verlangt einen quellgebundenen Bericht.
 
 ### Phase 6: Service-Oberflaeche
 
+Die Modell- und Reasoning-Empfehlungen folgen der aktuellen Uebersicht in
+[`project_tasks.md`](project_tasks.md#aktuelle-gpt-modellreihe). Sie dienen als
+Orientierung und sind keine Vorgabe fuer die Bearbeitung.
+
 - [ ] **M6.0** Vorabvertrag und Testmatrix oben gegen die bestehenden
   Service-, Job-, Modell- und Qdrant-Pfade abgleichen; offene Entscheidungen
-  vor der View-Implementierung festhalten.
+  vor der View-Implementierung festhalten. `[Schwer · GPT-6 Astra / High]`
 - [ ] **M6.1** Modellstatus in die Service-Fassade und Statusantworten des
-  Datenbereichs aufnehmen.
+  Datenbereichs aufnehmen. `[Mittel · GPT-6 Sol / Medium]`
 - [ ] **M6.2** Statusdarstellung fuer Harrier, Tokenizer und BM25 unter
-  `/daten/vektor/` ergaenzen.
+  `/daten/vektor/` ergaenzen. `[Mittel · GPT-6 Sol / Medium]`
 - [ ] **M6.3** Feste Serviceaktion fuer die rein lokale Pruefung implementieren.
+  `[Leicht · GPT-6 Luna / Medium]`
 - [ ] **M6.4** Feste, bestaetigungspflichtige Serviceaktion fuer die Vorbereitung
-  der konfigurierten Revisionen implementieren.
+  der konfigurierten Revisionen implementieren. `[Mittel · GPT-6 Sol / Medium]`
 - [ ] **M6.5** Freie Modell-IDs, Revisionen, Zielpfade und zusaetzliche
   Kommandoargumente in Formular und Command Builder ausschliessen.
+  `[Mittel · GPT-6 Sol / Medium]`
 - [ ] **M6.6** Feste rein lesende Serviceaktion fuer die Legacy-Bestandspruefung
   und Darstellung des Uebernahmeprotokolls implementieren; nur Melle-Collections,
   mit serverseitig gebundenem Ziel, Quellpfad und Berichtspfad.
+  `[Schwer · GPT-6 Astra / Medium]`
 - [ ] **M6.7** Bestaetigungspflichtige Uebernahmeaktion nur fuer ein erfolgreiches,
   noch aktuelles Pruefergebnis erlauben; freie Collection-, Stichproben- oder
   Toleranzparameter ausschliessen. Programmatische erneute Pruefung unter
-  Collection-Sperre bleibt verbindlich.
+  Collection-Sperre bleibt verbindlich. `[Schwer · GPT-6 Astra / High]`
 - [ ] **M6.8** Fortschritt und Ergebnis ueber die bestehende Servicejob- und
-  Jobdetail-Infrastruktur anzeigen.
+  Jobdetail-Infrastruktur anzeigen. `[Mittel · GPT-6 Sol / Medium]`
 - [ ] **M6.9** Kollidierende parallele Modellvorbereitungen, Legacy-Uebernahmen
   und Vektor-Builds auch ueber Webprozesse und direkte CLI-Aufrufe verhindern
   oder sicher serialisieren; Abbruch und Wiederanlauf einbeziehen.
+  `[Schwer · GPT-6 Astra / High]`
 - [ ] **M6.10** CSRF-Schutz, Befehls-Allowlist, Bestaetigungsbindung,
   Secret-Redaktion, Statuswerte und Jobstart mit Web- und Service-Tests
-  absichern.
+  absichern. `[Schwer · GPT-6 Astra / High]`
 - [ ] **M6.11** Phase 6 pruefen und als eigenen Zwischenstand committen.
+  `[Mittel · GPT-6 Sol / Medium]`
 
 ### Phase 7: Gesamtabnahme und Dokumentation
 
