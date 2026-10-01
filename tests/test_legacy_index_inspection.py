@@ -412,7 +412,7 @@ def test_report_for_other_target_is_rejected_before_inspection(tmp_path, monkeyp
     second = QdrantConnection(tmp_path / "two")
     report_path = tmp_path / "inspection.json"
     report_path.write_text(json.dumps({
-        "report_version": 1, "checked_at": "2026-01-01T00:00:00+00:00",
+        "report_version": 2, "checked_at": "2026-01-01T00:00:00+00:00",
         "result": "verified", "abort_code": None,
         "collection": "ratsi_passages", "target_sha256": target_sha256(first),
         "sample_limit": SAMPLE_SIZE,
@@ -712,7 +712,29 @@ def test_document_text_is_reconstructed_from_original_builder(
                    "landkreis_data_root": tmp_path, "vectorizer_factory": Vectorizer}
         before = client.retrieve(collection, ids=[point_id], with_vectors=True)[0].vector
         report = inspect_and_write_report(connection, client, collection, report_path, **options)
+        if collection == "landkreis_publications":
+            assert report["result"] == "aborted"
+            assert report["abort_code"] == "rebuild_required"
+            with pytest.raises(LegacyMigrationError, match="neu aufgebaut") as error:
+                apply_verified_legacy_report(
+                    connection, client, collection, report_path,
+                    confirm_collection=collection, inspection_options=options,
+                )
+            assert error.value.code == "rebuild_required"
+            assert client.retrieve(collection, ids=[point_id], with_vectors=True)[0].vector == before
+            assert connection.read_index_compatibility(collection) is None
+            return
         assert report["result"] == "verified"
+        assert report["source_db"] == str((tmp_path / "unused.sqlite").resolve())
+        with pytest.raises(LegacyMigrationError) as error:
+            apply_verified_legacy_report(
+                connection, client, collection, report_path,
+                confirm_collection=collection,
+                inspection_options={**options, "ratsinfo_db": tmp_path / "different.sqlite"},
+            )
+        assert error.value.code == "source_mismatch"
+        assert client.retrieve(collection, ids=[point_id], with_vectors=True)[0].vector == before
+        assert connection.read_index_compatibility(collection) is None
         released = apply_verified_legacy_report(
             connection, client, collection, report_path,
             confirm_collection=collection, inspection_options=options,
@@ -724,16 +746,7 @@ def test_document_text_is_reconstructed_from_original_builder(
         assert migrated.payload["index_provenance"] == "legacy_verified"
         assert connection.read_index_compatibility(collection) == compatibility
         marker = json.loads(connection.release_path(collection).read_text(encoding="utf-8"))
-        if collection == "landkreis_publications":
-            from scripts.build_landkreis_vector_index import DEFAULT_MAX_TEXT_CHARS
-            from src.indexing.build_compatibility import check_build_compatibility
-
-            options = {"max_text_chars": DEFAULT_MAX_TEXT_CHARS}
-            assert marker["build_options"] == options
-            assert check_build_compatibility(connection, client, collection, compatibility,
-                                             build_options=options) == "legacy_verified"
-        else:
-            assert "build_options" not in marker
+        assert "build_options" not in marker
     finally:
         client.close()
 

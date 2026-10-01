@@ -733,6 +733,8 @@ neu und rekonstruiert den urspruenglichen Embedding-Text: Passagen verwenden
 ihr bestaetigtes `text`-Feld, Ratsinfo-Dokumente die urspruengliche
 Zehn-Seiten-Extraktion aus SQLite und lokaler Datei beziehungsweise den
 bisherigen Metadaten-Fallback, Landkreis-Punkte den urspruenglichen SQLite-Extrakt mit der Standardgrenze von 6000 Zeichen.
+Diese lesende Landkreis-Rekonstruktion ist nur diagnostisch; ohne belegtes
+urspruengliches Textlimit gibt sie keinen Legacy-Index zur Uebernahme frei.
 Die Quell-SQLite-Dateien werden dazu im Read-only-Modus geoeffnet; ein
 fehlender Pfad wird nicht als neue Datenbank angelegt. Bei Dokument- und
 Landkreis-Punkten muss das gespeicherte Snippet zum rekonstruierten
@@ -784,9 +786,11 @@ vollstaendige Vektoren werden darin nicht gespeichert.
 
 `inspect_and_write_report(connection, client, collection, report_path)` schreibt
 das JSON-Protokoll atomar an einen explizit angegebenen Pfad. Es enthaelt
-`report_version=1`, einen UTC-Zeitpunkt, die oeffentliche Zielanzeige und
+`report_version=2`, einen UTC-Zeitpunkt, die oeffentliche Zielanzeige und
 `target_sha256` des vollstaendigen Server-URL beziehungsweise des aufgeloesten
-lokalen Store-Pfads. Bei `result=verified` sind exakte Punktanzahl, SHA-256
+lokalen Store-Pfads. Fuer `ratsi_documents` enthaelt es zusaetzlich den
+aufgeloesten Pfad der Quell-SQLite-Datei. Vorhandene Berichte der Version 1
+muessen neu erstellt werden. Bei `result=verified` sind exakte Punktanzahl, SHA-256
 der sortierten Punkt-IDs, Stichprobenumfang und -IDs sowie der aktive
 Kompatibilitaetsdatensatz enthalten. `result=aborted` traegt genau einen
 `abort_code`; unvollstaendige Punkt- und Vertragsnachweise bleiben `null`.
@@ -803,6 +807,7 @@ Eingabeparameter. Abbruchcodes sind nach Ursache getrennt:
 | Marker, Modell- oder Pipelinehinweise | `marker_invalid`, `marker_target_mismatch`, `marker_collection_mismatch`, `marker_count_mismatch`, `model_mismatch`, `pipeline_mismatch`, `contract_invalid`, `contract_mismatch` |
 | Punktliste und Payload | `point_ids_invalid`, `payload_missing`, `scroll_incomplete`, `point_count_mismatch`, `collection_changed` |
 | Quelltext | `source_missing`, `source_ambiguous`, `text_unavailable`, `text_mismatch` |
+| Nicht unterstuetzte Landkreis-Uebernahme | `rebuild_required` |
 | Stichprobe und Vektoren | `sample_incomplete`, `vector_invalid`, `dense_mismatch`, `sparse_indices_mismatch`, `sparse_values_mismatch` |
 
 Nur wenn alle Voraussetzungen und Vergleiche erfolgreich sind, darf ein zweiter,
@@ -832,6 +837,17 @@ python scripts/migrate_legacy_index.py --apply --collection ratsi_passages --rep
 ```
 
 Der zweite Befehl verlangt die ausgeschriebene Collection als Bestaetigung.
+Bei einem mit einer eigenen SQLite-Datei aufgebauten `ratsi_documents`-Index
+muss auf beiden Befehlen derselbe Parameter `--source-db PFAD` angegeben werden.
+Der Bericht bindet diesen aufgeloesten Pfad; `--apply` lehnt eine andere Quelle
+vor der erneuten Pruefung und vor Schreibzugriffen ab.
+Die Legacy-Uebernahme von `landkreis_publications` wird mit
+`rebuild_required` abgewiesen, auch wenn ein frueherer Bericht vorliegt: Das
+urspruengliche Textlimit ist nicht zuverlaessig nachweisbar. Stattdessen wird
+die Landkreis-Collection aus den Quelldaten getrennt neu aufgebaut. Dabei
+`--max-text-chars` festlegen und fuer spaetere inkrementelle Laeufe beibehalten;
+die Melle-Collections bleiben bestehen. Die konkrete Aufgabe steht in
+`docs/project_tasks.md`.
 Im lokalen Modus koennen beide Befehle mit `--qdrant-dir PFAD` denselben
 abweichenden Qdrant-Speicher wie die Build-CLIs auswaehlen; im Servermodus gilt
 weiterhin `RATSI_QDRANT_URL`. Eine fehlende Collection erzeugt ein Protokoll mit
@@ -955,11 +971,14 @@ abgesichert sind:
 5. Fehlende oder beschaedigte Artefakte erzeugen in CLI und Web eine kurze,
    handlungsorientierte Meldung.
 6. Harrier, Tokenizer und BM25 werden gemeinsam validiert.
-7. Ein bestehender Legacy-Index kann nur nach erfolgreicher deterministischer
+7. Ein bestehender Melle-Legacy-Index kann nur nach erfolgreicher deterministischer
    Vektorstichprobe und ausdruecklicher Bestaetigung als `legacy_verified`
    uebernommen werden; ein Fehler laesst den Freigabemarker unveraendert. Falls
    eine Payload-Ruecknahme fehlschlaegt, koennen einzelne Metadaten ergaenzt
-   bleiben, aber die Collection wird nicht freigegeben.
+   bleiben, aber die Collection wird nicht freigegeben. Bei `ratsi_documents`
+   muessen Pruefung und Freigabe dieselbe Quell-SQLite-Datei nutzen. Eine
+   Landkreis-Legacy-Freigabe wird stattdessen vor Qdrant-Zugriffen abgewiesen;
+   der gesonderte Neuaufbau speichert das gewaehlte Textlimit im Marker.
 8. Ein inkompatibler Modell- oder Pipelinestand verhindert Schreibzugriffe auf
    eine bestehende Collection; die Legacy-Uebernahme kann diese Sperre nach einer
    echten Vertragsaenderung nicht umgehen.
@@ -1075,6 +1094,11 @@ bleiben unabgehakt und werden dort beschrieben.
   Wiederanlauftests fuer native, uebernommene und inkompatible Indexstaende
   ergaenzen.
 - [x] **M5.10** Phase 5 pruefen und als eigenen Zwischenstand committen.
+
+Nachtrag zur Abnahme nach PR #80: Die historische Landkreis-Uebernahme aus
+M5.6/M5.9 wird nicht mehr freigegeben. Tests pruefen den lesenden Nachweis,
+den Abbruch `rebuild_required` ohne Qdrant-Schreibzugriff und den nativen
+Neuaufbaupfad; `ratsi_documents` verlangt einen quellgebundenen Bericht.
 
 ### Phase 6: Service-Oberflaeche
 
