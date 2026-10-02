@@ -9,9 +9,10 @@ import tempfile
 import zlib
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
+from io import BytesIO
 from pathlib import Path
 
-PIPELINE_VERSION = "1.2"
+PIPELINE_VERSION = "1.3"
 MAX_EXTRACT_FILE_BYTES = 25 * 1024 * 1024
 
 
@@ -222,12 +223,33 @@ def _extract_text_from_text_file(file_path: Path) -> str:
 
 def _extract_text_from_pdf(file_path: Path) -> tuple[str, int | None, list[dict[str, object]], list[dict[str, object]]]:
     raw = file_path.read_bytes()
-    object_map = _parse_pdf_objects(raw)
-    page_object_ids = _find_page_object_ids(raw, object_map)
-    page_count = len(page_object_ids) or None
+    has_cross_reference = b"startxref" in raw
+    if has_cross_reference:
+        from pypdf import PdfReader
 
-    page_texts = _extract_pdf_page_texts(object_map, page_object_ids)
-    if not page_texts:
+        reader = PdfReader(BytesIO(raw))
+        page_count = len(reader.pages)
+        page_texts = []
+        for number, page in enumerate(reader.pages, 1):
+            text = page.extract_text() or ""
+            if text.strip():
+                page_texts.append({
+                    "page": number,
+                    "text": text,
+                    "char_count": len(_normalize_whitespace(text)),
+                })
+    else:
+        # Preserve the recovery path for simple PDFs without a cross-reference
+        # table. Standard PDFs need font decoding and must not scan image bytes
+        # for coincidental PDF text operators.
+        object_map = _parse_pdf_objects(raw)
+        page_object_ids = _find_page_object_ids(raw, object_map)
+        if not page_object_ids:
+            raise ValueError("PDF contains no readable page structure")
+        page_count = len(page_object_ids)
+        page_texts = _extract_pdf_page_texts(object_map, page_object_ids)
+
+    if not page_texts and not has_cross_reference:
         fallback_text = _extract_pdf_stream_text(raw)
         if not fallback_text:
             return "", page_count, [], []

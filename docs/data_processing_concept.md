@@ -350,6 +350,7 @@ Wichtige Konsequenzen:
 - Scan-PDFs ohne Textebene fallen auf Fallbacks zurueck
 - Der neue Ratsinfo-Abschnittsindex liest alle Seiten von Dateien bis einschliesslich 100 MiB. Nur der explizite Legacy-Build mit `--legacy-document-index` bleibt auf zehn Seiten begrenzt
 - Die lokale Extraktionspipeline verarbeitet nur Dateien bis einschliesslich 25 MiB und kennzeichnet groessere Dateien als `file_too_large`
+- Ab Pipeline-Version `1.3` liest auch die lokale Analyse regulaere PDF-Textebenen mit `pypdf`: eingebettete Schriften, Woerter und Zahlen bleiben lesbar; Bilddaten werden nicht als Text interpretiert. Unlesbare PDF-Strukturen liefern `error`
 - Die lokale Extraktionspipeline versucht bei PDFs ohne lesbare Textebene optional OCR, wenn `pdftoppm` und `tesseract` mit den Sprachdaten `deu` und `eng` installiert sind; andernfalls lautet der Status `ocr_needed`
 - Provider koennen PDF-Anhaenge nativ verarbeiten oder Text ueber `pypdf` auslesen; diese Pfade verwenden nicht die 25-MiB-Grenze der lokalen Extraktionspipeline
 

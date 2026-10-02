@@ -105,6 +105,54 @@ def test_truncated_original_is_rejected_by_search():
         passages.extract_pages(FIXTURES / "truncated_proposal.pdf", use_ocr=False)
 
 
+@pytest.mark.parametrize("case", [case for case in READABLE if case["expected_page_text"]],
+                         ids=lambda case: case["file"])
+def test_analysis_preserves_real_words_numbers_and_page_mapping(case, monkeypatch):
+    monkeypatch.setattr(extraction_pipeline, "_extract_text_via_ocr",
+                        lambda path: pytest.fail("A readable text layer must not require OCR"))
+    result = extraction_pipeline.extract_text_for_analysis(
+        FIXTURES / case["file"], content_type="application/pdf", max_text_chars=100000)
+    assert result.extraction_status == "ok" and not result.ocr_needed
+    assert result.page_count == case["page_count"]
+    by_page = {page["page"]: normalized(page["text"]) for page in result.page_texts}
+    for number, anchors in case["expected_page_text"].items():
+        for anchor in anchors:
+            assert normalized(anchor) in by_page[int(number)]
+    if case["file"] == "budget_proposal.pdf":
+        assert any(section["page"] == 1 and "Beschlussvorschlag" in section["heading"]
+                   for section in result.detected_sections)
+
+
+def test_analysis_does_not_interpret_scan_image_bytes_as_text(monkeypatch):
+    path = FIXTURES / "scanned_price_table.pdf"
+    calls = []
+    monkeypatch.setattr(extraction_pipeline, "_extract_text_via_ocr", lambda source: calls.append(source) or [])
+    result = extraction_pipeline.extract_text_for_analysis(path, content_type="application/pdf", max_text_chars=10000)
+    assert calls == [path]
+    assert result.extraction_status == "ocr_needed" and result.ocr_needed
+    assert result.page_count == 1
+    assert result.extracted_text == "" and result.extracted_char_count == 0
+    assert result.page_texts == []
+
+
+def test_analysis_returns_controlled_error_for_truncated_original(monkeypatch):
+    monkeypatch.setattr(extraction_pipeline, "_extract_text_via_ocr",
+                        lambda path: pytest.fail("An unreadable PDF must not be submitted to OCR"))
+    result = extraction_pipeline.extract_text_for_analysis(
+        FIXTURES / "truncated_proposal.pdf", content_type="application/pdf", max_text_chars=10000)
+    assert result.extraction_status == "error" and result.extraction_error
+    assert not result.extracted_text and not result.page_texts and not result.ocr_needed
+
+
+def test_analysis_limits_long_original_text_without_losing_page_evidence(monkeypatch):
+    monkeypatch.setattr(extraction_pipeline, "_extract_text_via_ocr", lambda path: [])
+    result = extraction_pipeline.extract_text_for_analysis(
+        FIXTURES / "council_rules.pdf", content_type="application/pdf", max_text_chars=1000)
+    assert result.extracted_char_count == len(result.extracted_text) == 1000
+    assert result.page_count == 10
+    assert "Inkrafttreten" in result.page_texts[-1]["text"]
+
+
 @pytest.mark.parametrize("pipeline,limit", [("analysis", 25 * 1024 * 1024), ("search", 100 * 1024 * 1024)])
 @pytest.mark.parametrize("extra_byte", [0, 1])
 def test_actual_size_boundaries_before_pdf_reading_or_ocr(tmp_path, monkeypatch, pipeline, limit, extra_byte):

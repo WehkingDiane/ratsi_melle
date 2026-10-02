@@ -33,7 +33,9 @@ mit `.venv-wsl/bin/python`.
 Die lokale Extraktionspipeline kann Scan-PDFs optional per OCR verarbeiten. Dafuer
 muessen `pdftoppm` (Poppler) und `tesseract` mit den Sprachdaten `deu` und `eng`
 als Systemwerkzeuge verfuegbar sein. Ohne diese Werkzeuge bleiben Scan-PDFs mit
-dem Status `ocr_needed` gekennzeichnet.
+dem Status `ocr_needed` gekennzeichnet. Die Pipeline verwendet fuer regulaere
+PDFs `pypdf`, damit eingebettete Schriften, Woerter und Zahlen korrekt gelesen
+werden. Unlesbare PDF-Strukturen liefern den Status `error`.
 
 ## Wichtige Befehle
 
@@ -84,6 +86,24 @@ python -m pytest -o addopts=''
 Unter WSL kann `python` jeweils durch `.venv-wsl/bin/python` ersetzt werden. Die normale Entwicklungsrunde nutzt den schnellen Kern und bei Bedarf die betroffenen Integrationsmodule; vor PRs ist `python -m pytest` empfohlen. Live-Tests sind wegen externer Dienste, variabler Laufzeit und ggf. Kosten getrennt und bleiben wie bisher standardmaessig ausgeschlossen.
 
 Eine eigene `-m`-Auswahl ersetzt den voreingestellten Ausdruck `not live`. Fuer lokale Teilmengen deshalb `and not live` explizit angeben. Marker filtern erst nach der Sammlung: Modulimporte und vorhandene Verfuegbarkeitspruefungen (Schluesselring/Ollama) koennen auch bei abgewaehlten Live-Tests stattfinden. Ein schneller Teillauf ersetzt die regulaere Regression nicht.
+
+Echte PDF-Testdaten liegen als unveraenderte Originalkopien unter
+[`tests/fixtures/pdf/`](tests/fixtures/pdf/README.md). Herkunft, Pruefsummen und
+konkrete Seiten-/Texterwartungen stehen im dortigen Manifest. Die Tests laufen
+ohne Rohdatenverzeichnis, Netzwerk oder Modell-Download. OCR-Aufrufe werden
+simuliert; die echten PDF-Textebenen werden gelesen. Groessenpruefungen erzeugen
+nur temporaere Dateien an den 25-/100-MiB-Grenzen.
+
+```bash
+python -m pytest tests/test_pdf_fixtures.py -m "integration and not live" -q
+
+# Optional unter Bash/WSL: 300 Seiten aus echten Originalseiten erzeugen
+RATSI_PDF_STRESS=1 python -m pytest tests/test_pdf_fixtures.py -m "integration and not live" -k stress -q
+```
+
+Unter PowerShell fuer den optionalen Lauf zuerst `$env:RATSI_PDF_STRESS = "1"`
+setzen und danach den zweiten `python`-Befehl ohne den Bash-Praefix ausfuehren.
+Ohne diese Umgebungsvariable wird der Belastungstest uebersprungen.
 
 Repository-Hooks werden lokal mit folgendem Befehl aktiviert:
 

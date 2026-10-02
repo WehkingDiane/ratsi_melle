@@ -1512,6 +1512,21 @@ Orientierung und sind keine Vorgabe fuer die Bearbeitung.
   Tests ueber Gesamtlauf und Nachlauf bestaetigt. Die getesteten Quelldateien
   wurden per SHA-256 mit dem Arbeitsbaum abgeglichen. Nur Tests und
   Dokumentation geaendert; allgemeine Version bleibt `0.5.46`.
+- Zwischenschritt vor M6.11: Sechs unveraenderte Original-PDFs aus lokalen
+  Rohdaten liegen unter `tests/fixtures/pdf/`, dazu eine abgeleitete Mischdatei
+  und ein abgeschnittenes Original. Manifest und SHA-256 sichern Herkunft und
+  Bytegleichheit. Offline-Tests lesen diese Dateien direkt und pruefen Seiten,
+  Umlaute, Zahlen, Textbelege, Passage-Abdeckung und OCR-Zuordnung. Temporaere
+  Dateien pruefen die echten 25-/100-MiB-Grenzen; ein optionaler Belastungstest
+  erzeugt 300 Seiten aus Originalseiten. Die Original-Fixtures haben Fehler
+  der lokalen Analyse bei Schriftdekodierung und Scan-Bilddaten aufgedeckt:
+  Pipeline `1.3` nutzt fuer regulaere PDFs jetzt `pypdf` und behandelt unlesbare
+  Strukturen kontrolliert als Fehler. Allgemeine Version: `0.5.47`.
+  Betroffene PDF-/Extraktions-/Passage-Module: 63 Tests bestanden, ein
+  optionaler Test uebersprungen. Der separat aktivierte 300-Seiten-Test besteht.
+  Schneller Testkern: 586 Tests bestanden, 520 abgewaehlt; betroffene
+  Landkreis-Integration: sechs bestanden, vier abgewaehlt. Keine erneute
+  vollstaendige Suite und keine Live- oder nativen OCR-Laeufe.
 - Naechster regulaerer Punkt: **M6.11**; Phase 6 pruefen und als eigenen
   Zwischenstand committen.
 
