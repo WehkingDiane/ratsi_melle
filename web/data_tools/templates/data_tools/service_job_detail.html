@@ -10,6 +10,8 @@
   <p>Der Job läuft im Hintergrund weiter, auch wenn du die Seite wechselst.</p>
 </section>
 
+{% if errors %}<section class="panel status-error" role="alert">{% for error in errors %}<p>{{ error }}</p>{% endfor %}</section>{% endif %}
+
 {% if job %}
 <section class="panel" data-service-job-id="{{ job_id }}" data-service-job-running="{% if job.status == 'running' or job.status == 'queued' %}true{% else %}false{% endif %}">
   <h2>{{ job.action }}</h2>
@@ -51,6 +53,16 @@
     <div><dt>Protokoll-SHA-256</dt><dd>{{ legacy_report.report_sha256 }}</dd></div>
   </dl>
   <p class="muted">Dieses Protokoll dokumentiert die Prüfung. Eine Übernahme wurde nicht ausgeführt.</p>
+  {% if application_confirmation %}
+  <form method="post" class="form-stack" id="legacy-apply">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="apply_legacy_index">
+    <input type="hidden" name="inspection_job_id" value="{{ job_id }}">
+    <input type="hidden" name="apply_binding" value="{{ application_confirmation }}">
+    <label><input type="checkbox" name="confirmation" value="apply" required> Ich bestätige die Übernahme von {{ legacy_report.collection }} am geprüften Ziel. Kompatibilitätsangaben und Freigabemarker werden nach erneuter Bestandsprüfung ergänzt.</label>
+    <button class="button primary" type="submit">Geprüften Legacy-Bestand übernehmen</button>
+  </form>
+  {% else %}<p class="muted">Übernahme nicht verfügbar. Ein erfolgreiches, aktuelles Prüfprotokoll ist erforderlich.</p>{% endif %}
   {% endif %}
 </section>
 {% endif %}

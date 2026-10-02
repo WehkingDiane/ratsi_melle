@@ -21,7 +21,8 @@ def _validate_model_action(action: str, data: dict[str, Any], fields: set[str]) 
     """Accept only scalar, unique fields belonging to the selected model action."""
 
     label = {"prepare_embedding_models": "Modellvorbereitung",
-             "inspect_legacy_index": "Legacy-Bestandsprüfung"}.get(action, "Modellprüfung")
+             "inspect_legacy_index": "Legacy-Bestandsprüfung",
+             "apply_legacy_index": "Legacy-Übernahme"}.get(action, "Modellprüfung")
     if set(data) - fields:
         raise ValueError(f"Die {label} erlaubt keine zusätzlichen Parameter.")
     if hasattr(data, "getlist") and any(len(data.getlist(key)) != 1 for key in data):
@@ -33,6 +34,12 @@ def _validate_model_action(action: str, data: dict[str, Any], fields: set[str]) 
 
 
 def _service_command(action: str, data: dict[str, Any]) -> list[str]:
+    if action == "apply_legacy_index":
+        from .legacy_inspection import confirmed_application_payload, application_command
+
+        _validate_model_action(action, data, {"action", "csrfmiddlewaretoken", "inspection_job_id", "apply_binding", "confirmation"})
+        return application_command(confirmed_application_payload(data))
+
     if action == "inspect_legacy_index":
         from .legacy_inspection import confirmed_inspection_context, inspection_command
 

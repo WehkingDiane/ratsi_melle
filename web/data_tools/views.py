@@ -15,6 +15,9 @@ from . import services
 
 def _start_job(request, command):
     action = request.POST.get("action", "")
+    if action == "apply_legacy_index":
+        return service_jobs.start_service_job(action, command, services.REPO_ROOT,
+                                             application_context=services.confirmed_application_payload(request.POST))
     if action == "inspect_legacy_index":
         return service_jobs.start_service_job(action, command, services.REPO_ROOT,
                                              inspection_context=services.confirmed_inspection_context(request.POST))
@@ -131,6 +134,19 @@ def service_vector(request):
 
 def service_job_detail(request, job_id: str):
     job = service_jobs.get_service_job(job_id)
+    errors = []
+    if request.method == "POST":
+        if request.POST.get("action") != "apply_legacy_index" or request.POST.get("inspection_job_id") != job_id:
+            errors.append("Übernahme muss zum angezeigten Prüfjob gehören.")
+        else:
+            command, errors = services.build_service_command("apply_legacy_index", request.POST)
+            if command:
+                try:
+                    started = _start_job(request, command)
+                except (service_jobs.ServiceJobStartError, ValueError) as error:
+                    errors.append(str(error))
+                else:
+                    return redirect("data_tools:service_job_detail", job_id=started.job_id)
     return render(
         request,
         "data_tools/service_job_detail.html",
@@ -139,6 +155,8 @@ def service_job_detail(request, job_id: str):
             "job": job,
             "job_id": job_id,
             "legacy_report": services.inspection_result(job),
+            "application_confirmation": services.application_confirmation(job) if job and job.action == "inspect_legacy_index" else None,
+            "errors": errors,
             "status": services.service_status(),
         },
     )

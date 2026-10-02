@@ -51,6 +51,7 @@ class ServiceJob:
     preparation_binding: str = ""
     inspection_context: str = ""
     report_sha256: str = ""
+    application_context: str = ""
 
     @property
     def command_text(self) -> str:
@@ -86,7 +87,7 @@ _loaded_db_path: Path | None = None
 _last_persist_monotonic = 0.0
 _dirty_ids: set[str] = set()
 _seen_ids: set[str] = set()
-MODEL_ACTIONS = {"prepare_embedding_models", "build_vector_index", "build_landkreis_vector_index", "inspect_legacy_index"}
+MODEL_ACTIONS = {"prepare_embedding_models", "build_vector_index", "build_landkreis_vector_index", "inspect_legacy_index", "apply_legacy_index"}
 
 
 class ServiceJobStartError(ValueError):
@@ -94,7 +95,7 @@ class ServiceJobStartError(ValueError):
 
 
 def start_service_job(action: str, command: list[str], cwd: Path, *, preparation_binding: str | None = None,
-                      inspection_context: dict | None = None) -> ServiceJob:
+                      inspection_context: dict | None = None, application_context: dict | None = None) -> ServiceJob:
     """Atomically reserve colliding web actions before creating their worker."""
 
     from src.model_operations import model_operation_lock, model_preparation_binding
@@ -119,10 +120,22 @@ def start_service_job(action: str, command: list[str], cwd: Path, *, preparation
                         raise ServiceJobStartError("Prüfkonfiguration wurde geändert. Seite neu laden.")
                     job.inspection_context = json.dumps(inspection_context, sort_keys=True)
                     job.command = inspection_command(inspection_context, job.job_id)
+                if action == "apply_legacy_index" and not isinstance(application_context, dict):
+                    raise ServiceJobStartError("Übernahme benötigt einen bestätigten Prüfjob.")
         with _lock:
             _ensure_loaded_locked()
             with sqlite3.connect(SERVICE_JOBS_DB) as conn:
                 conn.execute("BEGIN IMMEDIATE")
+                if action == "apply_legacy_index":
+                    from .services.legacy_inspection import application_payload, application_command
+                    conn.row_factory = sqlite3.Row
+                    source = conn.execute("SELECT * FROM service_jobs WHERE job_id=?", (application_context["inspection_job_id"],)).fetchone()
+                    if application_context != application_payload(_job_from_row(source) if source is not None else None):
+                        raise ServiceJobStartError("Bestätigtes Prüfergebnis wurde geändert.")
+                    job.application_context = json.dumps(application_context, sort_keys=True)
+                    job.inspection_context = json.dumps(application_context["inspection_context"], sort_keys=True)
+                    job.report_sha256 = application_context["report_sha256"]
+                    job.command = application_command(application_context)
                 if action in MODEL_ACTIONS:
                     placeholders = ",".join("?" for _ in MODEL_ACTIONS)
                     active = conn.execute(
@@ -136,7 +149,7 @@ def start_service_job(action: str, command: list[str], cwd: Path, *, preparation
             _jobs[job.job_id] = job
     except ServiceJobStartError:
         raise
-    except (OSError, RuntimeError, ValueError, sqlite3.Error):
+    except (OSError, RuntimeError, ValueError, KeyError, TypeError, sqlite3.Error):
         raise ServiceJobStartError("Datenjob kann nicht sicher gestartet werden. Modell- und Jobablage prüfen; möglicherweise ist ein Indexjob aktiv.") from None
     try:
         thread = threading.Thread(target=_run_job, args=(job.job_id, cwd), daemon=True)
@@ -211,6 +224,30 @@ def _safe_preparation_output(line: str) -> str | None:
                        "message": codes[code]}, ensure_ascii=False)
 
 
+def _safe_legacy_apply_output(line: str, collection: str) -> str | None:
+    """Keep only fixed outcome codes and bounded counts from a release process."""
+    from src.indexing.legacy_inspection_report import ABORT_CODES
+
+    try:
+        payload = json.loads(line)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    codes = ABORT_CODES | {"configuration_changed", "already_released", "backfill_incomplete",
+                         "confirmation_required", "provenance_mismatch", "release_failed", "report_changed",
+                         "report_invalid", "report_not_verified", "report_stale", "report_target_mismatch",
+                         "rollback_incomplete", "source_mismatch"}
+    if payload.get("result") == "aborted" and isinstance(payload.get("abort_code"), str) and payload["abort_code"] in codes:
+        return json.dumps({"result": "aborted", "abort_code": payload["abort_code"]})
+    count, backfilled = payload.get("point_count"), payload.get("backfilled_points")
+    if (payload.get("collection") == collection and payload.get("provenance") == "legacy_verified"
+            and type(count) is int and count > 0 and type(backfilled) is int and 0 <= backfilled <= count):
+        return json.dumps({"result": "released", "collection": collection, "provenance": "legacy_verified",
+                           "point_count": count, "backfilled_points": backfilled})
+    return None
+
+
 def _execute_job(job_id: str, cwd: Path) -> None:
     job = get_service_job(job_id)
     if job is None:
@@ -223,7 +260,8 @@ def _execute_job(job_id: str, cwd: Path) -> None:
     )
     preparation_output = job.action == "prepare_embedding_models"
     legacy_output = job.action == "inspect_legacy_index"
-    private_output = preparation_output or legacy_output
+    application_output = job.action == "apply_legacy_index"
+    private_output = preparation_output or legacy_output or application_output
     environment = {**os.environ, RUN_ID_ENV: job.job_id}
     if job.models_dir:
         environment["RATSI_MODELS_DIR"] = job.models_dir
@@ -234,6 +272,9 @@ def _execute_job(job_id: str, cwd: Path) -> None:
     environment.pop("RATSI_LEGACY_INSPECTION_CONTEXT", None)
     if legacy_output:
         environment["RATSI_LEGACY_INSPECTION_CONTEXT"] = job.inspection_context
+    environment.pop("RATSI_LEGACY_APPLY_CONTEXT", None)
+    if application_output:
+        environment["RATSI_LEGACY_APPLY_CONTEXT"] = job.application_context
     try:
         process = subprocess.Popen(
             job.command,
@@ -265,7 +306,10 @@ def _execute_job(job_id: str, cwd: Path) -> None:
     try:
         _update_job(job_id, child_pid=getattr(process, "pid", 0))
         for line in process.stdout:
-            stripped = None if legacy_output else (_safe_preparation_output(line) if preparation_output else line.rstrip())
+            if application_output:
+                stripped = _safe_legacy_apply_output(line, json.loads(job.inspection_context)["collection"])
+            else:
+                stripped = None if legacy_output else (_safe_preparation_output(line) if preparation_output else line.rstrip())
             if stripped is not None:
                 lines.append(stripped)
                 _update_job(job_id, output="\n".join(lines), summary=stripped)
@@ -276,6 +320,15 @@ def _execute_job(job_id: str, cwd: Path) -> None:
         raise
     status = "ok" if process.returncode == 0 else "error"
     report_digest = ""
+    if application_output:
+        report_digest = job.report_sha256
+        if not lines:
+            lines.append("Legacy-Übernahme abgebrochen; keine bestätigte Freigabe verfügbar.")
+            status = "error"
+        elif json.loads(lines[-1])["result"] != "released":
+            status = "error"
+        elif process.returncode != 0:
+            lines.append("Legacy-Übernahme abgebrochen; erfolgreicher Abschluss nicht bestätigt.")
     if legacy_output:
         from .services.legacy_inspection import bound_report
         try:
@@ -439,6 +492,7 @@ def _initialize_db(db_path: Path) -> None:
             ("owner_pid", "INTEGER", "0"), ("child_pid", "INTEGER", "0"),
             ("models_dir", "TEXT", "''"), ("preparation_binding", "TEXT", "''"),
             ("inspection_context", "TEXT", "''"), ("report_sha256", "TEXT", "''"),
+            ("application_context", "TEXT", "''"),
         ):
             if name not in columns:
                 conn.execute(f"ALTER TABLE service_jobs ADD COLUMN {name} {sql_type} NOT NULL DEFAULT {default}")
@@ -447,10 +501,11 @@ def _initialize_db(db_path: Path) -> None:
 def _store_job(conn, job: ServiceJob) -> None:
     fields = ["job_id", "action", "command_json", "status", "exit_code", "output", "started_at",
               "finished_at", "summary", "created_at", "owner_pid", "child_pid", "models_dir", "preparation_binding",
-              "inspection_context", "report_sha256"]
+              "inspection_context", "report_sha256", "application_context"]
     values = [job.job_id, job.action, json.dumps(job.command), job.status, job.exit_code, job.output,
               job.started_at, job.finished_at, job.summary, job.created_at or _storage_now(),
-              job.owner_pid, job.child_pid, job.models_dir, job.preparation_binding, job.inspection_context, job.report_sha256]
+              job.owner_pid, job.child_pid, job.models_dir, job.preparation_binding, job.inspection_context, job.report_sha256,
+              job.application_context]
     conn.execute(
         f"INSERT INTO service_jobs ({','.join(fields)}) VALUES ({','.join('?' for _ in fields)}) "
         "ON CONFLICT(job_id) DO UPDATE SET " + ','.join(f"{name}=excluded.{name}" for name in fields[1:]),
@@ -500,6 +555,7 @@ def _job_from_row(row: sqlite3.Row) -> ServiceJob:
         owner_pid=int(row["owner_pid"]), child_pid=int(row["child_pid"]),
         models_dir=str(row["models_dir"]), preparation_binding=str(row["preparation_binding"]),
         inspection_context=str(row["inspection_context"]), report_sha256=str(row["report_sha256"]),
+        application_context=str(row["application_context"]),
     )
 
 

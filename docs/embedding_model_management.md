@@ -1218,7 +1218,7 @@ Orientierung und sind keine Vorgabe fuer die Bearbeitung.
   und Darstellung des Uebernahmeprotokolls implementieren; nur Melle-Collections,
   mit serverseitig gebundenem Ziel, Quellpfad und Berichtspfad.
   `[Schwer · GPT-6 Astra / Medium]`
-- [ ] **M6.7** Bestaetigungspflichtige Uebernahmeaktion nur fuer ein erfolgreiches,
+- [x] **M6.7** Bestaetigungspflichtige Uebernahmeaktion nur fuer ein erfolgreiches,
   noch aktuelles Pruefergebnis erlauben; freie Collection-, Stichproben- oder
   Toleranzparameter ausschliessen. Programmatische erneute Pruefung unter
   Collection-Sperre bleibt verbindlich. `[Schwer · GPT-6 Astra / High]`
@@ -1419,8 +1419,31 @@ Orientierung und sind keine Vorgabe fuer die Bearbeitung.
   Freigabemarker- oder produktiven Indexaenderungen. Gesamtsuite: 902 Tests
   bestanden, ein Test uebersprungen, sieben Live-Tests ausgeschlossen.
   Allgemeine Version: `0.5.43`.
-- Naechster regulaerer Punkt: **M6.7**; bestaetigte Uebernahme ausschliesslich
-  fuer ein erfolgreiches, unveraendertes und erneut geprueftes Protokoll.
+- **M6.7** umgesetzt: Jobdetail bietet eine ausdruecklich bestaetigte
+  Uebernahme nur fuer einen gespeicherten Pruefjob mit Status `ok`, Exitcode 0,
+  verifiziertem und unveraendertem Bericht sowie passendem aktuellem Modell-
+  und Zielvertrag an. Ein vorhandener Freigabemarker schliesst die Aktion aus.
+  Signierte, 15 Minuten gueltige Bestaetigung bindet Pruefjob-ID, Ziel/Quelle,
+  Modellvertrag und Berichtshash. Kein Collection-, Berichtspfad-, Stichproben-
+  oder Toleranzparameter kommt aus POST. Jobstart liest den Pruefjob innerhalb
+  der SQLite-Reservierung erneut; fehlende oder aus der Historie entfernte
+  Belege starten keinen Uebernahmejob.
+  Die CLI prueft die Bindung nach Erwerb der Modellsperre, erwirbt die
+  Collection-Sperre vor dem lokalen Client und prueft den bestaetigten Hash
+  vor Clientstart sowie nochmals beim Einlesen des tatsaechlich verwendeten
+  Berichts unter beiden Sperren. Die bestehende tiefe Bestandspruefung vor
+  Payload-Ergaenzung und Freigabemarker bleibt verbindlich. Collection-Sperren
+  sind innerhalb desselben Threads wiedereintrittsfaehig, ohne erneute OS-Sperre.
+  Webjobs speichern ausschliesslich feste Ergebnis-/Abbruchcodes und validierte
+  Punktzahlen; keine Provider-Ausgaben oder Tracebacks. Tests decken die
+  erfolgreiche Web-/CLI-Uebernahme am isolierten Qdrant-Testbestand,
+  unveraenderte Vektoren, spaetere Bericht-/Punktlistenwechsel und Ruecknahme
+  nach teilweise erfolgter Payload-Ergaenzung ab. Produktive Melle-Bestaende
+  wurden nicht uebernommen; Landkreis bleibt die separate Neuaufbauaufgabe.
+  Gesamtsuite: 944 Tests bestanden, ein Test uebersprungen, sieben Live-Tests
+  ausgeschlossen. Allgemeine Version: `0.5.44`.
+- Naechster regulaerer Punkt: **M6.8**; Fortschritt, Ergebnis und zugeordnete
+  Pruefhistorie in der bestehenden Servicejob-/Jobdetail-Infrastruktur ergaenzen.
 
 - Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-
   und Testabdeckung, CLI-/Manifestvertrag, Dokumentation und Versionsstand

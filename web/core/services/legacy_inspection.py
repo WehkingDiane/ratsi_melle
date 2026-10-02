@@ -100,3 +100,58 @@ def inspection_result(job) -> dict | None:
         )} | {"historical": historical, "pending": False}
     except (OSError, ValueError, TypeError, KeyError):
         return {"invalid": True, "pending": False}
+
+
+APPLY_SALT = "data-tools-legacy-apply"
+
+
+def application_payload(job) -> dict:
+    """Require a successful retained job, unchanged report and active contract."""
+    from src.config.index_compatibility import current_index_compatibility
+    from src.indexing.legacy_index_migration import _check_marker_unreleased
+
+    if (job is None or job.action != "inspect_legacy_index" or job.status != "ok"
+            or job.exit_code != 0 or not job.report_sha256):
+        raise ValueError("Nur ein erfolgreich abgeschlossener Prüfjob kann übernommen werden.")
+    try:
+        context = json.loads(job.inspection_context)
+        if context != inspection_context(context["collection"]):
+            raise ValueError("Configuration changed")
+        _check_marker_unreleased(QdrantConnection.from_env(Path(context["qdrant_dir"])), context["collection"])
+        report = bound_report(job)
+        if report["result"] != "verified" or report["compatibility"] != current_index_compatibility().as_dict():
+            raise ValueError("Active model contract changed")
+    except (OSError, RuntimeError, ValueError, TypeError, KeyError):
+        raise ValueError("Prüfergebnis ist nicht mehr aktuell. Bestand erneut prüfen.") from None
+    return {"inspection_job_id": job.job_id, "inspection_context": context, "report_sha256": job.report_sha256}
+
+
+def application_confirmation(job) -> str | None:
+    """Issue a short-lived consent token only for eligible inspection evidence."""
+    try:
+        return signing.dumps(application_payload(job), salt=APPLY_SALT)
+    except ValueError:
+        return None
+
+
+def confirmed_application_payload(data) -> dict:
+    """Resolve evidence by job identity, never by a POST-supplied report path."""
+    from core import service_jobs
+
+    if data.get("confirmation") != "apply":
+        raise ValueError("Bitte die Übernahme ausdrücklich bestätigen.")
+    try:
+        expected = signing.loads(str(data.get("apply_binding") or ""), salt=APPLY_SALT, max_age=900)
+        actual = application_payload(service_jobs.get_service_job(data.get("inspection_job_id", "")))
+    except (signing.BadSignature, OSError, RuntimeError, ValueError, TypeError):
+        raise ValueError("Übernahmebestätigung ist ungültig oder veraltet. Bestand erneut prüfen.") from None
+    if expected != actual:
+        raise ValueError("Prüfprotokoll wurde geändert. Bestand erneut prüfen und bestätigen.")
+    return actual
+
+
+def application_command(payload: dict) -> list[str]:
+    context = payload["inspection_context"]
+    command = inspection_command(context, payload["inspection_job_id"])
+    command[command.index("--inspect")] = "--apply"
+    return command + ["--confirm-collection", context["collection"]]

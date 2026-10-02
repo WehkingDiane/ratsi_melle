@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from hashlib import sha256
 import json
 import os
+import threading
 from pathlib import Path
 
 from src.config.index_compatibility import IndexCompatibility
@@ -24,6 +26,7 @@ from src.model_operations import locked_model_operation
 BACKFILL_SIZE = 256
 PROVENANCE_KEY = "index_provenance"
 LEGACY_PROVENANCE = "legacy_verified"
+_held_locks = threading.local()
 
 
 class LegacyMigrationError(ValueError):
@@ -39,6 +42,11 @@ def _migration_lock(connection: QdrantConnection, collection: str):
     """Serialize releases for one target and collection across processes."""
 
     path = connection.release_path(collection).with_suffix(".migration.lock")
+    identity = path.resolve()
+    held = getattr(_held_locks, "paths", set())
+    if identity in held:
+        yield
+        return
     path.parent.mkdir(parents=True, exist_ok=True)
     # Keep the lock file: removing it could let a third process lock a new inode
     # while another process is still waiting on the old one.
@@ -52,9 +60,11 @@ def _migration_lock(connection: QdrantConnection, collection: str):
             import fcntl
 
             fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
+        _held_locks.paths = held | {identity}
         try:
             yield
         finally:
+            _held_locks.paths = held
             if os.name == "nt":
                 stream.seek(0)
                 msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
@@ -62,11 +72,20 @@ def _migration_lock(connection: QdrantConnection, collection: str):
                 fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
 
 
-def _read_report(path: Path) -> dict:
+def _read_report(path: Path, *, expected_report_sha256: str | None = None) -> dict:
     if path.is_symlink():
         raise LegacyMigrationError("report_invalid", "Pruefprotokoll darf kein Symlink sein.")
     try:
-        report = json.loads(path.read_text(encoding="utf-8"))
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(descriptor, "rb") as stream:
+            content = stream.read(1024 * 1024 + 1)
+        if len(content) > 1024 * 1024:
+            raise ValueError("Report exceeds size limit")
+        if expected_report_sha256 is not None and sha256(content).hexdigest() != expected_report_sha256:
+            raise LegacyMigrationError("report_changed", "Bestaetigtes Pruefprotokoll wurde veraendert.")
+        report = json.loads(content)
+    except LegacyMigrationError:
+        raise
     except (OSError, UnicodeError, ValueError) as error:
         raise LegacyMigrationError("report_invalid", "Pruefprotokoll ist nicht lesbar.") from error
     try:
@@ -125,6 +144,7 @@ def _check_identity(points: dict[int, dict], report: dict, client, collection: s
 def apply_verified_legacy_report(
     connection: QdrantConnection, client, collection: str, report_path: Path, *,
     confirm_collection: str, inspection_options: dict | None = None,
+    expected_report_sha256: str | None = None,
 ) -> dict:
     """Recheck a report, backfill payloads and atomically publish the release marker.
 
@@ -139,16 +159,17 @@ def apply_verified_legacy_report(
     with _migration_lock(connection, collection):
         return _apply_verified_legacy_report(
             connection, client, collection, report_path, inspection_options=inspection_options,
+            expected_report_sha256=expected_report_sha256,
         )
 
 
 def _apply_verified_legacy_report(
     connection: QdrantConnection, client, collection: str, report_path: Path, *,
-    inspection_options: dict | None,
+    inspection_options: dict | None, expected_report_sha256: str | None = None,
 ) -> dict:
     """Keep the lock through marker publication or payload rollback."""
 
-    report = _read_report(Path(report_path))
+    report = _read_report(Path(report_path), expected_report_sha256=expected_report_sha256)
     if report.get("collection") != collection or report.get("target_sha256") != target_sha256(connection):
         raise LegacyMigrationError("report_target_mismatch", "Pruefprotokoll gehoert zu einem anderen Ziel.")
     expected_source = (str(Path((inspection_options or {}).get("ratsinfo_db", LOCAL_INDEX_DB)).resolve())

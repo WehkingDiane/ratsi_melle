@@ -271,8 +271,23 @@ Bei einem laufenden Job nach Abschluss „Prüfprotokoll anzeigen“ wählen. Di
 Jobstatus-API liefert dieselben geprüften Ergebnisfelder. Bei geänderter
 Konfiguration erscheint das Ergebnis als historisch; veränderte, fremde oder
 unlesbare Protokolle werden abgewiesen. Rohes stdout/stderr wird nicht gespeichert.
-Eine Übernahme wird in diesem Schritt noch nicht angeboten. Landkreis bleibt
-„Neuaufbau erforderlich“ (`rebuild_required`) als separate Aufgabe.
+Auf der Detailseite eines erfolgreichen Prüfjobs erscheint „Geprüften
+Legacy-Bestand übernehmen“, wenn der Bericht unverändert ist, der aktuelle
+Modell-/Zielvertrag passt und kein Freigabemarker vorhanden ist. Die Aktion
+verlangt ein angekreuztes Bestätigungsfeld und CSRF-Schutz. Eine signierte,
+15 Minuten gültige Bindung umfasst Prüfjob-ID und Berichtshash; Collection,
+Quelle und Berichtspfad leitet der Server aus diesem Job ab. Der Jobstart
+prüft den gespeicherten Beleg erneut. Die CLI erwirbt Modell- und
+Collection-Sperre vor Clientstart, prüft den bestätigten Berichtshash und
+berechnet die Stichprobe vor einer Freigabe nochmals. Spätere Änderungen
+führen zum Abbruch. Die Übernahme ergänzt Kompatibilitätsangaben und den
+Freigabemarker, ohne gespeicherte Vektoren zu verändern oder den Index neu
+aufzubauen. Sichere
+Ergebniszahlen oder feste Abbruchcodes erscheinen in der Jobausgabe. Nach
+teilweisem Backfill wird die bestehende Rücknahme verwendet. Abgebrochene,
+veränderte, historische oder nicht mehr gespeicherte Prüfjobs können nicht
+übernommen werden. Landkreis bleibt „Neuaufbau erforderlich“ (`rebuild_required`)
+als separate Aufgabe.
 
 Django und seine Build-Unterprozesse nutzen standardmäßig denselben Qdrant-Server
 `http://127.0.0.1:6333` wie die CLI. `RATSI_QDRANT_URL` wählt einen anderen Server.

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import ExitStack
 import json
 import os
 from pathlib import Path
@@ -17,7 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from src.indexing.legacy_index_migration import LegacyMigrationError, apply_verified_legacy_report
+from src.indexing.legacy_index_migration import LegacyMigrationError, apply_verified_legacy_report, _migration_lock, _read_report
 from src.indexing.legacy_inspection_report import inspect_and_write_report
 from src.indexing.legacy_index_inspection import LegacyInspectionError
 from src.qdrant_connection import QdrantConnection, QdrantServerUnavailableError
@@ -52,7 +53,7 @@ def _abort_preflight(connection: QdrantConnection, args, code: str, *, inspectio
         inspect_and_write_report(connection, None, args.collection, args.report,
                                  abort_code=code, **inspection_options)
     print(json.dumps({"result": "aborted", "abort_code": code}, ensure_ascii=False),
-          file=sys.stderr)
+          file=sys.stdout if os.environ.get("RATSI_LEGACY_APPLY_CONTEXT") is not None else sys.stderr)
     return 1
 
 
@@ -83,6 +84,8 @@ def main(argv: list[str] | None = None) -> int:
     inspection_options = {"ratsinfo_db": args.source_db} if args.source_db is not None else {}
     connection = QdrantConnection.from_env(args.qdrant_dir)
     web_context = os.environ.get("RATSI_LEGACY_INSPECTION_CONTEXT")
+    web_apply = os.environ.get("RATSI_LEGACY_APPLY_CONTEXT")
+    expected_report_sha256 = None
     if web_context is not None:
         try:
             expected = json.loads(web_context)
@@ -100,6 +103,30 @@ def main(argv: list[str] | None = None) -> int:
         except (OSError, RuntimeError, ValueError, TypeError, KeyError):
             print(json.dumps({"result": "aborted", "abort_code": "configuration_changed"}))
             return 1
+    if web_apply is not None:
+        try:
+            payload = json.loads(web_apply)
+            expected = payload["inspection_context"]
+            identifier = payload["inspection_job_id"]
+            digest = payload["report_sha256"]
+            actual = {
+                "collection": args.collection, "target": connection.target,
+                "target_sha256": target_sha256(connection),
+                "qdrant_dir": str(args.qdrant_dir.resolve()),
+                "source_db": str((args.source_db or LOCAL_INDEX_DB).resolve()) if args.collection == "ratsi_documents" else None,
+                "report_root": expected["report_root"], "model_binding": model_preparation_binding(),
+            }
+            if (set(payload) != {"inspection_context", "inspection_job_id", "report_sha256"}
+                    or not args.apply or args.collection not in {"ratsi_passages", "ratsi_documents"}
+                    or expected != actual or not isinstance(identifier, str) or len(identifier) != 12
+                    or any(c not in "0123456789abcdef" for c in identifier)
+                    or not isinstance(digest, str) or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest)
+                    or args.report != Path(expected["report_root"]) / f"{identifier}.json"):
+                raise ValueError("Changed application binding")
+            expected_report_sha256 = digest
+        except (OSError, RuntimeError, ValueError, TypeError, KeyError):
+            print(json.dumps({"result": "aborted", "abort_code": "configuration_changed"}))
+            return 1
     if args.collection == "landkreis_publications":
         return _abort_preflight(connection, args, "rebuild_required",
                                 inspection_options=inspection_options)
@@ -107,7 +134,12 @@ def main(argv: list[str] | None = None) -> int:
         return _abort_preflight(connection, args, "store_missing",
                                 inspection_options=inspection_options)
     client = None
+    operations = ExitStack()
     try:
+        if args.apply:
+            operations.enter_context(_migration_lock(connection, args.collection))
+            if expected_report_sha256 is not None:
+                _read_report(args.report, expected_report_sha256=expected_report_sha256)
         client = connection.create_client()
         if args.inspect:
             result = inspect_and_write_report(connection, client, args.collection, args.report,
@@ -115,9 +147,10 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"result": result["result"], "abort_code": result["abort_code"],
                               "report": str(args.report)}, ensure_ascii=False))
             return 0 if result["result"] == "verified" else 1
+        options = {"expected_report_sha256": expected_report_sha256} if expected_report_sha256 is not None else {}
         result = apply_verified_legacy_report(
             connection, client, args.collection, args.report,
-            confirm_collection=args.confirm_collection, inspection_options=inspection_options,
+            confirm_collection=args.confirm_collection, inspection_options=inspection_options, **options,
         )
         print(json.dumps(result, ensure_ascii=False))
         return 0
@@ -137,11 +170,14 @@ def main(argv: list[str] | None = None) -> int:
                                 inspection_options=inspection_options)
     except (LegacyMigrationError, LegacyInspectionError) as error:
         print(json.dumps({"result": "aborted", "abort_code": error.code}, ensure_ascii=False),
-              file=sys.stderr)
+              file=sys.stdout if web_apply is not None else sys.stderr)
         return 1
     finally:
-        if client is not None:
-            client.close()
+        try:
+            if client is not None:
+                client.close()
+        finally:
+            operations.close()
 
 
 if __name__ == "__main__":
