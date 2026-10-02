@@ -1,0 +1,243 @@
+{
+  "schema_version": 1,
+  "created_on": "2026-10-02",
+  "generation": {
+    "pypdf_version": "6.9.2",
+    "excluded_page_keys": [
+      "/Annots",
+      "/B",
+      "/Metadata"
+    ],
+    "document_metadata": "Originalkopien unveraendert; nur abgeleitete Beispiele mit neuen Producer-Metadaten",
+    "excluded_page_keys_apply_to": "nur mixed_text_scan.pdf"
+  },
+  "fixtures": [
+    {
+      "file": "budget_proposal.pdf",
+      "purpose": "Beschlussvorlage mit Umlauten, Eurobetraegen und Abschnittsueberschriften",
+      "source_path": "data/raw/2025/12/2025-12-18-Rat-der-Stadt-Melle-6792/agenda/Ö-9-Haushalt-2026-2027-inkl-mittelfristige-Ergebnis-und-Finanzplanung-2028-2030/Beschlussvorlage-01-2025-0378-011-e4b0028d.pdf",
+      "source_url": "https://session.melle.info/bi/getfile.asp?id=131078&type=do",
+      "source_sha256": "fd842e36dcd06cf4af51a3b7996c559840808b35beac0991921d097281803f04",
+      "source_pages": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "page_count": 5,
+      "transformation": "unveraenderte bytegleiche Kopie des Original-PDFs",
+      "sha256": "fd842e36dcd06cf4af51a3b7996c559840808b35beac0991921d097281803f04",
+      "bytes": 184434,
+      "expected_page_text": {
+        "1": [
+          "Beschlussvorlage 01/2025/0378",
+          "Haushaltssatzung 2026"
+        ],
+        "3": [
+          "135.393.300 €",
+          "174.575.900"
+        ],
+        "4": [
+          "91.810.219,90 €"
+        ],
+        "5": [
+          "Seite 5 von 5"
+        ]
+      },
+      "expected_empty_pages": []
+    },
+    {
+      "file": "council_public_notice.pdf",
+      "purpose": "Mehrseitige amtliche Sitzungsbekanntmachung mit Tagesordnung",
+      "source_path": "data/raw/2024/12/2024-12-19-Rat-der-Stadt-Melle-6436/session-documents/Amtliche-Bekanntmachung-001-9be2c047.pdf",
+      "source_url": "https://session.melle.info/bi/getfile.asp?id=118490&type=do",
+      "source_sha256": "def2392b44e0eb219495b5b0bee5052a990e613191219444decff64c34232470",
+      "source_pages": [
+        1,
+        2
+      ],
+      "page_count": 2,
+      "transformation": "unveraenderte bytegleiche Kopie des Original-PDFs",
+      "sha256": "def2392b44e0eb219495b5b0bee5052a990e613191219444decff64c34232470",
+      "bytes": 237568,
+      "expected_page_text": {
+        "1": [
+          "19.12.2024",
+          "Rates der Stadt Melle"
+        ],
+        "2": [
+          "Hundesteuersatzung"
+        ]
+      },
+      "expected_empty_pages": []
+    },
+    {
+      "file": "budget_tables.pdf",
+      "purpose": "Haushaltstabellen mit Zahlen, Spalten und Zeilenumbruechen",
+      "source_path": "data/raw/2025/12/2025-12-18-Rat-der-Stadt-Melle-6792/agenda/Ö-9-Haushalt-2026-2027-inkl-mittelfristige-Ergebnis-und-Finanzplanung-2028-2030/Anlage-4-Gesamtergebnis-und-finanzhaushalt-2026-2027-014-0528db26.pdf",
+      "source_url": "https://session.melle.info/bi/getfile.asp?id=132719&type=do",
+      "source_sha256": "1a5a6d4b047d78dee996dfcac377fe2dfcc7824d41a526192b6dfba3468c15de",
+      "source_pages": [
+        1,
+        2
+      ],
+      "page_count": 2,
+      "transformation": "unveraenderte bytegleiche Kopie des Original-PDFs",
+      "sha256": "1a5a6d4b047d78dee996dfcac377fe2dfcc7824d41a526192b6dfba3468c15de",
+      "bytes": 87719,
+      "expected_page_text": {
+        "1": [
+          "Gesamtergebnishaushalt",
+          "92.763.745",
+          "132.457.055"
+        ],
+        "2": [
+          "Gesamtfinanzhaushalt",
+          "19.900.920"
+        ]
+      },
+      "expected_empty_pages": []
+    },
+    {
+      "file": "municipal_statute.pdf",
+      "purpose": "Satzung mit Paragraphen, eingebetteten Schriften und Umlauten",
+      "source_path": "data/raw/2021/12/2021-12-08-Rat-der-Stadt-Melle-5178/agenda/Ö-7-Nachtrag-08-12-2021-Hauptsatzung-der-Stadt-Melle-Änderung/Hauptsatzung-2021-mit-Stand-vom-08-12-2021-012-977c19b0.pdf",
+      "source_url": "https://session.melle.info/bi/getfile.asp?id=74278&type=do",
+      "source_sha256": "79cd76743c8327fc8482f149a2f30b8bef676cd8cf2230a11b49826252fe052f",
+      "source_pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "page_count": 7,
+      "transformation": "unveraenderte bytegleiche Kopie des Original-PDFs",
+      "sha256": "79cd76743c8327fc8482f149a2f30b8bef676cd8cf2230a11b49826252fe052f",
+      "bytes": 230300,
+      "expected_page_text": {
+        "1": [
+          "Inhaltsübersicht",
+          "Einwohnerversammlung"
+        ],
+        "2": [
+          "weiß-blau-rot",
+          "Anregungen und Beschwerden"
+        ],
+        "3": [
+          "16.000,00 Euro"
+        ],
+        "7": [
+          "Wappen:",
+          "Flagge:",
+          "Dienstsiegel:"
+        ]
+      },
+      "expected_empty_pages": []
+    },
+    {
+      "file": "council_rules.pdf",
+      "purpose": "Laengerer kommunaler Text fuer Seitenfolge und Passage-Aufteilung",
+      "source_path": "data/raw/2021/12/2021-12-08-Rat-der-Stadt-Melle-5178/agenda/Ö-6-Nachtrag-08-12-2021-Geschäftsordnung-für-den-Rat-den-Verwaltungsausschuss-die-Ortsräte-die-Ausschüsse-und-die-31faca/Geschäftsordnung-2016-2021-Entwurf-008-4912a1ba.pdf",
+      "source_url": "https://session.melle.info/bi/getfile.asp?id=73687&type=do",
+      "source_sha256": "7ec92760e102ecffdd9ce0ff5a2d250c14a8a8bbdbc188afee357bb379267624",
+      "source_pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "page_count": 10,
+      "transformation": "unveraenderte bytegleiche Kopie des Original-PDFs",
+      "sha256": "7ec92760e102ecffdd9ce0ff5a2d250c14a8a8bbdbc188afee357bb379267624",
+      "bytes": 463007,
+      "expected_page_text": {
+        "1": [
+          "Inhaltsverzeichnis",
+          "Tagesordnung"
+        ],
+        "9": [
+          "Anfragen von Ratsmitgliedern",
+          "Wünsche und"
+        ],
+        "10": [
+          "Inkrafttreten"
+        ]
+      },
+      "expected_empty_pages": []
+    },
+    {
+      "file": "scanned_price_table.pdf",
+      "purpose": "Echte Scan-Seite ohne durchsuchbare Textschicht",
+      "source_path": "data/raw/2023/12/2023-12-19-Ortsrat-Melle-Mitte-6053/agenda/Ö-6-Nachtrag-08-12-2023-Antrag-auf-Teilnahme-am-Projekt-Digitale-Dörfer-Niedersachsen/Kosten-Dorf-App-006-c392a83e.pdf",
+      "source_url": "https://session.melle.info/bi/getfile.asp?id=105130&type=do",
+      "source_sha256": "d49934aa7b35aa8d340575655587dac0f1912813f84b4a452bb746935b5a914a",
+      "source_pages": [
+        1
+      ],
+      "page_count": 1,
+      "transformation": "unveraenderte bytegleiche Kopie des Original-PDFs",
+      "sha256": "d49934aa7b35aa8d340575655587dac0f1912813f84b4a452bb746935b5a914a",
+      "bytes": 705798,
+      "expected_page_text": {},
+      "expected_empty_pages": [
+        1
+      ]
+    },
+    {
+      "file": "mixed_text_scan.pdf",
+      "purpose": "OCR nur fuer die zweite, gescannte Seite; Seitenzuordnung bleibt erhalten",
+      "derived_from": [
+        {
+          "file": "budget_proposal.pdf",
+          "pages": [
+            1
+          ]
+        },
+        {
+          "file": "scanned_price_table.pdf",
+          "pages": [
+            1
+          ]
+        }
+      ],
+      "page_count": 2,
+      "transformation": "erste Textseite der Vorlage und echte Scan-Seite zusammengefuegt; ohne Originalmetadaten und Annotationen",
+      "sha256": "d2ccc2353e9c5c84ff7d8662719d7cd9fcfe66302b253748dd2e79af06b410f4",
+      "bytes": 802610,
+      "expected_page_text": {
+        "1": [
+          "Beschlussvorlage 01/2025/0378",
+          "Haushaltssatzung 2026"
+        ]
+      },
+      "expected_empty_pages": [
+        2
+      ]
+    },
+    {
+      "file": "truncated_proposal.pdf",
+      "purpose": "Kontrollierter Fehler bei unlesbarer PDF-Struktur",
+      "derived_from": [
+        {
+          "file": "budget_proposal.pdf"
+        }
+      ],
+      "page_count": null,
+      "transformation": "auf die ersten 16 Bytes gekuerzt",
+      "sha256": "8444417b6ecf598ed1034b68245e9e5d051cf0a9b88f6608da5580415b0845d6",
+      "bytes": 16,
+      "expected_page_text": {},
+      "expected_empty_pages": []
+    }
+  ]
+}
