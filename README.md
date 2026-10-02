@@ -235,8 +235,9 @@ aus dem freigegebenen lokalen Modellbestand. Fehlende oder inkompatible Modelle
 werden vor dem Laden gemeldet; der Hinweis nennt den Vorbereitungsbefehl. Die
 Websuche verweist zusaetzlich auf den technischen Servicebereich. Nur der
 ausdrueckliche Aufruf mit `--download` darf Modellartefakte beschaffen.
-Die praktische Abnahme mit echten vorbereiteten Modellen folgt in Phase 7;
-Schutz gegen kollidierende Vorbereitungsjobs folgt in Phase 6.
+Die praktische Abnahme mit echten vorbereiteten Modellen folgt in Phase 7.
+Der Schutz gegen kollidierende Vorbereitungs-, Legacy- und Indexjobs ist
+in Phase 6 umgesetzt; Web und CLI teilen die Prozesssperren.
 
 ### Landkreis-Veröffentlichungen
 

@@ -92,6 +92,8 @@ Jeder offene Punkt kann eine grobe Aufwandseinstufung und eine Modell-Empfehlung
 
 #### Hinweis für Phase 6
 
+Phase 6 einschließlich M6.11 und der zusätzlichen PDF-Regressionsdateien ist abgeschlossen. Die technische Abschlussprüfung und Testnachweise stehen im [Abschlussprotokoll](embedding_model_management.md#abschlusspruefung-m611-2026-10-02). Die praktische Offline- und Windows-Abnahme mit vorbereiteten Modellen folgt in Phase 7; der Landkreis-Neuaufbau bleibt eine separate Aufgabe.
+
 Vor der Implementierung der Service-Oberfläche M6.0 und den Vorabvertrag in [embedding_model_management.md](embedding_model_management.md#vorabvertrag-fuer-phase-6) durcharbeiten: Statusquelle und letzte Prüfung, feste Aktionen, Melle-Quellbindung, Landkreis-Neuaufbau, Bestätigungen und Sperren über Webprozesse und CLI festlegen. Die Fälle lokal/Server, leer/bestehend, freigegeben/im Aufbau und Abbruch mitten im Vorgang als kompakte Testmatrix durchgehen. Danach den gesamten Phase-6-Workflow samt Fehler- und Parallelfällen testen und den PR-Diff einmal zusammenhängend prüfen; Codex-Reviews dienen anschließend als zusätzliche Kontrolle. Auswirkungen auf bestehende Melle-Indizes vor Änderungen an Freigabe- oder Datenformaten ausdrücklich prüfen, ohne ihren Neuaufbau vorauszusetzen.
 
 ### 3.4 Analyse und Artefakte

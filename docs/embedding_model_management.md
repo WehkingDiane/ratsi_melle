@@ -886,7 +886,7 @@ Alle Prozesse muessen dafuer dieselbe lokale Statuswurzel nutzen.
 Die Freigabemarker unterscheiden einen nativ mit dem aktuellen Vertrag gebauten
 Index von `legacy_verified`. Die eingeschraenkte Provenienz bleibt auch nach
 erfolgreichen inkrementellen Ergaenzungen erhalten. Die Darstellung in der
-Service-Oberflaeche folgt in Phase 6.
+Service-Oberflaeche ist in Phase 6 umgesetzt.
 
 Ein Modellwechsel folgt spaeter diesem Ablauf:
 
@@ -1244,8 +1244,57 @@ Orientierung und sind keine Vorgabe fuer die Bearbeitung.
 - [x] **M6.10** CSRF-Schutz, Befehls-Allowlist, Bestaetigungsbindung,
   Secret-Redaktion, Statuswerte und Jobstart mit Web- und Service-Tests
   absichern. `[Schwer · GPT-6 Astra / High]`
-- [ ] **M6.11** Phase 6 pruefen und als eigenen Zwischenstand committen.
+- [x] **M6.11** Phase 6 pruefen und als eigenen Zwischenstand committen.
   `[Mittel · GPT-6 Sol / Medium]`
+
+#### Abschlusspruefung M6.11 (2026-10-02)
+
+Gepruefter Ausgangsstand: `f26ceb05721148458373e473f2f4a8a370d1805f`.
+Der Phase-6-Gesamtdiff ab `6d628bc` (Abschluss von Phase 5 und PR #81)
+wurde einschliesslich der Sicherheitsmatrix aus M6.10 und der echten
+PDF-Testdateien geprueft. Statusquelle, feste Webbefehle, Bestaetigungs- und
+Berichtsbindung, Freigabegrenzen, Jobpersistenz, Sperrreihenfolge und
+Wiederanlauf sind mit den Faellen T6-A bis T6-H abgeglichen.
+
+| Bereich | Automatisierter Nachweis |
+| --- | --- |
+| T6-A/B: lokale Bereitschaft, Status-API und feste Modellaktionen | `test_embedding_model_status.py`, `test_web_pages.py`, `test_web_services.py`, `test_model_preparation_web.py`, `test_service_status_javascript.py` |
+| T6-C/D: quellgebundene Melle-Berichte, erneute Pruefung und bestaetigte Freigabe; Landkreis nur Neuaufbau | `test_web_legacy_inspection.py`, `test_web_legacy_apply.py`, `test_migrate_legacy_index.py`, vorhandene Legacy-/Build-Tests |
+| T6-E/H: Web-/CLI-Parallelitaet, Reservierung, Client-Lebensdauer, Abbruch und Wiederanlauf | `test_model_operation_coordination.py`, `test_model_preparation_web.py`, `test_build_compatibility.py` |
+| T6-F/G: Historie, Manifest-/Vertragswechsel, CSRF und private Kindprozessausgaben | `test_model_job_history.py`, `test_model_job_history_javascript.py`, `test_model_management_security.py` |
+| PDF-Zwischenschritt: Original-Pruefsummen, Text/Unicode/Zahlen, Passage-Abdeckung, Scan-Zuordnung, abgeschnittene Dateien und Groessenlimits | `test_pdf_fixtures.py` sowie vorhandene Extraktions-/Passage-Tests |
+
+Testumgebung: isoliertes Linux-Python `3.12.14`, pytest `9.1.1`, Django
+`5.2.17`, pypdf `6.9.2`, Qdrant-Client `1.19.1`. Modell-/Providerpfade
+verwenden Mocks beziehungsweise einen kleinen Fake-Hub; echte Downloads,
+Harrier-Ladevorgaenge und produktive Qdrant-Bestaende wurden nicht verwendet.
+Der FastEmbed-BM25-Test verwendet ausschliesslich seinen temporaeren lokalen
+Mini-Snapshot und blockiert Hub-Aufrufe. Native OCR wird in den neuen
+PDF-Workflows simuliert; der 300-Seiten-Test liest echte Originalseiten.
+
+Der erste regulaere Gesamtlauf `python -m pytest -q` bestand mit
+1097 Tests, zwei uebersprungenen Tests und sieben ausgeschlossenen Live-Tests.
+Nach Ergaenzen der FastEmbed-Laufzeitabhaengigkeiten besteht der lokale
+BM25-Test separat; der aktivierte 300-Seiten-PDF-Test besteht ebenfalls.
+Der abschliessende Gesamtlauf umfasst beide zusaetzlich:
+
+```bash
+RATSI_PDF_STRESS=1 python -m pytest -q
+```
+
+Ergebnis: **1099 bestanden, keine uebersprungenen Tests, sieben Live-Tests
+abgewaehlt** (38,12 Sekunden). Alle regulaeren Unit- und Integrationstests
+sind damit fuer denselben Quellstand geprueft. Der Phase-6-Gesamtdiff und die
+abschliessenden Dokumentationsaenderungen bestehen `git diff --check`.
+Es wurden keine neuen Implementierungsfehler gefunden; veraltete
+Zukunftsaussagen zu Prozesssperren und Service-Oberflaeche sind korrigiert.
+
+Phase 6 ist als technischer Zwischenstand abgeschlossen. Die praktische
+Abnahme mit den vorbereiteten Modellen auf Dianes System, nativen Windows-
+Sperren und echter Suche bleibt Phase 7. Produktive Melle-Collections wurden
+weder uebernommen noch neu aufgebaut; der Landkreis-Neuaufbau bleibt die
+separate Aufgabe in `project_tasks.md`. Fuer diesen Doku-/Abschlusscommit
+bleiben `VERSION` bei `0.5.47` und die Extraktionspipeline bei `1.3`.
 
 ### Phase 7: Gesamtabnahme und Dokumentation
 
@@ -1527,8 +1576,15 @@ Orientierung und sind keine Vorgabe fuer die Bearbeitung.
   Schneller Testkern: 586 Tests bestanden, 520 abgewaehlt; betroffene
   Landkreis-Integration: sechs bestanden, vier abgewaehlt. Keine erneute
   vollstaendige Suite und keine Live- oder nativen OCR-Laeufe.
-- Naechster regulaerer Punkt: **M6.11**; Phase 6 pruefen und als eigenen
-  Zwischenstand committen.
+- **M6.11** abgeschlossen: Gesamtdiff gegen Vorabvertrag und Testmatrix
+  T6-A bis T6-H geprueft, einschliesslich M6.10 und des PDF-Zwischenschritts.
+  Die Testnachweise und Betriebsgrenzen stehen im Abschlussprotokoll oben.
+  Veraltete Zukunftsaussagen zur Service-Oberflaeche und zu Prozesssperren
+  korrigiert. Nur Dokumentation geaendert; `VERSION` bleibt bewusst `0.5.47`,
+  Extraktionspipeline `1.3`. Phase 6 wird als eigener Zwischenstand committed.
+- Naechster regulaerer Punkt: **M7.1**; Gesamtabnahme beginnen. Der bereits
+  gruene regulaere Testlauf kann fuer den unveraenderten Stand uebernommen
+  werden; die praktische Offline-/Windows-Abnahme aus M7.2/M7.3 bleibt offen.
 
 - Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-
   und Testabdeckung, CLI-/Manifestvertrag, Dokumentation und Versionsstand
