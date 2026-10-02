@@ -34,6 +34,7 @@ from src.config.embedding_model_status import (
     ModelInventoryIncompleteError,
     PreparedModelUnavailableError,
     check_embedding_model_status,
+    embedding_model_inventory_status,
     load_and_validate_model_inventory,
     prepared_model_path,
 )
@@ -363,3 +364,118 @@ def test_local_inventory_check_rejects_unexpected_behavior_affecting_artifact(tm
 
     with pytest.raises(ModelInventoryIncompatibleError):
         load_and_validate_model_inventory(tmp_path)
+
+
+def _mock_library_versions(monkeypatch, manifest):
+    libraries = manifest.library_versions
+    monkeypatch.setattr("src.config.embedding_model_status.version", {
+        "transformers": libraries.transformers,
+        "sentence-transformers": libraries.sentence_transformers,
+        "fastembed": libraries.fastembed,
+        "huggingface-hub": libraries.huggingface_hub,
+    }.__getitem__)
+
+
+@pytest.mark.integration
+def test_inventory_summary_uses_one_verified_snapshot_offline(tmp_path, monkeypatch):
+    from src.config import embedding_model_status as module
+
+    manifest = _write_inventory(tmp_path)
+    _mock_library_versions(monkeypatch, manifest)
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
+    original_load = module.load_and_validate_model_inventory
+    calls = []
+
+    def load_then_replace(path, *, deep=False):
+        calls.append(deep)
+        loaded = original_load(path, deep=deep)
+        (tmp_path / MODEL_MANIFEST_FILENAME).write_text("{}", encoding="utf-8")
+        return loaded
+
+    def reject_network(*args, **kwargs):
+        raise AssertionError("Model status must remain offline")
+
+    monkeypatch.setattr(module, "load_and_validate_model_inventory", load_then_replace)
+    monkeypatch.setattr(socket.socket, "connect", reject_network)
+    monkeypatch.setattr(socket, "create_connection", reject_network)
+    summary = embedding_model_inventory_status()
+
+    assert calls == [False]
+    assert summary["status"] == "bereit"
+    assert summary["manifest_sha256"] == manifest.manifest_sha256
+    assert summary["check_level"] == "fast"
+    assert summary["models_dir"] == str(tmp_path.resolve())
+    assert summary["size_bytes"] == sum(
+        artifact.size_bytes
+        for name in ("dense_model", "tokenizer", "sparse_model")
+        for artifact in getattr(manifest, name).artifacts
+    )
+    for name, component in summary["components"].items():
+        assert component["prepared_revision"] == getattr(manifest, name).resolved_revision
+        assert component["status"] == "bereit"
+    assert "created_at" not in summary
+    assert "checked_at" not in summary
+    json.dumps(summary)
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("problem, expected", [
+    ("missing", "fehlt"),
+    ("incomplete", "unvollstaendig"),
+    ("revision", "inkompatibel"),
+    ("library", "inkompatibel"),
+    ("settings", "inkompatibel"),
+])
+def test_inventory_summary_does_not_claim_component_readiness(tmp_path, monkeypatch, problem, expected):
+    manifest = _write_inventory(tmp_path)
+    _mock_library_versions(monkeypatch, manifest)
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
+    if problem == "missing":
+        (tmp_path / MODEL_MANIFEST_FILENAME).unlink()
+    elif problem == "incomplete":
+        (tmp_path / "dense_model/snapshot/model.safetensors").unlink()
+    elif problem == "revision":
+        changed = with_manifest_sha256(replace(
+            manifest, dense_model=replace(manifest.dense_model, resolved_revision="0" * 40),
+        ))
+        (tmp_path / MODEL_MANIFEST_FILENAME).write_bytes(canonical_manifest_bytes(changed))
+    elif problem == "library":
+        monkeypatch.setattr("src.config.embedding_model_status.version", lambda name: "changed")
+    else:
+        monkeypatch.setenv("RATSI_MODELS_DIR", " ")
+    before = {path.relative_to(tmp_path): path.read_bytes() for path in tmp_path.rglob("*") if path.is_file()}
+
+    summary = embedding_model_inventory_status()
+
+    assert summary["status"] == expected
+    assert summary["manifest_sha256"] is None
+    assert summary["size_bytes"] is None
+    for component in summary["components"].values():
+        assert component["status"] is None
+        assert component["prepared_revision"] is None
+        assert component["size_bytes"] is None
+        assert component["configured_revision"]
+    after = {path.relative_to(tmp_path): path.read_bytes() for path in tmp_path.rglob("*") if path.is_file()}
+    assert before == after
+
+
+@pytest.mark.integration
+def test_inventory_summary_counts_shared_required_files_once(tmp_path, monkeypatch):
+    manifest = _write_inventory(tmp_path)
+    root = tmp_path / manifest.dense_model.relative_path
+    shutil.copyfile(tmp_path / manifest.sparse_model.relative_path / "english.txt", root / "english.txt")
+    sparse = replace(
+        manifest.sparse_model, relative_path=manifest.dense_model.relative_path,
+        artifacts=build_artifact_manifests(root, BM25_MODEL.required_artifacts),
+    )
+    manifest = with_manifest_sha256(replace(manifest, sparse_model=sparse))
+    (tmp_path / MODEL_MANIFEST_FILENAME).write_bytes(canonical_manifest_bytes(manifest))
+    _mock_library_versions(monkeypatch, manifest)
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
+
+    summary = embedding_model_inventory_status()
+
+    assert summary["status"] == "bereit"
+    assert summary["size_scope"] == "required_artifacts"
+    component_total = sum(c["size_bytes"] for c in summary["components"].values())
+    assert summary["size_bytes"] == component_total - (root / "config.json").stat().st_size

@@ -10,8 +10,10 @@
   <p>Der Job läuft im Hintergrund weiter, auch wenn du die Seite wechselst.</p>
 </section>
 
+{% if errors %}<section class="panel status-error" role="alert">{% for error in errors %}<p>{{ error }}</p>{% endfor %}</section>{% endif %}
+
 {% if job %}
-<section class="panel" data-service-job-id="{{ job_id }}" data-service-job-running="{% if job.status == 'running' or job.status == 'queued' %}true{% else %}false{% endif %}">
+<section class="panel" data-service-job-id="{{ job_id }}" data-legacy-job="{% if job.action == 'inspect_legacy_index' or job.action == 'apply_legacy_index' %}true{% else %}false{% endif %}" data-service-job-running="{% if job.status == 'running' or job.status == 'queued' %}true{% else %}false{% endif %}">
   <h2>{{ job.action }}</h2>
   <dl class="facts inline">
     <div><dt>Status</dt><dd id="job-status" class="{% if job.status == 'ok' %}status-ok{% elif job.status == 'running' or job.status == 'queued' %}status-warning{% else %}status-error{% endif %}">{{ job.status_label|default:job.status }}</dd></div>
@@ -29,8 +31,55 @@
     {% if job.status == "ok" %}Datenjob wurde erfolgreich abgeschlossen.{% elif job.status != "running" and job.status != "queued" %}Datenjob ist fehlgeschlagen.{% endif %}
   </p>
   <pre class="text-block compact">{{ job.command_text }}</pre>
+  <p id="job-progress-text" aria-live="polite">{{ job.progress.message }}</p>
+  <progress id="job-progress" aria-label="Ausführung läuft, Prozentfortschritt unbekannt"{% if job.status != "running" %} hidden{% endif %}></progress>
   <pre class="text-block" id="job-output">{{ job.output|default:"Noch keine Ausgabe." }}</pre>
 </section>
+{% if model_job_evidence %}
+<section class="panel" id="model-job-evidence">
+  <h2>Zuordnung des Jobergebnisses</h2>
+  <dl class="facts">
+    <div><dt>Bestandszuordnung</dt><dd data-job-evidence="association_label">{{ model_job_evidence.association_label }}</dd></div>
+    <div><dt>Modellverzeichnis</dt><dd data-job-evidence="models_dir">{{ model_job_evidence.models_dir|default:"Nicht nachgewiesen" }}</dd></div>
+    <div><dt>Verwendetes Manifest</dt><dd data-job-evidence="manifest_sha256">{{ model_job_evidence.manifest_sha256|default:"Nicht nachgewiesen" }}</dd></div>
+    <div><dt>Abschluss</dt><dd data-job-evidence="finished_at">{{ model_job_evidence.finished_at|default:"Noch nicht abgeschlossen" }}</dd></div>
+  </dl>
+  <p class="muted">Ein gespeichertes Ergebnis beschreibt diesen Versuch. Die aktuelle Bereitschaft wird unabhängig lokal geprüft.</p>
+</section>
+{% endif %}
+{% if legacy_report %}
+<section class="panel" id="legacy-report">
+  <h2>Legacy-Prüfprotokoll</h2>
+  {% if legacy_report.pending %}
+  <p>Die Bestandsprüfung läuft. <a href="{% url 'data_tools:service_job_detail' job_id=job_id %}">Nach Abschluss Prüfprotokoll anzeigen</a>.</p>
+  {% elif legacy_report.invalid %}
+  <p class="status-error">Kein gültiges, unverändertes Prüfprotokoll für diesen Job verfügbar.</p>
+  {% else %}
+  {% if legacy_report.historical %}<p class="status-warning">Historisches Ergebnis: Die aktuelle Konfiguration weicht vom Prüfziel ab.</p>{% endif %}
+  <dl class="facts">
+    <div><dt>Collection</dt><dd>{{ legacy_report.collection }}</dd></div>
+    <div><dt>Geprüftes Ziel</dt><dd>{{ legacy_report.target }}</dd></div>
+    {% if legacy_report.source_db %}<div><dt>Quell-Datenbank</dt><dd>{{ legacy_report.source_db }}</dd></div>{% endif %}
+    <div><dt>Prüfzeitpunkt</dt><dd>{{ legacy_report.checked_at }}</dd></div>
+    <div><dt>Prüfergebnis</dt><dd>{% if legacy_report.result == "verified" %}Verifiziert{% else %}Abgebrochen: {{ legacy_report.abort_code }}{% endif %}</dd></div>
+    <div><dt>Punkte</dt><dd>{{ legacy_report.point_count|default_if_none:"Nicht verifiziert" }}</dd></div>
+    <div><dt>Stichprobe</dt><dd>{{ legacy_report.sample_count }} / {{ legacy_report.sample_limit }}</dd></div>
+    <div><dt>Protokoll-SHA-256</dt><dd>{{ legacy_report.report_sha256 }}</dd></div>
+  </dl>
+  <p class="muted">Dieses Protokoll dokumentiert die Prüfung. Eine Übernahme wurde nicht ausgeführt.</p>
+  {% if application_confirmation %}
+  <form method="post" class="form-stack" id="legacy-apply">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="apply_legacy_index">
+    <input type="hidden" name="inspection_job_id" value="{{ job_id }}">
+    <input type="hidden" name="apply_binding" value="{{ application_confirmation }}">
+    <label><input type="checkbox" name="confirmation" value="apply" required> Ich bestätige die Übernahme von {{ legacy_report.collection }} am geprüften Ziel. Kompatibilitätsangaben und Freigabemarker werden nach erneuter Bestandsprüfung ergänzt.</label>
+    <button class="button primary" type="submit">Geprüften Legacy-Bestand übernehmen</button>
+  </form>
+  {% else %}<p class="muted">Übernahme nicht verfügbar. Ein erfolgreiches, aktuelles Prüfprotokoll ist erforderlich.</p>{% endif %}
+  {% endif %}
+</section>
+{% endif %}
 {% else %}
 <p class="empty-state">Dieser Datenjob wurde nicht gefunden.</p>
 {% endif %}

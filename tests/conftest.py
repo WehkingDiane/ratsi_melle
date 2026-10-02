@@ -10,6 +10,7 @@ import pytest
 def isolate_analysis_runtime_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep analysis side effects from tests inside pytest's temp directory."""
 
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path / "models"))
     monkeypatch.delenv("RATSI_QDRANT_URL", raising=False)
     monkeypatch.setenv("RATSI_QDRANT_MODE", "local")
     monkeypatch.setenv("RATSI_QDRANT_STATE_DIR", str(tmp_path / "qdrant_server_state"))

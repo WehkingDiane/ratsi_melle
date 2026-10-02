@@ -83,6 +83,7 @@ Jeder offene Punkt kann eine grobe Aufwandseinstufung und eine Modell-Empfehlung
 
 - Volltext-, PDF- und OCR-Randfälle im Analyse- und Suchpfad robuster behandeln `[Schwer · GPT-6 Astra / Medium]`
 - Landkreis-Collection `landkreis_publications` nach Abschluss der Indexkompatibilitaets-Aenderungen aus den vorhandenen Quelldaten getrennt neu aufbauen; zuvor gewaehltes `--max-text-chars` festlegen und dieselbe Grenze fuer spaetere inkrementelle Laeufe beibehalten. Den Melle-Index (`ratsi_passages`/`ratsi_documents`) dabei nicht neu aufbauen oder loeschen. `[Mittel · GPT-6 Sol / Medium]`
+- OCR-Erkennungsqualität separat anhand echter Ratsunterlagen vergleichen und verbessern (deutsche Texte, Zahlen, Tabellen sowie Laufzeit und Offline-Betrieb). Kandidaten und Rechercheeinstieg: [Python-OCR-Vergleich von CodeSOTA](https://www.codesota.com/ocr/best-for-python); Ergebnisse mit eigenen Beispieldokumenten prüfen. `[Schwer · GPT-6 Astra / Medium]`
 - Optionale OCR-Werkzeuge und das Verhalten bei großen Dateien betrieblich absichern `[Mittel · GPT-6 Sol / Low]`
 - Standardlauf von `scripts/build_vector_index.py` auf 100 Dokumente begrenzen; einen vollständigen Durchlauf nur mit einem ausdrücklichen Parameter wie `--all` starten `[Leicht · GPT-6 Luna / Medium]`
 - Fortschrittsanzeige für `scripts/build_vector_index.py` ergänzen: Gesamtzahl, bereits indexierte und noch ausstehende Dokumente sowie laufender Fortschritt `[Mittel · GPT-6 Sol / Low]`
@@ -92,7 +93,9 @@ Jeder offene Punkt kann eine grobe Aufwandseinstufung und eine Modell-Empfehlung
 
 #### Hinweis für Phase 6
 
-Vor der Implementierung der Service-Oberfläche die gemeinsamen Zustände und Regeln für Modellvorbereitung, Index-Build, Fortsetzung, Legacy-Prüfung, Übernahme und Suche festhalten. Die Fälle lokal/Server, leer/bestehend, freigegeben/im Aufbau, Melle/Landkreis und Abbruch mitten im Vorgang als kompakte Testmatrix durchgehen. Danach den gesamten Phase-6-Workflow samt Fehler- und Parallelfällen testen und den PR-Diff einmal zusammenhängend prüfen; Codex-Reviews dienen anschließend als zusätzliche Kontrolle. Auswirkungen auf bestehende Melle-Indizes vor Änderungen an Freigabe- oder Datenformaten ausdrücklich prüfen, ohne ihren Neuaufbau vorauszusetzen.
+Phase 6 einschließlich M6.11 und der zusätzlichen PDF-Regressionsdateien ist abgeschlossen. Die technische Abschlussprüfung und Testnachweise stehen im [Abschlussprotokoll](embedding_model_management.md#abschlusspruefung-m611-2026-10-02). Die praktische Offline- und Windows-Abnahme mit vorbereiteten Modellen folgt in Phase 7; der Landkreis-Neuaufbau bleibt eine separate Aufgabe.
+
+Vor der Implementierung der Service-Oberfläche M6.0 und den Vorabvertrag in [embedding_model_management.md](embedding_model_management.md#vorabvertrag-fuer-phase-6) durcharbeiten: Statusquelle und letzte Prüfung, feste Aktionen, Melle-Quellbindung, Landkreis-Neuaufbau, Bestätigungen und Sperren über Webprozesse und CLI festlegen. Die Fälle lokal/Server, leer/bestehend, freigegeben/im Aufbau und Abbruch mitten im Vorgang als kompakte Testmatrix durchgehen. Danach den gesamten Phase-6-Workflow samt Fehler- und Parallelfällen testen und den PR-Diff einmal zusammenhängend prüfen; Codex-Reviews dienen anschließend als zusätzliche Kontrolle. Auswirkungen auf bestehende Melle-Indizes vor Änderungen an Freigabe- oder Datenformaten ausdrücklich prüfen, ohne ihren Neuaufbau vorauszusetzen.
 
 ### 3.4 Analyse und Artefakte
 

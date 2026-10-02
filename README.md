@@ -33,7 +33,12 @@ mit `.venv-wsl/bin/python`.
 Die lokale Extraktionspipeline kann Scan-PDFs optional per OCR verarbeiten. Dafuer
 muessen `pdftoppm` (Poppler) und `tesseract` mit den Sprachdaten `deu` und `eng`
 als Systemwerkzeuge verfuegbar sein. Ohne diese Werkzeuge bleiben Scan-PDFs mit
-dem Status `ocr_needed` gekennzeichnet.
+dem Status `ocr_needed` gekennzeichnet. Bei gemischten PDFs werden nur Seiten
+ohne Textebene per OCR verarbeitet; bleiben solche Seiten ohne Text, ist das
+Ergebnis `partial` mit `ocr_needed`, und vorhandener Text bleibt erhalten.
+Seitenzahlen und leere Seiteneinträge bleiben nachvollziehbar. Die Pipeline verwendet fuer regulaere
+PDFs `pypdf`, damit eingebettete Schriften, Woerter und Zahlen korrekt gelesen
+werden. Unlesbare PDF-Strukturen liefern den Status `error`.
 
 ## Wichtige Befehle
 
@@ -85,6 +90,24 @@ Unter WSL kann `python` jeweils durch `.venv-wsl/bin/python` ersetzt werden. Die
 
 Eine eigene `-m`-Auswahl ersetzt den voreingestellten Ausdruck `not live`. Fuer lokale Teilmengen deshalb `and not live` explizit angeben. Marker filtern erst nach der Sammlung: Modulimporte und vorhandene Verfuegbarkeitspruefungen (Schluesselring/Ollama) koennen auch bei abgewaehlten Live-Tests stattfinden. Ein schneller Teillauf ersetzt die regulaere Regression nicht.
 
+Echte PDF-Testdaten liegen als unveraenderte Originalkopien unter
+[`tests/fixtures/pdf/`](tests/fixtures/pdf/README.md). Herkunft, Pruefsummen und
+konkrete Seiten-/Texterwartungen stehen im dortigen Manifest. Die Tests laufen
+ohne Rohdatenverzeichnis, Netzwerk oder Modell-Download. OCR-Aufrufe werden
+simuliert; die echten PDF-Textebenen werden gelesen. Groessenpruefungen erzeugen
+nur temporaere Dateien an den 25-/100-MiB-Grenzen.
+
+```bash
+python -m pytest tests/test_pdf_fixtures.py -m "integration and not live" -q
+
+# Optional unter Bash/WSL: 300 Seiten aus echten Originalseiten erzeugen
+RATSI_PDF_STRESS=1 python -m pytest tests/test_pdf_fixtures.py -m "integration and not live" -k stress -q
+```
+
+Unter PowerShell fuer den optionalen Lauf zuerst `$env:RATSI_PDF_STRESS = "1"`
+setzen und danach den zweiten `python`-Befehl ohne den Bash-Praefix ausfuehren.
+Ohne diese Umgebungsvariable wird der Belastungstest uebersprungen.
+
 Repository-Hooks werden lokal mit folgendem Befehl aktiviert:
 
 ```bash
@@ -126,7 +149,7 @@ Sie ist danach standardmäßig unter `http://127.0.0.1:8000/` erreichbar. Detail
 - Online-Index: `data/db/online_session_index.sqlite`
 - Landkreis-Veröffentlichungen: `data/db/landkreis_publications.sqlite`
 - Lokaler Vektorindex: `data/db/qdrant/`; Ratsinfo verwendet den neuen Abschnittsindex `ratsi_passages` mit Harrier und BM25. Der bisherige Index `ratsi_documents` bleibt bis zum vollstaendigen Erstaufbau aktiv. Landkreis nutzt weiterhin `landkreis_publications`.
-- Django-Datenpflege unter `/daten/`: SessionNet- und Landkreis-Fetch-, SQLite-Build- und Vektorindex-Jobs starten; die Vektorseite zeigt Status fuer Ratsinfo und Landkreis
+- Django-Datenpflege unter `/daten/`: SessionNet- und Landkreis-Fetch-, SQLite-Build- und Vektorindex-Jobs starten; die Vektorseite zeigt Status fuer Ratsinfo und Landkreis sowie den lokalen Modellbestand fuer Harrier, Tokenizer und BM25 mit Revisionen und Pflichtdateigroessen. „Lokal pruefen“ startet die Offline-Modellpruefung als Datenjob. Die Vektorseite zeigt je Modell-/Legacy-Aktion den letzten abgeschlossenen Versuch (auch Fehler) und laufende Jobs separat. Ergebnisse sind an Modellpfad, Modellvertrag, Bibliotheksstand und bei Erfolg Manifest-Hash gebunden; nach Aenderungen erscheinen sie als historisch. Jobdetails zeigen den Ausfuehrungsstatus ohne erfundene Prozentwerte. Modellvorbereitung, Legacy-Pruefung/-Uebernahme und alle Vektor-Builds teilen eine Prozesssperre am Modellverzeichnis; es laeuft nur ein Build gleichzeitig. Webstarts melden „bereits aktiv“, direkte CLI-Aufrufe warten. Sperren bleiben bis zum Schliessen des Qdrant-Clients bestehen.
 - Django-Suche unter `/suche/`: semantische Dokumentensuche ueber den konfigurierten Qdrant-Vektorindex; Standard ist Ratsinfo. Fuer Landkreis-Treffer zuerst `python scripts/build_landkreis_vector_index.py` oder `/daten/vektor/` nutzen; fuer Ratsinfo `python scripts/build_vector_index.py` oder `/daten/vektor/`
 - Analyse-Workflow und v2-Ausgaben: [docs/analysis_outputs.md](docs/analysis_outputs.md)
 - Analyse-Start unter `/analyse/starten/`: Sitzung vorbereiten, TOPs kritisch analysieren oder Prompt/Grundlage für manuelle ChatGPT-Nutzung erzeugen; vorbereitete Jobs lassen sich anschließend auf derselben Jobseite an einen API-Provider absenden
@@ -215,8 +238,9 @@ aus dem freigegebenen lokalen Modellbestand. Fehlende oder inkompatible Modelle
 werden vor dem Laden gemeldet; der Hinweis nennt den Vorbereitungsbefehl. Die
 Websuche verweist zusaetzlich auf den technischen Servicebereich. Nur der
 ausdrueckliche Aufruf mit `--download` darf Modellartefakte beschaffen.
-Die praktische Abnahme mit echten vorbereiteten Modellen folgt in Phase 7;
-Schutz gegen kollidierende Vorbereitungsjobs folgt in Phase 6.
+Die praktische Abnahme mit echten vorbereiteten Modellen folgt in Phase 7.
+Der Schutz gegen kollidierende Vorbereitungs-, Legacy- und Indexjobs ist
+in Phase 6 umgesetzt; Web und CLI teilen die Prozesssperren.
 
 ### Landkreis-Veröffentlichungen
 

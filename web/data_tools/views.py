@@ -13,6 +13,22 @@ from core import service_jobs
 from . import services
 
 
+def _start_job(request, command):
+    action = request.POST.get("action", "")
+    if action == "apply_legacy_index":
+        return service_jobs.start_service_job(action, command, services.REPO_ROOT,
+                                             application_context=services.confirmed_application_payload(request.POST))
+    if action == "inspect_legacy_index":
+        return service_jobs.start_service_job(action, command, services.REPO_ROOT,
+                                             inspection_context=services.confirmed_inspection_context(request.POST))
+    if action == "prepare_embedding_models":
+        return service_jobs.start_service_job(
+            action, command, services.REPO_ROOT,
+            preparation_binding=services.confirmed_preparation_binding(request.POST),
+        )
+    return service_jobs.start_service_job(action, command, services.REPO_ROOT)
+
+
 def service_home(request):
     return render(
         request,
@@ -34,8 +50,12 @@ def service_fetch(request):
             request.POST,
         )
         if command:
-            job = service_jobs.start_service_job(request.POST.get("action", ""), command, services.REPO_ROOT)
-            return redirect("data_tools:service_job_detail", job_id=job.job_id)
+            try:
+                job = _start_job(request, command)
+            except (service_jobs.ServiceJobStartError, ValueError) as error:
+                errors.append(str(error))
+            else:
+                return redirect("data_tools:service_job_detail", job_id=job.job_id)
     return render(
         request,
         "data_tools/service_fetch.html",
@@ -57,8 +77,12 @@ def service_build(request):
             request.POST,
         )
         if command:
-            job = service_jobs.start_service_job(request.POST.get("action", ""), command, services.REPO_ROOT)
-            return redirect("data_tools:service_job_detail", job_id=job.job_id)
+            try:
+                job = _start_job(request, command)
+            except (service_jobs.ServiceJobStartError, ValueError) as error:
+                errors.append(str(error))
+            else:
+                return redirect("data_tools:service_job_detail", job_id=job.job_id)
     return render(
         request,
         "data_tools/service_build.html",
@@ -79,14 +103,28 @@ def service_vector(request):
             request.POST,
         )
         if command:
-            job = service_jobs.start_service_job(request.POST.get("action", ""), command, services.REPO_ROOT)
-            return redirect("data_tools:service_job_detail", job_id=job.job_id)
+            try:
+                job = _start_job(request, command)
+            except (service_jobs.ServiceJobStartError, ValueError) as error:
+                errors.append(str(error))
+            else:
+                return redirect("data_tools:service_job_detail", job_id=job.job_id)
+    try:
+        confirmation = services.preparation_confirmation()
+    except (ValueError, OSError, RuntimeError):
+        confirmation = None
+    try:
+        legacy_forms = services.legacy_inspection_forms()
+    except (ValueError, OSError, RuntimeError):
+        legacy_forms = []
     return render(
         request,
         "data_tools/service_vector.html",
         {
             "active_nav": "data",
             "status": services.service_status(),
+            "preparation_confirmation": confirmation,
+            "legacy_inspection_forms": legacy_forms,
             "vector_status": services.vector_index_status(),
             "landkreis_vector_status": services.landkreis_vector_index_status(),
             "errors": errors,
@@ -96,6 +134,20 @@ def service_vector(request):
 
 def service_job_detail(request, job_id: str):
     job = service_jobs.get_service_job(job_id)
+    errors = []
+    if request.method == "POST":
+        if request.POST.get("action") != "apply_legacy_index" or request.POST.get("inspection_job_id") != job_id:
+            errors.append("Übernahme muss zum angezeigten Prüfjob gehören.")
+        else:
+            command, errors = services.build_service_command("apply_legacy_index", request.POST)
+            if command:
+                try:
+                    started = _start_job(request, command)
+                except (service_jobs.ServiceJobStartError, ValueError) as error:
+                    errors.append(str(error))
+                else:
+                    return redirect("data_tools:service_job_detail", job_id=started.job_id)
+    status = services.service_status()
     return render(
         request,
         "data_tools/service_job_detail.html",
@@ -103,7 +155,11 @@ def service_job_detail(request, job_id: str):
             "active_nav": "data",
             "job": job,
             "job_id": job_id,
-            "status": services.service_status(),
+            "legacy_report": services.inspection_result(job),
+            "model_job_evidence": services.model_job_detail(job, status["embedding_models"]),
+            "application_confirmation": services.application_confirmation(job) if job and job.action == "inspect_legacy_index" else None,
+            "errors": errors,
+            "status": status,
         },
     )
 
@@ -112,6 +168,12 @@ def service_status(request):
     """Return freshly calculated service status values for manual refreshes."""
 
     return JsonResponse({"status": services.service_status()})
+
+
+def service_model_history_status(request):
+    """Refresh model evidence without opening Qdrant or executing a check job."""
+    models = services.embedding_model_status()
+    return JsonResponse({"history": services.model_job_history(models)})
 
 
 def service_job_status(request):
@@ -124,4 +186,6 @@ def service_job_detail_status(request, job_id: str):
     job = service_jobs.get_service_job(job_id)
     if job is None:
         return HttpResponseNotFound()
-    return JsonResponse({"job": job.to_dict()})
+    models = services.embedding_model_status()
+    return JsonResponse({"job": job.to_dict(), "legacy_report": services.inspection_result(job),
+                         "model_job_evidence": services.model_job_detail(job, models)})

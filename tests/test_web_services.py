@@ -31,6 +31,37 @@ from src.analysis.workflow_db import create_analysis_job
 from src.analysis.workflow_db import initialize_analysis_workflow_db
 
 
+def test_model_check_command_is_fixed():
+    command, errors = data_services.build_service_command(
+        "check_embedding_models", {"action": "check_embedding_models", "csrfmiddlewaretoken": "token"},
+    )
+    assert not errors
+    assert command == [sys.executable, "scripts/prepare_embedding_models.py", "--check", "--json"]
+
+
+@pytest.mark.parametrize("field", ["model_id", "revision", "models_dir", "target_path", "args", "deep", "download", "limit"])
+def test_model_check_command_rejects_extra_parameters(field):
+    command, errors = data_services.build_service_command("check_embedding_models", {field: "anything"})
+    assert command is None
+    assert errors
+
+
+@pytest.mark.integration
+def test_model_check_service_job_keeps_failure_diagnostic(tmp_path, monkeypatch):
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path / "absent_models"))
+    command, errors = data_services.build_service_command("check_embedding_models", {})
+    assert not errors
+    job = service_jobs.start_service_job("check_embedding_models", command, ROOT)
+    deadline = time.monotonic() + 10
+    while job.status in {"queued", "running"} and time.monotonic() < deadline:
+        time.sleep(0.02)
+
+    assert job.status == "error"
+    assert job.exit_code == 1
+    assert json.loads(job.output)["status"] == "fehlt"
+    assert not (tmp_path / "absent_models").exists()
+
+
 def test_legacy_done_job_without_ki_response_is_displayed_as_prepared() -> None:
     public = _public_job(
         {

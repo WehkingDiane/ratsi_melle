@@ -59,7 +59,7 @@ def test_extract_text_for_analysis_pdf_ocr_needed(tmp_path: Path) -> None:
     assert result.parsing_quality == "low"
     assert result.extracted_char_count == 0
     assert result.ocr_needed is True
-    assert result.page_texts == []
+    assert result.page_texts == [{"page": 1, "text": "", "char_count": 0}]
     assert result.detected_sections == []
 
 
@@ -275,3 +275,45 @@ def test_extract_text_via_ocr_sorts_pages_numerically(tmp_path: Path, monkeypatc
 
     assert observed_files == ["page-1.png", "page-2.png", "page-10.png"]
     assert len(pages) == 3
+
+
+def test_extract_text_via_ocr_targets_single_page(tmp_path, monkeypatch):
+    monkeypatch.setattr(extraction_pipeline.shutil, "which", lambda name: "/fake")
+    calls = []
+    def run(cmd, **kwargs):
+        calls.append(cmd)
+        if cmd[0] == "pdftoppm":
+            Path(cmd[-1]).parent.joinpath("page-2.png").write_bytes(b"fake")
+            return SimpleNamespace(returncode=0, stdout="")
+        return SimpleNamespace(returncode=0, stdout="OCR Seite zwei")
+    monkeypatch.setattr(extraction_pipeline.subprocess, "run", run)
+    assert extraction_pipeline._extract_text_via_ocr(tmp_path / "mixed.pdf", page_number=2) == ["OCR Seite zwei"]
+    assert calls[0][1:5] == ["-f", "2", "-l", "2"]
+    assert len(calls) == 2
+
+
+def test_extract_text_via_ocr_preserves_failed_page_position(tmp_path, monkeypatch):
+    monkeypatch.setattr(extraction_pipeline.shutil, "which", lambda name: "/fake")
+    def run(cmd, **kwargs):
+        if cmd[0] == "pdftoppm":
+            for number in (1, 2):
+                Path(cmd[-1]).parent.joinpath(f"page-{number}.png").write_bytes(b"fake")
+            return SimpleNamespace(returncode=0, stdout="")
+        if Path(cmd[1]).name == "page-1.png":
+            return SimpleNamespace(returncode=1, stdout="")
+        return SimpleNamespace(returncode=0, stdout="Seite zwei")
+    monkeypatch.setattr(extraction_pipeline.subprocess, "run", run)
+    assert extraction_pipeline._extract_text_via_ocr(tmp_path / "scan.pdf") == ["", "Seite zwei"]
+
+
+def test_analysis_scan_keeps_original_pages_after_partial_ocr(tmp_path, monkeypatch):
+    path = tmp_path / "scan.pdf"
+    path.write_bytes(b"%PDF-1.4")
+    monkeypatch.setattr(extraction_pipeline, "_extract_text_from_pdf", lambda source: (
+        "", 3, [{"page": page, "text": "", "char_count": 0} for page in (1, 2, 3)], []))
+    monkeypatch.setattr(extraction_pipeline, "_extract_text_via_ocr", lambda source: ["", "Seite zwei"])
+    result = extract_text_for_analysis(path, content_type="application/pdf", max_text_chars=10000)
+    assert result.page_count == 3
+    assert [page["page"] for page in result.page_texts] == [1, 2, 3]
+    assert [page["text"] for page in result.page_texts] == ["", "Seite zwei", ""]
+    assert result.extraction_status == "partial" and result.ocr_needed

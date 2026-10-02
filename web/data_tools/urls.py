@@ -15,6 +15,7 @@ urlpatterns = [
     path("build/", views.service_build, name="service_build"),
     path("vektor/", views.service_vector, name="service_vector"),
     path("status/", views.service_status, name="service_status"),
+    path("model-jobs/status/", views.service_model_history_status, name="service_model_history_status"),
     path("jobs/status/", views.service_job_status, name="service_job_status"),
     path("jobs/<str:job_id>/status/", views.service_job_detail_status, name="service_job_detail_status"),
     path("jobs/<str:job_id>/", views.service_job_detail, name="service_job_detail"),
