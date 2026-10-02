@@ -186,7 +186,12 @@ def test_uninitialized_local_directory_is_not_opened(tmp_path, monkeypatch, caps
                    str(tmp_path / "report.json"), "--qdrant-dir", str(selected)])
     assert result == 1
     assert opened == ([True] if contents == '{"collections":{},"aliases":{}}' else [])
-    assert {p.name: p.read_bytes() for p in selected.iterdir()} == before
+    after = {p.name: p.read_bytes() for p in selected.iterdir()}
+    if opened:
+        # A recognized store is coordinated even for inspection. The stable
+        # lock file is infrastructure; metadata and Qdrant data stay unchanged.
+        assert after.pop("ratsi_passages.ready.migration.lock") in {b"", b"\0"}
+    assert after == before
     assert "Traceback" not in capsys.readouterr().err
 
 

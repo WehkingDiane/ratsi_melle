@@ -271,6 +271,15 @@ Betriebssystemsperre. Alle Webprozesse verwenden dieselbe Jobdatenbank und
 dieselben Modell-/Qdrant-Zustandsverzeichnisse. Ein lebender Unterprozess bleibt
 auch nach Ausfall seines Webprozesses geschützt. Nachdem beide beendet sind,
 wird der unterbrochene Job als Fehler angezeigt; ein neuer Versuch ist möglich.
+Alle Vektor-Builds einschließlich Legacy- und Landkreis-Build verwenden dieselbe
+Modellsperre. Die CLI wartet auch unter Windows bei langen Builds weiter auf die
+Freigabe. Modell- und Collection-Sperren bleiben bei Erfolg oder Fehler bis zum
+Schließen des Qdrant-Clients bestehen. Auch Legacy-Prüfungen erwerben die
+Collection-Sperre vor Clientstart. Dabei kann eine dauerhaft verbleibende
+Sperrdatei angelegt werden; Indexdaten, Payloads und Freigabemarker ändern sich
+durch die Prüfung nicht. Sperrdateien nicht löschen: Entscheidend ist die aktive
+Betriebssystemsperre, nicht die Existenz der Datei. Ein neuer Versuch prüft
+Konfiguration und Bestand nach Sperrerwerb erneut.
 
 „Legacy-Bestand prüfen“ bietet zwei feste Aktionen für `ratsi_passages` und
 `ratsi_documents`. Ziel, Quell-Datenbank und Berichtspfad legt der Server fest;

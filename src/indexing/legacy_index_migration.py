@@ -20,7 +20,7 @@ from src.indexing.legacy_index_inspection import (
 from src.indexing.legacy_inspection_report import validate_inspection_report_envelope
 from src.paths import LOCAL_INDEX_DB
 from src.qdrant_connection import QdrantConnection
-from src.model_operations import locked_model_operation
+from src.model_operations import locked_model_operation, process_file_lock
 
 
 BACKFILL_SIZE = 256
@@ -50,26 +50,15 @@ def _migration_lock(connection: QdrantConnection, collection: str):
     path.parent.mkdir(parents=True, exist_ok=True)
     # Keep the lock file: removing it could let a third process lock a new inode
     # while another process is still waiting on the old one.
-    with path.open("a+b") as stream:
-        if os.name == "nt":
-            import msvcrt
-
-            stream.seek(0)
-            msvcrt.locking(stream.fileno(), msvcrt.LK_LOCK, 1)
-        else:
-            import fcntl
-
-            fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
+    if path.is_symlink():
+        raise OSError("Collection-Sperre darf kein Symlink sein.")
+    descriptor = os.open(path, os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    with os.fdopen(descriptor, "r+b") as stream, process_file_lock(stream):
         _held_locks.paths = held | {identity}
         try:
             yield
         finally:
             _held_locks.paths = held
-            if os.name == "nt":
-                stream.seek(0)
-                msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
-            else:
-                fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
 
 
 def _read_report(path: Path, *, expected_report_sha256: str | None = None) -> dict:

@@ -565,7 +565,8 @@ auch fuer die Abschlusspruefung nicht ausgefuehrt.
 
 Diese Abnahme betrifft ausschliesslich Phase 3, nicht die Gesamtabnahme aus
 Phase 7. Verbraucherumstellung und globale Offlinegarantie folgen in Phase 4;
-die Sperre gegen kollidierende Vorbereitungsjobs folgt in M6.9. Es sind fuer
+die damals fuer M6.9 vorgesehene Sperre gegen kollidierende Vorbereitungsjobs
+ist inzwischen umgesetzt. Es sind fuer
 M3.9 keine weiteren Laufzeitcode-Aenderungen erforderlich. `VERSION` bleibt
 fuer diesen Doku-/Abschlusscommit bewusst bei `0.5.15`.
 
@@ -982,7 +983,7 @@ Abgleich mit dem Bestand vor M6.1 (M6.0):
 | Bestehender Pfad | Entscheidung fuer die Umsetzung |
 | --- | --- |
 | `web/data_tools/services.py`, `web/core/services/status.py`, `src/config/embedding_model_status.py` | Die Fassade erweitert den gemeinsamen Statuspfad um Anzeigedaten aus derselben validierten Manifestaufnahme einschliesslich Bibliotheksvergleich; kein getrenntes Nachladen des inzwischen austauschbaren Root-Manifests. Konfigurierte Revisionen stammen aus `src/config/embedding_models.py`. Der Bestand wird gemeinsam freigegeben: Ein Gesamtfehler ist keine Diagnose, dass jede einzelne Komponente defekt ist. Nicht verifizierbare Einzelwerte bleiben unbekannt. Artefaktgroessen als erfasste Pflichtdateien kennzeichnen, gemeinsame Dateien im Gesamtwert nicht doppelt zaehlen; kein rekursiver Scan aller Caches. Der bestehende Vektorstatus darf Qdrant abfragen, die Modellanzeige fuegt keinen Qdrant-Zugriff hinzu. |
-| `scripts/prepare_embedding_models.py`, `src/embedding_model_preparation.py` | `--check --json` liefert `status`, `message`, `manifest_sha256`, `check_level`; bei Fehlerstatus Exitcode 1, bei ungueltiger Konfiguration 2. `--download --json` gibt ein anderes Ergebnisformat aus. Jobresultate je Aktion auswerten, Exitcode und fachlichen Status getrennt anzeigen. Kein `--check-updates` in Phase 6: die CLI bietet es derzeit nicht an. Der vorbereitete Bestand wechselt atomar per Manifest, aber parallele Downloads sind noch nicht serialisiert. |
+| `scripts/prepare_embedding_models.py`, `src/embedding_model_preparation.py` | `--check --json` liefert `status`, `message`, `manifest_sha256`, `check_level`; bei Fehlerstatus Exitcode 1, bei ungueltiger Konfiguration 2. `--download --json` gibt ein anderes Ergebnisformat aus. Jobresultate je Aktion auswerten, Exitcode und fachlichen Status getrennt anzeigen. Kein `--check-updates` in Phase 6: die CLI bietet es derzeit nicht an. Der vorbereitete Bestand wechselt atomar per Manifest; seit M6.4/M6.9 serialisiert die gemeinsame Modellsperre Downloads und Verbraucher. |
 | `web/core/services/commands.py`, `web/data_tools/views.py` | Neue Aktionen ausschliesslich ueber feste Befehle und eine je Aktion gepruefte Menge an POST-Feldern aufbauen. Die bestehenden Build-Formulare besitzen eigene optionale Parameter; diese duerfen nicht in Modell- oder Legacy-Aktionen uebernommen werden. Bestaetigung und erlaubte Collection serverseitig pruefen, bevor ein Job angelegt wird. |
 | `web/core/service_jobs.py`, `src/paths.py` | Jobdaten liegen in `data/db/service_jobs.sqlite`. In-Memory-Sperre, einmaliges Laden und Loeschen/Neuschreiben aller Zeilen sind nicht prozesssicher. Zeilenweise Persistenz und aktuelle Datenbankabfragen muessen fuer alle Nutzer dieser Jobtabelle gelten, auch alte Fetch-/Build-Aktionen. Neue kollidierende Starts werden vor Threadstart transaktional reserviert; bei fehlender Persistenz kein ungesicherter In-Memory-Start. Das Laden durch einen zweiten Webprozess darf laufende fremde Jobs nicht als abgebrochen markieren. Wiederanlauf muss Besitzer und tatsaechlich noch laufenden Kindprozess beruecksichtigen; ein alter Jobstatus hebt niemals eine laufende CLI-Sperre auf. |
 | `scripts/migrate_legacy_index.py`, `src/indexing/legacy_inspection_report.py`, `src/indexing/legacy_index_migration.py` | Die CLI kennt `--inspect`/`--apply`, `--collection`, `--report`, fuer `ratsi_documents` `--source-db` und fuer Apply `--confirm-collection`. Nur zwei Melle-Collections in der Web-Allowlist. Ziel aus `QdrantConnection.from_env`, Quell-DB aus der serverseitigen `LOCAL_INDEX_DB`-Zuordnung und Berichte unter `PRIVATE_DATA_DIR / legacy_inspections` ableiten. Pro Pruefjob einen eigenen Bericht behalten; Ziel-Hash, Collection, aufgeloeste Quelle und Job-ID binden. Vor Anzeige das Format pruefen: auch valide Abbruchberichte anzeigen, aber nur `verified` zur Uebernahme anbieten. Die bestehenden fachlichen Validierungen gemeinsam nutzbar machen, nicht im View nachbauen. Landkreis bleibt `rebuild_required` ohne Uebernahme. |
@@ -1224,7 +1225,7 @@ Orientierung und sind keine Vorgabe fuer die Bearbeitung.
   Collection-Sperre bleibt verbindlich. `[Schwer · GPT-6 Astra / High]`
 - [x] **M6.8** Fortschritt und Ergebnis ueber die bestehende Servicejob- und
   Jobdetail-Infrastruktur anzeigen. `[Mittel · GPT-6 Sol / Medium]`
-- [ ] **M6.9** Kollidierende parallele Modellvorbereitungen, Legacy-Uebernahmen
+- [x] **M6.9** Kollidierende parallele Modellvorbereitungen, Legacy-Uebernahmen
   und Vektor-Builds auch ueber Webprozesse und direkte CLI-Aufrufe verhindern
   oder sicher serialisieren; Abbruch und Wiederanlauf einbeziehen.
   `[Schwer · GPT-6 Astra / High]`
@@ -1442,7 +1443,7 @@ Orientierung und sind keine Vorgabe fuer die Bearbeitung.
   wurden nicht uebernommen; Landkreis bleibt die separate Neuaufbauaufgabe.
   Gesamtsuite: 944 Tests bestanden, ein Test uebersprungen, sieben Live-Tests
   ausgeschlossen. Allgemeine Version: `0.5.44`.
-- Letzter abgeschlossener Punkt: **M6.8**; Modell-/Legacy-Historie zeigt je
+- **M6.8** umgesetzt; Modell-/Legacy-Historie zeigt je
   Aktion den letzten abgeschlossenen Versuch einschliesslich Fehlern und
   laufende Jobs separat. Persistierte Zuordnung bindet aufgeloesten Modellpfad,
   Modellvertrag und Bibliotheksstand; erfolgreiche Ergebnisse speichern den
@@ -1457,8 +1458,32 @@ Orientierung und sind keine Vorgabe fuer die Bearbeitung.
   Tests pruefen Zuordnung, Neustart, Fehler, Abbruch, veraltete Ergebnisse,
   Browser-Aktualisierung und Wiederherstellung nach Speicher-/Abruffehlern.
   Allgemeine Version: `0.5.45`.
-- Naechster regulaerer Punkt: **M6.9**; verbleibende Kollisions-, Abbruch- und
-  Wiederanlaufpfade fuer Web-/CLI-Modelljobs pruefen und absichern.
+- Letzter abgeschlossener Punkt: **M6.9**; gemeinsame Prozesssperren fuer
+  Vorbereitung, Passage-/Legacy-/Landkreis-Build und Legacy-Inspect/-Apply
+  vervollstaendigt. Builds behalten Modell- und Collection-Sperre bis zum
+  Schliessen des Clients, auch nach Erfolg, abgelehntem Preflight oder
+  fehlgeschlagener Markerpublikation. Legacy-Inspect erwirbt nun ebenfalls
+  die Collection-Sperre vor Clientstart. Sperrdateien bleiben als Infrastruktur
+  bestehen; Pruefungen veraendern weder Indexdaten noch Freigabemarker.
+  Beide Sperrarten verwenden dieselbe OS-Implementierung. Unter Windows wird
+  die nichtblockierende Byte-Sperre bei Belegung kontrolliert wiederholt;
+  lange CLI-Wartezeiten enden nicht mehr nach zehn nativen Wiederholungen.
+  Echte IO-Fehler werden nicht als Belegung verschluckt. Web meldet bei einer
+  aktiven CLI-Sperre eindeutig „bereits aktiv“, ohne einen Job anzulegen.
+  Tests mit getrennten Prozessen decken alle sechs CLI-Einstiegspfade,
+  Collection-Wartezeiten, fortlaufenden Kindprozess nach Elternausfall,
+  fehlerhaften gespeicherten Jobstatus und Neustart nach Prozessende ab.
+  Eine waehrend des Wartens geaenderte Bestaetigung bricht vor Download ab.
+  Ein hart beendeter Teil-Download behaelt den aktiven Bestand unveraendert;
+  der Wiederanlauf verwendet den bestaetigten Dense-Snapshot weiter.
+  Windows-API-Warte- und Fehlerpfade sind simuliert getestet; die native
+  Windows-Abnahme mit echten Modellen bleibt fuer Phase 7 offen.
+  Die vorhandenen Backfill-/Rollback- und Mehrprozess-Reservierungstests
+  wurden mitgeprueft. Gesamtsuite: 997 Tests bestanden, ein Test uebersprungen,
+  sieben Live-Tests ausgeschlossen. Keine produktiven Melle- oder
+  Landkreis-Indexaenderungen. Allgemeine Version: `0.5.46`.
+- Naechster regulaerer Punkt: **M6.10**; Web-/Service-Sicherheitsmatrix fuer
+  CSRF, Allowlist, Bestaetigungen, Secret-Redaktion und Statuswerte abschliessen.
 
 - Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-
   und Testabdeckung, CLI-/Manifestvertrag, Dokumentation und Versionsstand

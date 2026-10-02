@@ -74,6 +74,9 @@ def test_concurrent_builds_serialize_before_readiness_and_writes(tmp_path, compa
                 assert not second_acquired.wait(timeout=0.1)
             finally:
                 first.finish_build(compatibility)
+                assert not second_acquired.wait(timeout=0.1)
+                first._client = None  # Keep the shared test client open.
+                first.close()
             assert future.result(timeout=5) is False
             second.finish_build(compatibility)
         assert json.loads(first.connection.release_path(collection).read_text())["ready"] is True

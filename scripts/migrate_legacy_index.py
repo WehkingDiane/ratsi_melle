@@ -136,10 +136,9 @@ def main(argv: list[str] | None = None) -> int:
     client = None
     operations = ExitStack()
     try:
-        if args.apply:
-            operations.enter_context(_migration_lock(connection, args.collection))
-            if expected_report_sha256 is not None:
-                _read_report(args.report, expected_report_sha256=expected_report_sha256)
+        operations.enter_context(_migration_lock(connection, args.collection))
+        if args.apply and expected_report_sha256 is not None:
+            _read_report(args.report, expected_report_sha256=expected_report_sha256)
         client = connection.create_client()
         if args.inspect:
             result = inspect_and_write_report(connection, client, args.collection, args.report,

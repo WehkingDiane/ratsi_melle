@@ -111,7 +111,7 @@ def start_service_job(action: str, command: list[str], cwd: Path, *, preparation
                       inspection_context: dict | None = None, application_context: dict | None = None) -> ServiceJob:
     """Atomically reserve colliding web actions before creating their worker."""
 
-    from src.model_operations import model_operation_lock, model_preparation_binding
+    from src.model_operations import ModelOperationBusyError, model_operation_lock, model_preparation_binding
     from src.config.settings import load_embedding_model_settings
 
     job = ServiceJob(job_id=uuid.uuid4().hex[:12], action=action, command=command,
@@ -174,6 +174,8 @@ def start_service_job(action: str, command: list[str], cwd: Path, *, preparation
             _jobs[job.job_id] = job
     except ServiceJobStartError:
         raise
+    except ModelOperationBusyError:
+        raise ServiceJobStartError("Modellvorbereitung oder Indexjob ist bereits aktiv.") from None
     except (OSError, RuntimeError, ValueError, KeyError, TypeError, sqlite3.Error):
         raise ServiceJobStartError("Datenjob kann nicht sicher gestartet werden. Modell- und Jobablage prüfen; möglicherweise ist ein Indexjob aktiv.") from None
     try:

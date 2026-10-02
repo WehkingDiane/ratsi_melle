@@ -83,31 +83,27 @@ class DocumentVectorStore:
             lock.__exit__(None, None, None)
 
     def begin_build(self, compatibility: IndexCompatibility, *, build_options: dict | None = None) -> None:
-        """Check an existing collection before its first build write."""
+        """Check before writing; callers must close the store even on failure."""
         from src.indexing.build_compatibility import check_build_compatibility
 
         self.acquire_build_lock()
-        try:
-            self._build_provenance = None
-            self._build_compatibility = None
-            self._build_options = None
-            client = self._get_client()
-            provenance = check_build_compatibility(
-                self.connection, client, self.collection_name, compatibility,
-                build_options=build_options,
-            )
-            self.ensure_collection()
-            self.connection.write_readiness(
-                client, {"ready": False, "provenance": provenance,
-                         **({"build_options": build_options} if build_options is not None else {})},
-                collection=self.collection_name, compatibility=compatibility,
-            )
-            self._build_provenance = provenance
-            self._build_compatibility = compatibility
-            self._build_options = build_options
-        except BaseException:
-            self._release_build_lock()
-            raise
+        self._build_provenance = None
+        self._build_compatibility = None
+        self._build_options = None
+        client = self._get_client()
+        provenance = check_build_compatibility(
+            self.connection, client, self.collection_name, compatibility,
+            build_options=build_options,
+        )
+        self.ensure_collection()
+        self.connection.write_readiness(
+            client, {"ready": False, "provenance": provenance,
+                     **({"build_options": build_options} if build_options is not None else {})},
+            collection=self.collection_name, compatibility=compatibility,
+        )
+        self._build_provenance = provenance
+        self._build_compatibility = compatibility
+        self._build_options = build_options
 
     def finish_build(self, compatibility: IndexCompatibility, *, build_options: dict | None = None) -> None:
         """Atomically publish the completed generation and its provenance."""
@@ -121,7 +117,9 @@ class DocumentVectorStore:
                 collection=self.collection_name, compatibility=compatibility,
             )
         finally:
-            self._release_build_lock()
+            # Publication does not end the client lifetime. A competing local
+            # job must wait until close(), including if marker writing fails.
+            self._build_provenance = None
 
     def get_point_payloads(self) -> dict[int, dict]:
         """Read passage metadata; propagate failures to prevent unsafe cleanup."""
