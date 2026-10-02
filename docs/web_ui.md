@@ -259,6 +259,21 @@ dieselben Modell-/Qdrant-Zustandsverzeichnisse. Ein lebender Unterprozess bleibt
 auch nach Ausfall seines Webprozesses geschützt. Nachdem beide beendet sind,
 wird der unterbrochene Job als Fehler angezeigt; ein neuer Versuch ist möglich.
 
+„Legacy-Bestand prüfen“ bietet zwei feste Aktionen für `ratsi_passages` und
+`ratsi_documents`. Ziel, Quell-Datenbank und Berichtspfad legt der Server fest;
+zusätzliche Pfad-, Stichproben-, Toleranz- oder Apply-Parameter werden abgewiesen.
+Die signierte Zielbindung ist 15 Minuten gültig und wird vor Clientstart unter
+der Modellsperre erneut geprüft. Die Aktion verändert weder Qdrant-Payloads
+noch Freigabemarker. Jeder Job behält einen eigenen privaten Bericht. Auf der
+Jobdetailseite zeigt „Legacy-Prüfprotokoll“ Ziel, Quelle, Prüfzeit, Ergebnis,
+Stichprobenumfang und Berichtshash; gültige Abbruchberichte bleiben sichtbar.
+Bei einem laufenden Job nach Abschluss „Prüfprotokoll anzeigen“ wählen. Die
+Jobstatus-API liefert dieselben geprüften Ergebnisfelder. Bei geänderter
+Konfiguration erscheint das Ergebnis als historisch; veränderte, fremde oder
+unlesbare Protokolle werden abgewiesen. Rohes stdout/stderr wird nicht gespeichert.
+Eine Übernahme wird in diesem Schritt noch nicht angeboten. Landkreis bleibt
+„Neuaufbau erforderlich“ (`rebuild_required`) als separate Aufgabe.
+
 Django und seine Build-Unterprozesse nutzen standardmäßig denselben Qdrant-Server
 `http://127.0.0.1:6333` wie die CLI. `RATSI_QDRANT_URL` wählt einen anderen Server.
 Mit `RATSI_QDRANT_MODE=local` und ohne URL wird der lokale Index verwendet. Nach einer Änderung der

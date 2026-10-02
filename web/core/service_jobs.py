@@ -49,6 +49,8 @@ class ServiceJob:
     child_pid: int = 0
     models_dir: str = ""
     preparation_binding: str = ""
+    inspection_context: str = ""
+    report_sha256: str = ""
 
     @property
     def command_text(self) -> str:
@@ -84,14 +86,15 @@ _loaded_db_path: Path | None = None
 _last_persist_monotonic = 0.0
 _dirty_ids: set[str] = set()
 _seen_ids: set[str] = set()
-MODEL_ACTIONS = {"prepare_embedding_models", "build_vector_index", "build_landkreis_vector_index"}
+MODEL_ACTIONS = {"prepare_embedding_models", "build_vector_index", "build_landkreis_vector_index", "inspect_legacy_index"}
 
 
 class ServiceJobStartError(ValueError):
     """A job cannot safely be persisted or reserved before starting."""
 
 
-def start_service_job(action: str, command: list[str], cwd: Path, *, preparation_binding: str | None = None) -> ServiceJob:
+def start_service_job(action: str, command: list[str], cwd: Path, *, preparation_binding: str | None = None,
+                      inspection_context: dict | None = None) -> ServiceJob:
     """Atomically reserve colliding web actions before creating their worker."""
 
     from src.model_operations import model_operation_lock, model_preparation_binding
@@ -110,6 +113,12 @@ def start_service_job(action: str, command: list[str], cwd: Path, *, preparation
                     if preparation_binding != model_preparation_binding(root):
                         raise ServiceJobStartError("Modellkonfiguration wurde geändert. Vorbereitung erneut bestätigen.")
                     job.preparation_binding = preparation_binding
+                if action == "inspect_legacy_index":
+                    from .services.legacy_inspection import inspection_context as current_context, inspection_command
+                    if not isinstance(inspection_context, dict) or inspection_context != current_context(inspection_context.get("collection")):
+                        raise ServiceJobStartError("Prüfkonfiguration wurde geändert. Seite neu laden.")
+                    job.inspection_context = json.dumps(inspection_context, sort_keys=True)
+                    job.command = inspection_command(inspection_context, job.job_id)
         with _lock:
             _ensure_loaded_locked()
             with sqlite3.connect(SERVICE_JOBS_DB) as conn:
@@ -212,14 +221,19 @@ def _execute_job(job_id: str, cwd: Path) -> None:
         job.action,
         extra={"run_id": job_id},
     )
-    private_output = job.action == "prepare_embedding_models"
+    preparation_output = job.action == "prepare_embedding_models"
+    legacy_output = job.action == "inspect_legacy_index"
+    private_output = preparation_output or legacy_output
     environment = {**os.environ, RUN_ID_ENV: job.job_id}
     if job.models_dir:
         environment["RATSI_MODELS_DIR"] = job.models_dir
-    if private_output:
+    if preparation_output:
         environment["RATSI_MODEL_PREPARATION_BINDING"] = job.preparation_binding
     else:
         environment.pop("RATSI_MODEL_PREPARATION_BINDING", None)
+    environment.pop("RATSI_LEGACY_INSPECTION_CONTEXT", None)
+    if legacy_output:
+        environment["RATSI_LEGACY_INSPECTION_CONTEXT"] = job.inspection_context
     try:
         process = subprocess.Popen(
             job.command,
@@ -251,7 +265,7 @@ def _execute_job(job_id: str, cwd: Path) -> None:
     try:
         _update_job(job_id, child_pid=getattr(process, "pid", 0))
         for line in process.stdout:
-            stripped = _safe_preparation_output(line) if private_output else line.rstrip()
+            stripped = None if legacy_output else (_safe_preparation_output(line) if preparation_output else line.rstrip())
             if stripped is not None:
                 lines.append(stripped)
                 _update_job(job_id, output="\n".join(lines), summary=stripped)
@@ -261,11 +275,24 @@ def _execute_job(job_id: str, cwd: Path) -> None:
         process.wait()
         raise
     status = "ok" if process.returncode == 0 else "error"
-    if private_output and (not lines or json.loads(lines[-1])["status"] != "bereit"):
+    report_digest = ""
+    if legacy_output:
+        from .services.legacy_inspection import bound_report
+        try:
+            report = bound_report(job)
+        except (OSError, ValueError, TypeError, KeyError):
+            lines.append("Legacy-Prüfung ohne gültiges, zugeordnetes Protokoll beendet.")
+            status = "error"
+        else:
+            report_digest = report["report_sha256"]
+            status = "ok" if process.returncode == 0 and report["result"] == "verified" else "error"
+            lines.append(json.dumps({"result": report["result"], "abort_code": report["abort_code"],
+                                     "report_sha256": report_digest}))
+    if preparation_output and (not lines or json.loads(lines[-1])["status"] != "bereit"):
         status = "error"
-    if private_output and not lines:
+    if preparation_output and not lines:
         lines.append("Modellvorbereitung abgebrochen; kein verifizierbares Ergebnis verfügbar.")
-    elif private_output and process.returncode != 0 and json.loads(lines[-1])["status"] == "bereit":
+    elif preparation_output and process.returncode != 0 and json.loads(lines[-1])["status"] == "bereit":
         lines.append("Modellvorbereitung abgebrochen; erfolgreicher Abschluss nicht bestätigt.")
     _update_job(
         job_id,
@@ -273,6 +300,7 @@ def _execute_job(job_id: str, cwd: Path) -> None:
         exit_code=int(process.returncode or 0),
         output="\n".join(lines),
         summary=lines[-1] if lines else job.summary,
+        report_sha256=report_digest,
         finished_at=_now(),
     )
     log_method = LOGGER.info if status == "ok" else LOGGER.error
@@ -317,6 +345,9 @@ def _prune_jobs_locked() -> None:
 def _pid_alive(pid: int) -> bool:
     if pid <= 0:
         return False
+    if os.name == "nt":
+        # Windows os.kill(pid, 0) is not a harmless existence probe.
+        return _windows_pid_alive(pid)
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
@@ -324,6 +355,30 @@ def _pid_alive(pid: int) -> bool:
     except PermissionError:
         return True
     return True
+
+
+def _windows_pid_alive(pid: int) -> bool:
+    """Query process state without sending a signal or terminating a process."""
+    import ctypes
+    from ctypes import wintypes
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel.OpenProcess.restype = wintypes.HANDLE
+    kernel.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+    kernel.GetExitCodeProcess.restype = wintypes.BOOL
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel.CloseHandle.restype = wintypes.BOOL
+    handle = kernel.OpenProcess(0x1000, False, pid)
+    if not handle:
+        # Invalid PID means absent; access denied and other unknown failures
+        # conservatively keep the reservation instead of allowing concurrency.
+        return ctypes.get_last_error() != 87
+    try:
+        code = wintypes.DWORD()
+        return not kernel.GetExitCodeProcess(handle, ctypes.byref(code)) or code.value == 259
+    finally:
+        kernel.CloseHandle(handle)
 
 
 def _ensure_loaded_locked() -> None:
@@ -383,6 +438,7 @@ def _initialize_db(db_path: Path) -> None:
         for name, sql_type, default in (
             ("owner_pid", "INTEGER", "0"), ("child_pid", "INTEGER", "0"),
             ("models_dir", "TEXT", "''"), ("preparation_binding", "TEXT", "''"),
+            ("inspection_context", "TEXT", "''"), ("report_sha256", "TEXT", "''"),
         ):
             if name not in columns:
                 conn.execute(f"ALTER TABLE service_jobs ADD COLUMN {name} {sql_type} NOT NULL DEFAULT {default}")
@@ -390,10 +446,11 @@ def _initialize_db(db_path: Path) -> None:
 
 def _store_job(conn, job: ServiceJob) -> None:
     fields = ["job_id", "action", "command_json", "status", "exit_code", "output", "started_at",
-              "finished_at", "summary", "created_at", "owner_pid", "child_pid", "models_dir", "preparation_binding"]
+              "finished_at", "summary", "created_at", "owner_pid", "child_pid", "models_dir", "preparation_binding",
+              "inspection_context", "report_sha256"]
     values = [job.job_id, job.action, json.dumps(job.command), job.status, job.exit_code, job.output,
               job.started_at, job.finished_at, job.summary, job.created_at or _storage_now(),
-              job.owner_pid, job.child_pid, job.models_dir, job.preparation_binding]
+              job.owner_pid, job.child_pid, job.models_dir, job.preparation_binding, job.inspection_context, job.report_sha256]
     conn.execute(
         f"INSERT INTO service_jobs ({','.join(fields)}) VALUES ({','.join('?' for _ in fields)}) "
         "ON CONFLICT(job_id) DO UPDATE SET " + ','.join(f"{name}=excluded.{name}" for name in fields[1:]),
@@ -442,6 +499,7 @@ def _job_from_row(row: sqlite3.Row) -> ServiceJob:
         created_at=str(row["created_at"] or ""),
         owner_pid=int(row["owner_pid"]), child_pid=int(row["child_pid"]),
         models_dir=str(row["models_dir"]), preparation_binding=str(row["preparation_binding"]),
+        inspection_context=str(row["inspection_context"]), report_sha256=str(row["report_sha256"]),
     )
 
 

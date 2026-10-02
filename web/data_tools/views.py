@@ -15,6 +15,9 @@ from . import services
 
 def _start_job(request, command):
     action = request.POST.get("action", "")
+    if action == "inspect_legacy_index":
+        return service_jobs.start_service_job(action, command, services.REPO_ROOT,
+                                             inspection_context=services.confirmed_inspection_context(request.POST))
     if action == "prepare_embedding_models":
         return service_jobs.start_service_job(
             action, command, services.REPO_ROOT,
@@ -107,6 +110,10 @@ def service_vector(request):
         confirmation = services.preparation_confirmation()
     except (ValueError, OSError, RuntimeError):
         confirmation = None
+    try:
+        legacy_forms = services.legacy_inspection_forms()
+    except (ValueError, OSError, RuntimeError):
+        legacy_forms = []
     return render(
         request,
         "data_tools/service_vector.html",
@@ -114,6 +121,7 @@ def service_vector(request):
             "active_nav": "data",
             "status": services.service_status(),
             "preparation_confirmation": confirmation,
+            "legacy_inspection_forms": legacy_forms,
             "vector_status": services.vector_index_status(),
             "landkreis_vector_status": services.landkreis_vector_index_status(),
             "errors": errors,
@@ -130,6 +138,7 @@ def service_job_detail(request, job_id: str):
             "active_nav": "data",
             "job": job,
             "job_id": job_id,
+            "legacy_report": services.inspection_result(job),
             "status": services.service_status(),
         },
     )
@@ -151,4 +160,4 @@ def service_job_detail_status(request, job_id: str):
     job = service_jobs.get_service_job(job_id)
     if job is None:
         return HttpResponseNotFound()
-    return JsonResponse({"job": job.to_dict()})
+    return JsonResponse({"job": job.to_dict(), "legacy_report": services.inspection_result(job)})

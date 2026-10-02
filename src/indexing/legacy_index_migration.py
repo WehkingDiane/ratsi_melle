@@ -3,21 +3,19 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from datetime import datetime
 import json
 import os
 from pathlib import Path
 
 from src.config.index_compatibility import IndexCompatibility
 from src.indexing.legacy_index_inspection import (
-    SAMPLE_SIZE,
     LegacyInspectionError,
     _check_hints,
     _point_ids_sha256,
     inspect_legacy_collection,
     target_sha256,
 )
-from src.indexing.legacy_inspection_report import REPORT_VERSION, report_tolerances
+from src.indexing.legacy_inspection_report import validate_inspection_report_envelope
 from src.paths import LOCAL_INDEX_DB
 from src.qdrant_connection import QdrantConnection
 from src.model_operations import locked_model_operation
@@ -71,18 +69,12 @@ def _read_report(path: Path) -> dict:
         report = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, ValueError) as error:
         raise LegacyMigrationError("report_invalid", "Pruefprotokoll ist nicht lesbar.") from error
-    if not isinstance(report, dict) or type(report.get("report_version")) is not int or report["report_version"] != REPORT_VERSION:
-        raise LegacyMigrationError("report_invalid", "Pruefprotokoll hat ein unbekanntes Format.")
     try:
-        checked_at = datetime.fromisoformat(report["checked_at"])
-    except (KeyError, TypeError, ValueError) as error:
-        raise LegacyMigrationError("report_invalid", "Pruefzeitpunkt ist ungueltig.") from error
-    if checked_at.tzinfo is None or checked_at.utcoffset() is None:
-        raise LegacyMigrationError("report_invalid", "Pruefzeitpunkt muss eine Zeitzone enthalten.")
+        validate_inspection_report_envelope(report)
+    except (ValueError, TypeError, KeyError) as error:
+        raise LegacyMigrationError("report_invalid", "Pruefprotokoll ist ungueltig.") from error
     if report.get("result") != "verified" or report.get("abort_code") is not None:
         raise LegacyMigrationError("report_not_verified", "Pruefprotokoll belegt keine erfolgreiche Pruefung.")
-    if report.get("sample_limit") != SAMPLE_SIZE or report.get("tolerances") != report_tolerances():
-        raise LegacyMigrationError("report_invalid", "Pruefprotokoll hat andere Stichproben- oder Vergleichsregeln.")
     return report
 
 

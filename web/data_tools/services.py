@@ -10,6 +10,9 @@ from core.services import status
 from core.services.commands import build_service_command as _build_service_command
 from core.services.model_preparation import preparation_confirmation
 from core.services.model_preparation import confirmed_preparation_binding
+from core.services.legacy_inspection import confirmed_inspection_context
+from core.services.legacy_inspection import inspection_forms as _inspection_forms
+from core.services.legacy_inspection import inspection_result
 from src.config.embedding_model_status import embedding_model_inventory_status as _embedding_model_inventory_status
 from src.indexing.vector_status import landkreis_vector_index_status as _landkreis_vector_index_status
 from src.indexing.vector_status import vector_index_status as _vector_index_status
@@ -38,6 +41,12 @@ def build_service_command(action: str, data: dict[str, Any]) -> tuple[list[str] 
 def service_status() -> dict[str, Any]:
     _sync_paths()
     return status.service_status()
+
+
+def legacy_inspection_forms() -> list[dict]:
+    """Present the two fixed Melle targets without inspecting their contents."""
+    _sync_paths()
+    return _inspection_forms()
 
 
 def embedding_model_status() -> dict[str, object]:

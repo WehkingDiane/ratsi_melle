@@ -20,7 +20,8 @@ def build_service_command(action: str, data: dict[str, Any]) -> tuple[list[str] 
 def _validate_model_action(action: str, data: dict[str, Any], fields: set[str]) -> None:
     """Accept only scalar, unique fields belonging to the selected model action."""
 
-    label = "Modellvorbereitung" if action == "prepare_embedding_models" else "Modellprüfung"
+    label = {"prepare_embedding_models": "Modellvorbereitung",
+             "inspect_legacy_index": "Legacy-Bestandsprüfung"}.get(action, "Modellprüfung")
     if set(data) - fields:
         raise ValueError(f"Die {label} erlaubt keine zusätzlichen Parameter.")
     if hasattr(data, "getlist") and any(len(data.getlist(key)) != 1 for key in data):
@@ -32,6 +33,12 @@ def _validate_model_action(action: str, data: dict[str, Any], fields: set[str]) 
 
 
 def _service_command(action: str, data: dict[str, Any]) -> list[str]:
+    if action == "inspect_legacy_index":
+        from .legacy_inspection import confirmed_inspection_context, inspection_command
+
+        _validate_model_action(action, data, {"action", "csrfmiddlewaretoken", "collection", "inspection_binding"})
+        return inspection_command(confirmed_inspection_context(data))
+
     if action == "prepare_embedding_models":
         from .model_preparation import confirmed_preparation_binding
 

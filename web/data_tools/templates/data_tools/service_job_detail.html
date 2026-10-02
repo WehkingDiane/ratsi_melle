@@ -31,6 +31,29 @@
   <pre class="text-block compact">{{ job.command_text }}</pre>
   <pre class="text-block" id="job-output">{{ job.output|default:"Noch keine Ausgabe." }}</pre>
 </section>
+{% if legacy_report %}
+<section class="panel" id="legacy-report">
+  <h2>Legacy-Prüfprotokoll</h2>
+  {% if legacy_report.pending %}
+  <p>Die Bestandsprüfung läuft. <a href="{% url 'data_tools:service_job_detail' job_id=job_id %}">Nach Abschluss Prüfprotokoll anzeigen</a>.</p>
+  {% elif legacy_report.invalid %}
+  <p class="status-error">Kein gültiges, unverändertes Prüfprotokoll für diesen Job verfügbar.</p>
+  {% else %}
+  {% if legacy_report.historical %}<p class="status-warning">Historisches Ergebnis: Die aktuelle Konfiguration weicht vom Prüfziel ab.</p>{% endif %}
+  <dl class="facts">
+    <div><dt>Collection</dt><dd>{{ legacy_report.collection }}</dd></div>
+    <div><dt>Geprüftes Ziel</dt><dd>{{ legacy_report.target }}</dd></div>
+    {% if legacy_report.source_db %}<div><dt>Quell-Datenbank</dt><dd>{{ legacy_report.source_db }}</dd></div>{% endif %}
+    <div><dt>Prüfzeitpunkt</dt><dd>{{ legacy_report.checked_at }}</dd></div>
+    <div><dt>Prüfergebnis</dt><dd>{% if legacy_report.result == "verified" %}Verifiziert{% else %}Abgebrochen: {{ legacy_report.abort_code }}{% endif %}</dd></div>
+    <div><dt>Punkte</dt><dd>{{ legacy_report.point_count|default_if_none:"Nicht verifiziert" }}</dd></div>
+    <div><dt>Stichprobe</dt><dd>{{ legacy_report.sample_count }} / {{ legacy_report.sample_limit }}</dd></div>
+    <div><dt>Protokoll-SHA-256</dt><dd>{{ legacy_report.report_sha256 }}</dd></div>
+  </dl>
+  <p class="muted">Dieses Protokoll dokumentiert die Prüfung. Eine Übernahme wurde nicht ausgeführt.</p>
+  {% endif %}
+</section>
+{% endif %}
 {% else %}
 <p class="empty-state">Dieser Datenjob wurde nicht gefunden.</p>
 {% endif %}

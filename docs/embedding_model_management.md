@@ -1214,7 +1214,7 @@ Orientierung und sind keine Vorgabe fuer die Bearbeitung.
 - [x] **M6.5** Freie Modell-IDs, Revisionen, Zielpfade und zusaetzliche
   Kommandoargumente in Formular und Command Builder ausschliessen.
   `[Mittel · GPT-6 Sol / Medium]`
-- [ ] **M6.6** Feste rein lesende Serviceaktion fuer die Legacy-Bestandspruefung
+- [x] **M6.6** Feste rein lesende Serviceaktion fuer die Legacy-Bestandspruefung
   und Darstellung des Uebernahmeprotokolls implementieren; nur Melle-Collections,
   mit serverseitig gebundenem Ziel, Quellpfad und Berichtspfad.
   `[Schwer · GPT-6 Astra / Medium]`
@@ -1398,8 +1398,29 @@ Orientierung und sind keine Vorgabe fuer die Bearbeitung.
   533 Unit-Tests und 176 betroffene Integrationstests bestehen; ein
   voraussetzungsabhaengiger Test ist uebersprungen. Keine echten Downloads
   oder produktiven Indexaenderungen. Allgemeine Version: `0.5.42`.
-- Naechster regulaerer Punkt: **M6.6**; rein lesende Legacy-Bestandspruefung
-  und Darstellung des Uebernahmeprotokolls implementieren.
+- **M6.6** umgesetzt: zwei feste Legacy-Pruefformulare fuer `ratsi_passages`
+  und `ratsi_documents`. Signierte, 15 Minuten gueltige Zielbindung an
+  Qdrant-Zielhash, Collection, konfigurierte Quell-SQLite, Berichtswurzel und
+  Modellvertrag. Die CLI prueft diese Bindung unter der Modellsperre erneut,
+  bevor sie einen Client oeffnet. Freie Pfade, Stichproben-/Toleranzparameter
+  und Apply-Argumente werden abgewiesen. Jeder Job erhaelt seinen eigenen
+  Bericht unter `PRIVATE_DATA_DIR / legacy_inspections / <job_id>.json`.
+  Gemeinsame Format-, Zeitstempel- und Vergleichsvalidierung fuer Web und
+  bestehende Uebernahme; der Webleser prueft zusaetzlich Ergebnisfelder,
+  Ziel/Quelle, Dateigroesse, Symlinks und den gespeicherten Berichtshash.
+  Verifizierte und gueltige Abbruchberichte erscheinen im Jobdetail und dessen
+  Status-API. Konfigurationswechsel kennzeichnet einen Bericht als historisch;
+  nachtraeglich veraenderte/unlesbare Berichte werden nicht als Ergebnis gezeigt.
+  Rohes stdout/stderr des Pruefprozesses wird nicht als Jobausgabe gespeichert.
+  Die bestehende transaktionale Jobreservierung und OS-Modellsperre decken
+  auch Legacy-Pruefungen ab. Windows-Prozessstatus wird ohne `os.kill(pid, 0)`
+  abgefragt; native API-Aufrufe sind mit Ersatzfunktionen getestet.
+  Landkreis bleibt `rebuild_required` ohne Web-Uebernahme. Keine Payload-,
+  Freigabemarker- oder produktiven Indexaenderungen. Gesamtsuite: 902 Tests
+  bestanden, ein Test uebersprungen, sieben Live-Tests ausgeschlossen.
+  Allgemeine Version: `0.5.43`.
+- Naechster regulaerer Punkt: **M6.7**; bestaetigte Uebernahme ausschliesslich
+  fuer ein erfolgreiches, unveraendertes und erneut geprueftes Protokoll.
 
 - Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-
   und Testabdeckung, CLI-/Manifestvertrag, Dokumentation und Versionsstand

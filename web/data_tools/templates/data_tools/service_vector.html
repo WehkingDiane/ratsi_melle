@@ -60,6 +60,24 @@
 </section>
 {% endwith %}
 
+<section class="panel" id="legacy-inspection">
+  <h2>Legacy-Bestand prüfen</h2>
+  <p>Prüft vorhandene Melle-Vektoren gegen die vorbereiteten lokalen Modelle. Die Prüfung verändert weder Qdrant-Payloads noch Freigabemarker und startet keinen Neuaufbau.</p>
+  {% for inspection in legacy_inspection_forms %}
+  <form method="post" class="form-stack">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="inspect_legacy_index">
+    <input type="hidden" name="collection" value="{{ inspection.collection }}">
+    <input type="hidden" name="inspection_binding" value="{{ inspection.binding }}">
+    <p><strong>{{ inspection.collection }}</strong> – Ziel: {{ inspection.target }}{% if inspection.source_db %}; Quell-Datenbank: {{ inspection.source_db }}{% endif %}</p>
+    <button class="button utility" type="submit">{{ inspection.collection }} prüfen</button>
+  </form>
+  {% empty %}
+  <p class="status-warning">Prüfkonfiguration ist nicht verfügbar. Qdrant- und Modellkonfiguration prüfen.</p>
+  {% endfor %}
+  <p class="muted">Landkreis: Neuaufbau erforderlich (rebuild_required). Hier wird keine Übernahme angeboten.</p>
+</section>
+
 <section class="grid two-columns">
   <article class="panel">
     <h2>Ratsinfo-Vektorindex bauen</h2>

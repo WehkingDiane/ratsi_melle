@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 import sys
 
@@ -20,8 +21,10 @@ from src.indexing.legacy_index_migration import LegacyMigrationError, apply_veri
 from src.indexing.legacy_inspection_report import inspect_and_write_report
 from src.indexing.legacy_index_inspection import LegacyInspectionError
 from src.qdrant_connection import QdrantConnection, QdrantServerUnavailableError
-from src.paths import QDRANT_DIR
-from src.model_operations import locked_model_operation
+from src.paths import QDRANT_DIR, LOCAL_INDEX_DB
+from src.model_operations import locked_model_operation, model_preparation_binding
+from src.indexing.legacy_index_inspection import target_sha256
+from src.observability import RUN_ID_ENV
 
 
 COLLECTIONS = ("ratsi_passages", "ratsi_documents", "landkreis_publications")
@@ -79,6 +82,24 @@ def main(argv: list[str] | None = None) -> int:
 
     inspection_options = {"ratsinfo_db": args.source_db} if args.source_db is not None else {}
     connection = QdrantConnection.from_env(args.qdrant_dir)
+    web_context = os.environ.get("RATSI_LEGACY_INSPECTION_CONTEXT")
+    if web_context is not None:
+        try:
+            expected = json.loads(web_context)
+            actual = {
+                "collection": args.collection, "target": connection.target,
+                "target_sha256": target_sha256(connection),
+                "qdrant_dir": str(args.qdrant_dir.resolve()),
+                "source_db": str((args.source_db or LOCAL_INDEX_DB).resolve()) if args.collection == "ratsi_documents" else None,
+                "report_root": expected["report_root"], "model_binding": model_preparation_binding(),
+            }
+            report_path = Path(expected["report_root"]) / f"{os.environ[RUN_ID_ENV]}.json"
+            if (not args.inspect or args.collection not in {"ratsi_passages", "ratsi_documents"}
+                    or expected != actual or args.report != report_path or args.report.exists()):
+                raise ValueError("Changed inspection binding")
+        except (OSError, RuntimeError, ValueError, TypeError, KeyError):
+            print(json.dumps({"result": "aborted", "abort_code": "configuration_changed"}))
+            return 1
     if args.collection == "landkreis_publications":
         return _abort_preflight(connection, args, "rebuild_required",
                                 inspection_options=inspection_options)
