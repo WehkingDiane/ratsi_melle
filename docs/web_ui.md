@@ -243,6 +243,20 @@ werden erst in M6.8 zugeordnet. Manifestdatum und
 Zeitpunkt des Seitenaufrufs werden nicht als letzte ausgeführte Prüfung
 ausgegeben.
 
+„Modelle vorbereiten“ lädt nach ausdrücklicher Bestätigung die angezeigten,
+fest konfigurierten Revisionen in das konfigurierte Modellverzeichnis. Dafür
+müssen die Modellbibliotheken im Python-Umfeld des Servers installiert sein.
+Die Aktion läuft als Datenjob mit `--download --json`; die Jobdetailseite zeigt
+das geprüfte Ergebnis oder einen festen Fehlercode. Rohe Downloadausgaben und
+Provider-Tracebacks werden nicht gespeichert. Die signierte Bestätigung ist
+15 Minuten gültig und bindet Modellpfad, Revisionen und Bibliotheksstand. Nach
+Änderungen die Seite neu laden und erneut bestätigen. Parallele Modell- und
+Vektorjobs werden im Web abgewiesen; direkte CLI-Aufrufe warten auf dieselbe
+Betriebssystemsperre. Alle Webprozesse verwenden dieselbe Jobdatenbank und
+dieselben Modell-/Qdrant-Zustandsverzeichnisse. Ein lebender Unterprozess bleibt
+auch nach Ausfall seines Webprozesses geschützt. Nachdem beide beendet sind,
+wird der unterbrochene Job als Fehler angezeigt; ein neuer Versuch ist möglich.
+
 Django und seine Build-Unterprozesse nutzen standardmäßig denselben Qdrant-Server
 `http://127.0.0.1:6333` wie die CLI. `RATSI_QDRANT_URL` wählt einen anderen Server.
 Mit `RATSI_QDRANT_MODE=local` und ohne URL wird der lokale Index verwendet. Nach einer Änderung der

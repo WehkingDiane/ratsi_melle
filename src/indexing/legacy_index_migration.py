@@ -20,6 +20,7 @@ from src.indexing.legacy_index_inspection import (
 from src.indexing.legacy_inspection_report import REPORT_VERSION, report_tolerances
 from src.paths import LOCAL_INDEX_DB
 from src.qdrant_connection import QdrantConnection
+from src.model_operations import locked_model_operation
 
 
 BACKFILL_SIZE = 256
@@ -128,6 +129,7 @@ def _check_identity(points: dict[int, dict], report: dict, client, collection: s
         raise LegacyMigrationError("collection_changed", "Collection passt nicht mehr zum Pruefprotokoll.")
 
 
+@locked_model_operation
 def apply_verified_legacy_report(
     connection: QdrantConnection, client, collection: str, report_path: Path, *,
     confirm_collection: str, inspection_options: dict | None = None,

@@ -13,6 +13,16 @@ from core import service_jobs
 from . import services
 
 
+def _start_job(request, command):
+    action = request.POST.get("action", "")
+    if action == "prepare_embedding_models":
+        return service_jobs.start_service_job(
+            action, command, services.REPO_ROOT,
+            preparation_binding=services.confirmed_preparation_binding(request.POST),
+        )
+    return service_jobs.start_service_job(action, command, services.REPO_ROOT)
+
+
 def service_home(request):
     return render(
         request,
@@ -34,8 +44,12 @@ def service_fetch(request):
             request.POST,
         )
         if command:
-            job = service_jobs.start_service_job(request.POST.get("action", ""), command, services.REPO_ROOT)
-            return redirect("data_tools:service_job_detail", job_id=job.job_id)
+            try:
+                job = _start_job(request, command)
+            except (service_jobs.ServiceJobStartError, ValueError) as error:
+                errors.append(str(error))
+            else:
+                return redirect("data_tools:service_job_detail", job_id=job.job_id)
     return render(
         request,
         "data_tools/service_fetch.html",
@@ -57,8 +71,12 @@ def service_build(request):
             request.POST,
         )
         if command:
-            job = service_jobs.start_service_job(request.POST.get("action", ""), command, services.REPO_ROOT)
-            return redirect("data_tools:service_job_detail", job_id=job.job_id)
+            try:
+                job = _start_job(request, command)
+            except (service_jobs.ServiceJobStartError, ValueError) as error:
+                errors.append(str(error))
+            else:
+                return redirect("data_tools:service_job_detail", job_id=job.job_id)
     return render(
         request,
         "data_tools/service_build.html",
@@ -79,14 +97,23 @@ def service_vector(request):
             request.POST,
         )
         if command:
-            job = service_jobs.start_service_job(request.POST.get("action", ""), command, services.REPO_ROOT)
-            return redirect("data_tools:service_job_detail", job_id=job.job_id)
+            try:
+                job = _start_job(request, command)
+            except (service_jobs.ServiceJobStartError, ValueError) as error:
+                errors.append(str(error))
+            else:
+                return redirect("data_tools:service_job_detail", job_id=job.job_id)
+    try:
+        confirmation = services.preparation_confirmation()
+    except (ValueError, OSError, RuntimeError):
+        confirmation = None
     return render(
         request,
         "data_tools/service_vector.html",
         {
             "active_nav": "data",
             "status": services.service_status(),
+            "preparation_confirmation": confirmation,
             "vector_status": services.vector_index_status(),
             "landkreis_vector_status": services.landkreis_vector_index_status(),
             "errors": errors,

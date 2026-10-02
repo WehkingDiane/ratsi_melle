@@ -1209,7 +1209,7 @@ Orientierung und sind keine Vorgabe fuer die Bearbeitung.
   `/daten/vektor/` ergaenzen. `[Mittel · GPT-6 Sol / Medium]`
 - [x] **M6.3** Feste Serviceaktion fuer die rein lokale Pruefung implementieren.
   `[Leicht · GPT-6 Luna / Medium]`
-- [ ] **M6.4** Feste, bestaetigungspflichtige Serviceaktion fuer die Vorbereitung
+- [x] **M6.4** Feste, bestaetigungspflichtige Serviceaktion fuer die Vorbereitung
   der konfigurierten Revisionen implementieren. `[Mittel · GPT-6 Sol / Medium]`
 - [ ] **M6.5** Freie Modell-IDs, Revisionen, Zielpfade und zusaetzliche
   Kommandoargumente in Formular und Command Builder ausschliessen.
@@ -1366,8 +1366,31 @@ Orientierung und sind keine Vorgabe fuer die Bearbeitung.
   Exitcode 1 bleibt der fachliche Status in der Jobausgabe erhalten. Tests
   pruefen den Befehlsvertrag, POST/CSRF und einen echten CLI-Unterprozess mit
   fehlendem Bestand. Allgemeine Version: `0.5.40`.
-- Naechster regulaerer Punkt: **M6.4**; bestaetigte Vorbereitung mit den
-  verbindlichen Sperr-/Persistenzvoraussetzungen aus M6.8/M6.9 implementieren.
+- **M6.4** umgesetzt: „Modelle vorbereiten“ startet ausschliesslich den festen
+  Befehl `--download --json`, nach expliziter POST-/CSRF-Bestaetigung. Die
+  signierte Bestaetigung gilt 15 Minuten und bindet aufgeloesten Modellpfad,
+  gepinnte Revisionen, Pipeline-/Manifestformat und Bibliotheksstand. Der
+  Kindprozess prueft diese Bindung nach Sperrerwerb erneut. Konfigurationswechsel
+  verlangt erneute Bestaetigung; es gibt keine freien Downloadparameter.
+  Die notwendigen Teile von M6.8/M6.9 sind vorgezogen: transaktionale
+  SQLite-Reservierung vor Workerstart, aktualisierte prozessuebergreifende
+  Jobansicht und eine gemeinsame OS-Modellsperre fuer Vorbereitung, Downloads,
+  Builds sowie Legacy-Inspect/-Apply. Reihenfolge bleibt Modellsperre,
+  Collection-Sperre, Client. Sperrdateien bleiben nach Prozessende erhalten;
+  das Betriebssystem gibt die Sperre frei. Ein lebender Eltern- oder
+  Kindprozess behaelt seine Reservierung; erst nach Ende beider wird ein
+  unterbrochener Job als fehlgeschlagen markiert. Alle Webprozesse muessen
+  dieselbe Jobdatenbank und dieselben Zustandsverzeichnisse nutzen; verteilt
+  betriebene Rechner bleiben ausserhalb des Vertrags.
+  Vorbereitungsjobs speichern ausschliesslich erlaubte Ergebnisfelder,
+  feste Fehlercodes und validierte Manifest-Hashes, keine rohen SDK-Ausgaben
+  oder Tracebacks. Fehlende/veraltete/manipulierte Bestaetigung, CSRF,
+  konkurrierende Webprozesse, Prozessabbruch, Persistenz-/Startfehler und
+  private Provider-Ausgaben sind durch Regressionstests abgesichert.
+  Zugeordnete Pruefhistorie und Legacy-Webaktionen bleiben fuer die folgenden
+  Aufgaben offen. Allgemeine Version: `0.5.41`.
+- Naechster regulaerer Punkt: **M6.5**; Parameter-Allowlist fuer alle neuen
+  Modellaktionen pruefen und verbleibende Formular-/Command-Grenzen absichern.
 
 - Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-
   und Testabdeckung, CLI-/Manifestvertrag, Dokumentation und Versionsstand

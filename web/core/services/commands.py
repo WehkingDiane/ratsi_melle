@@ -18,6 +18,16 @@ def build_service_command(action: str, data: dict[str, Any]) -> tuple[list[str] 
 
 
 def _service_command(action: str, data: dict[str, Any]) -> list[str]:
+    if action == "prepare_embedding_models":
+        from .model_preparation import confirmed_preparation_binding
+
+        if set(data) - {"action", "csrfmiddlewaretoken", "confirmation", "preparation_binding"}:
+            raise ValueError("Die Modellvorbereitung erlaubt keine zusätzlichen Parameter.")
+        if hasattr(data, "getlist") and any(len(data.getlist(key)) != 1 for key in data):
+            raise ValueError("Parameter der Modellvorbereitung dürfen nur einmal angegeben werden.")
+        confirmed_preparation_binding(data)
+        return [sys.executable, "scripts/prepare_embedding_models.py", "--download", "--json"]
+
     if action == "check_embedding_models":
         if set(data) - {"action", "csrfmiddlewaretoken"}:
             raise ValueError("Die lokale Modellprüfung erlaubt keine zusätzlichen Parameter.")

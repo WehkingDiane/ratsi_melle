@@ -30,6 +30,18 @@
     <button class="button utility" type="submit">Lokal prüfen</button>
     <p class="muted">Prüft den konfigurierten Modellbestand ohne Download. Ergebnis und Abschlussstatus erscheinen auf der Jobdetailseite.</p>
   </form>
+  {% if preparation_confirmation %}
+  <form method="post" class="form-stack">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="prepare_embedding_models">
+    <input type="hidden" name="preparation_binding" value="{{ preparation_confirmation }}">
+    <p>Vorbereitung für die oben konfigurierten Revisionen im Modellverzeichnis <strong>{{ models.models_dir|default:"Nicht verfügbar" }}</strong>.</p>
+    <label><input type="checkbox" name="confirmation" value="prepare" required> Ich bestätige die Vorbereitung der konfigurierten Modelle. Dabei können Dateien aus dem Internet heruntergeladen werden.</label>
+    <button class="button primary" type="submit">Modelle vorbereiten</button>
+  </form>
+  {% else %}
+  <p class="status-warning">Modellvorbereitung nicht verfügbar. Modellverzeichnis und Konfiguration prüfen.</p>
+  {% endif %}
   <div class="grid three-columns" aria-live="polite">
     {% for name, component in models.components.items %}
     <article data-model-component="{{ name }}">

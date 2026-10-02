@@ -142,3 +142,22 @@ def test_explicit_log_level_overrides_environment(
     configure_logging("explicit_level", "WARNING", log_dir=tmp_path, console=False)
 
     assert logging.getLogger().level == logging.WARNING
+
+
+def test_cli_logging_replaces_existing_django_context(tmp_path, monkeypatch):
+    from src.observability import ContextFilter
+    root = logging.getLogger()
+    old = logging.StreamHandler()
+    old.addFilter(ContextFilter("web", "old-web-run"))
+    root.addHandler(old)
+    monkeypatch.setenv(RUN_ID_ENV, "new-cli-run")
+    try:
+        path = configure_logging("cli", log_dir=tmp_path, console=False)
+        logging.getLogger("test.context").warning("replacement context")
+        assert old not in root.handlers
+        content = path.read_text()
+        assert "component=cli run_id=new-cli-run" in content
+        assert "old-web-run" not in content
+    finally:
+        root.removeHandler(old)
+        old.close()

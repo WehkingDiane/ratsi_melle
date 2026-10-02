@@ -14,6 +14,7 @@ from src.config.index_compatibility import IndexCompatibility, current_index_com
 from src.indexing.id_strategy import stable_document_id
 from src.paths import LANDKREIS_DATA_DIR, LANDKREIS_PUBLICATIONS_DB, LOCAL_INDEX_DB
 from src.qdrant_connection import QdrantConnection
+from src.model_operations import locked_model_operation
 
 
 SAMPLE_SIZE = 32
@@ -260,6 +261,7 @@ class _TextResolver:
         return text
 
 
+@locked_model_operation
 def inspect_legacy_collection(
     connection: QdrantConnection,
     client,

@@ -189,6 +189,20 @@ class EmbeddingModelDownload:
 
 
 def download_embedding_models(models_dir: Path) -> EmbeddingModelDownload:
+    """Serialize staging downloads with preparation and model consumers."""
+
+    from src.model_operations import model_operation_lock
+
+    try:
+        with model_operation_lock(models_dir):
+            return _download_embedding_models(models_dir)
+    except (OSError, ValueError, RuntimeError) as error:
+        if isinstance(error, EmbeddingModelDownloadError):
+            raise
+        raise preparation_error(error, phase="directory") from None
+
+
+def _download_embedding_models(models_dir: Path) -> EmbeddingModelDownload:
     """Download pinned revisions or resume an exactly matching preparation plan.
 
     Dense model and tokenizer share a download when their pinned identities match.
@@ -376,6 +390,20 @@ def _build_candidate_manifest(download: EmbeddingModelDownload) -> EmbeddingMode
 
 
 def prepare_embedding_models(models_dir: Path) -> PreparedEmbeddingModels:
+    """Serialize explicit preparation with every build and migration consumer."""
+
+    from src.model_operations import model_operation_lock
+
+    try:
+        with model_operation_lock(models_dir):
+            return _prepare_embedding_models(models_dir)
+    except (OSError, ValueError, RuntimeError) as error:
+        if isinstance(error, EmbeddingModelDownloadError):
+            raise
+        raise preparation_error(error, phase="prepare") from None
+
+
+def _prepare_embedding_models(models_dir: Path) -> PreparedEmbeddingModels:
     """Download, deeply validate, then atomically activate a complete inventory.
 
     Artifacts are stored in content-addressed inventory directories and never

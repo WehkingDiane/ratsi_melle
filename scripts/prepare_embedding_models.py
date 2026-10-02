@@ -6,6 +6,7 @@ import argparse
 from contextlib import redirect_stdout
 import json
 import logging
+import os
 from pathlib import Path
 import sys
 
@@ -27,6 +28,7 @@ from src.embedding_model_preparation import (
     EmbeddingModelDownloadError, preparation_error, prepare_embedding_models,
 )
 from src.observability import configure_logging
+from src.model_operations import model_operation_lock, model_preparation_binding
 
 
 def _print_status(status: EmbeddingModelStatus, *, deep: bool, json_output: bool) -> None:
@@ -121,9 +123,20 @@ def main(argv: list[str] | None = None) -> int:
         try:
             # Hub progress output must not mix with a machine-readable result.
             with redirect_stdout(sys.stderr):
-                result = prepare_embedding_models(settings.models_dir)
+                with model_operation_lock(settings.models_dir):
+                    expected = os.environ.get("RATSI_MODEL_PREPARATION_BINDING")
+                    if expected is not None and expected != model_preparation_binding(settings.models_dir):
+                        raise EmbeddingModelDownloadError(
+                            "Modellkonfiguration wurde geändert. Vorbereitung erneut bestätigen.",
+                            error_code="confirmation_changed",
+                        )
+                    result = prepare_embedding_models(settings.models_dir)
         except EmbeddingModelDownloadError as error:
             _print_download_error(str(error), json_output=args.json, error_code=error.error_code)
+            return 1
+        except (OSError, RuntimeError) as error:
+            failure = preparation_error(error, phase="prepare")
+            _print_download_error(str(failure), json_output=args.json, error_code=failure.error_code)
             return 1
         logging.getLogger("embedding_model_preparation").info(
             "event=model_preparation_completed status=ready reused=%s", result.reused,

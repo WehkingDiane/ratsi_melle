@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 
@@ -64,9 +65,16 @@ class DocumentVectorStore:
         if self._build_lock is None:
             from src.indexing.legacy_index_migration import _migration_lock
 
-            lock = _migration_lock(self.connection, self.collection_name)
-            lock.__enter__()
-            self._build_lock = lock
+            from src.model_operations import model_operation_lock
+
+            stack = ExitStack()
+            try:
+                stack.enter_context(model_operation_lock())
+                stack.enter_context(_migration_lock(self.connection, self.collection_name))
+            except BaseException:
+                stack.close()
+                raise
+            self._build_lock = stack
 
     def _release_build_lock(self) -> None:
         lock = self._build_lock

@@ -105,7 +105,9 @@ def configure_logging(
     root.setLevel(level)
 
     for handler in root.handlers[:]:
-        if getattr(handler, "_ratsi_handler", False):
+        if getattr(handler, "_ratsi_handler", False) or any(
+            isinstance(item, ContextFilter) for item in handler.filters
+        ):
             root.removeHandler(handler)
             handler.close()
 

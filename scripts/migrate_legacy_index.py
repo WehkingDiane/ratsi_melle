@@ -21,6 +21,7 @@ from src.indexing.legacy_inspection_report import inspect_and_write_report
 from src.indexing.legacy_index_inspection import LegacyInspectionError
 from src.qdrant_connection import QdrantConnection, QdrantServerUnavailableError
 from src.paths import QDRANT_DIR
+from src.model_operations import locked_model_operation
 
 
 COLLECTIONS = ("ratsi_passages", "ratsi_documents", "landkreis_publications")
@@ -52,6 +53,7 @@ def _abort_preflight(connection: QdrantConnection, args, code: str, *, inspectio
     return 1
 
 
+@locked_model_operation
 def main(argv: list[str] | None = None) -> int:
     """Require an explicit collection confirmation before any Qdrant write."""
 
