@@ -1241,7 +1241,7 @@ Orientierung und sind keine Vorgabe fuer die Bearbeitung.
   und Vektor-Builds auch ueber Webprozesse und direkte CLI-Aufrufe verhindern
   oder sicher serialisieren; Abbruch und Wiederanlauf einbeziehen.
   `[Schwer · GPT-6 Astra / High]`
-- [ ] **M6.10** CSRF-Schutz, Befehls-Allowlist, Bestaetigungsbindung,
+- [x] **M6.10** CSRF-Schutz, Befehls-Allowlist, Bestaetigungsbindung,
   Secret-Redaktion, Statuswerte und Jobstart mit Web- und Service-Tests
   absichern. `[Schwer · GPT-6 Astra / High]`
 - [ ] **M6.11** Phase 6 pruefen und als eigenen Zwischenstand committen.
@@ -1470,7 +1470,7 @@ Orientierung und sind keine Vorgabe fuer die Bearbeitung.
   Tests pruefen Zuordnung, Neustart, Fehler, Abbruch, veraltete Ergebnisse,
   Browser-Aktualisierung und Wiederherstellung nach Speicher-/Abruffehlern.
   Allgemeine Version: `0.5.45`.
-- Letzter abgeschlossener Punkt: **M6.9**; gemeinsame Prozesssperren fuer
+- **M6.9** umgesetzt; gemeinsame Prozesssperren fuer
   Vorbereitung, Passage-/Legacy-/Landkreis-Build und Legacy-Inspect/-Apply
   vervollstaendigt. Builds behalten Modell- und Collection-Sperre bis zum
   Schliessen des Clients, auch nach Erfolg, abgelehntem Preflight oder
@@ -1494,8 +1494,26 @@ Orientierung und sind keine Vorgabe fuer die Bearbeitung.
   wurden mitgeprueft. Gesamtsuite: 997 Tests bestanden, ein Test uebersprungen,
   sieben Live-Tests ausgeschlossen. Keine produktiven Melle- oder
   Landkreis-Indexaenderungen. Allgemeine Version: `0.5.46`.
-- Naechster regulaerer Punkt: **M6.10**; Web-/Service-Sicherheitsmatrix fuer
-  CSRF, Allowlist, Bestaetigungen, Secret-Redaktion und Statuswerte abschliessen.
+- Letzter abgeschlossener Punkt: **M6.10**; 63 neue Web-/Service-Tests
+  sichern die vier Modell-/Legacy-Aktionen gegen fehlende, manipulierte und
+  fremde CSRF-Tokens, freie und doppelte POST-Felder sowie ungueltige oder
+  nach Bibliothekswechsel veraltete Bestaetigungen ab. Gueltige POSTs reservieren
+  genau einen Job. Status und Exitcode werden mit Jobdetail und Historie
+  abgeglichen; rohe, URL-kodierte und aufgeteilte Kindprozess-Secrets bleiben
+  bei Erfolg, Startfehler, Lesefehler und Abbruch aus SQLite, HTML, JSON und Logs.
+  Der gezielte neue Testlauf besteht mit 63 Tests. Der regulaere Gesamtlauf
+  in einer isolierten Repositorykopie unter `/tmp` ergab 1051 bestandene Tests
+  und zehn Starttimeouts; sieben Live-Tests waren ausgeschlossen. Kalte CLI-
+  Importe benoetigten hier bereits rund 16 Sekunden. Die Startwartefristen
+  der beiden betroffenen Testmodule wurden von zehn auf 60 Sekunden erhoeht;
+  ihre Sperr- und Reihenfolgepruefungen bleiben vollstaendig erhalten.
+  Der gezielte Nachlauf beider Module besteht mit 68 Tests einschliesslich
+  aller zehn zuvor fehlgeschlagenen Faelle. Damit sind alle 1061 regulaeren
+  Tests ueber Gesamtlauf und Nachlauf bestaetigt. Die getesteten Quelldateien
+  wurden per SHA-256 mit dem Arbeitsbaum abgeglichen. Nur Tests und
+  Dokumentation geaendert; allgemeine Version bleibt `0.5.46`.
+- Naechster regulaerer Punkt: **M6.11**; Phase 6 pruefen und als eigenen
+  Zwischenstand committen.
 
 - Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-
   und Testabdeckung, CLI-/Manifestvertrag, Dokumentation und Versionsstand

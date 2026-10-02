@@ -119,7 +119,8 @@ def test_build_locks_outlive_client_through_success_and_failure(tmp_path, monkey
     assert len(events) == 5
 
 
-def _wait_for_file(path, process, timeout=10):
+def _wait_for_file(path, process, timeout=60):
+    # Cold imports from a Windows-mounted WSL environment can exceed ten seconds.
     deadline = time.monotonic() + timeout
     while not path.exists() and process.poll() is None and time.monotonic() < deadline:
         time.sleep(0.02)

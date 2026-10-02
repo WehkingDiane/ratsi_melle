@@ -266,7 +266,8 @@ def test_real_web_job_runs_read_only_cli_and_retains_abort_report(setup, monkeyp
     import time
     monkeypatch.setattr(service_jobs.threading.Thread, "start", REAL_THREAD_START)
     job = make_job()
-    deadline = time.monotonic() + 10
+    # Allow cold imports from the Windows-mounted WSL environment to finish.
+    deadline = time.monotonic() + 60
     while job.status in {"queued", "running"} and time.monotonic() < deadline:
         time.sleep(0.02)
     assert job.status == "error" and job.exit_code == 1
