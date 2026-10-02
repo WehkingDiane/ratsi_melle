@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
 
-PIPELINE_VERSION = "1.3"
+PIPELINE_VERSION = "1.4"
 MAX_EXTRACT_FILE_BYTES = 25 * 1024 * 1024
 
 
@@ -83,19 +83,25 @@ def extract_text_for_analysis(
             text, page_count, page_texts, detected_sections = _extract_text_from_pdf(file_path)
             if not text.strip():
                 ocr_pages = _extract_text_via_ocr(file_path)
-                if ocr_pages:
+                if not page_texts:
                     page_texts = [
-                        {
-                            "page": index,
-                            "char_count": len(_normalize_whitespace(text_value)),
-                            "text": text_value,
-                        }
-                        for index, text_value in enumerate(ocr_pages, start=1)
-                        if _normalize_whitespace(text_value)
+                        {"page": index, "text": "", "char_count": 0}
+                        for index in range(1, (page_count or len(ocr_pages)) + 1)
                     ]
-                    text = "\n\n".join(str(page["text"]) for page in page_texts)
-                    detected_sections = _detect_pdf_sections(page_texts)
-                    page_count = len(page_texts) or page_count
+                for page in page_texts:
+                    index = int(page["page"]) - 1
+                    value = _normalize_whitespace(ocr_pages[index]) if index < len(ocr_pages) else ""
+                    page.update(text=value, char_count=len(value))
+            else:
+                for page in page_texts:
+                    if not str(page["text"]).strip():
+                        ocr_pages = _extract_text_via_ocr(file_path, page_number=int(page["page"]))
+                        value = _normalize_whitespace(ocr_pages[0]) if ocr_pages else ""
+                        page.update(text=value, char_count=len(value))
+            if page_texts:
+                text = "\n\n".join(str(page["text"]) for page in page_texts)
+            detected_sections = _detect_pdf_sections(page_texts)
+            unresolved_pages = any(not str(page["text"]).strip() for page in page_texts)
             return _classify_result(
                 text=text,
                 page_count=page_count,
@@ -103,6 +109,7 @@ def extract_text_for_analysis(
                 detected_sections=detected_sections,
                 max_text_chars=max_text_chars,
                 is_pdf=True,
+                unresolved_pages=unresolved_pages,
                 extracted_at=now,
             )
 
@@ -156,6 +163,7 @@ def _classify_result(
     max_text_chars: int,
     is_pdf: bool,
     extracted_at: str,
+    unresolved_pages: bool = False,
 ) -> ExtractionResult:
     text = _normalize_whitespace(text)
     if len(text) > max_text_chars:
@@ -177,7 +185,7 @@ def _classify_result(
             extracted_at=extracted_at,
         )
 
-    if char_count < 80:
+    if char_count < 80 or unresolved_pages:
         return ExtractionResult(
             extraction_status="partial",
             parsing_quality="low",
@@ -187,7 +195,7 @@ def _classify_result(
             page_texts=page_texts,
             detected_sections=detected_sections,
             extraction_error=None,
-            ocr_needed=False,
+            ocr_needed=unresolved_pages,
             extraction_pipeline_version=PIPELINE_VERSION,
             extracted_at=extracted_at,
         )
@@ -232,12 +240,11 @@ def _extract_text_from_pdf(file_path: Path) -> tuple[str, int | None, list[dict[
         page_texts = []
         for number, page in enumerate(reader.pages, 1):
             text = page.extract_text() or ""
-            if text.strip():
-                page_texts.append({
-                    "page": number,
-                    "text": text,
-                    "char_count": len(_normalize_whitespace(text)),
-                })
+            page_texts.append({
+                "page": number,
+                "text": text,
+                "char_count": len(_normalize_whitespace(text)),
+            })
     else:
         # Preserve the recovery path for simple PDFs without a cross-reference
         # table. Standard PDFs need font decoding and must not scan image bytes
@@ -249,10 +256,10 @@ def _extract_text_from_pdf(file_path: Path) -> tuple[str, int | None, list[dict[
         page_count = len(page_object_ids)
         page_texts = _extract_pdf_page_texts(object_map, page_object_ids)
 
-    if not page_texts and not has_cross_reference:
+    if not any(page["text"].strip() for page in page_texts) and not has_cross_reference:
         fallback_text = _extract_pdf_stream_text(raw)
         if not fallback_text:
-            return "", page_count, [], []
+            return "", page_count, page_texts, []
         page_texts = [
             {
                 "page": 1,
@@ -270,7 +277,6 @@ def _extract_text_from_pdf(file_path: Path) -> tuple[str, int | None, list[dict[
             "text": _normalize_whitespace(str(page["text"])),
         }
         for page in page_texts
-        if str(page.get("text", "")).strip()
     ]
     return text, page_count or len(normalized_pages) or None, normalized_pages, detected_sections
 
@@ -294,8 +300,6 @@ def _extract_pdf_page_texts(
                 text_chunks.append(decoded)
 
         page_text = "\n".join(chunk for chunk in text_chunks if chunk)
-        if not page_text.strip():
-            continue
         pages.append(
             {
                 "page": index,
@@ -315,8 +319,8 @@ def _extract_pdf_stream_text(raw: bytes) -> str:
     return "\n".join(text_chunks)
 
 
-def _extract_text_via_ocr(file_path: Path) -> list[str]:
-    """Attempt OCR extraction for scan-like PDFs when no text layer is available."""
+def _extract_text_via_ocr(file_path: Path, *, page_number: int | None = None) -> list[str]:
+    """Attempt OCR for the whole PDF or a single page without a text layer."""
 
     if shutil.which("pdftoppm") is None or shutil.which("tesseract") is None:
         return []
@@ -324,8 +328,9 @@ def _extract_text_via_ocr(file_path: Path) -> list[str]:
     with tempfile.TemporaryDirectory(prefix="ratsi_ocr_") as tmp_dir:
         tmp_path = Path(tmp_dir)
         image_prefix = tmp_path / "page"
+        page_args = ["-f", str(page_number), "-l", str(page_number)] if page_number is not None else []
         raster = subprocess.run(
-            ["pdftoppm", "-r", "200", "-png", str(file_path), str(image_prefix)],
+            ["pdftoppm", *page_args, "-r", "200", "-png", str(file_path), str(image_prefix)],
             capture_output=True,
             text=True,
             check=False,
@@ -343,8 +348,7 @@ def _extract_text_via_ocr(file_path: Path) -> list[str]:
                 text=True,
                 check=False,
             )
-            if ocr.returncode == 0 and ocr.stdout:
-                page_texts.append(ocr.stdout)
+            page_texts.append(ocr.stdout if ocr.returncode == 0 else "")
         return page_texts
 
 

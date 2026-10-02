@@ -105,7 +105,7 @@ def test_truncated_original_is_rejected_by_search():
         passages.extract_pages(FIXTURES / "truncated_proposal.pdf", use_ocr=False)
 
 
-@pytest.mark.parametrize("case", [case for case in READABLE if case["expected_page_text"]],
+@pytest.mark.parametrize("case", [case for case in READABLE if case["expected_page_text"] and not case["expected_empty_pages"]],
                          ids=lambda case: case["file"])
 def test_analysis_preserves_real_words_numbers_and_page_mapping(case, monkeypatch):
     monkeypatch.setattr(extraction_pipeline, "_extract_text_via_ocr",
@@ -132,7 +132,7 @@ def test_analysis_does_not_interpret_scan_image_bytes_as_text(monkeypatch):
     assert result.extraction_status == "ocr_needed" and result.ocr_needed
     assert result.page_count == 1
     assert result.extracted_text == "" and result.extracted_char_count == 0
-    assert result.page_texts == []
+    assert result.page_texts == [{"page": 1, "text": "", "char_count": 0}]
 
 
 def test_analysis_returns_controlled_error_for_truncated_original(monkeypatch):
@@ -202,3 +202,25 @@ def test_pdf_stress_with_300_original_pages(tmp_path):
     assert {chunk["page_start"] for chunk in chunks} == set(range(1, 301))
     assert all(chunk["token_count"] <= 64 for chunk in chunks)
     assert "Inkrafttreten" in pages[-1]["text"]
+
+
+@pytest.mark.parametrize("ocr_text", ["Übersicht über unsere Lösungen und Preise", ""])
+def test_analysis_mixed_pdf_preserves_text_and_ocr_page(monkeypatch, ocr_text):
+    path = FIXTURES / "mixed_text_scan.pdf"
+    calls = []
+    def ocr(source, *, page_number):
+        calls.append((source, page_number))
+        return [ocr_text] if ocr_text else []
+    monkeypatch.setattr(extraction_pipeline, "_extract_text_via_ocr", ocr)
+    result = extraction_pipeline.extract_text_for_analysis(
+        path, content_type="application/pdf", max_text_chars=100000)
+    assert calls == [(path, 2)]
+    assert result.page_count == 2
+    assert [page["page"] for page in result.page_texts] == [1, 2]
+    assert "Beschlussvorlage" in result.page_texts[0]["text"]
+    assert result.page_texts[1] == {"page": 2, "text": ocr_text, "char_count": len(ocr_text)}
+    assert result.extraction_status == ("ok" if ocr_text else "partial")
+    assert result.ocr_needed is (not bool(ocr_text))
+    assert "Beschlussvorlage" in result.extracted_text
+    if ocr_text:
+        assert ocr_text in result.extracted_text

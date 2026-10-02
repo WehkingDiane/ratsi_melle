@@ -33,7 +33,10 @@ mit `.venv-wsl/bin/python`.
 Die lokale Extraktionspipeline kann Scan-PDFs optional per OCR verarbeiten. Dafuer
 muessen `pdftoppm` (Poppler) und `tesseract` mit den Sprachdaten `deu` und `eng`
 als Systemwerkzeuge verfuegbar sein. Ohne diese Werkzeuge bleiben Scan-PDFs mit
-dem Status `ocr_needed` gekennzeichnet. Die Pipeline verwendet fuer regulaere
+dem Status `ocr_needed` gekennzeichnet. Bei gemischten PDFs werden nur Seiten
+ohne Textebene per OCR verarbeitet; bleiben solche Seiten ohne Text, ist das
+Ergebnis `partial` mit `ocr_needed`, und vorhandener Text bleibt erhalten.
+Seitenzahlen und leere Seiteneinträge bleiben nachvollziehbar. Die Pipeline verwendet fuer regulaere
 PDFs `pypdf`, damit eingebettete Schriften, Woerter und Zahlen korrekt gelesen
 werden. Unlesbare PDF-Strukturen liefern den Status `error`.
 
