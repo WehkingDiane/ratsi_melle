@@ -147,6 +147,7 @@ def service_job_detail(request, job_id: str):
                     errors.append(str(error))
                 else:
                     return redirect("data_tools:service_job_detail", job_id=started.job_id)
+    status = services.service_status()
     return render(
         request,
         "data_tools/service_job_detail.html",
@@ -155,9 +156,10 @@ def service_job_detail(request, job_id: str):
             "job": job,
             "job_id": job_id,
             "legacy_report": services.inspection_result(job),
+            "model_job_evidence": services.model_job_detail(job, status["embedding_models"]),
             "application_confirmation": services.application_confirmation(job) if job and job.action == "inspect_legacy_index" else None,
             "errors": errors,
-            "status": services.service_status(),
+            "status": status,
         },
     )
 
@@ -166,6 +168,12 @@ def service_status(request):
     """Return freshly calculated service status values for manual refreshes."""
 
     return JsonResponse({"status": services.service_status()})
+
+
+def service_model_history_status(request):
+    """Refresh model evidence without opening Qdrant or executing a check job."""
+    models = services.embedding_model_status()
+    return JsonResponse({"history": services.model_job_history(models)})
 
 
 def service_job_status(request):
@@ -178,4 +186,6 @@ def service_job_detail_status(request, job_id: str):
     job = service_jobs.get_service_job(job_id)
     if job is None:
         return HttpResponseNotFound()
-    return JsonResponse({"job": job.to_dict(), "legacy_report": services.inspection_result(job)})
+    models = services.embedding_model_status()
+    return JsonResponse({"job": job.to_dict(), "legacy_report": services.inspection_result(job),
+                         "model_job_evidence": services.model_job_detail(job, models)})

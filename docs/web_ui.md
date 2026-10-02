@@ -240,8 +240,21 @@ Modellaktionen weisen außerdem doppelte Formularfelder und widersprüchliche
 Aktionsnamen ab. Modell-ID, Revision und Zielpfad sind nicht frei eingebbar.
 „Lokal prüfen“ arbeitet offline und schreibt keine Modelldateien. Bei einem
 unbrauchbaren Bestand endet der Job mit Fehlerstatus; die JSON-Ausgabe unterscheidet weiterhin
-`fehlt`, `unvollstaendig` und `inkompatibel`. Gespeicherte Prüfläufe
-werden erst in M6.8 zugeordnet. Manifestdatum und
+`fehlt`, `unvollstaendig` und `inkompatibel`. Die Vektorseite zeigt je Modell- und Legacy-Aktion den letzten abgeschlossenen
+Versuch einschließlich Fehlern; laufende Jobs stehen separat. Die Zuordnung
+bindet Aktion, aufgelösten Modellpfad, Modellvertrag und Bibliotheksstand.
+Erfolgreiche Ergebnisse speichern zusätzlich den Manifest-Hash. Änderungen
+am Vertrag, Pfad oder Bestand kennzeichnen ein Ergebnis als historisch.
+Ältere Jobs ohne nachgewiesene Zuordnung bleiben ausdrücklich unverifiziert.
+Nach Entfernen eines Jobs aus der begrenzten Historie erscheint „Kein
+gespeichertes Prüfergebnis“. Bei Speicherfehlern zeigt die Seite stattdessen
+eine Warnung und kann sich beim nächsten Abruf erholen. Die Aktualisierung
+liest nur lokale Diagnosedaten; sie startet weder Downloads noch Qdrant-Probes.
+Jobdetails zeigen Wartestatus, Ausführung und Abschluss, während der
+Ausführung einen Fortschrittsbalken ohne Prozentwert. Die Skripte liefern
+keinen verlässlichen prozentualen Fortschritt. Nach Abschluss einer
+Legacy-Prüfung wird die Detailseite mit dem validierten Protokoll neu geladen.
+Die gespeicherten Ergebnisse ersetzen niemals die aktuelle Modellbereitschaft. Manifestdatum und
 Zeitpunkt des Seitenaufrufs werden nicht als letzte ausgeführte Prüfung
 ausgegeben.
 

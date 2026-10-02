@@ -149,6 +149,12 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Manifest-SHA-256: {result.manifest.manifest_sha256}")
         return 0
 
+    expected_check = os.environ.get("RATSI_MODEL_CHECK_BINDING")
+    if expected_check is not None and expected_check != model_preparation_binding(settings.models_dir):
+        _print_status(EmbeddingModelStatus(EmbeddingModelReadiness.INCOMPATIBLE,
+                      "Modellkonfiguration wurde vor der Prüfung geändert. Prüfung erneut starten."),
+                      deep=args.deep, json_output=args.json)
+        return 1
     status = check_embedding_model_status(settings.models_dir, deep=args.deep)
     _print_status(status, deep=args.deep, json_output=args.json)
     return 0 if status.state is EmbeddingModelReadiness.READY else 1

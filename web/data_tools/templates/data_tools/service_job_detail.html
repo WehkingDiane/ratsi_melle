@@ -13,7 +13,7 @@
 {% if errors %}<section class="panel status-error" role="alert">{% for error in errors %}<p>{{ error }}</p>{% endfor %}</section>{% endif %}
 
 {% if job %}
-<section class="panel" data-service-job-id="{{ job_id }}" data-service-job-running="{% if job.status == 'running' or job.status == 'queued' %}true{% else %}false{% endif %}">
+<section class="panel" data-service-job-id="{{ job_id }}" data-legacy-job="{% if job.action == 'inspect_legacy_index' or job.action == 'apply_legacy_index' %}true{% else %}false{% endif %}" data-service-job-running="{% if job.status == 'running' or job.status == 'queued' %}true{% else %}false{% endif %}">
   <h2>{{ job.action }}</h2>
   <dl class="facts inline">
     <div><dt>Status</dt><dd id="job-status" class="{% if job.status == 'ok' %}status-ok{% elif job.status == 'running' or job.status == 'queued' %}status-warning{% else %}status-error{% endif %}">{{ job.status_label|default:job.status }}</dd></div>
@@ -31,8 +31,22 @@
     {% if job.status == "ok" %}Datenjob wurde erfolgreich abgeschlossen.{% elif job.status != "running" and job.status != "queued" %}Datenjob ist fehlgeschlagen.{% endif %}
   </p>
   <pre class="text-block compact">{{ job.command_text }}</pre>
+  <p id="job-progress-text" aria-live="polite">{{ job.progress.message }}</p>
+  <progress id="job-progress" aria-label="Ausführung läuft, Prozentfortschritt unbekannt"{% if job.status != "running" %} hidden{% endif %}></progress>
   <pre class="text-block" id="job-output">{{ job.output|default:"Noch keine Ausgabe." }}</pre>
 </section>
+{% if model_job_evidence %}
+<section class="panel" id="model-job-evidence">
+  <h2>Zuordnung des Jobergebnisses</h2>
+  <dl class="facts">
+    <div><dt>Bestandszuordnung</dt><dd data-job-evidence="association_label">{{ model_job_evidence.association_label }}</dd></div>
+    <div><dt>Modellverzeichnis</dt><dd data-job-evidence="models_dir">{{ model_job_evidence.models_dir|default:"Nicht nachgewiesen" }}</dd></div>
+    <div><dt>Verwendetes Manifest</dt><dd data-job-evidence="manifest_sha256">{{ model_job_evidence.manifest_sha256|default:"Nicht nachgewiesen" }}</dd></div>
+    <div><dt>Abschluss</dt><dd data-job-evidence="finished_at">{{ model_job_evidence.finished_at|default:"Noch nicht abgeschlossen" }}</dd></div>
+  </dl>
+  <p class="muted">Ein gespeichertes Ergebnis beschreibt diesen Versuch. Die aktuelle Bereitschaft wird unabhängig lokal geprüft.</p>
+</section>
+{% endif %}
 {% if legacy_report %}
 <section class="panel" id="legacy-report">
   <h2>Legacy-Prüfprotokoll</h2>

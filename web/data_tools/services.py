@@ -15,6 +15,8 @@ from core.services.legacy_inspection import inspection_forms as _inspection_form
 from core.services.legacy_inspection import inspection_result
 from core.services.legacy_inspection import application_confirmation
 from core.services.legacy_inspection import confirmed_application_payload
+from core.services.model_job_history import model_job_history
+from core.services.model_job_history import model_job_detail
 from src.config.embedding_model_status import embedding_model_inventory_status as _embedding_model_inventory_status
 from src.indexing.vector_status import landkreis_vector_index_status as _landkreis_vector_index_status
 from src.indexing.vector_status import vector_index_status as _vector_index_status

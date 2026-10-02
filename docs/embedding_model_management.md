@@ -1222,7 +1222,7 @@ Orientierung und sind keine Vorgabe fuer die Bearbeitung.
   noch aktuelles Pruefergebnis erlauben; freie Collection-, Stichproben- oder
   Toleranzparameter ausschliessen. Programmatische erneute Pruefung unter
   Collection-Sperre bleibt verbindlich. `[Schwer · GPT-6 Astra / High]`
-- [ ] **M6.8** Fortschritt und Ergebnis ueber die bestehende Servicejob- und
+- [x] **M6.8** Fortschritt und Ergebnis ueber die bestehende Servicejob- und
   Jobdetail-Infrastruktur anzeigen. `[Mittel · GPT-6 Sol / Medium]`
 - [ ] **M6.9** Kollidierende parallele Modellvorbereitungen, Legacy-Uebernahmen
   und Vektor-Builds auch ueber Webprozesse und direkte CLI-Aufrufe verhindern
@@ -1442,8 +1442,23 @@ Orientierung und sind keine Vorgabe fuer die Bearbeitung.
   wurden nicht uebernommen; Landkreis bleibt die separate Neuaufbauaufgabe.
   Gesamtsuite: 944 Tests bestanden, ein Test uebersprungen, sieben Live-Tests
   ausgeschlossen. Allgemeine Version: `0.5.44`.
-- Naechster regulaerer Punkt: **M6.8**; Fortschritt, Ergebnis und zugeordnete
-  Pruefhistorie in der bestehenden Servicejob-/Jobdetail-Infrastruktur ergaenzen.
+- Letzter abgeschlossener Punkt: **M6.8**; Modell-/Legacy-Historie zeigt je
+  Aktion den letzten abgeschlossenen Versuch einschliesslich Fehlern und
+  laufende Jobs separat. Persistierte Zuordnung bindet aufgeloesten Modellpfad,
+  Modellvertrag und Bibliotheksstand; erfolgreiche Ergebnisse speichern den
+  Manifest-Hash. Geaenderte Konfiguration oder Inventare erscheinen historisch,
+  alte Jobs ohne Nachweis bleiben unverifiziert. Abschlusszeit wird dauerhaft
+  gespeichert; Reihenfolge folgt Abschluss statt Start. Aufbewahrungsgrenze
+  bleibt 50 Jobs; geloeschte Ergebnisse verschwinden bei Aktualisierung.
+  Lokale Historienabfrage startet weder Downloads noch Qdrant-Probes.
+  Jobdetails zeigen echten Lebenszyklus ohne erfundene Prozentwerte und
+  aktualisieren Legacy-Protokolle nach Abschluss. SQLite-Schema wird additiv
+  erweitert; produktive Modelle, Melle- und Landkreis-Indizes bleiben unberuehrt.
+  Tests pruefen Zuordnung, Neustart, Fehler, Abbruch, veraltete Ergebnisse,
+  Browser-Aktualisierung und Wiederherstellung nach Speicher-/Abruffehlern.
+  Allgemeine Version: `0.5.45`.
+- Naechster regulaerer Punkt: **M6.9**; verbleibende Kollisions-, Abbruch- und
+  Wiederanlaufpfade fuer Web-/CLI-Modelljobs pruefen und absichern.
 
 - Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-
   und Testabdeckung, CLI-/Manifestvertrag, Dokumentation und Versionsstand

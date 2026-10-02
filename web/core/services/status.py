@@ -37,8 +37,11 @@ def service_status() -> dict[str, Any]:
         qdrant = probe_qdrant(connection)
         qdrant_target = connection.target
 
+    from .model_job_history import model_job_history
+    models = embedding_model_inventory_status()
     return {
-        "embedding_models": embedding_model_inventory_status(),
+        "embedding_models": models,
+        "model_job_history": model_job_history(models),
         "local_index_exists": local_session_count is not None or local_document_count is not None,
         "online_index_exists": online_session_count is not None,
         "qdrant_exists": qdrant["available"],

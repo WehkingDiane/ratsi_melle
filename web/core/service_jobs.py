@@ -52,6 +52,18 @@ class ServiceJob:
     inspection_context: str = ""
     report_sha256: str = ""
     application_context: str = ""
+    model_binding: str = ""
+    model_manifest_sha256: str = ""
+    completed_at: str = ""
+
+    @property
+    def progress(self) -> dict[str, object]:
+        """Report real lifecycle states without inventing a percentage."""
+        active = self.status in {"queued", "running"}
+        return {"phase": self.status, "indeterminate": active,
+                "message": "Wartet auf Ausführung." if self.status == "queued" else
+                "Wird ausgeführt; ein Prozentfortschritt ist nicht verfügbar." if active else
+                "Erfolgreich abgeschlossen." if self.status == "ok" else "Fehlgeschlagen oder unterbrochen."}
 
     @property
     def command_text(self) -> str:
@@ -78,6 +90,7 @@ class ServiceJob:
             "summary": self.summary,
             "created_at": self.created_at,
             "running": self.status in {"queued", "running"},
+            "progress": self.progress,
         }
 
 
@@ -104,12 +117,22 @@ def start_service_job(action: str, command: list[str], cwd: Path, *, preparation
     job = ServiceJob(job_id=uuid.uuid4().hex[:12], action=action, command=command,
                      created_at=_storage_now(), owner_pid=os.getpid())
     try:
+        if action == "check_embedding_models":
+            try:
+                root = load_embedding_model_settings().models_dir.resolve()
+                job.models_dir = str(root)
+                job.model_binding = model_preparation_binding(root)
+            except (OSError, RuntimeError, ValueError):
+                # An invalid configuration must still produce an offline CLI
+                # diagnostic, but its history cannot claim a known identity.
+                pass
         if action in MODEL_ACTIONS:
             root = load_embedding_model_settings().models_dir.resolve()
             # This preflight rejects an already running direct CLI operation.
             # The child acquires the same lock for its entire actual operation.
             with model_operation_lock(root, blocking=False):
                 job.models_dir = str(root)
+                job.model_binding = model_preparation_binding(root)
                 if action == "prepare_embedding_models":
                     if preparation_binding != model_preparation_binding(root):
                         raise ServiceJobStartError("Modellkonfiguration wurde geändert. Vorbereitung erneut bestätigen.")
@@ -135,6 +158,8 @@ def start_service_job(action: str, command: list[str], cwd: Path, *, preparation
                     job.application_context = json.dumps(application_context, sort_keys=True)
                     job.inspection_context = json.dumps(application_context["inspection_context"], sort_keys=True)
                     job.report_sha256 = application_context["report_sha256"]
+                    from .services.legacy_inspection import bound_report
+                    job.model_manifest_sha256 = bound_report(_job_from_row(source))["compatibility"]["manifest_sha256"]
                     job.command = application_command(application_context)
                 if action in MODEL_ACTIONS:
                     placeholders = ",".join("?" for _ in MODEL_ACTIONS)
@@ -248,6 +273,26 @@ def _safe_legacy_apply_output(line: str, collection: str) -> str | None:
     return None
 
 
+def _safe_model_check_output(line: str) -> str | None:
+    try:
+        payload = json.loads(line)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    messages = {"bereit": "Lokale Embedding-Modelle sind bereit.", "fehlt": "Lokale Embedding-Modelle fehlen.",
+                "unvollstaendig": "Lokale Embedding-Modelle sind unvollständig.",
+                "inkompatibel": "Lokale Embedding-Modelle oder die Konfiguration sind inkompatibel."}
+    state = payload.get("status")
+    if not isinstance(state, str) or state not in messages or not isinstance(payload.get("check_level"), str) or payload["check_level"] not in {"fast", "deep"}:
+        return None
+    digest = payload.get("manifest_sha256")
+    if state == "bereit" and (not isinstance(digest, str) or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest)):
+        return None
+    return json.dumps({"status": state, "check_level": payload["check_level"], "message": messages[state],
+                       "manifest_sha256": digest if state == "bereit" else None}, ensure_ascii=False)
+
+
 def _execute_job(job_id: str, cwd: Path) -> None:
     job = get_service_job(job_id)
     if job is None:
@@ -259,12 +304,16 @@ def _execute_job(job_id: str, cwd: Path) -> None:
         extra={"run_id": job_id},
     )
     preparation_output = job.action == "prepare_embedding_models"
+    check_output = job.action == "check_embedding_models"
     legacy_output = job.action == "inspect_legacy_index"
     application_output = job.action == "apply_legacy_index"
-    private_output = preparation_output or legacy_output or application_output
+    private_output = preparation_output or legacy_output or application_output or check_output
     environment = {**os.environ, RUN_ID_ENV: job.job_id}
     if job.models_dir:
         environment["RATSI_MODELS_DIR"] = job.models_dir
+    environment.pop("RATSI_MODEL_CHECK_BINDING", None)
+    if check_output and job.model_binding:
+        environment["RATSI_MODEL_CHECK_BINDING"] = job.model_binding
     if preparation_output:
         environment["RATSI_MODEL_PREPARATION_BINDING"] = job.preparation_binding
     else:
@@ -308,6 +357,8 @@ def _execute_job(job_id: str, cwd: Path) -> None:
         for line in process.stdout:
             if application_output:
                 stripped = _safe_legacy_apply_output(line, json.loads(job.inspection_context)["collection"])
+            elif check_output:
+                stripped = _safe_model_check_output(line)
             else:
                 stripped = None if legacy_output else (_safe_preparation_output(line) if preparation_output else line.rstrip())
             if stripped is not None:
@@ -320,6 +371,17 @@ def _execute_job(job_id: str, cwd: Path) -> None:
         raise
     status = "ok" if process.returncode == 0 else "error"
     report_digest = ""
+    manifest_digest = job.model_manifest_sha256
+    if check_output:
+        if not lines:
+            lines.append("Modellprüfung beendet; kein auswertbarer Status verfügbar.")
+            status = "error"
+        elif json.loads(lines[-1])["status"] != "bereit":
+            status = "error"
+        elif status == "ok":
+            manifest_digest = json.loads(lines[-1])["manifest_sha256"]
+        else:
+            lines.append("Modellprüfung abgebrochen; erfolgreicher Abschluss nicht bestätigt.")
     if application_output:
         report_digest = job.report_sha256
         if not lines:
@@ -338,6 +400,8 @@ def _execute_job(job_id: str, cwd: Path) -> None:
             status = "error"
         else:
             report_digest = report["report_sha256"]
+            if report["result"] == "verified":
+                manifest_digest = report["compatibility"]["manifest_sha256"]
             status = "ok" if process.returncode == 0 and report["result"] == "verified" else "error"
             lines.append(json.dumps({"result": report["result"], "abort_code": report["abort_code"],
                                      "report_sha256": report_digest}))
@@ -347,6 +411,8 @@ def _execute_job(job_id: str, cwd: Path) -> None:
         lines.append("Modellvorbereitung abgebrochen; kein verifizierbares Ergebnis verfügbar.")
     elif preparation_output and process.returncode != 0 and json.loads(lines[-1])["status"] == "bereit":
         lines.append("Modellvorbereitung abgebrochen; erfolgreicher Abschluss nicht bestätigt.")
+    if preparation_output and status == "ok":
+        manifest_digest = json.loads(lines[-1])["manifest_sha256"]
     _update_job(
         job_id,
         status=status,
@@ -354,6 +420,7 @@ def _execute_job(job_id: str, cwd: Path) -> None:
         output="\n".join(lines),
         summary=lines[-1] if lines else job.summary,
         report_sha256=report_digest,
+        model_manifest_sha256=manifest_digest,
         finished_at=_now(),
     )
     log_method = LOGGER.info if status == "ok" else LOGGER.error
@@ -373,6 +440,8 @@ def _update_job(job_id: str, **updates: object) -> None:
         job = _jobs.get(job_id)
         if job is None:
             return
+        if updates.get("status") in {"ok", "error"} and (job.status in {"queued", "running"} or not job.completed_at):
+            updates.setdefault("completed_at", _storage_now())
         for key, value in updates.items():
             setattr(job, key, value)
         _dirty_ids.add(job_id)
@@ -463,6 +532,7 @@ def _ensure_loaded_locked() -> None:
             if job.status in {"queued", "running"} and not _pid_alive(job.owner_pid) and not _pid_alive(job.child_pid):
                 job.status = "error"
                 job.finished_at = _now()
+                job.completed_at = _storage_now()
                 job.summary = "Datenjob wurde durch einen Serverneustart unterbrochen."
                 _store_job(conn, job)
             existing = _jobs.get(job.job_id)
@@ -493,6 +563,7 @@ def _initialize_db(db_path: Path) -> None:
             ("models_dir", "TEXT", "''"), ("preparation_binding", "TEXT", "''"),
             ("inspection_context", "TEXT", "''"), ("report_sha256", "TEXT", "''"),
             ("application_context", "TEXT", "''"),
+            ("model_binding", "TEXT", "''"), ("model_manifest_sha256", "TEXT", "''"), ("completed_at", "TEXT", "''"),
         ):
             if name not in columns:
                 conn.execute(f"ALTER TABLE service_jobs ADD COLUMN {name} {sql_type} NOT NULL DEFAULT {default}")
@@ -501,11 +572,11 @@ def _initialize_db(db_path: Path) -> None:
 def _store_job(conn, job: ServiceJob) -> None:
     fields = ["job_id", "action", "command_json", "status", "exit_code", "output", "started_at",
               "finished_at", "summary", "created_at", "owner_pid", "child_pid", "models_dir", "preparation_binding",
-              "inspection_context", "report_sha256", "application_context"]
+              "inspection_context", "report_sha256", "application_context", "model_binding", "model_manifest_sha256", "completed_at"]
     values = [job.job_id, job.action, json.dumps(job.command), job.status, job.exit_code, job.output,
               job.started_at, job.finished_at, job.summary, job.created_at or _storage_now(),
               job.owner_pid, job.child_pid, job.models_dir, job.preparation_binding, job.inspection_context, job.report_sha256,
-              job.application_context]
+              job.application_context, job.model_binding, job.model_manifest_sha256, job.completed_at]
     conn.execute(
         f"INSERT INTO service_jobs ({','.join(fields)}) VALUES ({','.join('?' for _ in fields)}) "
         "ON CONFLICT(job_id) DO UPDATE SET " + ','.join(f"{name}=excluded.{name}" for name in fields[1:]),
@@ -556,6 +627,8 @@ def _job_from_row(row: sqlite3.Row) -> ServiceJob:
         models_dir=str(row["models_dir"]), preparation_binding=str(row["preparation_binding"]),
         inspection_context=str(row["inspection_context"]), report_sha256=str(row["report_sha256"]),
         application_context=str(row["application_context"]),
+        model_binding=str(row["model_binding"]), model_manifest_sha256=str(row["model_manifest_sha256"]),
+        completed_at=str(row["completed_at"]),
     )
 
 
