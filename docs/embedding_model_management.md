@@ -1041,6 +1041,18 @@ Bestanden nachgeprueft:
 | T6-G Bindung und Manifestwechsel | Zwischen Anzeige, POST und Ausfuehrung Modellverzeichnis, Konfiguration, Bibliotheksstand, Manifest oder Bericht austauschen: keine falsche Bereitschaft und keine Uebernahme unter alter Bestaetigung. Ein neuer fehlgeschlagener Pruefjob wird statt eines aelteren Erfolgs als letzter Versuch angezeigt. Abbruchberichte bleiben sichtbar. |
 | T6-H Mehrprozess-Persistenz | Neuer Modelljob parallel zu bestehendem Fetch-/Build-Job; Laden/Statusabfrage durch zweiten Webprozess, Datenbankfehler, Thread-/Prozessstartfehler und Webneustart bei noch lebendem Kindprozess. Keine verlorenen Jobzeilen, keine falsche Freigabe; Reservierung nach nachgewiesenem Ende wieder nutzbar. Secret-Faelle auch mit nur im Kindprozess bekanntem Token, kodierten und auf mehrere Ausgaben verteilten Werten. |
 
+Die Web-/Service-Matrix fuer M6.10 liegt in
+`tests/test_model_management_security.py`; die bestehenden Modellvorbereitungs-,
+Legacy- und Historientests ergaenzen sie. Der gezielte Lauf ist
+`python -m pytest tests/test_model_management_security.py -q`.
+Die Matrix verwendet temporaere Jobdatenbanken, signierte Formulare und eine
+Fake-CLI. Sie prueft CSRF-Ablehnung vor Jobreservierung, feste Aktionen und
+POST-Felder, ausdrueckliche Bestaetigung, Bibliothekswechsel vor POST und
+Reservierung sowie Status-/Exitcode-Abgleich. Private Kindprozessausgaben
+werden bei Erfolg, Startfehler, Lesefehler und Prozessabbruch gegen SQLite,
+HTML, Job-/Historien-/Status-JSON und Logs geprueft; auch URL-kodierte und
+auf mehrere Ausgaben verteilte Secrets sind enthalten.
+
 Keine Tests mit echten Downloads oder produktiven Qdrant-Bestaenden in der
 regulaeren Suite.
 Phase 6 loest keinen Neuaufbau der Melle-Collections aus; der Landkreis-Neuaufbau
