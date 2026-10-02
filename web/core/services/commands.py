@@ -17,22 +17,30 @@ def build_service_command(action: str, data: dict[str, Any]) -> tuple[list[str] 
     return command, []
 
 
+def _validate_model_action(action: str, data: dict[str, Any], fields: set[str]) -> None:
+    """Accept only scalar, unique fields belonging to the selected model action."""
+
+    label = "Modellvorbereitung" if action == "prepare_embedding_models" else "Modellprüfung"
+    if set(data) - fields:
+        raise ValueError(f"Die {label} erlaubt keine zusätzlichen Parameter.")
+    if hasattr(data, "getlist") and any(len(data.getlist(key)) != 1 for key in data):
+        raise ValueError(f"Parameter der {label} dürfen nur einmal angegeben werden.")
+    if any(not isinstance(data[key], str) for key in data):
+        raise ValueError(f"Parameter der {label} müssen einzelne Textwerte sein.")
+    if "action" in data and data["action"] != action:
+        raise ValueError("Die übermittelte Modellaktion stimmt nicht mit dem Befehl überein.")
+
+
 def _service_command(action: str, data: dict[str, Any]) -> list[str]:
     if action == "prepare_embedding_models":
         from .model_preparation import confirmed_preparation_binding
 
-        if set(data) - {"action", "csrfmiddlewaretoken", "confirmation", "preparation_binding"}:
-            raise ValueError("Die Modellvorbereitung erlaubt keine zusätzlichen Parameter.")
-        if hasattr(data, "getlist") and any(len(data.getlist(key)) != 1 for key in data):
-            raise ValueError("Parameter der Modellvorbereitung dürfen nur einmal angegeben werden.")
+        _validate_model_action(action, data, {"action", "csrfmiddlewaretoken", "confirmation", "preparation_binding"})
         confirmed_preparation_binding(data)
         return [sys.executable, "scripts/prepare_embedding_models.py", "--download", "--json"]
 
     if action == "check_embedding_models":
-        if set(data) - {"action", "csrfmiddlewaretoken"}:
-            raise ValueError("Die lokale Modellprüfung erlaubt keine zusätzlichen Parameter.")
-        if hasattr(data, "getlist") and any(len(data.getlist(key)) != 1 for key in data):
-            raise ValueError("Parameter der Modellprüfung dürfen nur einmal angegeben werden.")
+        _validate_model_action(action, data, {"action", "csrfmiddlewaretoken"})
         return [sys.executable, "scripts/prepare_embedding_models.py", "--check", "--json"]
 
     if action == "fetch_sessions":

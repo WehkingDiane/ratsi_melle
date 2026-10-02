@@ -235,9 +235,11 @@ Gesamtfehler zeigen die Karten „Nicht einzeln verifiziert“ und ersetzen alte
 Revisionen und Größen durch „Nicht verifiziert“. „Lokal prüfen“ startet den
 festen Befehl `prepare_embedding_models.py --check --json` als Datenjob und
 öffnet dessen Jobdetailseite. Die Aktion verwendet POST mit CSRF-Schutz und
-akzeptiert keine zusätzlichen Modell-, Pfad- oder Kommandoargumente. Sie
-prüft offline und schreibt keine Modelldateien. Bei einem unbrauchbaren
-Bestand endet der Job mit Fehlerstatus; die JSON-Ausgabe unterscheidet weiterhin
+akzeptiert keine zusätzlichen Modell-, Pfad- oder Kommandoargumente. Beide
+Modellaktionen weisen außerdem doppelte Formularfelder und widersprüchliche
+Aktionsnamen ab. Modell-ID, Revision und Zielpfad sind nicht frei eingebbar.
+„Lokal prüfen“ arbeitet offline und schreibt keine Modelldateien. Bei einem
+unbrauchbaren Bestand endet der Job mit Fehlerstatus; die JSON-Ausgabe unterscheidet weiterhin
 `fehlt`, `unvollstaendig` und `inkompatibel`. Gespeicherte Prüfläufe
 werden erst in M6.8 zugeordnet. Manifestdatum und
 Zeitpunkt des Seitenaufrufs werden nicht als letzte ausgeführte Prüfung

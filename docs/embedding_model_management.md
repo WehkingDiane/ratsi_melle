@@ -1211,7 +1211,7 @@ Orientierung und sind keine Vorgabe fuer die Bearbeitung.
   `[Leicht · GPT-6 Luna / Medium]`
 - [x] **M6.4** Feste, bestaetigungspflichtige Serviceaktion fuer die Vorbereitung
   der konfigurierten Revisionen implementieren. `[Mittel · GPT-6 Sol / Medium]`
-- [ ] **M6.5** Freie Modell-IDs, Revisionen, Zielpfade und zusaetzliche
+- [x] **M6.5** Freie Modell-IDs, Revisionen, Zielpfade und zusaetzliche
   Kommandoargumente in Formular und Command Builder ausschliessen.
   `[Mittel · GPT-6 Sol / Medium]`
 - [ ] **M6.6** Feste rein lesende Serviceaktion fuer die Legacy-Bestandspruefung
@@ -1389,8 +1389,17 @@ Orientierung und sind keine Vorgabe fuer die Bearbeitung.
   private Provider-Ausgaben sind durch Regressionstests abgesichert.
   Zugeordnete Pruefhistorie und Legacy-Webaktionen bleiben fuer die folgenden
   Aufgaben offen. Allgemeine Version: `0.5.41`.
-- Naechster regulaerer Punkt: **M6.5**; Parameter-Allowlist fuer alle neuen
-  Modellaktionen pruefen und verbleibende Formular-/Command-Grenzen absichern.
+- **M6.5** umgesetzt: Modellpruefung und -vorbereitung verwenden dieselbe
+  strikte Feldpruefung. Unbekannte Felder, doppelte Parameter, Nicht-Textwerte
+  und widerspruechliche Aktionsnamen werden vor der Befehlsbildung abgewiesen.
+  Modell-IDs, Revisionen, Modell-/Zielpfade und weitere CLI-Argumente bleiben
+  ausschliesslich serverseitig vorgegeben. Formulartests pruefen die genaue
+  Feldmenge; manipulierte POSTs mit gueltigem CSRF starten keinen Job.
+  533 Unit-Tests und 176 betroffene Integrationstests bestehen; ein
+  voraussetzungsabhaengiger Test ist uebersprungen. Keine echten Downloads
+  oder produktiven Indexaenderungen. Allgemeine Version: `0.5.42`.
+- Naechster regulaerer Punkt: **M6.6**; rein lesende Legacy-Bestandspruefung
+  und Darstellung des Uebernahmeprotokolls implementieren.
 
 - Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-
   und Testabdeckung, CLI-/Manifestvertrag, Dokumentation und Versionsstand

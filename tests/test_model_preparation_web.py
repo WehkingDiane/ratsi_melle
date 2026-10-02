@@ -299,3 +299,91 @@ def test_transient_worker_storage_failure_kills_child_and_allows_retry(confirmat
     monkeypatch.setattr(service_jobs, "_persist_snapshot_locked", original)
     assert service_jobs.get_service_job(job.job_id).status == "error"
     assert service_jobs.start_service_job("build_vector_index", [], ROOT).status == "queued"
+
+
+MODEL_ACTIONS = ("check_embedding_models", "prepare_embedding_models")
+FORBIDDEN_MODEL_FIELDS = (
+    "model_id", "dense_model", "tokenizer", "sparse_model", "revision",
+    "tokenizer_revision", "models_dir", "target_path", "args", "command",
+    "deep", "download", "limit",
+)
+
+
+@pytest.mark.parametrize("action", MODEL_ACTIONS)
+@pytest.mark.parametrize("field", FORBIDDEN_MODEL_FIELDS)
+def test_model_command_rejects_every_free_parameter(action, field, confirmation):
+    data = dict(confirmation) if action == "prepare_embedding_models" else {"action": action}
+    data[field] = "--download; untrusted/model"
+    command, errors = build_service_command(action, data)
+    assert command is None
+    assert errors
+    assert "untrusted/model" not in " ".join(errors)
+
+
+@pytest.mark.parametrize("action,field", [
+    ("check_embedding_models", "action"), ("check_embedding_models", "csrfmiddlewaretoken"),
+    ("prepare_embedding_models", "action"), ("prepare_embedding_models", "csrfmiddlewaretoken"),
+    ("prepare_embedding_models", "confirmation"), ("prepare_embedding_models", "preparation_binding"),
+])
+def test_model_command_rejects_duplicate_allowed_fields(action, field, confirmation):
+    from django.http import QueryDict
+    data = QueryDict("", mutable=True)
+    data.update(confirmation if action == "prepare_embedding_models" else {"action": action})
+    data.setlist(field, [data.get(field, "token")] * 2)
+    command, errors = build_service_command(action, data)
+    assert command is None
+    assert errors
+
+
+@pytest.mark.parametrize("action", MODEL_ACTIONS)
+@pytest.mark.parametrize("value", [None, ["token"], {"token": "value"}])
+def test_model_command_rejects_non_scalar_fields(action, value, confirmation):
+    data = dict(confirmation) if action == "prepare_embedding_models" else {"action": action}
+    data["csrfmiddlewaretoken"] = value
+    command, errors = build_service_command(action, data)
+    assert command is None
+    assert errors
+
+
+@pytest.mark.parametrize("action", MODEL_ACTIONS)
+def test_model_command_rejects_mismatched_action(action, confirmation):
+    data = dict(confirmation) if action == "prepare_embedding_models" else {}
+    data["action"] = "build_vector_index"
+    command, errors = build_service_command(action, data)
+    assert command is None
+    assert errors
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("action", MODEL_ACTIONS)
+def test_model_forms_expose_only_fixed_action_fields(action, confirmation):
+    from bs4 import BeautifulSoup
+    from django.test import Client
+    response = Client().get("/daten/vektor/")
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.content, "html.parser")
+    form = soup.select_one(f'#embedding-model-status input[value="{action}"]').find_parent("form")
+    fields = [element["name"] for element in form.select("[name]")]
+    expected = {"action", "csrfmiddlewaretoken"}
+    if action == "prepare_embedding_models":
+        expected |= {"confirmation", "preparation_binding"}
+    assert set(fields) == expected
+    assert len(fields) == len(expected)
+    assert form["method"] == "post"
+    assert form.select_one('input[name="action"]')["type"] == "hidden"
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("action", MODEL_ACTIONS)
+@pytest.mark.parametrize("field", ["model_id", "revision", "target_path", "args"])
+def test_manipulated_model_post_never_starts_job(action, field, confirmation, monkeypatch):
+    from django.test import Client
+    from data_tools import views
+    monkeypatch.setattr(views.service_jobs, "start_service_job", lambda *a, **kw: pytest.fail("job started"))
+    client = Client(enforce_csrf_checks=True)
+    client.get("/daten/vektor/")
+    data = dict(confirmation) if action == "prepare_embedding_models" else {"action": action}
+    data.update({"csrfmiddlewaretoken": client.cookies["csrftoken"].value, field: "untrusted-value"})
+    response = client.post("/daten/vektor/", data)
+    assert response.status_code == 200
+    assert "keine zusätzlichen Parameter" in response.content.decode()
