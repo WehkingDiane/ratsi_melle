@@ -481,7 +481,11 @@ rohen Ausnahmetexte oder Tracebacks. Die Mindestversion bleibt Python 3.11+.
 Nur `--download` konfiguriert das gemeinsame rotierende Projektlog unter
 `logs/embedding_model_preparation.log` beziehungsweise `RATSI_LOG_DIR`.
 `--log-level` hat Vorrang vor `RATSI_LOG_LEVEL`, danach gilt `INFO`; erlaubte
-explizite Level sind DEBUG, INFO, WARNING, ERROR und CRITICAL. `--check` bleibt
+explizite Level sind DEBUG, INFO, WARNING, ERROR und CRITICAL. Routinemeldungen
+von `httpx` und `httpcore`, etwa erfolgreiche Qdrant-Scroll-Anfragen beim
+Vektoraufbau, erscheinen nur im Dateilog. Warnungen, Fehler und Projektmeldungen
+bleiben im Terminal sichtbar; der Konsolenfilter gilt auch bei `DEBUG`.
+`--check` bleibt
 rein lesend und konfiguriert keine Logdatei, auch bei gesetztem `--log-level`.
 
 `event=model_preparation_failed` protokolliert Fehlercode, Arbeitsschritt,

@@ -118,7 +118,10 @@ git config core.hooksPath .githooks
 
 CLI-Skripte und Django verwenden dasselbe Logformat mit UTC-Zeit, Komponente und
 `run_id`. Rotierende Dateien liegen standardmaessig unter `logs/<komponente>.log`;
-CLI-Meldungen erscheinen zusätzlich auf stderr. Nicht behandelte Fehler der
+CLI-Meldungen erscheinen zusätzlich auf stderr. Routinemeldungen von `httpx` und
+`httpcore` bleiben ausschliesslich im Dateilog; deren Warnungen und Fehler
+bleiben auch im Terminal sichtbar. Dies gilt ebenfalls bei `DEBUG`.
+Nicht behandelte Fehler der
 Vektor-, Such- und Evaluationsskripte enthalten dort einen Stacktrace. Bei über
 die Weboberfläche gestarteten Datenjobs entspricht die `run_id` der sichtbaren
 Job-ID, sodass Status, begrenzte Jobausgabe und vollständiges Dateilog

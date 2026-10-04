@@ -77,6 +77,17 @@ class ContextFilter(logging.Filter):
         return True
 
 
+class ConsoleNoiseFilter(logging.Filter):
+    """Keep routine HTTP diagnostics in files and warnings on the console."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        is_http_client = any(
+            record.name == name or record.name.startswith(f"{name}.")
+            for name in ("httpx", "httpcore")
+        )
+        return not is_http_client or record.levelno >= logging.WARNING
+
+
 class SafeFormatter(logging.Formatter):
     """Format records consistently and hide URL user-info from diagnostics."""
 
@@ -113,7 +124,9 @@ def configure_logging(
 
     handlers: list[logging.Handler] = []
     if console:
-        handlers.append(logging.StreamHandler(sys.stderr))
+        console_handler = logging.StreamHandler(sys.stderr)
+        console_handler.addFilter(ConsoleNoiseFilter())
+        handlers.append(console_handler)
     handlers.append(
         RotatingFileHandler(
             log_path,
@@ -144,7 +157,8 @@ def django_logging_config(component: str = "web") -> dict[str, object]:
             "context": {
                 "()": "src.observability.ContextFilter",
                 "component": component,
-            }
+            },
+            "console_noise": {"()": "src.observability.ConsoleNoiseFilter"},
         },
         "formatters": {
             "ratsi": {
@@ -156,7 +170,7 @@ def django_logging_config(component: str = "web") -> dict[str, object]:
         "handlers": {
             "console": {
                 "class": "logging.StreamHandler",
-                "filters": ["context"],
+                "filters": ["context", "console_noise"],
                 "formatter": "ratsi",
                 "level": level,
             },
