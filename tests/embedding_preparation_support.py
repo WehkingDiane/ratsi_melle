@@ -10,6 +10,23 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 CLI_PATH = REPO_ROOT / "scripts/prepare_embedding_models.py"
 FAKE_HUB_PATH = REPO_ROOT / "tests/fixtures/embedding_hub"
 
+
+def kill_test_process(process: subprocess.Popen) -> None:
+    """Stop the whole Windows venv launcher tree before closing its stdin."""
+
+    if process.poll() is not None:
+        return
+    if os.name == "nt":
+        result = subprocess.run(
+            ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+            capture_output=True, text=True, timeout=15,
+        )
+        if result.returncode and process.poll() is None:
+            raise RuntimeError("Could not stop the test process tree")
+    else:
+        process.kill()
+    process.wait(timeout=10)
+
 # Do not read the developer's OS keyring, even in explicitly enabled live tests.
 ANONYMOUS_KEYRING = """
 import os

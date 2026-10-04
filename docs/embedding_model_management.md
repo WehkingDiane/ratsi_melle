@@ -1298,6 +1298,26 @@ bleiben `VERSION` bei `0.5.47` und die Extraktionspipeline bei `1.3`.
 
 ### Phase 7: Gesamtabnahme und Dokumentation
 
+Zwischenstand vom 4. Oktober 2026: Der erneut ausgefuehrte lokale WSL-Gesamtlauf
+besteht mit **1102 Tests, einem uebersprungenen PDF-Belastungstest und sieben
+abgewaehlten Live-Tests** (411,30 Sekunden). Die native Windows-Abnahme der drei
+Sperr-/Vorbereitungs-/Buildmodule deckte Testhilfenfehler auf: Die globale
+Thread-Start-Sperre traf auch die Reader-Threads von `subprocess`; der Windows-
+venv-Launcher hinterliess beim alleinigen Beenden des Launchers den eigentlichen
+Python-Prozess. Die Testhilfe beendet jetzt unter Windows den eigenen Prozessbaum
+mit `taskkill /T /F` und wartet vor dem Schliessen der Eingabepipe. Der Thread-Patch
+ist auf den Webstart begrenzt. Nur fehlende native Windows-Symlink-Rechte
+(`WinError 1314`) ueberspringen den entsprechenden Test.
+Der native Nachlauf besteht mit **136 Tests und einem voraussetzungsbedingt
+uebersprungenen Symlink-Test** (39,04 Sekunden); die Sperrfreigabe nach Prozessende
+und die Wiederaufnahme des abgebrochenen Downloads sind dabei erfolgreich.
+Laufzeitcode und `VERSION` (`0.5.48`) bleiben unveraendert.
+Ein echter, separat heruntergeladener und tief gepruefter Abnahmebestand liegt
+lokal unter `data/processed/embedding_acceptance_20261004/models/`;
+Manifest-Hash: `478077ff73fbf75e6e4e1660de2c9c6d8cbbbab6d9864c7ffe06ee87d34314c9`.
+Offline-Build und Suche werden als naechster Schritt am isolierten Testindex
+geprueft; produktive Collections bleiben unberuehrt.
+
 - [ ] **M7.1** Regulaere Unit-Tests und betroffene Integrationstests ausfuehren.
 - [ ] **M7.2** Einen vollstaendigen vorbereiteten Offline-Build ohne Internet
   sowie die anschliessende Suche praktisch pruefen.
