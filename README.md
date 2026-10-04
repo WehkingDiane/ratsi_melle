@@ -361,7 +361,10 @@ Auch das Vektorschema jeder vorhandenen
 Collection wird vor Aenderungen geprueft, selbst wenn sie leer ist. Alte
 Collections ohne Kompatibilitaetsnachweis muessen
 zuerst mit dem [Legacy-Pruef- und Uebernahmepfad](docs/embedding_model_management.md#einmalige-uebernahme-bestehender-collections)
-verifiziert werden. Eine unterbrochene Fortsetzung behaelt den Modellvertrag
+verifiziert werden. Die Legacy-Pruefung beruecksichtigt die automatische
+Normierung der Dense-Vektoren durch Qdrant-Cosine. Ein durch `bfloat16` leicht
+von Laenge 1 abweichender neu berechneter Vektor wird deshalb vor dem Vergleich
+normiert; die festen Toleranzen werden nicht erweitert. Eine unterbrochene Fortsetzung behaelt den Modellvertrag
 im Marker, auch wenn der Passage-Index voruebergehend nicht freigegeben ist.
 Bei einem fehlenden oder abweichenden Vertrag beendet sich der Build mit
 Exitcode 1 und einer kurzen Meldung: vollstaendiger Neuaufbau oder getrennte

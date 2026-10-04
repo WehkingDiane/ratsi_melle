@@ -122,11 +122,51 @@ def test_vector_tolerances_are_fixed_and_sparse_indices_exact():
             "sparse_vector": {"indices": [2], "values": [1.00001]}}
     _compare_vectors(stored, near, 2)
     with pytest.raises(LegacyInspectionError, match="Dense") as error:
-        _compare_vectors(stored, {**near, "dense_vector": [1.001, 0.0]}, 2)
+        _compare_vectors(stored, {**near, "dense_vector": [1.0, 0.001]}, 2)
     assert error.value.code == "dense_mismatch"
     with pytest.raises(LegacyInspectionError) as error:
         _compare_vectors(stored, {**near, "sparse_vector": {"indices": [3], "values": [1.0]}}, 2)
     assert error.value.code == "sparse_indices_mismatch"
+
+
+@pytest.mark.parametrize("scale", [0.9984797464, 1.0020625731])
+@pytest.mark.integration
+def test_cosine_comparison_matches_qdrant_normalization(scale):
+    from qdrant_client.models import PointStruct, SparseVector
+
+    client = _client()
+    vector = [0.6 * scale, 0.8 * scale, 0.0]
+    sparse = {"indices": [2], "values": [1.0]}
+    try:
+        client.upsert("ratsi_passages", [PointStruct(
+            id=1, vector={"harrier": vector, "bm25": SparseVector(**sparse)},
+        )])
+        record = client.retrieve("ratsi_passages", ids=[1], with_vectors=True)[0]
+        assert max(abs(old - new) for old, new in zip(record.vector["harrier"], vector)) > 1e-4
+        _compare_vectors(record.vector, {"dense_vector": vector, "sparse_vector": sparse}, 3)
+        with pytest.raises(LegacyInspectionError) as error:
+            _compare_vectors(record.vector, {"dense_vector": [0.8, 0.6, 0.0],
+                                            "sparse_vector": sparse}, 3)
+        assert error.value.code == "dense_mismatch"
+    finally:
+        client.close()
+
+
+@pytest.mark.parametrize("vector", [[0.0, 0.0], [float("nan"), 0.0], [float("inf"), 0.0]])
+def test_cosine_comparison_rejects_invalid_recalculated_norm(vector):
+    sparse = {"indices": [2], "values": [1.0]}
+    with pytest.raises(LegacyInspectionError) as error:
+        _compare_vectors({"harrier": [1.0, 0.0], "bm25": sparse},
+                         {"dense_vector": vector, "sparse_vector": sparse}, 2)
+    assert error.value.code == "vector_invalid"
+
+
+def test_cosine_comparison_does_not_normalize_away_invalid_stored_magnitude():
+    sparse = {"indices": [2], "values": [1.0]}
+    with pytest.raises(LegacyInspectionError) as error:
+        _compare_vectors({"harrier": [1.002, 0.0], "bm25": sparse},
+                         {"dense_vector": [1.0, 0.0], "sparse_vector": sparse}, 2)
+    assert error.value.code == "dense_mismatch"
 
 
 def test_missing_model_inventory_has_a_persisted_abort_code(tmp_path, monkeypatch):

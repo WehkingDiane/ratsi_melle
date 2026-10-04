@@ -800,8 +800,14 @@ Kompatibilitaetsdatensatz enthalten. `result=aborted` traegt genau einen
 `abort_code`; unvollstaendige Punkt- und Vertragsnachweise bleiben `null`.
 Das Protokoll allein gibt noch keine Collection frei.
 
-Die Stichprobe umfasst maximal 32 Punkte. Dense- und Sparse-Werte verwenden
-jeweils absolute und relative Toleranz `1e-4` nach `math.isclose`; Sparse-Indizes
+Die Stichprobe umfasst maximal 32 Punkte. Die Dense-Neuberechnung wird vor dem
+Vergleich in Python-Fliesskommapraezision auf Laenge 1 normiert, entsprechend
+der Speicherung in der verbindlichen Qdrant-Cosine-Collection. Insbesondere
+`bfloat16` kann trotz Modell-Normalisierung geringfuegig von Laenge 1 abweichen.
+Gespeicherte Vektoren werden beim Vergleich nicht umnormiert; eine abweichende
+gespeicherte Magnitude bleibt ein Fehler. Nullvektoren und nicht endliche Normen
+der Neuberechnung werden als `vector_invalid` abgewiesen. Dense- und Sparse-Werte
+verwenden weiterhin absolute und relative Toleranz `1e-4` nach `math.isclose`; Sparse-Indizes
 muessen exakt gleich sein. Diese Werte stehen auch im Protokoll und sind keine
 Eingabeparameter. Abbruchcodes sind nach Ursache getrennt:
 
@@ -1422,6 +1428,32 @@ Die Betriebsgrenze bleibt ein gemeinsames lokales Dateisystem; verteilte Sperren
 und serverseitige Schreibzugriffe fremder Clients sind damit nicht abgedeckt.
 
 ## Aktuelle Uebergabe
+
+- **Nachtrag 0.5.50: Legacy-Cosine-Vergleich korrigiert** auf
+  `codex/fix/legacy-cosine-vector-comparison`. Die produktive Passage-Pruefung
+  meldete zunaechst `dense_mismatch`. Drei rein lesend untersuchte Punkte
+  zeigten gleiche Vektorrichtungen, aber BF16-Ausgaben mit Laengen von etwa
+  0.99848 bis 1.00206. Qdrant hatte diese beim Upload auf Laenge 1 normiert;
+  nach gleicher Normierung lagen die Koordinatenabweichungen unter 1e-8.
+  Die Pruefung normiert jetzt ausschliesslich die Dense-Neuberechnung vor dem
+  Vergleich. Toleranzen, Sparse-Pruefung, Stichprobenumfang und gespeicherte
+  Vektoren bleiben unveraendert. Regressionen verwenden echte temporaere
+  Qdrant-Cosine-Stores, pruefen Skalierungsabweichungen und lehnen andere
+  Richtungen, ungueltige Normen und abweichende gespeicherte Magnituden ab.
+  153 betroffene WSL-Tests und 67 native Windows-Tests bestehen.
+  Die abschliessende regulaere Suite mit `RATSI_PDF_STRESS=1` besteht mit
+  1111 Tests, acht Live-Tests ausgeschlossen (125,31 Sekunden). Alle
+  184 versionierten Python-Dateien der isolierten Testkopie unter
+  `/tmp/ratsi-legacy-cosine-20261004` stimmen per SHA-256 mit dem Arbeitsbaum
+  ueberein. README und Modellvertrag sind aktualisiert; Suchqualitaets-,
+  Web- und Datenverarbeitungsanleitung beschreiben weiterhin denselben Ablauf.
+  Die reale erneute Pruefung ist `verified`: 136278 vorhandene Punkte,
+  32 Stichprobenpunkte, keine Qdrant-Payload- oder Freigabemarker-Aenderung.
+  Ihr separater lokaler Bericht liegt unter
+  `data/db/legacy_passages_inspection_normalized.json`. Das urspruengliche
+  Abbruchprotokoll bleibt erhalten. Eine ausdrueckliche Uebernahme steht noch
+  aus. Keine Embedding-/Manifest-/Extraktionspipeline-Aenderung; die
+  Fehlerkorrektur verlangt keinen Vektor-Neuaufbau.
 
 - **Phase 7 abgeschlossen (M7.1 bis M7.7)** auf
   `codex/feature/embedding-model-management-phase-7`. Regulaere Suite:
