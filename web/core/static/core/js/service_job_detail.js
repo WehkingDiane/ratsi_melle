@@ -12,6 +12,9 @@
   const outputNode = document.getElementById("job-output");
   const runningBanner = document.getElementById("job-running-banner");
   const completionMessage = document.getElementById("job-completion-message");
+  const progressText = document.getElementById("job-progress-text");
+  const progress = document.getElementById("job-progress");
+  const evidencePanel = document.getElementById("model-job-evidence");
   let wasRunning = container.getAttribute("data-service-job-running") === "true";
 
   function setStatusClass(status) {
@@ -40,6 +43,18 @@
       const job = payload.job || {};
       const status = job.status || "";
       const statusLabel = job.status_label || status;
+      if (progressText) {
+        progressText.textContent = (job.progress || {}).message || "Fortschritt nicht verfügbar.";
+      }
+      if (progress) {
+        progress.hidden = status !== "running";
+      }
+      if (evidencePanel) {
+        const evidence = payload.model_job_evidence || {};
+        evidencePanel.querySelectorAll("[data-job-evidence]").forEach(function (node) {
+          node.textContent = evidence[node.getAttribute("data-job-evidence")] || "Nicht nachgewiesen";
+        });
+      }
 
       if (statusNode) {
         statusNode.textContent = statusLabel || "-";
@@ -73,6 +88,9 @@
         document.dispatchEvent(new CustomEvent("servicejob:finished", {
           detail: { jobId: jobId, status: status },
         }));
+        if (container.getAttribute("data-legacy-job") === "true") {
+          window.location.reload();
+        }
       }
       return status === "queued" || status === "running";
     } catch (_error) {

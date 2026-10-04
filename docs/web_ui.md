@@ -117,7 +117,7 @@ Buttons folgen einem funktionsbezogenen Farbschema: `primary` ist auslösenden H
 - `/daten/jobs/<job_id>/` zeigt Status und Ausgabe eines gestarteten Datenjobs. Die letzten 50 Datenjobs werden in `data/db/service_jobs.sqlite` gespeichert und bleiben nach einem Serverneustart sichtbar; zuvor laufende Jobs werden dabei als unterbrochen markiert.
 - `/daten/jobs/<job_id>/status/` liefert den aktuellen Datenjobstatus als JSON für die automatische Logaktualisierung.
 - Die Datenjob-ID wird als `run_id` an das gestartete Skript weitergegeben. Damit lassen sich die begrenzte Ausgabe in der Weboberfläche und das vollständige rotierende Log unter `logs/<skriptname>.log` eindeutig zuordnen.
-- `/daten/status/` liefert den frisch berechneten Rohdaten-, Datenbank- und Vektorindexstatus als JSON für die manuelle Aktualisierung.
+- `/daten/status/` liefert den frisch berechneten Rohdaten-, Datenbank-, Vektorindex- und lokalen Modellstatus als JSON für die manuelle Aktualisierung.
 - `/veroeffentlichung/` ist ein Platzhalter für Publikations- und Reviewfunktionen.
 - `/suche/` durchsucht lokal indexierte Dokumentinhalte semantisch über den Qdrant-Vektorindex. Die Suche nutzt Harrier-Dense-Embeddings, BM25-Sparse-Vektoren und RRF-Rangfusion. Bei aktiven Datums-, Gremiums- oder Dokumenttypfiltern werden bis zu 100 semantische Kandidaten geladen, anschließend gefiltert und erst danach auf 20 sichtbare Treffer begrenzt. Dadurch können relevante gefilterte Dokumente auch dann erscheinen, wenn sie im ungefilterten Ranking hinter Platz 20 liegen. Neu aufgebaute Vektorindizes liefern außerdem kurze Textausschnitte. Die Quellen-Auswahl bietet Ratsinfo als Standard und Landkreis als getrennte Collection `landkreis_publications`; beim Wechsel zu Landkreis werden die dort nicht anwendbaren Ratsinfo-Filter Gremium und Dokumenttyp verworfen.
 - Ratsinfo nutzt nach vollstaendigem Erstaufbau `ratsi_passages`. Die Treffer zeigen einzelne Abschnitte, Seitenzahlen und Links zur lokalen PDF-Fundstelle. Bis zur Umschaltung bleibt `ratsi_documents` aktiv. Details zu Migration und Messung stehen in [search_quality.md](search_quality.md).
@@ -216,6 +216,101 @@ Fehlende Datenquellen führen nicht zu Fehlern. Die Oberfläche zeigt stattdesse
 
 ### Qdrant-Verbindung und Status
 
+Der Datenstatus enthält unter `status.embedding_models` die lokale Bereitschaft
+(`bereit`, `fehlt`, `unvollstaendig` oder `inkompatibel`) und die Komponenten
+`dense_model`, `tokenizer` und `sparse_model`. Konfigurierte Revisionen sind
+immer enthalten; vorbereitete Revisionen und Größen stammen nur aus einem
+gemeinsam validierten Manifest einschließlich des Bibliotheksvergleichs.
+Bei einem Gesamtfehler sind diese Einzelwerte und die Einzelbereitschaft `null`.
+`size_scope=required_artifacts` bezeichnet die erfassten Pflichtdateien; der
+Gesamtwert zählt gemeinsam referenzierte Dateien einmal und umfasst keine
+Caches oder alten Modellstände. Diese Schnellprüfung lädt keine Modelle,
+verwendet kein Modellnetzwerk und verändert keine Dateien.
+
+Die Service-Fassade stellt dieselben Werte über `embedding_model_status()` ohne
+Qdrant-Abfrage bereit. Auf `/daten/vektor/` zeigt „Lokale Embedding-Modelle“
+den gemeinsamen Status und die Angaben zu Harrier, Tokenizer und BM25.
+„Modellstatus aktualisieren“ erneuert diese Werte ohne Seitenwechsel. Bei einem
+Gesamtfehler zeigen die Karten „Nicht einzeln verifiziert“ und ersetzen alte
+Revisionen und Größen durch „Nicht verifiziert“. „Lokal prüfen“ startet den
+festen Befehl `prepare_embedding_models.py --check --json` als Datenjob und
+öffnet dessen Jobdetailseite. Die Aktion verwendet POST mit CSRF-Schutz und
+akzeptiert keine zusätzlichen Modell-, Pfad- oder Kommandoargumente. Beide
+Modellaktionen weisen außerdem doppelte Formularfelder und widersprüchliche
+Aktionsnamen ab. Modell-ID, Revision und Zielpfad sind nicht frei eingebbar.
+„Lokal prüfen“ arbeitet offline und schreibt keine Modelldateien. Bei einem
+unbrauchbaren Bestand endet der Job mit Fehlerstatus; die JSON-Ausgabe unterscheidet weiterhin
+`fehlt`, `unvollstaendig` und `inkompatibel`. Die Vektorseite zeigt je Modell- und Legacy-Aktion den letzten abgeschlossenen
+Versuch einschließlich Fehlern; laufende Jobs stehen separat. Die Zuordnung
+bindet Aktion, aufgelösten Modellpfad, Modellvertrag und Bibliotheksstand.
+Erfolgreiche Ergebnisse speichern zusätzlich den Manifest-Hash. Änderungen
+am Vertrag, Pfad oder Bestand kennzeichnen ein Ergebnis als historisch.
+Ältere Jobs ohne nachgewiesene Zuordnung bleiben ausdrücklich unverifiziert.
+Nach Entfernen eines Jobs aus der begrenzten Historie erscheint „Kein
+gespeichertes Prüfergebnis“. Bei Speicherfehlern zeigt die Seite stattdessen
+eine Warnung und kann sich beim nächsten Abruf erholen. Die Aktualisierung
+liest nur lokale Diagnosedaten; sie startet weder Downloads noch Qdrant-Probes.
+Jobdetails zeigen Wartestatus, Ausführung und Abschluss, während der
+Ausführung einen Fortschrittsbalken ohne Prozentwert. Die Skripte liefern
+keinen verlässlichen prozentualen Fortschritt. Nach Abschluss einer
+Legacy-Prüfung wird die Detailseite mit dem validierten Protokoll neu geladen.
+Die gespeicherten Ergebnisse ersetzen niemals die aktuelle Modellbereitschaft. Manifestdatum und
+Zeitpunkt des Seitenaufrufs werden nicht als letzte ausgeführte Prüfung
+ausgegeben.
+
+„Modelle vorbereiten“ lädt nach ausdrücklicher Bestätigung die angezeigten,
+fest konfigurierten Revisionen in das konfigurierte Modellverzeichnis. Dafür
+müssen die Modellbibliotheken im Python-Umfeld des Servers installiert sein.
+Die Aktion läuft als Datenjob mit `--download --json`; die Jobdetailseite zeigt
+das geprüfte Ergebnis oder einen festen Fehlercode. Rohe Downloadausgaben und
+Provider-Tracebacks werden nicht gespeichert. Die signierte Bestätigung ist
+15 Minuten gültig und bindet Modellpfad, Revisionen und Bibliotheksstand. Nach
+Änderungen die Seite neu laden und erneut bestätigen. Parallele Modell- und
+Vektorjobs werden im Web abgewiesen; direkte CLI-Aufrufe warten auf dieselbe
+Betriebssystemsperre. Alle Webprozesse verwenden dieselbe Jobdatenbank und
+dieselben Modell-/Qdrant-Zustandsverzeichnisse. Ein lebender Unterprozess bleibt
+auch nach Ausfall seines Webprozesses geschützt. Nachdem beide beendet sind,
+wird der unterbrochene Job als Fehler angezeigt; ein neuer Versuch ist möglich.
+Alle Vektor-Builds einschließlich Legacy- und Landkreis-Build verwenden dieselbe
+Modellsperre. Die CLI wartet auch unter Windows bei langen Builds weiter auf die
+Freigabe. Modell- und Collection-Sperren bleiben bei Erfolg oder Fehler bis zum
+Schließen des Qdrant-Clients bestehen. Auch Legacy-Prüfungen erwerben die
+Collection-Sperre vor Clientstart. Dabei kann eine dauerhaft verbleibende
+Sperrdatei angelegt werden; Indexdaten, Payloads und Freigabemarker ändern sich
+durch die Prüfung nicht. Sperrdateien nicht löschen: Entscheidend ist die aktive
+Betriebssystemsperre, nicht die Existenz der Datei. Ein neuer Versuch prüft
+Konfiguration und Bestand nach Sperrerwerb erneut.
+
+„Legacy-Bestand prüfen“ bietet zwei feste Aktionen für `ratsi_passages` und
+`ratsi_documents`. Ziel, Quell-Datenbank und Berichtspfad legt der Server fest;
+zusätzliche Pfad-, Stichproben-, Toleranz- oder Apply-Parameter werden abgewiesen.
+Die signierte Zielbindung ist 15 Minuten gültig und wird vor Clientstart unter
+der Modellsperre erneut geprüft. Die Aktion verändert weder Qdrant-Payloads
+noch Freigabemarker. Jeder Job behält einen eigenen privaten Bericht. Auf der
+Jobdetailseite zeigt „Legacy-Prüfprotokoll“ Ziel, Quelle, Prüfzeit, Ergebnis,
+Stichprobenumfang und Berichtshash; gültige Abbruchberichte bleiben sichtbar.
+Bei einem laufenden Job nach Abschluss „Prüfprotokoll anzeigen“ wählen. Die
+Jobstatus-API liefert dieselben geprüften Ergebnisfelder. Bei geänderter
+Konfiguration erscheint das Ergebnis als historisch; veränderte, fremde oder
+unlesbare Protokolle werden abgewiesen. Rohes stdout/stderr wird nicht gespeichert.
+Auf der Detailseite eines erfolgreichen Prüfjobs erscheint „Geprüften
+Legacy-Bestand übernehmen“, wenn der Bericht unverändert ist, der aktuelle
+Modell-/Zielvertrag passt und kein Freigabemarker vorhanden ist. Die Aktion
+verlangt ein angekreuztes Bestätigungsfeld und CSRF-Schutz. Eine signierte,
+15 Minuten gültige Bindung umfasst Prüfjob-ID und Berichtshash; Collection,
+Quelle und Berichtspfad leitet der Server aus diesem Job ab. Der Jobstart
+prüft den gespeicherten Beleg erneut. Die CLI erwirbt Modell- und
+Collection-Sperre vor Clientstart, prüft den bestätigten Berichtshash und
+berechnet die Stichprobe vor einer Freigabe nochmals. Spätere Änderungen
+führen zum Abbruch. Die Übernahme ergänzt Kompatibilitätsangaben und den
+Freigabemarker, ohne gespeicherte Vektoren zu verändern oder den Index neu
+aufzubauen. Sichere
+Ergebniszahlen oder feste Abbruchcodes erscheinen in der Jobausgabe. Nach
+teilweisem Backfill wird die bestehende Rücknahme verwendet. Abgebrochene,
+veränderte, historische oder nicht mehr gespeicherte Prüfjobs können nicht
+übernommen werden. Landkreis bleibt „Neuaufbau erforderlich“ (`rebuild_required`)
+als separate Aufgabe.
+
 Django und seine Build-Unterprozesse nutzen standardmäßig denselben Qdrant-Server
 `http://127.0.0.1:6333` wie die CLI. `RATSI_QDRANT_URL` wählt einen anderen Server.
 Mit `RATSI_QDRANT_MODE=local` und ohne URL wird der lokale Index verwendet. Nach einer Änderung der
@@ -223,8 +318,16 @@ Umgebung Django neu starten. Auf `/daten/vektor/` wird das konfigurierte Ziel
 angezeigt. Dashboard und Vektorstatus prüfen die Verbindung und die Collection;
 sie unterscheiden fehlende Collection, unvollständigen Index, unerreichbaren
 Server und ungültige Konfiguration. Die Suche lädt bei diesen Fehlern keine
-Embedding-Modelle nach. URL-Zugangsdaten und URL-Pfade erscheinen nicht in
+Embedding-Modelle nach. Fehlt der vorbereitete lokale Modellbestand, zeigt die
+Suche den Vorbereitungsbefehl und einen Link zum technischen Servicebereich.
+URL-Zugangsdaten und URL-Pfade erscheinen nicht in
 Statusanzeigen oder Suchfehlern.
+Die [Phase-7-Abnahme](embedding_model_management.md#abschlusspruefung-phase-7-2026-10-04)
+prueft den Suchservice mit echten lokalen Modellen und einem getrennten
+Testindex bei gesperrtem Netzwerk. Auch nach dem Laden der Suchmodelle werden
+fehlende Modellbestaende und inkompatible Freigabemarker vor weiteren
+Suchanfragen abgewiesen. Native Windows-Prozesssperren, Webstart-Konflikte und
+Wiederanlauf nach hartem Testprozessabbruch sind separat geprueft.
 
 Ein vorhandener, noch nicht freigegebener Passage-Index wird als unvollständig
 angezeigt. Bis zur Freigabe kann die Suche den bisherigen `ratsi_documents`-Index

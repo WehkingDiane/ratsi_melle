@@ -16,14 +16,30 @@ from src.indexing.payload_builder import build_document_payload
 from src.indexing.passages import COLLECTION, MODEL, PIPELINE_VERSION, chunk_pages, extract_pages, file_digest
 from src.indexing.vectorizer import HybridVectorizer
 from src.paths import LOCAL_INDEX_DB, QDRANT_DIR
-from src.config.settings import INDEXER_ALLOW_MODEL_DOWNLOADS
+from src.config.embedding_model_status import prepared_model_path
+from src.config.embedding_models import HARRIER_TOKENIZER
+from src.config.index_compatibility import (
+    IndexCompatibility,
+    current_index_compatibility,
+    with_index_compatibility,
+)
 
 
 LOGGER = logging.getLogger(__name__)
 
 
+def _load_tokenizer():
+    """Load the pinned Harrier tokenizer from its prepared local snapshot."""
+
+    tokenizer_path = prepared_model_path("tokenizer")
+    from transformers import AutoTokenizer
+
+    return AutoTokenizer.from_pretrained(str(tokenizer_path), local_files_only=True)
+
+
 def build_passage_index(documents, store, tokenizer, vectorizer_factory, *, limit=None,
-                        tokens=768, overlap=96, use_ocr=True, batch_size=4, refresh=False):
+                        tokens=768, overlap=96, use_ocr=True, batch_size=4, refresh=False,
+                        compatibility: IndexCompatibility | None = None):
     """Replace changed documents only after all their new passages are stored."""
     if not 32 <= tokens <= 8192 or not 0 <= overlap < tokens or batch_size < 1:
         raise ValueError("Require 32..8192 chunk tokens, smaller nonnegative overlap and positive batch size")
@@ -49,7 +65,7 @@ def build_passage_index(documents, store, tokenizer, vectorizer_factory, *, limi
                 "source": source_hash, "metadata": metadata, "model": MODEL,
                 "pipeline": PIPELINE_VERSION, "tokens": tokens, "overlap": overlap,
                 "ocr": use_ocr, "ocr_tools": [shutil.which("pdftoppm"), shutil.which("tesseract")],
-                "tokenizer_revision": getattr(tokenizer, "init_kwargs", {}).get("_commit_hash"),
+                "tokenizer_revision": HARRIER_TOKENIZER.revision,
             }, sort_keys=True).encode()).hexdigest()
             old = groups.get(parent, {})
             generations = {}
@@ -88,6 +104,8 @@ def build_passage_index(documents, store, tokenizer, vectorizer_factory, *, limi
                            "chunk_count": len(chunks), "fingerprint": fingerprint, "generation": generation,
                            "source_hash": source_hash, "model": MODEL, "pipeline_version": PIPELINE_VERSION,
                            "unreadable_pages": unreadable, "committed": False}
+                if compatibility is not None:
+                    payload = with_index_compatibility(payload, compatibility)
                 points.append({"id": point_id, "payload": payload})
             if vectorizer is None:
                 vectorizer = vectorizer_factory()
@@ -138,19 +156,17 @@ def main(argv=None):
         parser.error(f"Database not found: {args.db}")
     store = DocumentVectorStore(args.qdrant_dir, collection_name=COLLECTION)
     try:
-        store.ensure_collection()
-        store.connection.clear_readiness()
-        from transformers import AutoTokenizer
-
-        tokenizer = AutoTokenizer.from_pretrained(
-            MODEL,
-            local_files_only=not INDEXER_ALLOW_MODEL_DOWNLOADS,
-            )
+        store.acquire_build_lock()
+        store._get_client()
+        compatibility = current_index_compatibility()
+        store.begin_build(compatibility)
+        tokenizer = _load_tokenizer()
         result = build_passage_index(
             _load_documents(args.db), store, tokenizer,
             lambda: HybridVectorizer(HarrierEmbedder(), BM25Encoder()),
             limit=args.limit, tokens=args.chunk_tokens, overlap=args.overlap_tokens,
             use_ocr=not args.no_ocr, batch_size=args.batch_size, refresh=args.refresh,
+            compatibility=compatibility,
         )
         # Activate only after every current document has a complete generation.
         # A --limit build may finish migration over several runs.
@@ -162,7 +178,7 @@ def main(argv=None):
         complete = {parent for (parent, _), chunks in generations.items()
                     if len(chunks) == chunks[0].get("chunk_count") and all(c.get("committed") for c in chunks)}
         if expected and expected <= complete and not result["failures"] and not result["pending_documents"]:
-            store.connection.write_readiness(store._get_client(), {"pipeline_version": PIPELINE_VERSION, "model": MODEL})
+            store.finish_build(compatibility)
         result["ready"] = store.connection.passages_ready(store._get_client())
         print(json.dumps(result, ensure_ascii=False))
         if result["failures"]:

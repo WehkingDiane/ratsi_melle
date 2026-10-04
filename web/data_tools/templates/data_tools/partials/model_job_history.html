@@ -1,0 +1,25 @@
+<section class="panel" id="model-job-history" data-history-url="{% url 'data_tools:service_model_history_status' %}">
+  <h2>Gespeicherte Modell- und Legacy-Jobs</h2>
+  <p class="muted">Je Aktion der letzte abgeschlossene Versuch, einschließlich Fehlern. Laufende Jobs erscheinen separat. Eine historische Prüfung ersetzt nicht die aktuelle Bereitschaft.</p>
+  <p data-history-feedback aria-live="polite"{% if status.model_job_history.available %} hidden{% endif %}>{{ status.model_job_history.message|default:"Prüfhistorie kann nicht gelesen werden." }}</p>
+  <div class="grid two-columns">
+    {% for entry in status.model_job_history.entries %}
+    <article data-history-scope="{{ entry.scope }}">
+      <h3>{{ entry.label }}</h3>
+      <div data-history-last>
+      {% if not status.model_job_history.available %}<p>Historie nicht verfügbar.</p>
+      {% elif entry.last_finished %}
+        <p>{{ entry.last_finished.status_label }}{% if entry.last_finished.result %}: {{ entry.last_finished.result }}{% endif %} – {{ entry.last_finished.finished_at|default:"Abschlusszeit unbekannt" }}</p>
+        <p>{{ entry.last_finished.association_label }}</p>
+        <p>Modellverzeichnis: {{ entry.last_finished.models_dir|default:"Nicht nachgewiesen" }}</p>
+        {% if entry.last_finished.manifest_sha256 %}<p>Manifest: {{ entry.last_finished.manifest_sha256 }}</p>{% endif %}
+        <a href="{% url 'data_tools:service_job_detail' job_id=entry.last_finished.job_id %}">Letzten Versuch anzeigen</a>
+      {% else %}<p>Kein gespeichertes Prüfergebnis.</p>{% endif %}
+      </div>
+      <div data-history-active aria-live="polite">
+        {% for active in entry.active %}<p>{{ active.status_label }}: {{ active.progress.message }} <a href="{% url 'data_tools:service_job_detail' job_id=active.job_id %}">Laufenden Job anzeigen</a></p>{% endfor %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</section>

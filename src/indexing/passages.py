@@ -10,10 +10,12 @@ import shutil
 import subprocess
 import tempfile
 
+from src.config.embedding_models import EMBEDDING_PIPELINE_VERSION, HARRIER_MODEL
+
 LOGGER = logging.getLogger(__name__)
 COLLECTION = "ratsi_passages"
-MODEL = "microsoft/harrier-oss-v1-0.6b"
-PIPELINE_VERSION = "passages-1"
+MODEL = HARRIER_MODEL.model_id
+PIPELINE_VERSION = EMBEDDING_PIPELINE_VERSION
 MAX_FILE_BYTES = 100 * 1024 * 1024
 
 

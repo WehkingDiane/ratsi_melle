@@ -23,12 +23,32 @@ Der Landkreis-Builder bleibt ein eigener Dokumentindex.
   Ueberlappung. Seiten bleiben getrennt; innerhalb einer Seite werden bevorzugt
   Absatzgrenzen genutzt. Kurze Seiten ergeben kuerzere Abschnitte.
 - Payloads enthalten Dokument-ID, URL, Sitzung, TOP-Zuordnung aus dem Index,
-  Seitenzahl, Text, Zeichenpositionen, Extraktionsmethode und Modell-/Pipelineversion.
+  Seitenzahl, Text, Zeichenpositionen, Extraktionsmethode und bei neu
+  berechneten Vektoren den vollstaendigen Modell-/Pipelinevertrag im Feld
+  `index_compatibility`.
   Eine neue TOP-Zuordnung innerhalb sitzungsweiter Protokolle wird nicht abgeleitet.
 - Die Suche zeigt einzelne Fundstellen mit Seitenzahl und einem Link zur lokalen
   PDF-Seite. Mehrere relevante Abschnitte eines Dokuments koennen erscheinen.
 
 ## Aufbau und Migration
+
+Qdrant muss erreichbar und der lokale Modellbestand vorbereitet sein. Vor dem
+ersten Build oder bei `local_models_unavailable` diese Schritte ausfuehren:
+
+```bash
+python scripts/prepare_embedding_models.py --download
+python scripts/prepare_embedding_models.py --check
+python scripts/build_vector_index.py --limit 10
+```
+
+Ein bereiter Bestand wird spaeter ohne erneute Vorbereitung verwendet.
+Vorbereitung und Build muessen dieselbe Python-Umgebung und denselben
+Modellstamm (`data/models/` oder `RATSI_MODELS_DIR`) nutzen. Bei bestehenden
+Collections ohne Kompatibilitaetsmarker zuerst die
+[Legacy-Pruefung und Uebernahme](embedding_model_management.md#einmalige-uebernahme-bestehender-collections)
+durchfuehren; nur `result: verified` erlaubt die Uebernahme.
+
+Weitere Build-Aufrufe:
 
 ```bash
 python scripts/build_vector_index.py
@@ -38,7 +58,11 @@ python scripts/build_vector_index.py --refresh
 ```
 
 `--limit` begrenzt geaenderte Dokumente, nicht Abschnitte. Weitere Laeufe setzen den
-Aufbau fort. `--no-ocr` deaktiviert die optionale OCR. Aenderungen von Dateiinhalten,
+Aufbau fort. Ein erfolgreicher Testlauf kann `ready: false` liefern:
+`pending_documents` nennt die noch ausstehenden Dokumente; die vollstaendige
+Freigabe erfolgt erst nach Abschluss des Aufbaus. Ohne `--limit` werden alle
+ausstehenden Dokumente verarbeitet. `--no-ocr` deaktiviert die optionale OCR.
+Aenderungen von Dateiinhalten,
 Metadaten oder Chunk-Konfiguration loesen eine erneute Verarbeitung aus. Fuer
 unveraenderte Quellen werden vorhandene Vektoren wiederverwendet.
 
@@ -93,9 +117,18 @@ Ausgewertet werden:
 Die Quellenmetriken zaehlen wiederholte URLs nur einmal innerhalb der abgerufenen
 Treffer. Vergleiche sollten dieselben Fragen, denselben Dokumentbestand, dasselbe
 `k` und dieselbe Hardware nutzen. Reports enthalten Einzelresultate, Benchmark-Hash,
-Collection und Modell. Ein fehlender Modellcache erfordert zunaechst den Download
-der lokalen Modellgewichte. Aus den Unit-Tests lassen sich keine realen
+Collection und Modell. Ein fehlender oder inkompatibler Modellbestand erfordert
+zunaechst `python scripts/prepare_embedding_models.py --download`; Evaluation
+und Suche beschaffen selbst keine Modellgewichte. Aus den Unit-Tests lassen sich keine realen
 Qualitaetsgewinne oder Laufzeiten ableiten.
+
+Die [Phase-7-Abnahme](embedding_model_management.md#abschlusspruefung-phase-7-2026-10-04)
+prueft einen vollstaendigen separaten Offline-Build mit echten Harrier-/BM25-
+Modellen, die anschliessende Websuche und eine Evaluation mit PDF-Beleg. Der
+Opt-in-Aufruf steht im [README](../README.md#lokalen-embedding-modellbestand-pruefen).
+Zwei Test-PDFs und eine Abnahmefrage ersetzen keinen Vergleich der 30
+Recherchefragen am vollstaendigen produktiven Bestand. Melle-Legacy-Uebernahme
+und Landkreis-Neuaufbau bleiben bewusste separate Betriebsaktionen.
 
 ## Qdrant-Serverbetrieb
 
@@ -117,6 +150,7 @@ erreichbar, enden sie mit Exitcode 1 und einer kurzen Fehlermeldung ohne
 Python-Traceback. Der Freigabemarker bleibt bei diesem Startfehler unveraendert.
 
 ```powershell
+python scripts/prepare_embedding_models.py --download
 python scripts/build_vector_index.py
 python scripts/build_landkreis_vector_index.py
 python scripts/evaluate_search.py --collection ratsi_passages
@@ -141,7 +175,17 @@ Vor jedem Passage-Build wird dessen Freigabe zurückgenommen. Erst ein fehlerfre
 Lauf mit vollständigen, bestätigten Generationen aller aktuellen Dokumente und
 ohne ausstehende Änderungen schreibt den Marker atomar. Auch `--limit` prüft die
 Fingerprints aller Dokumente; die Grenze beschränkt nur die neu aufgebauten
-Dokumente. Der Servermarker enthält nur den SHA-256-Hash der URL und die exakte Punktzahl.
+Dokumente. Der Servermarker enthält den SHA-256-Hash der URL, die exakte Punktzahl,
+den Collection-Namen und den vollstaendigen Kompatibilitaetsdatensatz aus
+Modell-IDs und Revisionen, Manifest-Hash, Vektordimension und Pipeline-Version.
+Der lokale Marker enthaelt denselben Kompatibilitaetsdatensatz und
+Collection-Namen.
+Baut ein Indexer eine vorhandene Collection fort, muss auch deren Qdrant-Schema
+mit Vektornamen, Dense-Dimension und Cosine-Distanz passen; das gilt selbst fuer
+eine leere Collection. Die Websuche vergleicht den Marker der ausgewaehlten
+Collection vor der Query-Kodierung mit dem aktiven Modellvertrag. Die Evaluation
+prueft ihre ausdruecklich gewaehlte Collection ebenso; `ready=false` sperrt
+beide Pfade bis zur Freigabe.
 Bisherige Marker mit Klartext-URL werden nicht mehr akzeptiert; ein vollständiger
 Passage-Build schreibt einen neuen Marker. Die
 Suche prüft, dass Punktzahl und Anzahl der `committed`-Punkte dazu passen.

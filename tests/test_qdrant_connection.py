@@ -7,6 +7,8 @@ import json
 import pytest
 
 from src.analysis.vector_store import DocumentVectorStore
+from src.config.embedding_models import BM25_MODEL, HARRIER_MODEL, HARRIER_TOKENIZER
+from src.config.index_compatibility import IndexCompatibility
 from src.config.settings import QdrantSettingsError, load_qdrant_settings
 from src.qdrant_connection import (
     QdrantConnection,
@@ -19,12 +21,29 @@ from src.qdrant_connection import (
 CREATE_CLIENT = QdrantConnection.create_client
 
 
-def point(pid=1, committed=True):
+@pytest.fixture
+def compatibility():
+    return IndexCompatibility(
+        dense_model_id=HARRIER_MODEL.model_id,
+        dense_revision=HARRIER_MODEL.revision,
+        sparse_model_id=BM25_MODEL.model_id,
+        sparse_revision=BM25_MODEL.revision,
+        tokenizer_model_id=HARRIER_TOKENIZER.model_id,
+        tokenizer_revision=HARRIER_TOKENIZER.revision,
+        manifest_sha256="a" * 64,
+        vector_dimension=HARRIER_MODEL.vector_dimension,
+        pipeline_version="passages-1",
+    )
+
+
+def point(pid=1, committed=True, compatibility=None):
     return {"id": pid, "dense_vector": [1.0] + [0.0] * 1023,
             "sparse_vector": {"indices": [1], "values": [1.0]},
             "payload": {"document_id": 10, "committed": committed,
                         "chunk_count": 1, "chunk_index": 0, "generation": "first",
-                        "text": "Test", "title": "Title", "session_id": "1"}}
+                        "text": "Test", "title": "Title", "session_id": "1",
+                        **({"index_compatibility": compatibility.as_dict()}
+                           if compatibility else {})}}
 
 
 @pytest.fixture
@@ -184,6 +203,88 @@ def test_credential_url_is_used_only_for_connection_and_hashed_marker(tmp_path, 
     assert "url_sha256" in marker
 
 
+@pytest.mark.parametrize("collection", [
+    "ratsi_passages", "ratsi_documents", "landkreis_publications",
+])
+@pytest.mark.parametrize("server", [False, True])
+def test_collection_release_marker_round_trips_compatibility(tmp_path, compatibility, collection, server):
+    url = "https://user:secret@example.test:6333" if server else ""
+    connection = QdrantConnection(tmp_path / "local", url, tmp_path / "state")
+    client = Mock()
+    client.count.return_value.count = 2
+
+    connection.write_readiness(client, {}, collection=collection, compatibility=compatibility)
+
+    path = connection.release_path(collection)
+    marker = json.loads(path.read_text(encoding="utf-8"))
+    assert marker["collection"] == collection
+    assert marker["compatibility"] == compatibility.as_dict()
+    assert connection.read_index_compatibility(collection) == compatibility
+    assert "secret" not in path.as_posix() + path.read_text(encoding="utf-8")
+    if server:
+        client.count.assert_called_once_with(collection_name=collection, exact=True)
+        assert marker["points_count"] == 2
+        assert marker["url_sha256"] == __import__("hashlib").sha256(url.encode()).hexdigest()
+    else:
+        client.count.assert_called_once_with(collection_name=collection, exact=True)
+        assert marker["points_count"] == 2
+        assert "url_sha256" not in marker
+    connection.clear_readiness(collection)
+    assert not path.exists()
+
+
+def test_release_marker_rejects_wrong_target_or_invalid_contract(tmp_path, compatibility):
+    connection = QdrantConnection(tmp_path / "local")
+    client = Mock()
+    client.count.return_value.count = 0
+    connection.write_readiness(client, {}, collection="ratsi_documents", compatibility=compatibility)
+    marker_path = connection.release_path("ratsi_documents")
+    marker = json.loads(marker_path.read_text(encoding="utf-8"))
+    marker["collection"] = "landkreis_publications"
+    marker_path.write_text(json.dumps(marker), encoding="utf-8")
+    assert connection.read_index_compatibility("ratsi_documents") is None
+    marker["collection"] = "ratsi_documents"
+    marker["compatibility"]["dense_revision"] = "main"
+    marker_path.write_text(json.dumps(marker), encoding="utf-8")
+    assert connection.read_index_compatibility("ratsi_documents") is None
+    with pytest.raises(ValueError, match="Unknown index collection"):
+        connection.release_path("../other")
+
+
+def test_server_release_rejects_marker_copied_from_other_url(tmp_path, compatibility):
+    first = QdrantConnection(tmp_path / "unused", "https://first.example.test", tmp_path / "state")
+    second = QdrantConnection(tmp_path / "unused", "https://second.example.test", tmp_path / "state")
+    client = Mock()
+    client.count.return_value.count = 1
+    first.write_readiness(client, {}, compatibility=compatibility)
+    target = second.release_path("ratsi_passages")
+    target.parent.mkdir(parents=True)
+    target.write_bytes(first.ready_path.read_bytes())
+
+    assert second.read_index_compatibility("ratsi_passages") is None
+
+
+def test_failed_marker_replace_keeps_previous_release(tmp_path, monkeypatch, compatibility):
+    connection = QdrantConnection(tmp_path / "local")
+    path = connection.release_path("ratsi_passages")
+    path.parent.mkdir(parents=True)
+    path.write_text("previous release", encoding="utf-8")
+    original_replace = Path.replace
+
+    def fail_replace(source, destination):
+        if destination == path:
+            raise OSError("interrupted")
+        return original_replace(source, destination)
+
+    monkeypatch.setattr(Path, "replace", fail_replace)
+    client = Mock()
+    client.count.return_value.count = 0
+    with pytest.raises(OSError, match="interrupted"):
+        connection.write_readiness(client, {}, compatibility=compatibility)
+    assert path.read_text(encoding="utf-8") == "previous release"
+    assert list(path.parent.glob("*.tmp")) == []
+
+
 def test_invalid_qdrant_configuration_is_unavailable_in_vector_status(tmp_path, monkeypatch):
     from src.indexing.vector_status import landkreis_vector_index_status, vector_index_status
 
@@ -198,9 +299,11 @@ def test_invalid_qdrant_configuration_is_unavailable_in_vector_status(tmp_path, 
 
 
 @pytest.mark.integration
-def test_default_vector_build_targets_server(tmp_path, monkeypatch):
+def test_default_vector_build_targets_server(tmp_path, monkeypatch, compatibility):
     from qdrant_client import QdrantClient
     from scripts import build_vector_index
+    monkeypatch.setattr('src.indexing.passage_builder.prepared_model_path', lambda component: tmp_path / 'tokenizer')
+    monkeypatch.setattr('src.indexing.passage_builder.current_index_compatibility', lambda: compatibility)
 
     monkeypatch.delenv("RATSI_QDRANT_MODE")
     monkeypatch.delenv("RATSI_QDRANT_URL", raising=False)
@@ -345,9 +448,10 @@ def test_tiny_migration_and_return_to_local(tmp_path, monkeypatch, remote):
     ('scripts.build_vector_index', 'ratsi_documents'),
     ('scripts.build_landkreis_vector_index', 'landkreis_publications'),
 ])
-def test_legacy_and_county_builds_use_configured_server(tmp_path, monkeypatch, remote, module_name, collection):
+def test_legacy_and_county_builds_use_configured_server(tmp_path, monkeypatch, remote, compatibility, module_name, collection):
     import importlib
     module = importlib.import_module(module_name)
+    monkeypatch.setattr(module, 'current_index_compatibility', lambda: compatibility)
     db = tmp_path / 'input.sqlite'
     db.touch()
     monkeypatch.setattr(module, '_load_documents', lambda db: [])
@@ -361,9 +465,11 @@ def test_legacy_and_county_builds_use_configured_server(tmp_path, monkeypatch, r
 
 
 @pytest.mark.integration
-def test_passage_build_only_marks_complete_current_documents(tmp_path, monkeypatch, remote):
+def test_passage_build_only_marks_complete_current_documents(tmp_path, monkeypatch, remote, compatibility):
     import sys
     from src.indexing import passage_builder
+    monkeypatch.setattr(passage_builder, 'prepared_model_path', lambda component: tmp_path / 'tokenizer')
+    monkeypatch.setattr(passage_builder, 'current_index_compatibility', lambda: compatibility)
     from scripts import build_vector_index
     from test_passage_index import Tokenizer, Vectorizer, document
     db = tmp_path / 'input.sqlite'
@@ -378,9 +484,15 @@ def test_passage_build_only_marks_complete_current_documents(tmp_path, monkeypat
     passage_builder.main(args)
     config = QdrantConnection.from_env(tmp_path / 'absent')
     assert config.passages_ready(remote)
+    assert config.read_index_compatibility('ratsi_passages') == compatibility
+    points, _ = remote.scroll('ratsi_passages', with_payload=True, limit=100)
+    assert points and all(point.payload['index_compatibility'] == compatibility.as_dict()
+                          for point in points)
     source.write_text('Changed document source')
     passage_builder.main(args + ['--limit', '1'])
-    assert not config.ready_path.exists()
+    assert config.ready_path.exists()
+    assert not config.passages_ready(remote)
+    assert config.read_index_compatibility('ratsi_passages') == compatibility
     passage_builder.main(args + ['--limit', '1'])
     assert config.passages_ready(remote)
     assert not (tmp_path / 'absent').exists()
@@ -406,11 +518,16 @@ def test_empty_collection_is_incomplete(tmp_path, remote):
 
 
 @pytest.mark.integration
-def test_evaluation_cli_uses_server_without_local_storage(tmp_path, monkeypatch, remote):
+def test_evaluation_cli_uses_server_without_local_storage(tmp_path, monkeypatch, remote, compatibility):
+    monkeypatch.setattr("huggingface_hub.snapshot_download", Mock(side_effect=AssertionError("Unexpected Hub call")))
     from scripts import evaluate_search, build_vector_index
     store = DocumentVectorStore(tmp_path / 'absent', 'ratsi_passages')
     store.ensure_collection()
-    store.upsert_batch([point()])
+    store.upsert_batch([point(compatibility=compatibility)])
+    store.connection.write_readiness(remote, {"ready": True}, collection="ratsi_passages",
+                                     compatibility=compatibility)
+    monkeypatch.setattr('src.config.index_compatibility.current_index_compatibility',
+                        lambda: compatibility)
     db = tmp_path / 'input.sqlite'
     db.touch()
     benchmark = tmp_path / 'benchmark.json'
@@ -429,3 +546,42 @@ def test_evaluation_cli_uses_server_without_local_storage(tmp_path, monkeypatch,
     assert report['indexed_points'] == 1
     assert report['metrics']['hit_at_k'] == 1
     assert not (tmp_path / 'absent').exists()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("marker_state", ["missing", "different", "pending"])
+def test_evaluation_rejects_incompatible_index_before_loading_encoders(
+    tmp_path, monkeypatch, remote, compatibility, marker_state,
+):
+    from dataclasses import replace
+    from scripts import evaluate_search, build_vector_index
+
+    store = DocumentVectorStore(tmp_path / 'absent', 'ratsi_passages')
+    store.ensure_collection()
+    store.upsert_batch([point()])
+    if marker_state != "missing":
+        stored = (replace(compatibility, manifest_sha256="b" * 64)
+                  if marker_state == "different" else compatibility)
+        store.connection.write_readiness(
+            remote, {"ready": marker_state != "pending"},
+            collection="ratsi_passages", compatibility=stored,
+        )
+    monkeypatch.setattr('src.config.index_compatibility.current_index_compatibility',
+                        lambda: compatibility)
+    monkeypatch.setattr(build_vector_index, '_load_documents', lambda db: [])
+    monkeypatch.setattr(evaluate_search, 'validate_sources', lambda *_args: [])
+    monkeypatch.setattr('src.analysis.embeddings.HarrierEmbedder',
+                        lambda: pytest.fail("Dense encoder loaded before compatibility check"))
+    monkeypatch.setattr('src.analysis.bm25_sparse.BM25Encoder',
+                        lambda: pytest.fail("Sparse encoder loaded before compatibility check"))
+    db = tmp_path / 'input.sqlite'
+    db.touch()
+    benchmark = tmp_path / 'benchmark.json'
+    benchmark.write_text(json.dumps({'queries': [{'id': 'q', 'query': 'Test',
+        'relevant': [{'url': '', 'page': None, 'evidence': 'Test'}]}]}))
+    output = tmp_path / 'report.json'
+
+    with pytest.raises(RuntimeError, match="inkompatibel"):
+        evaluate_search.main(['--db', str(db), '--benchmark', str(benchmark),
+                              '--output', str(output)])
+    assert not output.exists()

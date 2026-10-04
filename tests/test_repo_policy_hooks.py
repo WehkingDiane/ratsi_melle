@@ -40,6 +40,9 @@ def init_repo(tmp_path: Path, branch: str = "codex/chore/hooks") -> Path:
     repo = tmp_path / "repo"
     repo.mkdir()
     git(repo, "init", "-b", branch)
+    # Archive tests compare raw bytes. Do not inherit the developer's automatic
+    # CRLF/LF conversion for these temporary repositories.
+    git(repo, "config", "core.autocrlf", "false")
     git(repo, "config", "user.email", "test@example.invalid")
     git(repo, "config", "user.name", "Test User")
     (repo / "README.md").write_text("# Test\n", encoding="utf-8")
@@ -102,11 +105,19 @@ def test_git_pre_commit_allows_existing_old_file_changes(tmp_path: Path) -> None
     assert "old/" not in result.stderr
 
 
-def test_git_pre_commit_allows_python_archive_move(tmp_path: Path) -> None:
+@pytest.mark.parametrize("line_ending", ["\n", "\r\n"], ids=["lf", "crlf"])
+@pytest.mark.parametrize("global_autocrlf", ["false", "true", "input"])
+def test_git_pre_commit_allows_python_archive_move(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, line_ending: str, global_autocrlf: str,
+) -> None:
+    global_config = tmp_path / "global.gitconfig"
+    global_config.write_bytes(f"[core]\n\tautocrlf = {global_autocrlf}\n".encode())
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(global_config))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
     repo = init_repo(tmp_path)
     git(repo, "config", "diff.renames", "false")
     (repo / "src").mkdir()
-    (repo / "src" / "module.py").write_text("print('x')\n", encoding="utf-8")
+    (repo / "src" / "module.py").write_bytes(f"print('x'){line_ending}".encode())
     git(repo, "add", "src/module.py")
     git(repo, "commit", "-m", "Add module")
     archived = repo / "archive/src/module.py"
@@ -203,20 +214,27 @@ def test_git_pre_commit_blocks_edited_python_rename_without_archive(tmp_path: Pa
     assert "module.py -> renamed.py" in result.stderr
 
 
-def test_git_pre_commit_allows_edited_python_rename_with_archive(tmp_path: Path) -> None:
+@pytest.mark.parametrize("line_ending", ["\n", "\r\n"], ids=["lf", "crlf"])
+@pytest.mark.parametrize("global_autocrlf", ["false", "true", "input"])
+def test_git_pre_commit_allows_edited_python_rename_with_archive(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, line_ending: str, global_autocrlf: str,
+) -> None:
+    global_config = tmp_path / "global.gitconfig"
+    global_config.write_bytes(f"[core]\n\tautocrlf = {global_autocrlf}\n".encode())
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(global_config))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
     repo = init_repo(tmp_path)
     source = repo / "module.py"
     original = "".join(f"VALUE_{index} = {index}\n" for index in range(30))
-    source.write_text(original, encoding="utf-8")
+    source.write_bytes(original.replace("\n", line_ending).encode())
     git(repo, "add", "module.py")
     git(repo, "commit", "-m", "Add module")
     archived = repo / "archive" / "module.py"
     archived.parent.mkdir()
     shutil.copy2(source, archived)
     git(repo, "mv", "module.py", "renamed.py")
-    (repo / "renamed.py").write_text(
-        original.replace("VALUE_29 = 29", "VALUE_29 = 99"),
-        encoding="utf-8",
+    (repo / "renamed.py").write_bytes(
+        original.replace("VALUE_29 = 29", "VALUE_29 = 99").replace("\n", line_ending).encode(),
     )
     git(repo, "add", "renamed.py")
 
