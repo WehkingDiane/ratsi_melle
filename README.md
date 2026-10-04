@@ -216,7 +216,7 @@ Die Vorbereitung laesst sich getrennt und ohne echten Hub testen:
 python -m pytest tests/test_embedding_model_preparation.py tests/test_prepare_embedding_models.py tests/test_embedding_model_preparation_integration.py -m "not live" -q
 ```
 
-Live-Tests benoetigen Internet und `huggingface-hub`, bleiben standardmaessig
+Hub-Live-Tests benoetigen Internet und `huggingface-hub`, bleiben standardmaessig
 ausgeschlossen und erfordern zusaetzlich eine ausdrueckliche Freigabe (Bash):
 
 ```bash
@@ -238,7 +238,23 @@ aus dem freigegebenen lokalen Modellbestand. Fehlende oder inkompatible Modelle
 werden vor dem Laden gemeldet; der Hinweis nennt den Vorbereitungsbefehl. Die
 Websuche verweist zusaetzlich auf den technischen Servicebereich. Nur der
 ausdrueckliche Aufruf mit `--download` darf Modellartefakte beschaffen.
-Die praktische Abnahme mit echten vorbereiteten Modellen folgt in Phase 7.
+Die praktische Offline-Abnahme mit echten vorbereiteten Modellen ist in
+[Phase 7](docs/embedding_model_management.md#abschlusspruefung-phase-7-2026-10-04)
+dokumentiert. Sie laesst sich mit einem bereits vorbereiteten Bestand wiederholen:
+
+```bash
+RATSI_EMBEDDING_ACCEPTANCE_MODELS=/pfad/zum/modellstamm python -m pytest tests/test_embedding_offline_acceptance.py -m live -q -s
+```
+
+Unter PowerShell zuerst `$env:RATSI_EMBEDDING_ACCEPTANCE_MODELS = "C:\Pfad\zum\Modellstamm"`
+setzen und anschliessend denselben pytest-Befehl ohne die Bash-Variablenzuweisung
+starten. Der Test baut einen vollstaendigen separaten Index aus zwei Original-PDF-
+Fixtures, prueft den Suchservice und die Evaluation und sperrt Netzwerkzugriffe.
+Er prueft auch fehlende Modelle, eine unerreichbare Quelle und einen inkompatiblen
+Index. Modelle werden nur gelesen; Index, SQLite, Fehlerkandidaten und Logs liegen
+im temporaeren Testverzeichnis. Der Marker `live` bezeichnet hier echte lokale
+Modellinferenz; der Test benoetigt keinen Internetzugang. Ohne die Pfadangabe
+wird er uebersprungen.
 Der Schutz gegen kollidierende Vorbereitungs-, Legacy- und Indexjobs ist
 in Phase 6 umgesetzt; Web und CLI teilen die Prozesssperren.
 

@@ -333,7 +333,7 @@ Die fachlichen Indexing-Schritte fuer stabile IDs, Payload-Aufbau, Hybrid-Vektor
 - Nach vollstaendigen fehlerfreien Laeufen werden verwaiste Dokumentabschnitte entfernt.
 - Bei `--limit`-Laeufen wird die Anzahl geaenderter oder fehlender Dokumente begrenzt; alle Abschnitte eines ausgewaehlten Dokuments werden verarbeitet.
 - Bei `--limit`-Läufen ist Orphan-Reconciliation bewusst deaktiviert.
-- Harrier, der Passage-Tokenizer und BM25 werden aus dem vorbereiteten lokalen Modellbestand unter `data/models/` geladen (`RATSI_MODELS_DIR` kann den Stamm ueberschreiben). Die Verbraucher laden keine Modelle aus dem Netz. Ein optionaler Hugging-Face-Token wird nur beim ausdruecklichen Vorbereitungslauf mit `--download` verwendet.
+- Harrier, der Passage-Tokenizer und BM25 werden aus dem vorbereiteten lokalen Modellbestand unter `data/models/` geladen (`RATSI_MODELS_DIR` kann den Stamm ueberschreiben). Die Verbraucher laden keine Modelle aus dem Netz. Ein optionaler Hugging-Face-Token wird nur beim ausdruecklichen Vorbereitungslauf mit `--download` verwendet. Die praktische Abnahme von Offline-Build, Suche und Evaluation mit echten Modellen steht im [Phase-7-Protokoll](embedding_model_management.md#abschlusspruefung-phase-7-2026-10-04).
 
 ## 8. Textextraktion fuer Suche und Analyse
 

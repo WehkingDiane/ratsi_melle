@@ -2,9 +2,12 @@
 
 ## Status und Zweck
 
-Dieses Dokument beschreibt das Zielbild fuer die schrittweise implementierte
-Verwaltung der lokalen Embedding-Modelle. Die zugehoerige konkrete Aufgabe steht
-in [project_tasks.md](project_tasks.md#33-extraktion-ocr-und-suche).
+Dieses Dokument beschreibt den Vertrag und die abgeschlossene Umsetzung der
+Verwaltung der lokalen Embedding-Modelle. Phase 7 ist am 4. Oktober 2026
+abgenommen; Testnachweise und Betriebsgrenzen stehen im
+[Abschlussprotokoll](#abschlusspruefung-phase-7-2026-10-04). Die Aufgabenliste
+in [project_tasks.md](project_tasks.md#33-extraktion-ocr-und-suche) dokumentiert
+den Abschluss und die verbleibenden getrennten Betriebsaufgaben.
 
 Modellbeschaffung, Indexaufbau und Suche werden als getrennte Verantwortlichkeiten
 behandelt. Ein bewusst ausgefuehrter Vorbereitungsschritt darf Modelle aus dem
@@ -1315,25 +1318,121 @@ Laufzeitcode und `VERSION` (`0.5.48`) bleiben unveraendert.
 Ein echter, separat heruntergeladener und tief gepruefter Abnahmebestand liegt
 lokal unter `data/processed/embedding_acceptance_20261004/models/`;
 Manifest-Hash: `478077ff73fbf75e6e4e1660de2c9c6d8cbbbab6d9864c7ffe06ee87d34314c9`.
-Offline-Build und Suche werden als naechster Schritt am isolierten Testindex
-geprueft; produktive Collections bleiben unberuehrt.
+Der anschliessende Offline-Build, Suchservice und die Evaluation sind im
+folgenden Abschlussprotokoll dokumentiert; produktive Collections bleiben
+unberuehrt.
 
-- [ ] **M7.1** Regulaere Unit-Tests und betroffene Integrationstests ausfuehren.
-- [ ] **M7.2** Einen vollstaendigen vorbereiteten Offline-Build ohne Internet
+- [x] **M7.1** Regulaere Unit-Tests und betroffene Integrationstests ausfuehren.
+- [x] **M7.2** Einen vollstaendigen vorbereiteten Offline-Build ohne Internet
   sowie die anschliessende Suche praktisch pruefen.
-- [ ] **M7.3** Verhalten bei fehlendem Modell, unerreichbarer Downloadquelle,
+- [x] **M7.3** Verhalten bei fehlendem Modell, unerreichbarer Downloadquelle,
   inkompatiblem Index und parallelem Job praktisch pruefen.
-- [ ] **M7.4** README, `docs/search_quality.md`, `docs/web_ui.md`,
+- [x] **M7.4** README, `docs/search_quality.md`, `docs/web_ui.md`,
   `docs/data_processing_concept.md` und betroffene Betriebsanleitungen an den
   tatsaechlichen Stand anpassen.
-- [ ] **M7.5** Versionsanpassung bewusst entscheiden und Releaseauswirkungen
+- [x] **M7.5** Versionsanpassung bewusst entscheiden und Releaseauswirkungen
   dokumentieren.
-- [ ] **M7.6** Gesamtdiff, Sicherheitsgrenzen, Offlinegarantie und
+- [x] **M7.6** Gesamtdiff, Sicherheitsgrenzen, Offlinegarantie und
   Abnahmekriterien abschliessend pruefen.
-- [ ] **M7.7** Abschluss committen und diese Aufgabe in `project_tasks.md` als
+- [x] **M7.7** Abschluss committen und diese Aufgabe in `project_tasks.md` als
   erledigt kennzeichnen oder entfernen.
 
+### Abschlusspruefung Phase 7 (2026-10-04)
+
+Phase 7 ist abgeschlossen. Der abschliessende regulaere Gesamtlauf mit aktiviertem
+PDF-Belastungstest besteht mit **1105 Tests, keinen uebersprungenen Tests und acht
+abgewaehlten Live-Tests** (166,80 Sekunden):
+
+```bash
+RATSI_PDF_STRESS=1 python -m pytest -q
+```
+
+Der Lauf erfolgte in einer isolierten Repositorykopie unter
+`/tmp/ratsi-phase7-20261004` mit WSL-Python 3.12.3. Alle 183 versionierten
+Python-Dateien wurden anschliessend per SHA-256 mit dem Arbeitsbaum abgeglichen;
+kein Unterschied. Der neue separat ausgefuehrte Live-Abnahmetest ist zusaetzlich
+im Arbeitsbaum geprueft. Die betroffenen Vorbereitungsmodule bestehen mit
+115 Tests; die zwei neuen Fehlercode-Regressionen bestehen auch nativ unter
+Windows. Die native Prozess-/Webstart-/Build-Abnahme besteht mit 136 Tests;
+ein Symlink-Test benoetigt nicht vorhandene Windows-Rechte und bleibt dort
+uebersprungen. Unter WSL ist dieser Test im Gesamtlauf enthalten.
+
+**Praktische Offline-Abnahme:** `test_embedding_offline_acceptance.py` verwendet
+echte zuvor heruntergeladene Modelle, einen leeren separaten Hub-Cache und einen
+eigenen SQLite-/Qdrant-Testbestand. Globale Offline-Schalter sind nicht aktiviert.
+Socket-Verbindungen und Online-Hub-Aufrufe werden blockiert; auch abgefangene
+Netzwerkversuche werden gezaehlt. Der native Windows-Lauf besteht mit **einem
+Test in 37,16 Sekunden**, Intel-XPU, zwei Original-PDF-Fixtures mit vier Seiten,
+**11 freigegebenen Passagen, fuenf Suchtreffern und null Netzwerkversuchen** bei
+Build, Suchservice, Modellcheck, Wiederverwendung und Evaluation. Eine
+Evaluationsfrage wurde gegen ihren Original-PDF-Beleg geprueft und ihre
+bekannte Quelle gefunden.
+
+Sentence Transformers fragt beim lokalen Laden optionale Dateien wie
+`README.md` und `sentence_bert_config.json` auch ueber `hf_hub_download` ab.
+Alle 24 beobachteten Aufrufe tragen ausdruecklich `local_files_only=True`;
+sie sind lokale Dateiabfragen, keine Netzwerkzugriffe. Der Test erlaubt nur
+diese Offlineabfragen und blockiert weiterhin jeden Onlineaufruf. Das entspricht
+dem lokalen Cachevertrag der [Hub-Dateiabfragen](https://github.com/huggingface/huggingface_hub/blob/main/docs/source/en/package_reference/file_download.md).
+Die zentral festgelegten erwartbar abwesenden Artefakte bleiben unveraendert.
+
+Fehlende Modelle liefern kurze CLI-/Suchservicefehler, auch bei bereits geladenen
+Suchmodellen. Ein veraenderter Pipelinevertrag verhindert Build und Suche;
+Punkte und der veraenderte Marker bleiben bei Ablehnung unveraendert. Ein echter
+SDK-Vorbereitungslauf gegen eine unerreichbare Quelle endet mit
+`network_unavailable`, Exitcode 1 und ohne neues aktives Manifest. Der vorbereitete
+Abnahmebestand bleibt in Groessen, Aenderungszeiten und Tiefenpruefung unveraendert.
+Parallele Web-/CLI-Jobs, Prozessende und Wiederaufnahme nach hartem Abbruch
+sind durch die oben genannten nativen Mehrprozesstests praktisch geprueft.
+
+Dabei wurde ein Laufzeitfehler behoben: Die Vorbereitungsphase klassifizierte
+eine bereits klassifizierte `EmbeddingModelDownloadError` nochmals. Ein vom SDK
+in `LocalEntryNotFoundError` verpackter Netzwerkfehler erschien dadurch faelschlich
+als `incomplete_artifacts`. Die Vorbereitung reicht jetzt ihren klassifizierten
+Fehler unveraendert weiter. Zwei Regressionen pruefen Netzwerk- und Zugriffsfehler
+mit verschachtelter Cache-Ausnahme, sichere CLI-Ausgabe und unveraenderten
+aktiven Modellbestand.
+
+Native Abnahmeumgebung: Python 3.12.10, PyTorch 2.11.0+xpu, Transformers 5.5.3,
+Sentence Transformers 5.4.0, FastEmbed 0.8.0, Hugging Face Hub 1.10.1,
+Qdrant-Client 1.19.1 und pytest 9.0.3. Der Bestand liegt ausschliesslich lokal
+unter `data/processed/embedding_acceptance_20261004/models/`; sein aktiver
+Manifest-Hash steht im Zwischenprotokoll. Der reproduzierbare Opt-in-Aufruf
+steht im [README](../README.md#lokalen-embedding-modellbestand-pruefen).
+
+**Abschliessende Vertragspruefung:** Gesamtdiff und Testmatrix sind gegen die
+Abnahmekriterien abgeglichen. Modellidentitaet und Pflichtartefakte kommen aus
+der zentralen Konfiguration; nur die ausdrueckliche Vorbereitung beschafft
+Snapshots. Verbraucher laden gepruefte lokale Pfade. Atomare Manifestfreigabe,
+Modell-/Collection-Sperren, Legacy-Berichtbindung, erneute Pruefung vor Freigabe,
+CSRF, feste Serviceparameter und private Prozessausgaben sind durch die
+regulaere Suite und die native Abnahme abgesichert. README, Suchqualitaet,
+Webanleitung, Datenverarbeitungskonzept und Aufgabenliste sind aktualisiert;
+separate betroffene Betriebsanleitungen wurden nicht gefunden.
+`git diff --check` ist fehlerfrei.
+
+`VERSION` wird fuer den sichtbaren Fehlerfix und den Abschlussmeilenstein bewusst
+von `0.5.48` auf **`0.5.49`** erhoeht. Embedding-Pipeline `passages-1`,
+Manifestformat 1 und Extraktionspipeline 1.3 bleiben unveraendert. Die Korrektur
+veraendert keine Vektoren oder Datenformate und erfordert keinen Neuaufbau.
+Produktive Melle-Collections wurden weder uebernommen noch neu aufgebaut;
+der Landkreis-Neuaufbau bleibt eine separate Aufgabe. Der kleine Testbestand
+ist kein neuer Qualitaetsvergleich des 30-Fragen-Recherchekatalogs.
+Die Betriebsgrenze bleibt ein gemeinsames lokales Dateisystem; verteilte Sperren
+und serverseitige Schreibzugriffe fremder Clients sind damit nicht abgedeckt.
+
 ## Aktuelle Uebergabe
+
+- **Phase 7 abgeschlossen (M7.1 bis M7.7)** auf
+  `codex/feature/embedding-model-management-phase-7`. Regulaere Suite:
+  1105 bestanden, acht Live-Tests ausgeschlossen. Native Windows-Sperren:
+  136 bestanden, ein Symlink-Test mangels Rechte uebersprungen. Echte
+  Offline-Abnahme auf Intel-XPU: ein Test bestanden, 11 Passagen, Suche und
+  Evaluation ohne Netzwerkversuch. Verschachtelte Downloadfehler behalten
+  ihren richtigen Fehlercode. Dokumentation und Aufgabenliste sind aktualisiert;
+  `VERSION` ist `0.5.49`. Keine offenen Punkte innerhalb dieses Plans.
+  Produktive Indexuebernahmen und der Landkreis-Neuaufbau sind separate
+  Betriebsaktionen. Die folgenden Eintraege dokumentieren fruehere Phasen.
 
 - Phase 4 umgesetzt auf `codex/feature/embedding-model-management-phase-4`:
   Harrier, Passage-Tokenizer und BM25 nutzen ausschliesslich die per Manifest
@@ -1602,9 +1701,9 @@ geprueft; produktive Collections bleiben unberuehrt.
   Veraltete Zukunftsaussagen zur Service-Oberflaeche und zu Prozesssperren
   korrigiert. Nur Dokumentation geaendert; `VERSION` bleibt bewusst `0.5.47`,
   Extraktionspipeline `1.3`. Phase 6 wird als eigener Zwischenstand committed.
-- Naechster regulaerer Punkt: **M7.1**; Gesamtabnahme beginnen. Der bereits
-  gruene regulaere Testlauf kann fuer den unveraenderten Stand uebernommen
-  werden; die praktische Offline-/Windows-Abnahme aus M7.2/M7.3 bleibt offen.
+- Historischer Wiedereinstieg nach Phase 6 war **M7.1**; die Gesamtabnahme
+  einschliesslich Offline-/Windows-Pruefung ist inzwischen abgeschlossen
+  (siehe Phase-7-Protokoll).
 
 - Letzter abgeschlossener Punkt: **M3.9**; Phase-3-Gesamtdiff, Anforderungs-
   und Testabdeckung, CLI-/Manifestvertrag, Dokumentation und Versionsstand

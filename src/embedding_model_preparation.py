@@ -463,6 +463,8 @@ def _prepare_embedding_models(models_dir: Path) -> PreparedEmbeddingModels:
 
         return _activate_inventory(root, inventory_dir, candidate, reused=reused_candidate)
     except (OSError, ValueError, RuntimeError, PackageNotFoundError) as error:
+        if isinstance(error, EmbeddingModelDownloadError):
+            raise
         raise preparation_error(error, phase="prepare") from None
 
 

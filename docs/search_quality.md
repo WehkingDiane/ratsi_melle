@@ -100,6 +100,14 @@ zunaechst `python scripts/prepare_embedding_models.py --download`; Evaluation
 und Suche beschaffen selbst keine Modellgewichte. Aus den Unit-Tests lassen sich keine realen
 Qualitaetsgewinne oder Laufzeiten ableiten.
 
+Die [Phase-7-Abnahme](embedding_model_management.md#abschlusspruefung-phase-7-2026-10-04)
+prueft einen vollstaendigen separaten Offline-Build mit echten Harrier-/BM25-
+Modellen, die anschliessende Websuche und eine Evaluation mit PDF-Beleg. Der
+Opt-in-Aufruf steht im [README](../README.md#lokalen-embedding-modellbestand-pruefen).
+Zwei Test-PDFs und eine Abnahmefrage ersetzen keinen Vergleich der 30
+Recherchefragen am vollstaendigen produktiven Bestand. Melle-Legacy-Uebernahme
+und Landkreis-Neuaufbau bleiben bewusste separate Betriebsaktionen.
+
 ## Qdrant-Serverbetrieb
 
 Die Befehle zum Starten und Prüfen des lokalen Servers stehen im
