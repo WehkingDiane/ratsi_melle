@@ -7,6 +7,7 @@ from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.shortcuts import render
 from django.utils import timezone
+from django.views.decorators.http import require_safe
 
 from core import service_jobs
 
@@ -23,6 +24,14 @@ def service_home(request):
             "jobs": service_jobs.list_service_jobs(),
         },
     )
+
+
+@require_safe
+def service_status_detail(request):
+    return render(request, "data_tools/service_status_detail.html", {
+        "active_nav": "data", "inventory": services.yearly_session_inventory(),
+        "status": services.service_status(),
+    })
 
 
 def service_fetch(request):

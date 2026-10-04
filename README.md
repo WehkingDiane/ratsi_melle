@@ -112,6 +112,14 @@ maskiert.
 
 Der lokale Index-Build behandelt `session_detail.html` als kanonische Quelle und übernimmt daraus abweichende TOP- und Dokumentmetadaten direkt in den SQLite-Index. `agenda_summary.json`, `manifest.json` und andere Rohdaten bleiben dabei unverändert; bereits vorhandene Dateien werden im Index wieder ihren Dokumentlinks zugeordnet. Berücksichtigt werden nur SessionNet-Sitzungsordner unter `data/raw/YYYY/MM/`; Landkreis-Rohdaten bleiben getrennt. Auch der Online-Index-Build verändert keine Dateien unter `data/raw/`.
 
+Das Dashboard zeigt vor den letzten Sitzungen die nächsten fünf bekannten
+Termine ab heute aus dem Online-Index und dem lokalen Bestand. Über
+„Datenstatus nach Jahr“ beziehungsweise „Details nach Jahr“ im Datenbereich
+öffnet sich `/daten/status/details/`: Rohdaten, lokaler und Online-Index werden
+je Jahr mit Dokumentanzahlen und aufklappbaren Sitzungslisten verglichen.
+Alle vorhandenen Jahre bleiben sichtbar, auch vor August 2021. Die Ansicht
+verändert keine Daten; fehlende Quellen werden gesondert ausgewiesen.
+
 Die Django-Weboberfläche startet lokal mit:
 
 ```bash

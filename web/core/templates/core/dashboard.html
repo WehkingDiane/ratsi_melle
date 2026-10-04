@@ -36,6 +36,7 @@
       <div><dt>Sitzungen</dt><dd>{{ overview.session_count }}</dd></div>
       <div><dt>Analysen</dt><dd>{{ overview.analysis_count }}</dd></div>
     </dl>
+    <a href="{% url 'data_tools:service_status_detail' %}">Datenstatus nach Jahr</a>
   </article>
   <article class="panel">
     <h2>Weitere Bereiche</h2>
@@ -44,6 +45,31 @@
       <a class="button secondary" href="{% url 'settings_ui:index' %}">Einstellungen</a>
     </div>
   </article>
+</section>
+
+<section class="panel">
+  <div class="section-title"><h2>Nächste Sitzungen</h2><a href="{% url 'data_tools:service_status_detail' %}">Bestand prüfen</a></div>
+  <p class="muted">Die nächsten fünf bekannten Termine ab heute, zuerst aus dem Online-Index.</p>
+  {% if upcoming_notice %}<p class="status-muted">{{ upcoming_notice }}</p>{% endif %}
+  {% if upcoming_sessions %}
+  <div class="table-wrap">
+    <table class="compact-table">
+      <caption class="visually-hidden">Nächste Sitzungen</caption>
+      <thead><tr><th scope="col">Datum</th><th scope="col">Uhrzeit</th><th scope="col">Gremium</th><th scope="col">Ort</th><th scope="col">Lokale Daten</th></tr></thead>
+      <tbody>
+      {% for session in upcoming_sessions %}
+      <tr>
+        <td class="date-value">{{ session.display_date }}</td>
+        <td>{{ session.start_time|default:"–" }}</td>
+        <td>{{ session.meeting_name|default:session.committee|default:session.session_id }}</td>
+        <td>{{ session.location|default:"–" }}</td>
+        <td>{% if session.local_present %}<a href="{% url 'analysis:session_detail' session.session_id %}">Sitzung öffnen</a>{% else %}Noch nicht lokal indexiert{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<p class="empty-state">Keine kommenden Termine im vorhandenen Bestand. Aktualisiere den Online-Index im Datenbereich.</p>{% endif %}
 </section>
 
 <section class="split-content">

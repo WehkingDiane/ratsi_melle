@@ -7,6 +7,7 @@ from typing import Any
 
 from core.services import paths
 from core.services import status
+from core.services.session_inventory import yearly_session_inventory as _yearly_session_inventory
 from core.services.commands import build_service_command as _build_service_command
 from src.indexing.vector_status import landkreis_vector_index_status as _landkreis_vector_index_status
 from src.indexing.vector_status import vector_index_status as _vector_index_status
@@ -35,6 +36,12 @@ def build_service_command(action: str, data: dict[str, Any]) -> tuple[list[str] 
 def service_status() -> dict[str, Any]:
     _sync_paths()
     return status.service_status()
+
+
+def yearly_session_inventory() -> dict[str, Any]:
+    """Return the full yearly inventory without a date cutoff."""
+    _sync_paths()
+    return _yearly_session_inventory()
 
 
 def vector_index_status() -> dict[str, Any]:

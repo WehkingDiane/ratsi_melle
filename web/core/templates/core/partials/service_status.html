@@ -9,5 +9,6 @@
     <div><dt>Online-Index</dt><dd class="{% if status.online_index_exists %}status-ok{% else %}status-muted{% endif %}" data-status-field="online_index_summary" data-status-exists-field="online_index_exists">{{ status.online_index_summary }}</dd></div>
     <div><dt>Vektorindex</dt><dd class="{% if status.qdrant_exists %}status-ok{% else %}status-muted{% endif %}" data-status-field="qdrant_summary" data-status-exists-field="qdrant_exists">{{ status.qdrant_summary }}</dd></div>
   </dl>
+  <p><a href="{% url 'data_tools:service_status_detail' %}">Details nach Jahr</a></p>
   <p class="muted service-status-feedback" data-service-status-feedback aria-live="polite" hidden></p>
 </section>
