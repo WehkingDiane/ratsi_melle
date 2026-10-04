@@ -37,6 +37,7 @@ def index(request):
             "results": results,
             "unfiltered_result_count": semantic_search.get("candidate_count", len(results)),
             "search_error": semantic_search["error"],
+            "model_status_unavailable": semantic_search.get("model_status_unavailable", False),
             "search_warning": semantic_search["warning"],
             "has_query": bool(query.strip()),
             "max_results": services.MAX_SEMANTIC_SEARCH_RESULTS,

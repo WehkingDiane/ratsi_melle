@@ -14,6 +14,7 @@ from src.observability import (
     SafeFormatter,
     cli_log_level,
     configure_logging,
+    django_logging_config,
     run_cli,
 )
 from scripts import (
@@ -74,6 +75,56 @@ def test_run_cli_records_failed_operation_with_traceback(
     assert "event=run_failed" in content
     assert "Traceback" in content
     assert "diagnostic detail" in content
+
+
+@pytest.mark.parametrize("configuration", ["cli", "web"])
+def test_http_diagnostics_remain_in_file_without_console_noise(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys, configuration: str
+) -> None:
+    monkeypatch.setenv("RATSI_LOG_DIR", str(tmp_path))
+    monkeypatch.setenv(LOG_LEVEL_ENV, "DEBUG")
+    if configuration == "cli":
+        log_path = configure_logging("quiet_http", log_dir=tmp_path)
+    else:
+        from logging.config import DictConfigurator
+
+        configurator = DictConfigurator(django_logging_config("quiet_http"))
+        for name in list(configurator.config["filters"]):
+            configurator.config["filters"][name] = configurator.configure_filter(
+                configurator.config["filters"][name]
+            )
+        for name in list(configurator.config["formatters"]):
+            configurator.config["formatters"][name] = configurator.configure_formatter(
+                configurator.config["formatters"][name]
+            )
+        root = logging.getLogger()
+        root.setLevel(logging.DEBUG)
+        for name in ("console", "file"):
+            handler = configurator.configure_handler(configurator.config["handlers"][name])
+            handler._ratsi_handler = True
+            root.addHandler(handler)
+        log_path = tmp_path / "quiet_http.log"
+
+    for name in ("httpx", "httpx.transport", "httpcore", "httpcore.connection"):
+        logger = logging.getLogger(name)
+        logger.debug("%s debug request", name)
+        logger.info("%s successful request", name)
+        logger.warning("%s request warning", name)
+        logger.error("%s request failed", name)
+    logging.getLogger("build_vector_index").info("event=run_completed status=ok")
+    logging.getLogger("httpx_application").info("application message")
+
+    terminal = capsys.readouterr().err
+    content = log_path.read_text(encoding="utf-8")
+    for name in ("httpx", "httpx.transport", "httpcore", "httpcore.connection"):
+        assert f"{name} debug request" not in terminal
+        assert f"{name} successful request" not in terminal
+        assert f"{name} debug request" in content
+        assert f"{name} successful request" in content
+        assert f"{name} request warning" in terminal
+        assert f"{name} request failed" in terminal
+    assert "event=run_completed status=ok" in terminal
+    assert "application message" in terminal
 
 
 def test_run_cli_records_successful_operation(
@@ -142,3 +193,22 @@ def test_explicit_log_level_overrides_environment(
     configure_logging("explicit_level", "WARNING", log_dir=tmp_path, console=False)
 
     assert logging.getLogger().level == logging.WARNING
+
+
+def test_cli_logging_replaces_existing_django_context(tmp_path, monkeypatch):
+    from src.observability import ContextFilter
+    root = logging.getLogger()
+    old = logging.StreamHandler()
+    old.addFilter(ContextFilter("web", "old-web-run"))
+    root.addHandler(old)
+    monkeypatch.setenv(RUN_ID_ENV, "new-cli-run")
+    try:
+        path = configure_logging("cli", log_dir=tmp_path, console=False)
+        logging.getLogger("test.context").warning("replacement context")
+        assert old not in root.handlers
+        content = path.read_text()
+        assert "component=cli run_id=new-cli-run" in content
+        assert "old-web-run" not in content
+    finally:
+        root.removeHandler(old)
+        old.close()

@@ -17,7 +17,46 @@ def build_service_command(action: str, data: dict[str, Any]) -> tuple[list[str] 
     return command, []
 
 
+def _validate_model_action(action: str, data: dict[str, Any], fields: set[str]) -> None:
+    """Accept only scalar, unique fields belonging to the selected model action."""
+
+    label = {"prepare_embedding_models": "Modellvorbereitung",
+             "inspect_legacy_index": "Legacy-Bestandsprüfung",
+             "apply_legacy_index": "Legacy-Übernahme"}.get(action, "Modellprüfung")
+    if set(data) - fields:
+        raise ValueError(f"Die {label} erlaubt keine zusätzlichen Parameter.")
+    if hasattr(data, "getlist") and any(len(data.getlist(key)) != 1 for key in data):
+        raise ValueError(f"Parameter der {label} dürfen nur einmal angegeben werden.")
+    if any(not isinstance(data[key], str) for key in data):
+        raise ValueError(f"Parameter der {label} müssen einzelne Textwerte sein.")
+    if "action" in data and data["action"] != action:
+        raise ValueError("Die übermittelte Modellaktion stimmt nicht mit dem Befehl überein.")
+
+
 def _service_command(action: str, data: dict[str, Any]) -> list[str]:
+    if action == "apply_legacy_index":
+        from .legacy_inspection import confirmed_application_payload, application_command
+
+        _validate_model_action(action, data, {"action", "csrfmiddlewaretoken", "inspection_job_id", "apply_binding", "confirmation"})
+        return application_command(confirmed_application_payload(data))
+
+    if action == "inspect_legacy_index":
+        from .legacy_inspection import confirmed_inspection_context, inspection_command
+
+        _validate_model_action(action, data, {"action", "csrfmiddlewaretoken", "collection", "inspection_binding"})
+        return inspection_command(confirmed_inspection_context(data))
+
+    if action == "prepare_embedding_models":
+        from .model_preparation import confirmed_preparation_binding
+
+        _validate_model_action(action, data, {"action", "csrfmiddlewaretoken", "confirmation", "preparation_binding"})
+        confirmed_preparation_binding(data)
+        return [sys.executable, "scripts/prepare_embedding_models.py", "--download", "--json"]
+
+    if action == "check_embedding_models":
+        _validate_model_action(action, data, {"action", "csrfmiddlewaretoken"})
+        return [sys.executable, "scripts/prepare_embedding_models.py", "--check", "--json"]
+
     if action == "fetch_sessions":
         year = _validated_year(data.get("year"))
         months = _validated_months(data.get("months"))

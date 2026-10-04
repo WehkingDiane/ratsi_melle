@@ -31,6 +31,37 @@ from src.analysis.workflow_db import create_analysis_job
 from src.analysis.workflow_db import initialize_analysis_workflow_db
 
 
+def test_model_check_command_is_fixed():
+    command, errors = data_services.build_service_command(
+        "check_embedding_models", {"action": "check_embedding_models", "csrfmiddlewaretoken": "token"},
+    )
+    assert not errors
+    assert command == [sys.executable, "scripts/prepare_embedding_models.py", "--check", "--json"]
+
+
+@pytest.mark.parametrize("field", ["model_id", "revision", "models_dir", "target_path", "args", "deep", "download", "limit"])
+def test_model_check_command_rejects_extra_parameters(field):
+    command, errors = data_services.build_service_command("check_embedding_models", {field: "anything"})
+    assert command is None
+    assert errors
+
+
+@pytest.mark.integration
+def test_model_check_service_job_keeps_failure_diagnostic(tmp_path, monkeypatch):
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path / "absent_models"))
+    command, errors = data_services.build_service_command("check_embedding_models", {})
+    assert not errors
+    job = service_jobs.start_service_job("check_embedding_models", command, ROOT)
+    deadline = time.monotonic() + 10
+    while job.status in {"queued", "running"} and time.monotonic() < deadline:
+        time.sleep(0.02)
+
+    assert job.status == "error"
+    assert job.exit_code == 1
+    assert json.loads(job.output)["status"] == "fehlt"
+    assert not (tmp_path / "absent_models").exists()
+
+
 def test_legacy_done_job_without_ki_response_is_displayed_as_prepared() -> None:
     public = _public_job(
         {
@@ -150,6 +181,8 @@ def test_search_documents_finds_document_metadata(workspace_tmp: Path, monkeypat
 
 @pytest.mark.integration
 def test_semantic_search_documents_uses_vector_store(workspace_tmp: Path, monkeypatch) -> None:
+    from unittest.mock import Mock
+    monkeypatch.setattr("huggingface_hub.snapshot_download", Mock(side_effect=AssertionError("Unexpected Hub call")))
     qdrant_dir = workspace_tmp / "data" / "db" / "qdrant"
     qdrant_dir.mkdir(parents=True)
     captured = {}
@@ -233,6 +266,124 @@ def test_semantic_search_documents_uses_vector_store(workspace_tmp: Path, monkey
     assert response["results"][0]["display_score"] == "0.0328"
     assert response["results"][0]["search_source"] == "ratsinfo"
     assert response["results"][0]["snippet"] == "Windkraft wird in Riemsloh beraten."
+
+
+@pytest.mark.parametrize("source,selected", [
+    ("ratsinfo", "ratsi_passages"),
+    ("ratsinfo", "ratsi_documents"),
+    ("landkreis", "landkreis_publications"),
+])
+@pytest.mark.parametrize("marker_state", ["missing", "different"])
+def test_semantic_search_rejects_incompatible_selected_collection_before_encoding(
+    tmp_path, monkeypatch, source, selected, marker_state,
+):
+    from src.analysis import vector_store
+    from src.qdrant_connection import QdrantConnection
+
+    qdrant_dir = tmp_path / "qdrant"
+    qdrant_dir.mkdir()
+    active = object()
+    calls = []
+
+    class FakeConnection:
+        require_search_compatibility = QdrantConnection.require_search_compatibility
+
+        def read_index_compatibility(self, collection, *, require_ready=False):
+            calls.append(("marker", collection))
+            assert require_ready
+            return None if marker_state == "missing" else object()
+
+        def collection_contents_match(self, client, collection, compatibility):
+            pytest.fail("Mismatched marker must reject before scanning")
+
+    class FakeStore:
+        connection = FakeConnection()
+
+        def __init__(self, _path, collection_name):
+            self.collection_name = collection_name
+
+        def require_available(self, *, prefer_passages):
+            assert prefer_passages
+            self.collection_name = selected
+
+        def _get_client(self):
+            return object()
+
+        def close(self):
+            calls.append(("close", self.collection_name))
+
+    monkeypatch.setattr(search_services, "QDRANT_DIR", qdrant_dir)
+    monkeypatch.setattr(search_services, "_semantic_search_dependency_error", lambda: "")
+    monkeypatch.setattr(vector_store, "DocumentVectorStore", FakeStore)
+    monkeypatch.setattr("src.config.index_compatibility.current_index_compatibility", lambda: active)
+    monkeypatch.setattr(search_services, "_get_semantic_resources",
+                        lambda: pytest.fail("Query encoders must not load"))
+
+    response = search_services.search_semantic_documents("Schule", source=source)
+
+    assert response["results"] == []
+    assert "inkompatibel" in response["error"]
+    assert calls == [("marker", selected), ("close", selected)]
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("source,collection,pending", [
+    ("ratsinfo", "ratsi_passages", False),
+    ("ratsinfo", "ratsi_documents", True),
+    ("landkreis", "landkreis_publications", True),
+])
+def test_semantic_search_rejects_stale_or_pending_marker_in_qdrant(
+    tmp_path, monkeypatch, source, collection, pending,
+):
+    from dataclasses import replace
+    from qdrant_client import QdrantClient
+    from qdrant_client.models import Distance, PointStruct, SparseVector, SparseVectorParams, VectorParams
+
+    from src.config.embedding_models import BM25_MODEL, HARRIER_MODEL, HARRIER_TOKENIZER
+    from src.config.index_compatibility import IndexCompatibility
+    from src.qdrant_connection import QdrantConnection
+
+    active = IndexCompatibility(
+        dense_model_id=HARRIER_MODEL.model_id, dense_revision=HARRIER_MODEL.revision,
+        sparse_model_id=BM25_MODEL.model_id, sparse_revision=BM25_MODEL.revision,
+        tokenizer_model_id=HARRIER_TOKENIZER.model_id,
+        tokenizer_revision=HARRIER_TOKENIZER.revision,
+        manifest_sha256="a" * 64, vector_dimension=HARRIER_MODEL.vector_dimension,
+        pipeline_version="passages-1",
+    )
+    qdrant_dir = tmp_path / "qdrant"
+    qdrant_dir.mkdir()
+    client = QdrantClient(":memory:")
+    client.create_collection(
+        collection,
+        vectors_config={"harrier": VectorParams(size=active.vector_dimension,
+                                                 distance=Distance.COSINE)},
+        sparse_vectors_config={"bm25": SparseVectorParams()},
+    )
+    client.upsert(collection, [PointStruct(
+        id=1,
+        vector={"harrier": [1.0] + [0.0] * (active.vector_dimension - 1),
+                "bm25": SparseVector(indices=[1], values=[1.0])},
+        payload={"committed": True},
+    )])
+    monkeypatch.setenv("RATSI_QDRANT_MODE", "local")
+    monkeypatch.delenv("RATSI_QDRANT_URL", raising=False)
+    connection = QdrantConnection.from_env(qdrant_dir)
+    connection.write_readiness(
+        client, {"ready": not pending}, collection=collection,
+        compatibility=active if pending else replace(active, manifest_sha256="b" * 64),
+    )
+    monkeypatch.setattr(QdrantConnection, "create_client", lambda self: client)
+    monkeypatch.setattr(search_services, "QDRANT_DIR", qdrant_dir)
+    monkeypatch.setattr(search_services, "_semantic_search_dependency_error", lambda: "")
+    monkeypatch.setattr("src.config.index_compatibility.current_index_compatibility", lambda: active)
+    monkeypatch.setattr(search_services, "_get_semantic_resources",
+                        lambda: pytest.fail("Query encoders must not load"))
+
+    response = search_services.search_semantic_documents("Schule", source=source)
+
+    assert response["results"] == []
+    assert f"Index {collection} inkompatibel" in response["error"]
 
 
 def test_semantic_result_filters_preserve_relevance_order() -> None:
@@ -2650,6 +2801,29 @@ def test_semantic_server_model_error_is_not_reported_as_connection_error(tmp_pat
     assert "Suchmodell" in result["error"]
     assert "Harrier-Modell fehlt" in result["error"]
     assert "Server nicht erreichbar" not in result["error"]
+    store.close.assert_called_once()
+
+
+@pytest.mark.integration
+def test_semantic_search_reports_prepared_model_action_without_hub(tmp_path, monkeypatch):
+    from unittest.mock import Mock
+    from src.analysis.embeddings import HarrierEmbedder
+    import huggingface_hub
+
+    monkeypatch.setenv("RATSI_QDRANT_URL", "http://test.invalid:6333")
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path / "missing"))
+    monkeypatch.setattr(search_services, "QDRANT_DIR", tmp_path / "absent")
+    monkeypatch.setattr(search_services, "_semantic_search_dependency_error", lambda: "")
+    store = Mock()
+    monkeypatch.setattr(search_services, "_create_vector_store", lambda *args: store)
+    monkeypatch.setattr(search_services, "_get_semantic_resources", lambda: (HarrierEmbedder(), Mock()))
+    monkeypatch.setattr(huggingface_hub, "snapshot_download", Mock(side_effect=AssertionError("Hub called")))
+
+    result = search_services.search_semantic_documents("Schule")
+
+    assert result["model_status_unavailable"] is True
+    assert "prepare_embedding_models.py --download" in result["error"]
+    assert not result["results"]
     store.close.assert_called_once()
 
 

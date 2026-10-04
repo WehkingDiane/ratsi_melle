@@ -242,7 +242,12 @@ python scripts/build_landkreis_publications_db.py
 
 Alternativ akzeptieren Fetch-, DB-Build- und Vektor-Build-Skript `--data-dir`; alle drei sollten dieselbe Landkreis-Datenwurzel verwenden, weil `local_path` relativ dazu gespeichert wird. Die Datenbank kann separat mit `RATSI_LANDKREIS_DB` oder `--db` gesetzt werden.
 
-Der Landkreis-Vektorindex bleibt von `ratsi_documents` getrennt. `build_landkreis_vector_index.py` liest `data/db/landkreis_publications.sqlite`, verwendet `extracted_texts.extracted_text` als Primaertext und faellt bei fehlendem Text auf Veroeffentlichungs- und Dokumenttitel zurueck. Indexiert werden nur Dokumentzeilen mit lokalem Pfad. Stabile Qdrant-IDs entstehen aus `landkreis`, `publication_id` und Dokument-URL. Regulaere Laeufe ergaenzen fehlende `snippet`-Payloads bestehender Punkte direkt, ohne deren Vektoren neu zu berechnen. Vollstaendige Laeufe entfernen zudem verwaiste Punkte; bei `--limit` ist diese Bereinigung deaktiviert. Lokale Payload-Pfade werden gegen `RATSI_LANDKREIS_DATA_DIR` oder `--data-dir` aufgeloest. Fuer den Embedding-Schritt werden standardmaessig hoechstens 6000 Zeichen pro Dokument verwendet; bei knappem XPU/GPU-Speicher kann `--max-text-chars` niedriger gesetzt werden.
+Der Landkreis-Vektorindex bleibt von `ratsi_documents` getrennt. `build_landkreis_vector_index.py` liest `data/db/landkreis_publications.sqlite`, verwendet `extracted_texts.extracted_text` als Primaertext und faellt bei fehlendem Text auf Veroeffentlichungs- und Dokumenttitel zurueck. Indexiert werden nur Dokumentzeilen mit lokalem Pfad. Stabile Qdrant-IDs entstehen aus `landkreis`, `publication_id` und Dokument-URL. Regulaere Laeufe ergaenzen fehlende `snippet`-Payloads bestehender Punkte direkt, ohne deren Vektoren neu zu berechnen.
+
+Nur neu vektorisierte Punkte erhalten `index_compatibility` mit Modell-IDs,
+Revisionen, Manifest-Hash, Vektordimension und Pipeline-Version;
+Snippet-Ergaenzungen stempeln vorhandene Vektoren nicht nachtraeglich.
+Vollstaendige Laeufe entfernen zudem verwaiste Punkte; bei `--limit` ist diese Bereinigung deaktiviert. Lokale Payload-Pfade werden gegen `RATSI_LANDKREIS_DATA_DIR` oder `--data-dir` aufgeloest. Fuer den Embedding-Schritt werden standardmaessig hoechstens 6000 Zeichen pro Dokument verwendet; bei knappem XPU/GPU-Speicher kann `--max-text-chars` niedriger gesetzt werden.
 
 ### Wichtige Metadaten
 
@@ -328,7 +333,7 @@ Die fachlichen Indexing-Schritte fuer stabile IDs, Payload-Aufbau, Hybrid-Vektor
 - Nach vollstaendigen fehlerfreien Laeufen werden verwaiste Dokumentabschnitte entfernt.
 - Bei `--limit`-Laeufen wird die Anzahl geaenderter oder fehlender Dokumente begrenzt; alle Abschnitte eines ausgewaehlten Dokuments werden verarbeitet.
 - Bei `--limit`-Läufen ist Orphan-Reconciliation bewusst deaktiviert.
-- Ein optionaler Hugging-Face-Token kann sicher im OS-Schlüsselring hinterlegt werden und wird beim Laden des Embedding-Modells als `HF_TOKEN` bereitgestellt.
+- Harrier, der Passage-Tokenizer und BM25 werden aus dem vorbereiteten lokalen Modellbestand unter `data/models/` geladen (`RATSI_MODELS_DIR` kann den Stamm ueberschreiben). Die Verbraucher laden keine Modelle aus dem Netz. Ein optionaler Hugging-Face-Token wird nur beim ausdruecklichen Vorbereitungslauf mit `--download` verwendet. Die praktische Abnahme von Offline-Build, Suche und Evaluation mit echten Modellen steht im [Phase-7-Protokoll](embedding_model_management.md#abschlusspruefung-phase-7-2026-10-04).
 
 ## 8. Textextraktion fuer Suche und Analyse
 
@@ -345,6 +350,8 @@ Wichtige Konsequenzen:
 - Scan-PDFs ohne Textebene fallen auf Fallbacks zurueck
 - Der neue Ratsinfo-Abschnittsindex liest alle Seiten von Dateien bis einschliesslich 100 MiB. Nur der explizite Legacy-Build mit `--legacy-document-index` bleibt auf zehn Seiten begrenzt
 - Die lokale Extraktionspipeline verarbeitet nur Dateien bis einschliesslich 25 MiB und kennzeichnet groessere Dateien als `file_too_large`
+- Ab Extraktionspipeline `1.4` bleiben auch Seiten ohne Textebene im Analyseergebnis erhalten. In gemischten PDFs wird nur auf diesen Seiten OCR versucht. Nicht erkannte Seiten führen bei vorhandenem Text zu `partial` mit `ocr_needed`; die ursprüngliche Seitenzahl bleibt erhalten. Dies betrifft die Analyseextraktion, nicht die Passage-Pipeline oder den bestehenden Melle-Index.
+- Ab Pipeline-Version `1.3` liest auch die lokale Analyse regulaere PDF-Textebenen mit `pypdf`: eingebettete Schriften, Woerter und Zahlen bleiben lesbar; Bilddaten werden nicht als Text interpretiert. Unlesbare PDF-Strukturen liefern `error`
 - Die lokale Extraktionspipeline versucht bei PDFs ohne lesbare Textebene optional OCR, wenn `pdftoppm` und `tesseract` mit den Sprachdaten `deu` und `eng` installiert sind; andernfalls lautet der Status `ocr_needed`
 - Provider koennen PDF-Anhaenge nativ verarbeiten oder Text ueber `pypdf` auslesen; diese Pfade verwenden nicht die 25-MiB-Grenze der lokalen Extraktionspipeline
 
@@ -385,7 +392,17 @@ Der angezeigte Score ist:
 - baut einen metadatenbasierten Online-Index ohne Dokumentdownloads
 - veraendert den lokalen Rohdatenbestand nicht
 
+### `scripts/prepare_embedding_models.py`
+
+- `--download` bereitet die gepinnten Modelle vor und gibt den geprueften Bestand frei
+- `--check` prueft den Bestand offline; `--check --deep` prueft auch die Artefakt-Pruefsummen
+- vor dem ersten Vektoraufbau oder bei fehlendem, unvollstaendigem oder inkompatiblem Bestand ausfuehren
+- passende vorhandene Bestaende werden wiederverwendet
+
 ### `scripts/build_vector_index.py`
+
+- benoetigt erreichbares Qdrant und den vorbereiteten lokalen Modellbestand aus derselben Python-Umgebung
+- Testfolge: `python scripts/prepare_embedding_models.py --download`, danach `python scripts/prepare_embedding_models.py --check` und `python scripts/build_vector_index.py --limit 10`
 - baut oder aktualisiert `ratsi_passages` mit Harrier und BM25
 - erkennt geaenderte Quellen und Konfigurationen per Fingerprint
 - `--limit N` verarbeitet hoechstens die naechsten `N` geaenderten Dokumente

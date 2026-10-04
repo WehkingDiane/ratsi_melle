@@ -23,6 +23,10 @@ from src.config.embedding_model_manifest import (
     canonical_manifest_bytes,
     with_manifest_sha256,
 )
+from src.config.settings import (
+    EmbeddingModelSettingsError,
+    load_embedding_model_settings,
+)
 
 
 def test_embedding_model_definitions_capture_existing_runtime_contract() -> None:
@@ -40,6 +44,30 @@ def test_embedding_contract_versions_have_distinct_types_and_initial_values() ->
     assert isinstance(EMBEDDING_PIPELINE_VERSION, str)
     assert MODEL_MANIFEST_FORMAT_VERSION == 1
     assert isinstance(MODEL_MANIFEST_FORMAT_VERSION, int)
+
+
+def test_embedding_model_settings_default_to_central_models_directory(monkeypatch) -> None:
+    monkeypatch.delenv("RATSI_MODELS_DIR", raising=False)
+
+    settings = load_embedding_model_settings()
+
+    from src import paths
+
+    assert settings.models_dir == paths.MODELS_DIR
+
+
+def test_embedding_model_settings_accept_local_directory_override(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
+
+    assert load_embedding_model_settings().models_dir == tmp_path
+
+
+@pytest.mark.parametrize("value", ["", "   "])
+def test_embedding_model_settings_reject_invalid_directory(value, monkeypatch) -> None:
+    monkeypatch.setenv("RATSI_MODELS_DIR", value)
+
+    with pytest.raises(EmbeddingModelSettingsError):
+        load_embedding_model_settings()
 
 
 def test_required_artifacts_are_immutable_central_allowlists() -> None:

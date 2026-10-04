@@ -75,12 +75,13 @@ def main(argv=None):
     from src.indexing.passages import MODEL, PIPELINE_VERSION, file_digest
 
     store = DocumentVectorStore(args.qdrant_dir, collection_name=args.collection)
-    embedder, sparse = HarrierEmbedder(), BM25Encoder()
     try:
         store.require_available()
+        store.connection.require_search_compatibility(store.collection_name, store._get_client())
         indexed_points = store.count()
         if not indexed_points:
             parser.error(f"Collection {args.collection} is empty or unavailable")
+        embedder, sparse = HarrierEmbedder(), BM25Encoder()
         # Exclude model startup from query timings, and report it separately.
         import time
         start = time.perf_counter()
