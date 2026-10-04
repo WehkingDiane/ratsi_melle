@@ -360,6 +360,25 @@ python scripts/prepare_embedding_models.py --download
 python scripts/prepare_embedding_models.py --download --json
 ```
 
+Fuer den anschliessenden lokalen Build-Test Qdrant starten und in derselben
+Python-Umgebung sowie mit demselben `RATSI_MODELS_DIR` (Standard `data/models/`)
+fortfahren:
+
+```powershell
+python .\scripts\prepare_embedding_models.py --check
+python .\scripts\build_vector_index.py --limit 10
+```
+
+Bei `local_models_unavailable` die Vorbereitung mit `--download` erneut
+ausfuehren. Ein vorhandener Hub-Cache allein reicht nicht; erforderlich ist der
+freigegebene Bestand mit gueltigem Manifest und passenden Bibliotheksversionen.
+Passende vorhandene Artefakte werden wiederverwendet. Bei bereitem Bestand ist
+die Vorbereitung vor weiteren Builds nicht erforderlich. Ein erfolgreicher
+begrenzter Lauf kann `ready: false` liefern, solange der Gesamtindex noch nicht
+freigegeben ist; `pending_documents` nennt die ausstehenden Dokumente.
+Bestehende Collections ohne Kompatibilitaetsmarker brauchen zuvor die
+[Legacy-Pruefung und Uebernahme](#einmalige-uebernahme-bestehender-collections).
+
 `--check` arbeitet garantiert offline. `--download` verwendet
 `huggingface_hub.snapshot_download` mit ausschliesslich den Modell-IDs,
 vollstaendigen Commit-SHAs und Kernartefakt-Allowlists aus `embedding_models.py`.

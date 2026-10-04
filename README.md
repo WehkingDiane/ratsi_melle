@@ -48,6 +48,7 @@ python scripts/fetch_session_from_index.py --list --from-date 2026-04-01 --to-da
 python scripts/fetch_session_from_index.py --session-id 7128
 python scripts/build_local_index.py
 python scripts/build_online_index_db.py 2024 --months 5 6
+python scripts/prepare_embedding_models.py --download
 python scripts/build_vector_index.py
 python scripts/evaluate_search.py --validate-only
 python scripts/fetch_landkreis_publications.py --source all
@@ -162,6 +163,40 @@ Sie ist danach standardmäßig unter `http://127.0.0.1:8000/` erreichbar. Detail
 - Optionaler Hugging-Face-Token: sichere Ablage ueber `/einstellungen/` im OS-Schluesselring; Fallback ueber `HF_TOKEN` oder `HUGGING_FACE_HUB_TOKEN`
 
 Landkreis-Veröffentlichungen aus Bekanntmachungen und Amtsblättern werden bewusst getrennt vom SessionNet-Index verarbeitet. Rohdateien liegen standardmaessig unter `data/raw/landkreis/`; alternativ kann ein externer Speicherort per `RATSI_LANDKREIS_DATA_DIR` oder `--data-dir` gesetzt werden. Die interne Ordnerstruktur bleibt dabei gleich, und die SQLite-DB speichert relative Pfade innerhalb dieser Landkreis-Datenwurzel.
+
+### Modelle vorbereiten und Vektoraufbau testen
+
+Vor dem ersten Vektoraufbau ist die Modellvorbereitung erforderlich. Ein alter
+Hugging-Face-Cache allein ersetzt den geprueften lokalen Modellbestand nicht.
+Qdrant muss erreichbar sein; Start und Verbindungspruefung stehen unter
+[Qdrant](#qdrant-lokaler-speicher-oder-server).
+Unter PowerShell im Repository und mit aktivierter `.venv`:
+
+```powershell
+python .\scripts\prepare_embedding_models.py --download
+python .\scripts\prepare_embedding_models.py --check
+python .\scripts\build_vector_index.py --limit 10
+```
+
+Die Vorbereitung ist bei bereitem Bestand nicht vor jedem Build erforderlich.
+Bei „Lokales Embedding-Modell fehlt, ist unvollstaendig oder inkompatibel“
+erneut `--download` ausfuehren, etwa nach einem Wechsel der Bibliotheksversionen
+oder des Modellpfads. Der Befehl prueft vorhandene Bestaende und verwendet
+passende Artefakte wieder; er laedt nicht zwingend alle Modelle neu herunter.
+Vorbereitung, Build und Websuche muessen dieselbe Python-Umgebung und denselben
+Modellstamm verwenden: standardmaessig `data/models/`, alternativ
+`RATSI_MODELS_DIR`. Nach einer Aenderung dieser Umgebung Django neu starten.
+
+`--limit 10` verarbeitet hoechstens zehn geaenderte Dokumente. `failures: []`
+und `status=ok` melden einen erfolgreichen Lauf; `pending_documents` nennt die
+noch ausstehenden Dokumente. `ready: false` bedeutet, dass der Gesamtindex
+noch nicht freigegeben ist. Weitere begrenzte Laeufe setzen den Aufbau fort;
+`python .\scripts\build_vector_index.py` verarbeitet alle ausstehenden Dokumente.
+Bei einer bestehenden Collection ohne Kompatibilitaetsmarker zuerst den
+[Legacy-Pruef- und Uebernahmepfad](docs/embedding_model_management.md#einmalige-uebernahme-bestehender-collections)
+verwenden. Nur ein Bericht mit `result: verified` darf uebernommen werden;
+Bei nicht nachgewiesener Vektorkompatibilitaet ist ein getrennter Neuaufbau
+erforderlich; bei Verbindungsfehlern zuerst die Ursache beheben und erneut pruefen.
 
 ### Lokalen Embedding-Modellbestand pruefen
 

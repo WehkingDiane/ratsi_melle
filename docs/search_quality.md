@@ -32,6 +32,24 @@ Der Landkreis-Builder bleibt ein eigener Dokumentindex.
 
 ## Aufbau und Migration
 
+Qdrant muss erreichbar und der lokale Modellbestand vorbereitet sein. Vor dem
+ersten Build oder bei `local_models_unavailable` diese Schritte ausfuehren:
+
+```bash
+python scripts/prepare_embedding_models.py --download
+python scripts/prepare_embedding_models.py --check
+python scripts/build_vector_index.py --limit 10
+```
+
+Ein bereiter Bestand wird spaeter ohne erneute Vorbereitung verwendet.
+Vorbereitung und Build muessen dieselbe Python-Umgebung und denselben
+Modellstamm (`data/models/` oder `RATSI_MODELS_DIR`) nutzen. Bei bestehenden
+Collections ohne Kompatibilitaetsmarker zuerst die
+[Legacy-Pruefung und Uebernahme](embedding_model_management.md#einmalige-uebernahme-bestehender-collections)
+durchfuehren; nur `result: verified` erlaubt die Uebernahme.
+
+Weitere Build-Aufrufe:
+
 ```bash
 python scripts/build_vector_index.py
 python scripts/build_vector_index.py --limit 25
@@ -40,7 +58,11 @@ python scripts/build_vector_index.py --refresh
 ```
 
 `--limit` begrenzt geaenderte Dokumente, nicht Abschnitte. Weitere Laeufe setzen den
-Aufbau fort. `--no-ocr` deaktiviert die optionale OCR. Aenderungen von Dateiinhalten,
+Aufbau fort. Ein erfolgreicher Testlauf kann `ready: false` liefern:
+`pending_documents` nennt die noch ausstehenden Dokumente; die vollstaendige
+Freigabe erfolgt erst nach Abschluss des Aufbaus. Ohne `--limit` werden alle
+ausstehenden Dokumente verarbeitet. `--no-ocr` deaktiviert die optionale OCR.
+Aenderungen von Dateiinhalten,
 Metadaten oder Chunk-Konfiguration loesen eine erneute Verarbeitung aus. Fuer
 unveraenderte Quellen werden vorhandene Vektoren wiederverwendet.
 
@@ -128,6 +150,7 @@ erreichbar, enden sie mit Exitcode 1 und einer kurzen Fehlermeldung ohne
 Python-Traceback. Der Freigabemarker bleibt bei diesem Startfehler unveraendert.
 
 ```powershell
+python scripts/prepare_embedding_models.py --download
 python scripts/build_vector_index.py
 python scripts/build_landkreis_vector_index.py
 python scripts/evaluate_search.py --collection ratsi_passages

@@ -392,7 +392,17 @@ Der angezeigte Score ist:
 - baut einen metadatenbasierten Online-Index ohne Dokumentdownloads
 - veraendert den lokalen Rohdatenbestand nicht
 
+### `scripts/prepare_embedding_models.py`
+
+- `--download` bereitet die gepinnten Modelle vor und gibt den geprueften Bestand frei
+- `--check` prueft den Bestand offline; `--check --deep` prueft auch die Artefakt-Pruefsummen
+- vor dem ersten Vektoraufbau oder bei fehlendem, unvollstaendigem oder inkompatiblem Bestand ausfuehren
+- passende vorhandene Bestaende werden wiederverwendet
+
 ### `scripts/build_vector_index.py`
+
+- benoetigt erreichbares Qdrant und den vorbereiteten lokalen Modellbestand aus derselben Python-Umgebung
+- Testfolge: `python scripts/prepare_embedding_models.py --download`, danach `python scripts/prepare_embedding_models.py --check` und `python scripts/build_vector_index.py --limit 10`
 - baut oder aktualisiert `ratsi_passages` mit Harrier und BM25
 - erkennt geaenderte Quellen und Konfigurationen per Fingerprint
 - `--limit N` verarbeitet hoechstens die naechsten `N` geaenderten Dokumente
