@@ -181,12 +181,23 @@ def _compare_vectors(stored: dict, recalculated: dict, dimension: int) -> None:
     if not isinstance(dense, list) or not isinstance(expected_dense, list) or len(dense) != dimension or len(expected_dense) != dimension:
         raise LegacyInspectionError("vector_invalid", "Dense-Vektor fehlt oder hat die falsche Dimension.")
     try:
+        expected_dense = [float(value) for value in expected_dense]
+        norm = math.hypot(*expected_dense)
+        if not math.isfinite(norm) or norm == 0:
+            raise LegacyInspectionError("vector_invalid", "Dense-Neuberechnung besitzt keine endliche positive Norm.")
+        # COSINE collections normalize uploaded vectors. BF16 inference can
+        # return a slightly non-unit vector despite normalize_embeddings=True.
+        # Compare against the representation stored by Qdrant, keeping the
+        # original per-coordinate tolerances and stored-vector validation.
+        expected_dense = [value / norm for value in expected_dense]
         dense_equal = all(
             math.isfinite(float(old)) and math.isfinite(float(new))
             and math.isclose(float(old), float(new), rel_tol=DENSE_REL_TOLERANCE, abs_tol=DENSE_ABS_TOLERANCE)
             for old, new in zip(dense, expected_dense, strict=True)
         )
-    except (TypeError, ValueError) as error:
+    except LegacyInspectionError:
+        raise
+    except (TypeError, ValueError, OverflowError) as error:
         raise LegacyInspectionError("vector_invalid", "Dense-Vektor enthaelt ungueltige Werte.") from error
     if not dense_equal:
         raise LegacyInspectionError("dense_mismatch", "Dense-Vektor stimmt nicht mit der Neuberechnung ueberein.")

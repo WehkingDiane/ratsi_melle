@@ -11,6 +11,8 @@ import django
 from django.core import signing
 import pytest
 
+from embedding_preparation_support import kill_test_process
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "web"))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "web.settings")
@@ -107,7 +109,7 @@ def test_model_lock_is_process_exclusive_and_released_on_exit(tmp_path):
             with model_operation_lock(root, blocking=False):
                 pytest.fail("A second process acquired the live lock")
     finally:
-        process.kill()
+        kill_test_process(process)
         process.wait(timeout=10)
     with model_operation_lock(root, blocking=False):
         with model_operation_lock(root, blocking=False):
@@ -147,7 +149,7 @@ sys.stdin.read()
         with sqlite3.connect(db) as conn:
             assert conn.execute("SELECT status FROM service_jobs WHERE job_id=?", (job_id,)).fetchone()[0] == "queued"
     finally:
-        process.kill()
+        kill_test_process(process)
         process.wait(timeout=10)
     assert service_jobs.get_service_job(job_id).status == "error"
     monkeypatch.setattr(service_jobs.threading.Thread, "start", lambda self: None)
@@ -242,7 +244,7 @@ sys.stdin.read()
             assert conn.execute("SELECT COUNT(*) FROM service_jobs").fetchone()[0] == 1
     finally:
         for process in processes:
-            process.kill()
+            kill_test_process(process)
             process.wait(timeout=10)
 
 

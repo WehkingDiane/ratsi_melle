@@ -12,6 +12,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from embedding_preparation_support import kill_test_process
+
 from src import model_operations as operations
 from src.analysis.vector_store import DocumentVectorStore
 from src.indexing.legacy_index_migration import _migration_lock
@@ -212,7 +214,7 @@ def test_real_cli_waits_for_other_process_before_models_and_client(tmp_path, act
             assert not (tmp_path / 'entered').exists()
             assert process.poll() is None
         except BaseException:
-            process.kill()
+            kill_test_process(process)
             process.communicate(timeout=10)
             raise
     try:
@@ -226,7 +228,7 @@ def test_real_cli_waits_for_other_process_before_models_and_client(tmp_path, act
             assert events.index('client closed') < events.index('collection released') < events.index('model released')
     finally:
         if process.poll() is None:
-            process.kill()
+            kill_test_process(process)
             process.communicate(timeout=10)
 
 
@@ -237,7 +239,12 @@ def test_collection_lock_rejects_symlink(tmp_path):
     path.parent.mkdir(parents=True, exist_ok=True)
     target = tmp_path / 'unrelated'
     target.write_bytes(b'unchanged')
-    path.symlink_to(target)
+    try:
+        path.symlink_to(target)
+    except OSError as error:
+        if os.name == 'nt' and error.winerror == 1314:
+            pytest.skip('Windows symlink privilege is unavailable')
+        raise
     with pytest.raises(OSError, match='Symlink'):
         with _migration_lock(connection, 'ratsi_passages'):
             pytest.fail('Acquired redirected lock')
@@ -260,16 +267,18 @@ def test_live_cli_rejects_every_colliding_web_start_without_new_row(tmp_path, mo
     sys.path.insert(0, str(ROOT / 'web'))
     from core import service_jobs
     monkeypatch.setattr(service_jobs, 'SERVICE_JOBS_DB', tmp_path / 'jobs.sqlite')
-    monkeypatch.setattr(service_jobs.threading.Thread, 'start', lambda self: pytest.fail('Second worker started'))
     holder = subprocess.Popen([sys.executable, '-c', HOLDER, os.environ['RATSI_MODELS_DIR'], str(tmp_path / 'held')],
                               cwd=ROOT, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     try:
         _wait_for_file(tmp_path / 'held', holder)
-        with pytest.raises(service_jobs.ServiceJobStartError, match='bereits aktiv'):
-            service_jobs.start_service_job(action, [], ROOT)
+        with monkeypatch.context() as worker_patch:
+            worker_patch.setattr(service_jobs.threading.Thread, 'start',
+                                 lambda self: pytest.fail('Second worker started'))
+            with pytest.raises(service_jobs.ServiceJobStartError, match='bereits aktiv'):
+                service_jobs.start_service_job(action, [], ROOT)
         assert not service_jobs.list_service_jobs()
     finally:
-        holder.kill()
+        kill_test_process(holder)
         holder.communicate(timeout=10)
 
 
@@ -297,7 +306,7 @@ def test_real_surviving_child_blocks_restart_even_when_old_job_status_is_wrong(t
             service_jobs._store_job(conn, record)
         assert service_jobs.get_service_job(record.job_id).status == 'running'
     finally:
-        holder.kill()
+        kill_test_process(holder)
         holder.communicate(timeout=10)
     restored = service_jobs.get_service_job(record.job_id)
     assert restored.status == 'error' and restored.completed_at
@@ -319,7 +328,7 @@ def test_legacy_cli_waits_for_collection_before_opening_client(tmp_path, action)
             time.sleep(0.15)
             assert not (tmp_path / 'entered').exists() and process.poll() is None
         except BaseException:
-            process.kill()
+            kill_test_process(process)
             process.communicate(timeout=10)
             raise
     try:
@@ -328,7 +337,7 @@ def test_legacy_cli_waits_for_collection_before_opening_client(tmp_path, action)
         assert json.loads(stdout.splitlines()[-1])[:3] == ['model', 'collection', 'client']
     finally:
         if process.poll() is None:
-            process.kill()
+            kill_test_process(process)
             process.communicate(timeout=10)
 
 
@@ -343,7 +352,7 @@ def test_waiting_preparation_rechecks_confirmation_after_lock_acquisition(tmp_pa
             _wait_for_file(tmp_path / 'ready', process)
             (tmp_path / 'changed').touch()
         except BaseException:
-            process.kill()
+            kill_test_process(process)
             process.communicate(timeout=10)
             raise
     try:
@@ -353,7 +362,7 @@ def test_waiting_preparation_rechecks_confirmation_after_lock_acquisition(tmp_pa
         assert not (tmp_path / 'entered').exists()
     finally:
         if process.poll() is None:
-            process.kill()
+            kill_test_process(process)
             process.communicate(timeout=10)
 
 @pytest.mark.integration
@@ -393,7 +402,7 @@ raise SystemExit(main(['--download', '--json']))
             with operations.model_operation_lock(tmp_path / 'models', blocking=False):
                 pytest.fail('Preparation lost its lock')
     finally:
-        process.kill()
+        kill_test_process(process)
         process.communicate(timeout=10)
     assert (tmp_path / 'models/manifest.json').read_bytes() == manifest
     assert all((path.read_bytes(), path.stat().st_mtime_ns) == previous for path, previous in files.items())

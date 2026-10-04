@@ -333,7 +333,7 @@ Die fachlichen Indexing-Schritte fuer stabile IDs, Payload-Aufbau, Hybrid-Vektor
 - Nach vollstaendigen fehlerfreien Laeufen werden verwaiste Dokumentabschnitte entfernt.
 - Bei `--limit`-Laeufen wird die Anzahl geaenderter oder fehlender Dokumente begrenzt; alle Abschnitte eines ausgewaehlten Dokuments werden verarbeitet.
 - Bei `--limit`-Läufen ist Orphan-Reconciliation bewusst deaktiviert.
-- Harrier, der Passage-Tokenizer und BM25 werden aus dem vorbereiteten lokalen Modellbestand unter `data/models/` geladen (`RATSI_MODELS_DIR` kann den Stamm ueberschreiben). Die Verbraucher laden keine Modelle aus dem Netz. Ein optionaler Hugging-Face-Token wird nur beim ausdruecklichen Vorbereitungslauf mit `--download` verwendet.
+- Harrier, der Passage-Tokenizer und BM25 werden aus dem vorbereiteten lokalen Modellbestand unter `data/models/` geladen (`RATSI_MODELS_DIR` kann den Stamm ueberschreiben). Die Verbraucher laden keine Modelle aus dem Netz. Ein optionaler Hugging-Face-Token wird nur beim ausdruecklichen Vorbereitungslauf mit `--download` verwendet. Die praktische Abnahme von Offline-Build, Suche und Evaluation mit echten Modellen steht im [Phase-7-Protokoll](embedding_model_management.md#abschlusspruefung-phase-7-2026-10-04).
 
 ## 8. Textextraktion fuer Suche und Analyse
 
@@ -392,7 +392,17 @@ Der angezeigte Score ist:
 - baut einen metadatenbasierten Online-Index ohne Dokumentdownloads
 - veraendert den lokalen Rohdatenbestand nicht
 
+### `scripts/prepare_embedding_models.py`
+
+- `--download` bereitet die gepinnten Modelle vor und gibt den geprueften Bestand frei
+- `--check` prueft den Bestand offline; `--check --deep` prueft auch die Artefakt-Pruefsummen
+- vor dem ersten Vektoraufbau oder bei fehlendem, unvollstaendigem oder inkompatiblem Bestand ausfuehren
+- passende vorhandene Bestaende werden wiederverwendet
+
 ### `scripts/build_vector_index.py`
+
+- benoetigt erreichbares Qdrant und den vorbereiteten lokalen Modellbestand aus derselben Python-Umgebung
+- Testfolge: `python scripts/prepare_embedding_models.py --download`, danach `python scripts/prepare_embedding_models.py --check` und `python scripts/build_vector_index.py --limit 10`
 - baut oder aktualisiert `ratsi_passages` mit Harrier und BM25
 - erkennt geaenderte Quellen und Konfigurationen per Fingerprint
 - `--limit N` verarbeitet hoechstens die naechsten `N` geaenderten Dokumente

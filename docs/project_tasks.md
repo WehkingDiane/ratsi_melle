@@ -88,14 +88,18 @@ Jeder offene Punkt kann eine grobe Aufwandseinstufung und eine Modell-Empfehlung
 - Standardlauf von `scripts/build_vector_index.py` auf 100 Dokumente begrenzen; einen vollständigen Durchlauf nur mit einem ausdrücklichen Parameter wie `--all` starten `[Leicht · GPT-6 Luna / Medium]`
 - Fortschrittsanzeige für `scripts/build_vector_index.py` ergänzen: Gesamtzahl, bereits indexierte und noch ausstehende Dokumente sowie laufender Fortschritt `[Mittel · GPT-6 Sol / Low]`
 - Dauerhaften Zwischenstand für lange Indexläufe speichern, einschließlich erledigter, offener und fehlgeschlagener Dokumente, damit Abbrüche nachvollziehbar sind und Läufe gezielt fortgesetzt werden können `[Schwer · GPT-6 Astra / Medium]`
-- Reproduzierbare lokale Modellverwaltung gemäß [Konzept zur Embedding-Modellverwaltung](embedding_model_management.md) umsetzen, einschließlich Vorbereitungsskript, strikt lokalem Modellbetrieb, Indexkompatibilität und Einbindung in die Service-Oberfläche unter `/daten/vektor/`. Umsetzung phasenweise in Branches strukturieren: `main` → `codex/feature/embedding-model-management` → `codex/feature/embedding-model-management-phase-N`; jede Phase erhält eigene Zwischenstand-Commits. `[Schwer · GPT-6 Astra / High]`
 - Recherchekatalog über weitere Zeiträume, Protokolle und echte Nutzerfragen erweitern; Abschnitts- und Legacy-Index mit `scripts/evaluate_search.py` vergleichen `[Mittel · GPT-6 Sol / Medium]`
 
-#### Hinweis für Phase 6
+#### Abgeschlossene Modellverwaltung
 
-Phase 6 einschließlich M6.11 und der zusätzlichen PDF-Regressionsdateien ist abgeschlossen. Die technische Abschlussprüfung und Testnachweise stehen im [Abschlussprotokoll](embedding_model_management.md#abschlusspruefung-m611-2026-10-02). Die praktische Offline- und Windows-Abnahme mit vorbereiteten Modellen folgt in Phase 7; der Landkreis-Neuaufbau bleibt eine separate Aufgabe.
-
-Vor der Implementierung der Service-Oberfläche M6.0 und den Vorabvertrag in [embedding_model_management.md](embedding_model_management.md#vorabvertrag-fuer-phase-6) durcharbeiten: Statusquelle und letzte Prüfung, feste Aktionen, Melle-Quellbindung, Landkreis-Neuaufbau, Bestätigungen und Sperren über Webprozesse und CLI festlegen. Die Fälle lokal/Server, leer/bestehend, freigegeben/im Aufbau und Abbruch mitten im Vorgang als kompakte Testmatrix durchgehen. Danach den gesamten Phase-6-Workflow samt Fehler- und Parallelfällen testen und den PR-Diff einmal zusammenhängend prüfen; Codex-Reviews dienen anschließend als zusätzliche Kontrolle. Auswirkungen auf bestehende Melle-Indizes vor Änderungen an Freigabe- oder Datenformaten ausdrücklich prüfen, ohne ihren Neuaufbau vorauszusetzen.
+Die lokale Embedding-Modellverwaltung ist einschließlich Phase 7 abgeschlossen
+(`0.5.49`). Die reguläre Suite besteht mit 1105 Tests; die praktische native
+Windows-Abnahme bestätigt Prozesssperren und einen vollständigen separaten
+Offline-Build samt Suchservice und Evaluation mit echten Modellen. Ergebnisse,
+Fehlerkorrekturen und Betriebsgrenzen stehen im
+[Abschlussprotokoll](embedding_model_management.md#abschlusspruefung-phase-7-2026-10-04).
+Produktive Melle-Legacy-Übernahmen und der Landkreis-Neuaufbau bleiben separate
+Betriebsaktionen; diese Abnahme hat keine produktive Collection verändert.
 
 ### 3.4 Analyse und Artefakte
 

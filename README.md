@@ -48,6 +48,7 @@ python scripts/fetch_session_from_index.py --list --from-date 2026-04-01 --to-da
 python scripts/fetch_session_from_index.py --session-id 7128
 python scripts/build_local_index.py
 python scripts/build_online_index_db.py 2024 --months 5 6
+python scripts/prepare_embedding_models.py --download
 python scripts/build_vector_index.py
 python scripts/evaluate_search.py --validate-only
 python scripts/fetch_landkreis_publications.py --source all
@@ -118,7 +119,10 @@ git config core.hooksPath .githooks
 
 CLI-Skripte und Django verwenden dasselbe Logformat mit UTC-Zeit, Komponente und
 `run_id`. Rotierende Dateien liegen standardmaessig unter `logs/<komponente>.log`;
-CLI-Meldungen erscheinen zusätzlich auf stderr. Nicht behandelte Fehler der
+CLI-Meldungen erscheinen zusätzlich auf stderr. Routinemeldungen von `httpx` und
+`httpcore` bleiben ausschliesslich im Dateilog; deren Warnungen und Fehler
+bleiben auch im Terminal sichtbar. Dies gilt ebenfalls bei `DEBUG`.
+Nicht behandelte Fehler der
 Vektor-, Such- und Evaluationsskripte enthalten dort einen Stacktrace. Bei über
 die Weboberfläche gestarteten Datenjobs entspricht die `run_id` der sichtbaren
 Job-ID, sodass Status, begrenzte Jobausgabe und vollständiges Dateilog
@@ -159,6 +163,40 @@ Sie ist danach standardmäßig unter `http://127.0.0.1:8000/` erreichbar. Detail
 - Optionaler Hugging-Face-Token: sichere Ablage ueber `/einstellungen/` im OS-Schluesselring; Fallback ueber `HF_TOKEN` oder `HUGGING_FACE_HUB_TOKEN`
 
 Landkreis-Veröffentlichungen aus Bekanntmachungen und Amtsblättern werden bewusst getrennt vom SessionNet-Index verarbeitet. Rohdateien liegen standardmaessig unter `data/raw/landkreis/`; alternativ kann ein externer Speicherort per `RATSI_LANDKREIS_DATA_DIR` oder `--data-dir` gesetzt werden. Die interne Ordnerstruktur bleibt dabei gleich, und die SQLite-DB speichert relative Pfade innerhalb dieser Landkreis-Datenwurzel.
+
+### Modelle vorbereiten und Vektoraufbau testen
+
+Vor dem ersten Vektoraufbau ist die Modellvorbereitung erforderlich. Ein alter
+Hugging-Face-Cache allein ersetzt den geprueften lokalen Modellbestand nicht.
+Qdrant muss erreichbar sein; Start und Verbindungspruefung stehen unter
+[Qdrant](#qdrant-lokaler-speicher-oder-server).
+Unter PowerShell im Repository und mit aktivierter `.venv`:
+
+```powershell
+python .\scripts\prepare_embedding_models.py --download
+python .\scripts\prepare_embedding_models.py --check
+python .\scripts\build_vector_index.py --limit 10
+```
+
+Die Vorbereitung ist bei bereitem Bestand nicht vor jedem Build erforderlich.
+Bei „Lokales Embedding-Modell fehlt, ist unvollstaendig oder inkompatibel“
+erneut `--download` ausfuehren, etwa nach einem Wechsel der Bibliotheksversionen
+oder des Modellpfads. Der Befehl prueft vorhandene Bestaende und verwendet
+passende Artefakte wieder; er laedt nicht zwingend alle Modelle neu herunter.
+Vorbereitung, Build und Websuche muessen dieselbe Python-Umgebung und denselben
+Modellstamm verwenden: standardmaessig `data/models/`, alternativ
+`RATSI_MODELS_DIR`. Nach einer Aenderung dieser Umgebung Django neu starten.
+
+`--limit 10` verarbeitet hoechstens zehn geaenderte Dokumente. `failures: []`
+und `status=ok` melden einen erfolgreichen Lauf; `pending_documents` nennt die
+noch ausstehenden Dokumente. `ready: false` bedeutet, dass der Gesamtindex
+noch nicht freigegeben ist. Weitere begrenzte Laeufe setzen den Aufbau fort;
+`python .\scripts\build_vector_index.py` verarbeitet alle ausstehenden Dokumente.
+Bei einer bestehenden Collection ohne Kompatibilitaetsmarker zuerst den
+[Legacy-Pruef- und Uebernahmepfad](docs/embedding_model_management.md#einmalige-uebernahme-bestehender-collections)
+verwenden. Nur ein Bericht mit `result: verified` darf uebernommen werden;
+Bei nicht nachgewiesener Vektorkompatibilitaet ist ein getrennter Neuaufbau
+erforderlich; bei Verbindungsfehlern zuerst die Ursache beheben und erneut pruefen.
 
 ### Lokalen Embedding-Modellbestand pruefen
 
@@ -216,7 +254,7 @@ Die Vorbereitung laesst sich getrennt und ohne echten Hub testen:
 python -m pytest tests/test_embedding_model_preparation.py tests/test_prepare_embedding_models.py tests/test_embedding_model_preparation_integration.py -m "not live" -q
 ```
 
-Live-Tests benoetigen Internet und `huggingface-hub`, bleiben standardmaessig
+Hub-Live-Tests benoetigen Internet und `huggingface-hub`, bleiben standardmaessig
 ausgeschlossen und erfordern zusaetzlich eine ausdrueckliche Freigabe (Bash):
 
 ```bash
@@ -238,7 +276,23 @@ aus dem freigegebenen lokalen Modellbestand. Fehlende oder inkompatible Modelle
 werden vor dem Laden gemeldet; der Hinweis nennt den Vorbereitungsbefehl. Die
 Websuche verweist zusaetzlich auf den technischen Servicebereich. Nur der
 ausdrueckliche Aufruf mit `--download` darf Modellartefakte beschaffen.
-Die praktische Abnahme mit echten vorbereiteten Modellen folgt in Phase 7.
+Die praktische Offline-Abnahme mit echten vorbereiteten Modellen ist in
+[Phase 7](docs/embedding_model_management.md#abschlusspruefung-phase-7-2026-10-04)
+dokumentiert. Sie laesst sich mit einem bereits vorbereiteten Bestand wiederholen:
+
+```bash
+RATSI_EMBEDDING_ACCEPTANCE_MODELS=/pfad/zum/modellstamm python -m pytest tests/test_embedding_offline_acceptance.py -m live -q -s
+```
+
+Unter PowerShell zuerst `$env:RATSI_EMBEDDING_ACCEPTANCE_MODELS = "C:\Pfad\zum\Modellstamm"`
+setzen und anschliessend denselben pytest-Befehl ohne die Bash-Variablenzuweisung
+starten. Der Test baut einen vollstaendigen separaten Index aus zwei Original-PDF-
+Fixtures, prueft den Suchservice und die Evaluation und sperrt Netzwerkzugriffe.
+Er prueft auch fehlende Modelle, eine unerreichbare Quelle und einen inkompatiblen
+Index. Modelle werden nur gelesen; Index, SQLite, Fehlerkandidaten und Logs liegen
+im temporaeren Testverzeichnis. Der Marker `live` bezeichnet hier echte lokale
+Modellinferenz; der Test benoetigt keinen Internetzugang. Ohne die Pfadangabe
+wird er uebersprungen.
 Der Schutz gegen kollidierende Vorbereitungs-, Legacy- und Indexjobs ist
 in Phase 6 umgesetzt; Web und CLI teilen die Prozesssperren.
 
@@ -345,7 +399,10 @@ Auch das Vektorschema jeder vorhandenen
 Collection wird vor Aenderungen geprueft, selbst wenn sie leer ist. Alte
 Collections ohne Kompatibilitaetsnachweis muessen
 zuerst mit dem [Legacy-Pruef- und Uebernahmepfad](docs/embedding_model_management.md#einmalige-uebernahme-bestehender-collections)
-verifiziert werden. Eine unterbrochene Fortsetzung behaelt den Modellvertrag
+verifiziert werden. Die Legacy-Pruefung beruecksichtigt die automatische
+Normierung der Dense-Vektoren durch Qdrant-Cosine. Ein durch `bfloat16` leicht
+von Laenge 1 abweichender neu berechneter Vektor wird deshalb vor dem Vergleich
+normiert; die festen Toleranzen werden nicht erweitert. Eine unterbrochene Fortsetzung behaelt den Modellvertrag
 im Marker, auch wenn der Passage-Index voruebergehend nicht freigegeben ist.
 Bei einem fehlenden oder abweichenden Vertrag beendet sich der Build mit
 Exitcode 1 und einer kurzen Meldung: vollstaendiger Neuaufbau oder getrennte

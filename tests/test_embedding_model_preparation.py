@@ -26,6 +26,34 @@ from src.config.embedding_model_status import (
 )
 
 
+@pytest.mark.parametrize("cause,code", [
+    (ConnectionError("private connection detail"), "network_unavailable"),
+    (PermissionError("private access detail"), "permission_denied"),
+])
+def test_nested_provider_failure_keeps_download_diagnosis(
+    tmp_path, fake_hub, monkeypatch, capsys, cause, code,
+):
+    previous = preparation.prepare_embedding_models(tmp_path)
+    before = (tmp_path / "manifest.json").read_bytes()
+    monkeypatch.setattr(preparation, "version", lambda name: name + "-changed")
+
+    def unavailable(**kwargs):
+        # The real Hub wraps transport failures in LocalEntryNotFoundError,
+        # a FileNotFoundError subclass. The preparation phase must not turn
+        # its already classified download error into a missing-artifact error.
+        raise FileNotFoundError("private cache detail") from cause
+
+    fake_hub[0].snapshot_download = unavailable
+    monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
+    monkeypatch.setenv("RATSI_LOG_DIR", str(tmp_path / "logs"))
+    assert cli.main(["--download", "--json"]) == 1
+    output = capsys.readouterr()
+    assert json.loads(output.out)["error_code"] == code
+    assert "private" not in output.out + output.err
+    assert (tmp_path / "manifest.json").read_bytes() == before
+    assert load_and_validate_model_inventory(tmp_path, deep=True) == previous.manifest
+
+
 @pytest.mark.parametrize("source", ["keyring", "env", "alias", "keyring_error", "anonymous"])
 @pytest.mark.parametrize("failure", [False, True])
 @pytest.mark.parametrize("json_output", [False, True])

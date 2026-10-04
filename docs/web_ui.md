@@ -322,6 +322,12 @@ Embedding-Modelle nach. Fehlt der vorbereitete lokale Modellbestand, zeigt die
 Suche den Vorbereitungsbefehl und einen Link zum technischen Servicebereich.
 URL-Zugangsdaten und URL-Pfade erscheinen nicht in
 Statusanzeigen oder Suchfehlern.
+Die [Phase-7-Abnahme](embedding_model_management.md#abschlusspruefung-phase-7-2026-10-04)
+prueft den Suchservice mit echten lokalen Modellen und einem getrennten
+Testindex bei gesperrtem Netzwerk. Auch nach dem Laden der Suchmodelle werden
+fehlende Modellbestaende und inkompatible Freigabemarker vor weiteren
+Suchanfragen abgewiesen. Native Windows-Prozesssperren, Webstart-Konflikte und
+Wiederanlauf nach hartem Testprozessabbruch sind separat geprueft.
 
 Ein vorhandener, noch nicht freigegebener Passage-Index wird als unvollständig
 angezeigt. Bis zur Freigabe kann die Suche den bisherigen `ratsi_documents`-Index
