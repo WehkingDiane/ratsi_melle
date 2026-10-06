@@ -16,7 +16,7 @@ LOGGER = logging.getLogger(__name__)
 COLLECTION = "ratsi_passages"
 MODEL = HARRIER_MODEL.model_id
 PIPELINE_VERSION = EMBEDDING_PIPELINE_VERSION
-MAX_FILE_BYTES = 100 * 1024 * 1024
+MAX_FILE_BYTES = 128 * 1024 * 1024
 
 
 def file_digest(path: Path) -> str:
@@ -59,7 +59,7 @@ def ocr_page(path: Path, page: int) -> str:
 def extract_pages(path: Path, *, use_ocr: bool = True) -> list[dict]:
     """Read all pages, using OCR for individual empty or failed PDF pages."""
     if path.stat().st_size > MAX_FILE_BYTES:
-        raise ValueError("Source exceeds the 100 MiB search extraction limit")
+        raise ValueError("Source exceeds the 128 MiB search extraction limit")
     if path.suffix.lower() == ".pdf":
         from pypdf import PdfReader
 

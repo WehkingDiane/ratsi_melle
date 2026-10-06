@@ -348,7 +348,7 @@ Reihenfolge fuer Ratsinfo-Suchindexierung:
 Wichtige Konsequenzen:
 
 - Scan-PDFs ohne Textebene fallen auf Fallbacks zurueck
-- Der neue Ratsinfo-Abschnittsindex liest alle Seiten von Dateien bis einschliesslich 100 MiB. Nur der explizite Legacy-Build mit `--legacy-document-index` bleibt auf zehn Seiten begrenzt
+- Der neue Ratsinfo-Abschnittsindex liest alle Seiten von Dateien bis einschliesslich 128 MiB. Nur der explizite Legacy-Build mit `--legacy-document-index` bleibt auf zehn Seiten begrenzt
 - Die lokale Extraktionspipeline verarbeitet nur Dateien bis einschliesslich 25 MiB und kennzeichnet groessere Dateien als `file_too_large`
 - Ab Extraktionspipeline `1.4` bleiben auch Seiten ohne Textebene im Analyseergebnis erhalten. In gemischten PDFs wird nur auf diesen Seiten OCR versucht. Nicht erkannte Seiten führen bei vorhandenem Text zu `partial` mit `ocr_needed`; die ursprüngliche Seitenzahl bleibt erhalten. Dies betrifft die Analyseextraktion, nicht die Passage-Pipeline oder den bestehenden Melle-Index.
 - Ab Pipeline-Version `1.3` liest auch die lokale Analyse regulaere PDF-Textebenen mit `pypdf`: eingebettete Schriften, Woerter und Zahlen bleiben lesbar; Bilddaten werden nicht als Text interpretiert. Unlesbare PDF-Strukturen liefern `error`

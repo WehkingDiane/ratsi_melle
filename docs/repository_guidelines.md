@@ -89,7 +89,7 @@ Diese Regeln bilden das Fundament für den weiteren Projektverlauf und können b
 - `scripts/fetch_landkreis_publications.py` erfasst Landkreis-Bekanntmachungen und Amtsblätter als Rohdaten. `scripts/build_landkreis_publications_db.py` baut daraus die getrennte SQLite-DB. `scripts/search_landkreis_publications.py` durchsucht diese DB per SQLite-FTS, z. B. nach `Melle Genehmigung`.
 - Die beiden SessionNet-Indexe enthalten in `documents` ein normalisiertes Feld `document_type` (`vorlage`, `beschlussvorlage`, `protokoll`, `bekanntmachung`, `sonstiges`) sowie Metadatenfelder `sha1` und `retrieved_at`.
 - Die früher versionierten Dateien aus `old/` wurden bytegleich nach `archive/old/` verschoben. Dieses lokale Archiv wird nicht eingecheckt; historische Versionen sind über Git zugänglich.
-- Der Ratsinfo-Vektorbuild erzeugt `ratsi_passages` aus allen PDF-Seiten mit maximal 768 Tokens je Abschnitt. `ratsi_documents` bleibt als Legacy-Index erhalten. Die eigene Suchextraktion erlaubt 100 MiB pro Datei; der aeltere Extraktionspfad bleibt bei 25 MiB. Migration und der belegte Recherche-Benchmark stehen in `docs/search_quality.md`.
+- Der Ratsinfo-Vektorbuild erzeugt `ratsi_passages` aus allen PDF-Seiten mit maximal 768 Tokens je Abschnitt. `ratsi_documents` bleibt als Legacy-Index erhalten. Die eigene Suchextraktion erlaubt 128 MiB pro Datei; der aeltere Extraktionspfad bleibt bei 25 MiB. Migration und der belegte Recherche-Benchmark stehen in `docs/search_quality.md`.
 
 ## Testauswahl und Regression
 
