@@ -71,8 +71,8 @@ class SessionNetClient:
 
     # ------------------------------------------------------------------
     # Public API
-    def fetch_month(self, year: int, month: int) -> List[SessionReference]:
-        """Fetch overview page for a given month and parse session references."""
+    def fetch_month(self, year: int, month: int, *, include_planned: bool = False) -> List[SessionReference]:
+        """Fetch a month, optionally including calendar entries without detail links."""
 
         LOGGER.info("Fetching session overview for %04d-%02d", year, month)
         response = self._get("si0040.asp", params=self._build_month_params(year, month))
@@ -80,13 +80,15 @@ class SessionNetClient:
         if self.persist_raw:
             filename = self._build_month_filename(year, month)
             self._write_raw(filename, content)
-        sessions = self._parse_overview(content, year, month)
+        sessions = self._parse_overview(content, year, month, include_planned=include_planned)
         LOGGER.info("Parsed %d session references", len(sessions))
         return sessions
 
     def fetch_session(self, reference: SessionReference) -> SessionDetail:
         """Fetch the detailed view including agenda items for a session."""
 
+        if not reference.detail_url:
+            raise FetchingError(f"Session {reference.session_id} has no published detail link")
         LOGGER.info("Fetching session detail for %s", reference.session_id)
         response = self._get(reference.detail_url)
         html = response.text
@@ -185,7 +187,9 @@ class SessionNetClient:
 
     # ------------------------------------------------------------------
     # Parsing helpers
-    def _parse_overview(self, html: str, year: int, month: int) -> List[SessionReference]:
+    def _parse_overview(
+        self, html: str, year: int, month: int, *, include_planned: bool = False,
+    ) -> List[SessionReference]:
         soup = BeautifulSoup(html, "html.parser")
         table = soup.select_one("table#smc_page_si0040_contenttable1")
         if table is None:
@@ -209,12 +213,24 @@ class SessionNetClient:
             committee = header_tag.get_text(strip=True) if header_tag else title
 
             detail_href = link_tag.get("href") if link_tag and link_tag.has_attr("href") else None
-            if not detail_href:
-                LOGGER.debug("Skipping event %s without detail link", title)
-                continue
-
-            detail_url = self._absolute_url(detail_href)
-            session_id = self._extract_session_id(detail_url)
+            if detail_href:
+                detail_url = self._absolute_url(detail_href)
+                session_id = self._extract_session_id(detail_url)
+            else:
+                session_id = None
+                if include_planned:
+                    for calendar_link in row.select("td.sitermin a[href]"):
+                        parsed_link = urlparse(calendar_link['href'])
+                        if parsed_link.path.rsplit('/', 1)[-1].lower() != 'yvcs.asp':
+                            continue
+                        key = parse_qs(parsed_link.query).get('key', [''])[0]
+                        if key.isdecimal():
+                            session_id = key
+                            break
+                if session_id is None:
+                    LOGGER.debug("Skipping event %s without detail link or calendar ID", title)
+                    continue
+                detail_url = ""
 
             day_tag = row.select_one("span.weekday")
             session_date = self._parse_day_value(day_tag.get_text(strip=True) if day_tag else None, year, month)

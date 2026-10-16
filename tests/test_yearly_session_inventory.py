@@ -121,6 +121,52 @@ def test_upcoming_local_fallback_does_not_create_online_database(inventory_works
     assert not online.exists()
 
 
+def test_online_build_keeps_calendar_only_meeting_and_later_imports_agenda(inventory_workspace, monkeypatch):
+    from dataclasses import replace
+    from datetime import datetime, timezone
+    from scripts.build_online_index_db import build_session_db
+    from src.fetching import SessionNetClient
+    from src.fetching.models import AgendaItem, SessionDetail
+
+    raw, local, online = inventory_workspace
+    html = Path('tests/fixtures/si0040_oct2026_planned.html').read_text(encoding='utf-8')
+    client = SessionNetClient(persist_raw=False)
+    [planned] = client._parse_overview(html, 2026, 10, include_planned=True)
+    references = [planned]
+
+    def fetch_month(self, year, month, *, include_planned=False):
+        assert include_planned
+        return references
+
+    fetched = []
+
+    def fetch_session(self, reference):
+        assert reference.detail_url
+        fetched.append(reference.session_id)
+        return SessionDetail(reference, [AgendaItem('1', 'Eröffnung')],
+                             datetime.now(timezone.utc), '')
+
+    monkeypatch.setattr(SessionNetClient, 'fetch_month', fetch_month)
+    monkeypatch.setattr(SessionNetClient, 'fetch_session', fetch_session)
+
+    def build():
+        build_session_db(client, 2026, [10], online, False, False, local)
+
+    build()
+    build()
+    assert fetched == []
+    [session] = dashboard_session_groups([], date(2026, 10, 16))['upcoming_sessions']
+    assert session['session_id'] == '7165'
+    assert session['display_date'] == '28.10.2026'
+    assert session['local_present'] is False
+    references[:] = [replace(planned, detail_url='https://session.melle.info/bi/si0057.asp?__ksinr=7165')]
+    build()
+    build()
+    assert fetched == ['7165']
+    with sqlite3.connect(online) as connection:
+        assert connection.execute('SELECT title FROM agenda_items').fetchall() == [('Eröffnung',)]
+
+
 def _client():
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'web.settings')
     import django

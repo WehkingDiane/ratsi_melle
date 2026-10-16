@@ -140,7 +140,10 @@ maskiert.
 Der lokale Index-Build behandelt `session_detail.html` als kanonische Quelle und übernimmt daraus abweichende TOP- und Dokumentmetadaten direkt in den SQLite-Index. `agenda_summary.json`, `manifest.json` und andere Rohdaten bleiben dabei unverändert; bereits vorhandene Dateien werden im Index wieder ihren Dokumentlinks zugeordnet. Berücksichtigt werden nur SessionNet-Sitzungsordner unter `data/raw/YYYY/MM/`; Landkreis-Rohdaten bleiben getrennt. Auch der Online-Index-Build verändert keine Dateien unter `data/raw/`.
 
 Das Dashboard zeigt vor den letzten Sitzungen die nächsten fünf bekannten
-Termine ab heute aus dem Online-Index und dem lokalen Bestand. Über
+Termine ab heute aus dem Online-Index und dem lokalen Bestand. Der Online-Build
+erfasst auch angekündigte Termine ohne veröffentlichte Tagesordnung über ihre
+Kalender-ID. Sobald ein Detaillink erscheint, übernimmt der nächste Online-Build
+die Tagesordnung auch ohne „Bestehende Sitzungen aktualisieren“. Über
 „Datenstatus nach Jahr“ beziehungsweise „Details nach Jahr“ im Datenbereich
 öffnet sich `/daten/status/details/`: Rohdaten, lokaler und Online-Index werden
 je Jahr mit Dokumentanzahlen und aufklappbaren Sitzungslisten verglichen.

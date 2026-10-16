@@ -10,6 +10,23 @@ if str(REPO_ROOT) not in sys.path:  # pragma: no branch - test safety
 from src.fetching.sessionnet_client import SessionNetClient
 
 
+def test_calendar_only_meeting_is_available_to_online_index_but_not_downloader(tmp_path):
+    html = Path('tests/fixtures/si0040_oct2026_planned.html').read_text(encoding='utf-8')
+    client = SessionNetClient(storage_root=tmp_path)
+    assert client._parse_overview(html, 2026, 10) == []
+    [session] = client._parse_overview(html, 2026, 10, include_planned=True)
+    assert session.session_id == '7165'
+    assert session.date == date(2026, 10, 28)
+    assert session.meeting_name == 'Rat der Stadt Melle'
+    assert session.start_time.replace('\xa0', ' ') == '16:30 Uhr'
+    assert session.location == 'Forum Melle am Kurpark, Mühlenstraße 39a, 49324 Melle'
+    assert session.detail_url == ''
+    for invalid_key in ('', 'unbekannt'):
+        assert client._parse_overview(
+            html.replace('key=7165', f'key={invalid_key}'), 2026, 10, include_planned=True,
+        ) == []
+
+
 def test_parse_month_page_extracts_events(tmp_path):
     html = Path("tests/fixtures/si0040_oct2025.html").read_text(encoding="utf-8")
     client = SessionNetClient(storage_root=tmp_path)
