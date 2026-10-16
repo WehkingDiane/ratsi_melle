@@ -111,6 +111,99 @@
   grid-template-columns: minmax(230px, 0.34fr) minmax(0, 1fr);
 }
 
+/* The dashboard keeps calendar sections in a single desktop column. */
+.dashboard-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.dashboard-heading {
+  margin-bottom: 0;
+}
+
+.dashboard-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 18px;
+}
+
+.dashboard-session-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.dashboard-session-table th:first-child {
+  width: 18%;
+}
+
+.dashboard-session-table th:nth-child(2) {
+  width: 27%;
+}
+
+.dashboard-session-table th:nth-child(3) {
+  width: 12%;
+}
+
+.dashboard-session-table th:nth-child(4) {
+  width: 25%;
+}
+
+.dashboard-session-table td:nth-child(3) {
+  white-space: nowrap;
+}
+
+.dashboard-date time,
+.dashboard-relative {
+  display: block;
+}
+
+.dashboard-date time,
+.dashboard-meeting {
+  font-weight: 700;
+}
+
+.dashboard-relative {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.dashboard-relative-today {
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.dashboard-today {
+  background: #eef4ff;
+}
+
+.dashboard-summary dl {
+  margin: 0 0 16px;
+}
+
+.dashboard-summary dl > div {
+  display: flex;
+  gap: 24px;
+  padding: 6px 0;
+}
+
+.dashboard-summary dt {
+  color: var(--muted);
+  width: 240px;
+  flex-shrink: 0;
+}
+
+.dashboard-summary dd {
+  margin: 0;
+}
+
+.dashboard-summary > p:last-child {
+  margin-bottom: 0;
+}
+
 .section-title {
   align-items: center;
   display: flex;

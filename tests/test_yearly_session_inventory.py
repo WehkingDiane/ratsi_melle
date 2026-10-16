@@ -121,6 +121,39 @@ def test_upcoming_local_fallback_does_not_create_online_database(inventory_works
     assert not online.exists()
 
 
+def test_dashboard_uses_online_calendar_for_both_groups_and_moved_dates(inventory_workspace):
+    raw, local, online = inventory_workspace
+    _database(online, [('1', '2026-10-28', 'Verschobener Rat'),
+                       ('2', '2026-10-15', 'Nur online bekannt'),
+                       ('3', '2026-10-16', 'Heute'), ('4', '2026-10-17', 'Morgen')])
+    local_sessions = [{'session_id': '1', 'date': '2026-10-14', 'meeting_name': 'Alter Termin'},
+                      {'session_id': '5', 'date': '2026-10-13', 'meeting_name': 'Lokale Ergänzung'}]
+    result = dashboard_session_groups(local_sessions, date(2026, 10, 16))
+    assert [s['session_id'] for s in result['upcoming_sessions']] == ['3', '4', '1']
+    assert [s['relative_date'] for s in result['upcoming_sessions']] == ['Heute', 'Morgen', 'in 12 Tagen']
+    assert [s['session_id'] for s in result['recent_sessions']] == ['2', '5']
+    assert [s['relative_date'] for s in result['recent_sessions']] == ['Gestern', 'vor 3 Tagen']
+    assert result['upcoming_sessions'][2]['local_present']
+    assert not result['recent_sessions'][0]['local_present']
+    assert result['upcoming_sessions'][2]['meeting_name'] == 'Verschobener Rat'
+    assert local_sessions[0]['date'] == '2026-10-14'
+
+
+def test_dashboard_handles_year_boundary_and_sorts_by_time(inventory_workspace):
+    sessions = [
+        {'session_id': '1', 'date': '2027-01-01', 'start_time': '19:00 Uhr'},
+        {'session_id': '2', 'date': '2027-01-01', 'start_time': '9:00 Uhr'},
+        {'session_id': '3', 'date': '2026-12-31'},
+        {'session_id': '4', 'date': '2026-12-30'},
+        {'session_id': '5', 'date': 'kein Datum'},
+    ]
+    result = dashboard_session_groups(sessions, date(2027, 1, 1))
+    assert [s['session_id'] for s in result['upcoming_sessions']] == ['2', '1']
+    assert [s['session_id'] for s in result['recent_sessions']] == ['3', '4']
+    assert all(s['is_today'] for s in result['upcoming_sessions'])
+    assert result['recent_sessions'][0]['relative_date'] == 'Gestern'
+
+
 def test_online_build_keeps_calendar_only_meeting_and_later_imports_agenda(inventory_workspace, monkeypatch):
     from dataclasses import replace
     from datetime import datetime, timezone
@@ -205,9 +238,38 @@ def test_dashboard_renders_upcoming_before_recent_without_dead_local_link(invent
     response = _client().get('/')
     assert response.status_code == 200
     content = response.content.decode()
-    assert content.index('Nächste Sitzungen') < content.index('Letzte Sitzungen')
+    assert content.index('Kommende Sitzungen') < content.index('Vergangene Sitzungen') < content.index('Datenstatus</h2>')
     assert 'Kommender Ortsrat' in content and 'Vergangener Rat' in content
-    assert 'Noch nicht lokal indexiert' in content
+    assert 'Noch keine Unterlagen verknüpft' in content
     soup = BeautifulSoup(content, 'html.parser')
-    upcoming = next(section for section in soup.select('section') if section.find('h2', string='Nächste Sitzungen'))
+    upcoming = soup.select_one('section[aria-labelledby="upcoming-heading"]')
     assert not upcoming.select('a[href*="/sitzungen/2"]')
+    main = soup.select_one('main')
+    assert not main.select('.area-card, .split-content, .two-columns')
+    assert 'Analyse öffnen' not in main.get_text()
+    assert 'data/db/' not in main.get_text()
+    assert upcoming.select_one('time')['datetime'] == '2026-10-07'
+    assert 'in 3 Tagen' in upcoming.get_text()
+
+
+def test_dashboard_links_public_details_for_online_only_past_meeting(inventory_workspace, monkeypatch):
+    from core import views
+    raw, local, online = inventory_workspace
+    _database(online, [('1', '2026-10-15', 'Letzter Rat'), ('2', '2026-10-14', 'Ungültiger Link')])
+    with sqlite3.connect(online) as connection:
+        connection.execute('ALTER TABLE sessions ADD COLUMN detail_url TEXT')
+        connection.execute('UPDATE sessions SET detail_url = ? WHERE session_id = ?',
+                           ('https://session.melle.info/bi/si0057.asp?__ksinr=1', '1'))
+        connection.execute('UPDATE sessions SET detail_url = ? WHERE session_id = ?',
+                           ('javascript:alert(1)', '2'))
+    monkeypatch.setattr(views.timezone, 'localdate', lambda: date(2026, 10, 16))
+    monkeypatch.setattr(views.analysis_services, 'source_overview', lambda: {})
+    monkeypatch.setattr(views.analysis_services, 'list_sessions', lambda: [])
+    response = _client().get('/')
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.content, 'html.parser')
+    past = soup.select_one('section[aria-labelledby="past-heading"]')
+    assert 'Letzter Rat' in past.get_text()
+    assert past.select_one('a')['href'] == 'https://session.melle.info/bi/si0057.asp?__ksinr=1'
+    assert not past.select('a[href*="/sitzungen/"]')
+    assert not past.select('a[href^="javascript:"]')

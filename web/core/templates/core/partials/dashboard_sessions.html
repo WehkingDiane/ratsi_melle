@@ -1,0 +1,29 @@
+{% if sessions %}
+<div class="table-wrap">
+  <table class="dashboard-session-table">
+    <thead>
+      <tr><th scope="col">Termin</th><th scope="col">Sitzung / Gremium</th><th scope="col">Uhrzeit</th><th scope="col">Ort</th><th scope="col">Unterlagen</th></tr>
+    </thead>
+    <tbody>
+      {% for session in sessions %}
+      <tr{% if session.is_today %} class="dashboard-today"{% endif %}>
+        <td class="dashboard-date">
+          <time datetime="{{ session.calendar_date|date:'Y-m-d' }}">{{ session.calendar_date|date:"D, d.m.Y" }}</time>
+          <span class="dashboard-relative{% if session.is_today %} dashboard-relative-today{% endif %}">{{ session.relative_date }}</span>
+        </td>
+        <td class="dashboard-meeting">{{ session.meeting_name }}</td>
+        <td>{{ session.start_time|default:"Noch offen" }}</td>
+        <td>{{ session.location|default:"Noch offen" }}</td>
+        <td>
+          {% if session.local_present %}<a href="{% url 'analysis:session_detail' session.session_id %}">Unterlagen öffnen</a>
+          {% elif session.public_url %}<a href="{{ session.public_url }}">Im Ratsinfo ansehen</a>
+          {% else %}<span class="muted">Noch keine Unterlagen verknüpft</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="empty-state">{{ empty_message }}</p>
+{% endif %}

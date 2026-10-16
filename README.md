@@ -139,12 +139,23 @@ maskiert.
 
 Der lokale Index-Build behandelt `session_detail.html` als kanonische Quelle und übernimmt daraus abweichende TOP- und Dokumentmetadaten direkt in den SQLite-Index. `agenda_summary.json`, `manifest.json` und andere Rohdaten bleiben dabei unverändert; bereits vorhandene Dateien werden im Index wieder ihren Dokumentlinks zugeordnet. Berücksichtigt werden nur SessionNet-Sitzungsordner unter `data/raw/YYYY/MM/`; Landkreis-Rohdaten bleiben getrennt. Auch der Online-Index-Build verändert keine Dateien unter `data/raw/`.
 
-Das Dashboard zeigt vor den letzten Sitzungen die nächsten fünf bekannten
-Termine ab heute aus dem Online-Index und dem lokalen Bestand. Der Online-Build
+Das Dashboard ist für den Desktop als durchgehende Spalte aufgebaut:
+„Kommende Sitzungen“, „Vergangene Sitzungen“, danach ein kompakter Datenstatus.
+Beide Listen zeigen jeweils fünf bekannte Kalendertermine aus dem Online-Index
+und ergänzend dem lokalen Bestand, unabhängig von lokal verfügbaren Unterlagen.
+Kommende Termine beginnen heute und sind aufsteigend sortiert; vergangene Termine
+liegen vor heute und zeigen den jüngsten zuerst. Maßgeblich ist das heutige Datum
+in Europe/Berlin; heutige Sitzungen bleiben den ganzen Tag unter „Kommende Sitzungen“.
+Wochentag, Datum und relative Angaben wie „Heute“ oder „in 3 Tagen“ helfen bei der
+Einordnung. Bei verschobenen Terminen hat das Datum aus dem Online-Index Vorrang.
+Lokale Unterlagen und veröffentlichte Ratsinfo-Details werden passend verlinkt.
+Der Online-Index ist ein gespeicherter Kalenderstand, kein Live-Abruf beim Öffnen
+des Dashboards. Änderungen bestehender Termine werden über „Daten → Build“ mit
+„Bestehende Sitzungen aktualisieren“ übernommen. Der Online-Build
 erfasst auch angekündigte Termine ohne veröffentlichte Tagesordnung über ihre
 Kalender-ID. Sobald ein Detaillink erscheint, übernimmt der nächste Online-Build
 die Tagesordnung auch ohne „Bestehende Sitzungen aktualisieren“. Über
-„Datenstatus nach Jahr“ beziehungsweise „Details nach Jahr“ im Datenbereich
+„Datenstatus nach Jahr“ im Datenmenü beziehungsweise „Details nach Jahr“ im Datenbereich
 öffnet sich `/daten/status/details/`: Rohdaten, lokaler und Online-Index werden
 je Jahr mit Dokumentanzahlen und aufklappbaren Sitzungslisten verglichen.
 Alle vorhandenen Jahre bleiben sichtbar, auch vor August 2021. Die Ansicht

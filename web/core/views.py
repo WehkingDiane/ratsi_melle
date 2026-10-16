@@ -11,8 +11,8 @@ from core.services.session_inventory import dashboard_session_groups
 
 def dashboard(request):
     overview = analysis_services.source_overview()
-    meetings = dashboard_session_groups(analysis_services.list_sessions(), timezone.localdate())
-    recent_jobs = analysis_services.list_analysis_outputs()[:5]
+    today = timezone.localdate()
+    meetings = dashboard_session_groups(analysis_services.list_sessions(), today)
     return render(
         request,
         "core/dashboard.html",
@@ -20,6 +20,6 @@ def dashboard(request):
             "active_nav": "dashboard",
             "overview": overview,
             **meetings,
-            "recent_jobs": recent_jobs,
+            "today": today,
         },
     )
