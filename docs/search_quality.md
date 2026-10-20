@@ -62,7 +62,10 @@ python scripts/build_vector_index.py --batch-size 4
 
 Seit 0.5.59 ergaenzt der normale Build ausschliesslich fehlende oder unvollstaendige
 Dokumente. Ein Dokument gilt als vorhanden, wenn mindestens eine vollstaendig
-bestaetigte Generation mit allen Abschnittspositionen vorliegt. Vollstaendige
+bestaetigte Generation mit einheitlicher Abschnittszahl und allen eindeutigen
+Abschnittspositionen vorliegt. Die Service-Aktualisierung verwendet dieselbe
+Vollstaendigkeitsregel und baut strukturell unvollstaendige Generationen auch
+bei unveraendertem Fingerprint neu auf. Vollstaendige
 Dokumente werden vor Dateizugriff und Fingerprint-Berechnung uebersprungen.
 Ein veraenderter SQLite-Zeilenschluessel, Dateiinhalt oder Metadatensatz fuehrt
 dadurch nicht mehr zu einem unbeabsichtigten Neuaufbau.
@@ -89,7 +92,11 @@ python scripts/update_vector_index.py --cleanup-orphans
 
 Die Pruefung liest Modellartefakte tief, kontrolliert Vertrag und vorhandene
 Vektoren und meldet Vollstaendigkeit, verwaiste Dokumente und unbestaetigte
-Abschnitte. Sie schreibt weder Vektoren noch Freigabemarker und berechnet keine
+Abschnitte. Verwaiste Dokumente werden anhand aller gueltigen Dokument-IDs
+gezaehlt, auch bei unvollstaendigen oder unbestaetigten Generationen; fuer die
+Abdeckung zaehlen dagegen nur vollstaendige Dokumente. Das gilt ebenso fuer
+den Aufbaufortschritt auf der Vektorseite. Die Pruefung schreibt weder Vektoren
+noch Freigabemarker und berechnet keine
 Embeddings zum Vergleich neu. Eine Inhaltsaktualisierung vergleicht dagegen die
 Datei-/Metadaten-Fingerprints und ersetzt geaenderte Generationen. `--refresh`
 erzwingt die Neuberechnung auch ohne Aenderung. Abweichende Modellvertraege
@@ -218,6 +225,12 @@ Collection-Namen.
 Normale Builds speichern `validation_mode: payload` mit `payload_sha256`: einen
 stabilen Hash aus Punkt-IDs, Modellvertraegen und kompakten Abschnittsmetadaten.
 Numerische Bestandsvektoren sind darin bewusst nicht enthalten. Die Suche
+und der normale Build pruefen einen bestehenden freigegebenen Payload-Hash.
+Auch bei unveraenderter Punktzahl wird ein abweichender Metadatenbestand vor
+dem ersten Schreibzugriff abgelehnt; der Build ersetzt einen solchen Marker
+nicht durch eine neue Freigabe. Bei noch ausstehenden Builds gilt diese
+Bindung nicht, damit angefangene Generationen fortgesetzt werden koennen.
+Die Suche
 beruecksichtigt diesen Modus; strikte bestehende Marker und Service-Builds nutzen
 weiterhin `vectors_sha256`. Eine solche Bestandspruefung ist keine Garantie fuer
 inhaltlich richtige Embeddings; fuer gezielte Diagnose gibt es den separaten

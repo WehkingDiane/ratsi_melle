@@ -8,7 +8,7 @@ from typing import Any
 
 from src.config.settings import QdrantSettingsError
 from src.indexing.id_strategy import stable_document_id
-from src.indexing.passage_inventory import INVENTORY_FIELDS, complete_document_ids
+from src.indexing.passage_inventory import INVENTORY_FIELDS, complete_document_ids, indexed_document_ids
 from src.qdrant_connection import QdrantConnection, collection_state
 from src.paths import LANDKREIS_PUBLICATIONS_DB, LOCAL_INDEX_DB, QDRANT_DIR
 
@@ -82,10 +82,11 @@ def vector_index_status(
             status["coverage_percent"] = 100.0
 
     build_ids = status.pop("_build_complete_ids", None)
+    build_all_ids = status.pop("_build_all_ids", None)
     if current_ids is not None and build_ids is not None:
         status["build_complete_document_count"] = len(current_ids & build_ids)
         status["build_missing_document_count"] = len(current_ids - build_ids)
-        status["build_orphaned_document_count"] = len(build_ids - current_ids)
+        status["build_orphaned_document_count"] = len(build_all_ids - current_ids)
         status["build_coverage_percent"] = round(100 * len(current_ids & build_ids) / len(current_ids), 1) if current_ids else 100.0
 
     if status["status"] == "unknown":
@@ -308,6 +309,7 @@ def _read_qdrant_ids(
                     if offset is None:
                         break
             status["_build_complete_ids"] = complete_document_ids(payloads)
+            status["_build_all_ids"] = indexed_document_ids(payloads)
             status["build_passage_count"] = len(payloads)
         selection = collection_state(connection, client, collection_name)
         collection_name = selection["collection_name"]
@@ -330,7 +332,7 @@ def _read_qdrant_ids(
 
         if passage_mode and "_build_complete_ids" in status:
             indexed_ids = status["_build_complete_ids"]
-            parents = {p.get("document_id") for p in payloads.values() if type(p.get("document_id")) is int}
+            parents = status["_build_all_ids"]
             status["indexed_vector_count"] = status["build_passage_count"]
             status["indexed_document_count"] = len(indexed_ids)
             status["incomplete_document_count"] = len(parents - indexed_ids)

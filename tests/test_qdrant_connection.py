@@ -426,6 +426,47 @@ def test_service_check_reads_vectors_without_modifying_index_or_marker(tmp_path,
     assert remote.retrieve("ratsi_passages", [1], with_vectors=True) == before
 
 
+@pytest.mark.integration
+@pytest.mark.parametrize("committed", [True, False])
+def test_status_and_service_check_count_incomplete_orphan_documents(
+    tmp_path, monkeypatch, remote, compatibility, capsys, committed,
+):
+    from scripts import check_vector_index
+    from src.indexing.id_strategy import stable_document_id
+    from src.indexing.vector_status import vector_index_status
+    from test_vector_status import _write_local_index
+    db = tmp_path / "input.sqlite"
+    _write_local_index(db)
+    directory = tmp_path / "unused"
+    store = DocumentVectorStore(directory, "ratsi_passages")
+    store.begin_build(compatibility, validate_vectors=False)
+    present = point(compatibility=compatibility)
+    present["payload"]["document_id"] = stable_document_id("7123", "https://example.test/1", "Oe 7")
+    orphan = point(2, committed=committed, compatibility=compatibility)
+    orphan["payload"].update(document_id=99, chunk_count=2)
+    store.upsert_batch([present, orphan])
+    before = remote.retrieve("ratsi_passages", [1, 2], with_vectors=True)
+    marker = store.connection.ready_path.read_bytes()
+    monkeypatch.setattr(check_vector_index, "current_index_compatibility", lambda **kwargs: compatibility)
+    try:
+        status = vector_index_status(db, directory)
+        assert status["build_complete_document_count"] == 1
+        assert status["build_missing_document_count"] == 1
+        assert status["build_orphaned_document_count"] == 1
+        assert status["build_coverage_percent"] == 50.0
+        assert "_build_all_ids" not in status
+        check_vector_index.main(["--db", str(db), "--qdrant-dir", str(directory)])
+        result = json.loads(capsys.readouterr().out)
+        assert result["orphaned_documents"] == 1
+        assert result["complete_documents"] == 1
+        assert result["missing_documents"] == 1
+        assert result["uncommitted_passages"] == (0 if committed else 1)
+        assert store.connection.ready_path.read_bytes() == marker
+        assert remote.retrieve("ratsi_passages", [1, 2], with_vectors=True) == before
+    finally:
+        store.close()
+
+
 def test_server_status_unreachable_is_distinct(tmp_path, monkeypatch):
     from src.indexing.vector_status import vector_index_status
     monkeypatch.setenv("RATSI_QDRANT_URL", "http://test.invalid:6333")

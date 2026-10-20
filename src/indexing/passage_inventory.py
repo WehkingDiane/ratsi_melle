@@ -10,6 +10,11 @@ INVENTORY_FIELDS = [
 ]
 
 
+def indexed_document_ids(payloads: dict) -> set[int]:
+    """Return all valid parent IDs, including incomplete/uncommitted documents."""
+    return {p["document_id"] for p in payloads.values() if type(p.get("document_id")) is int}
+
+
 def complete_document_ids(payloads: dict) -> set[int]:
     """Find documents with at least one fully committed passage generation."""
     groups = defaultdict(list)

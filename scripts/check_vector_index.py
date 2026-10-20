@@ -14,7 +14,7 @@ from src.analysis.vector_store import DocumentVectorStore
 from src.config.index_compatibility import current_index_compatibility
 from src.indexing.build_compatibility import check_build_compatibility
 from src.indexing.id_strategy import stable_document_id
-from src.indexing.passage_inventory import complete_document_ids
+from src.indexing.passage_inventory import complete_document_ids, indexed_document_ids
 from src.indexing.passages import COLLECTION
 from src.paths import LOCAL_INDEX_DB, QDRANT_DIR
 
@@ -47,7 +47,7 @@ def main(argv=None):
         print(json.dumps({
             "collection": COLLECTION, "points": snapshot[0], "vectors_sha256": snapshot[1],
             "complete_documents": len(expected & complete), "missing_documents": len(expected - complete),
-            "orphaned_documents": len(complete - expected),
+            "orphaned_documents": len(indexed_document_ids(inventory) - expected),
             "uncommitted_passages": sum(p.get("committed") is not True for p in inventory.values()),
             "ready": store.connection.passages_ready(client), "read_only": True,
         }, ensure_ascii=False))
