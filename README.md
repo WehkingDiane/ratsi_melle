@@ -142,13 +142,22 @@ maskiert.
 `fetch_session_from_index.py` nutzt `data/db/online_session_index.sqlite` als Auswahlquelle. Damit kann eine einzelne Sitzung anhand ihrer `session_id` nach `data/raw/` geladen werden, ohne die Monatsübersicht erneut komplett abzuarbeiten.
 
 Bei SessionNet-Sitzungen vor dem heutigen Datum mit veroeffentlichtem Protokoll
-oder Beschlussuebersicht werden vorhandene, nicht leere Dokumentdateien ohne
-HEAD- oder erneuten PDF-Abruf wiederverwendet. Eine bekannte Dateilaenge muss
+oder Beschlussuebersicht werden vorhandene Dateien einmal zum erkannten Abschluss
+abgeglichen. Erst danach werden sie ohne HEAD- oder erneuten PDF-Abruf
+wiederverwendet. Fehlen verlaessliche Serverangaben, ist fuer diesen Abgleich ein
+erneuter Download erforderlich. Eine bekannte Dateilaenge muss
 mit dem lokalen Bestand uebereinstimmen. Die Zuordnung erfolgt innerhalb der
 Sitzung ueber die Dokument-URL (Manifest oder eindeutiger URL-Hash im Dateinamen),
 nicht allein ueber den Titel. Detailseiten werden weiterhin abgerufen; neue und
 fehlende Dateien werden nachgeladen. Fuer heutige, kommende oder noch nicht als
 abgeschlossen erkennbare Sitzungen bleibt die bisherige Serverpruefung aktiv.
+
+Das Sitzungsmanifest speichert `completion_detected_at` und pro Dokument
+`downloaded_at` sowie `verified_at`. Einen bekannten Downloadzeitpunkt darfst du
+in `documents[].downloaded_at` manuell als ISO-8601-Wert mit Zeitzone nachtragen,
+zum Beispiel `"2026-10-20T14:30:00+02:00"`. Ein Nachtrag ersetzt keinen bestaetigten
+Abschlussabgleich; `verified_at` und `completion_detected_at` werden vom Fetcher
+verwaltet. Bei unbekanntem Downloadzeitpunkt bleibt `downloaded_at` leer (`null`).
 
 Ein bewusster erneuter Dokumentabruf ist ueber die CLI moeglich:
 

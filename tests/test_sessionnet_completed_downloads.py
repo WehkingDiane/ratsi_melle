@@ -1,20 +1,20 @@
 """Completed sessions reuse local files while still discovering missing documents."""
 
 from dataclasses import replace
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from hashlib import sha1
 import json
 
 import pytest
 
 from src.fetching.models import AgendaItem, DocumentReference, SessionDetail, SessionReference
-from src.fetching.sessionnet_client import SessionNetClient
+from src.fetching.sessionnet_client import FetchingError, SessionNetClient
 
 
 pytestmark = pytest.mark.integration
 
 
-def _detail(*, category="PR", days_ago=1):
+def _detail(*, category="PR", days_ago=2):
     reference = SessionReference(
         committee="Rat", meeting_name="Rat", session_id="1234",
         date=date.today() - timedelta(days=days_ago), start_time=None,
@@ -24,7 +24,7 @@ def _detail(*, category="PR", days_ago=1):
     return SessionDetail(reference, [], datetime.now(), "", [document])
 
 
-def _seed(client, detail, *, content=b"%PDF-existing", record=True):
+def _seed(client, detail, *, content=b"%PDF-existing", record=True, checked=True):
     directory = client._build_session_directory(detail.reference)
     document = detail.session_documents[0]
     path = directory / client._normalise_filename(document, index=1, extension=".pdf")
@@ -32,9 +32,14 @@ def _seed(client, detail, *, content=b"%PDF-existing", record=True):
     entry = client._build_manifest_entry(
         document=document, path=path, headers={"ETag": '"original"', "Content-Type": "application/pdf"},
         sha1=sha1(content).hexdigest(), target_dir=directory,
+        downloaded_at="2020-01-01T10:00:00Z",
+        verified_at=client._format_timestamp(datetime.now(UTC) - timedelta(minutes=1)) if checked else None,
     )
     if record:
-        client._write_manifest(directory, detail, [entry])
+        client._write_manifest(
+            directory, detail, [entry],
+            completion_detected_at=client._format_timestamp(datetime.now(UTC) - timedelta(minutes=2)) if checked else None,
+        )
     return path
 
 
@@ -65,20 +70,29 @@ def test_completed_session_reuses_file_without_head_or_get(tmp_path, monkeypatch
     assert path.stat().st_mtime_ns == modified
     manifest = json.loads((path.parent / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["documents"][0]["etag"] == '"original"'
+    assert manifest["documents"][0]["downloaded_at"] == "2020-01-01T10:00:00Z"
 
 
-def test_completed_session_recovers_file_without_manifest_and_ignores_renamed_title(tmp_path, monkeypatch):
+def test_completed_session_recovers_file_without_manifest_but_rechecks_it(tmp_path, monkeypatch):
     detail = _detail()
     client = SessionNetClient(storage_root=tmp_path)
     path = _seed(client, detail, record=False)
     detail.session_documents[0].title = "Protokoll öffentlich (1)"
-    monkeypatch.setattr(SessionNetClient, "_request", lambda *a, **kw: pytest.fail("Unexpected request"))
+    calls = []
+
+    def request(self, method, url, **kwargs):
+        calls.append(method)
+        return _Response()
+
+    monkeypatch.setattr(SessionNetClient, "_request", request)
 
     client.download_documents(detail)
 
     manifest = json.loads((path.parent / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["documents"][0]["title"] == "Protokoll öffentlich (1)"
     assert manifest["documents"][0]["path"] == path.name
+    assert calls == ["HEAD", "GET"]
+    assert manifest["documents"][0]["downloaded_at"] is not None
 
 
 def test_completed_session_reuses_url_after_top_and_title_change(tmp_path, monkeypatch):
@@ -163,3 +177,152 @@ def test_completed_session_downloads_missing_invalid_new_or_forced_documents(tmp
     assert (directory / manifest["documents"][0]["path"]).read_bytes() == b"%PDF-new"
     if state == "new_url":
         assert path.read_bytes() == b"%PDF-existing"
+
+
+@pytest.mark.parametrize("unchanged", [True, False])
+def test_first_completion_rechecks_previously_downloaded_file_once(tmp_path, monkeypatch, unchanged):
+    detail = _detail()
+    client = SessionNetClient(storage_root=tmp_path)
+    path = _seed(client, detail, checked=False)
+    calls = []
+
+    def request(self, method, url, **kwargs):
+        calls.append(method)
+        response = _Response()
+        response.headers = {"ETag": '"original"' if unchanged else '"new"'}
+        return response
+
+    monkeypatch.setattr(SessionNetClient, "_request", request)
+    client.download_documents(detail)
+
+    first = json.loads((path.parent / "manifest.json").read_text(encoding="utf-8"))
+    assert calls == (["HEAD"] if unchanged else ["HEAD", "GET"])
+    assert first["documents"][0]["verified_at"] >= first["completion_detected_at"]
+    if unchanged:
+        assert first["documents"][0]["downloaded_at"] == "2020-01-01T10:00:00Z"
+    else:
+        assert path.read_bytes() == b"%PDF-new"
+        assert first["documents"][0]["downloaded_at"] != "2020-01-01T10:00:00Z"
+    calls.clear()
+    client.download_documents(detail)
+    second = json.loads((path.parent / "manifest.json").read_text(encoding="utf-8"))
+    assert calls == []
+    assert second["completion_detected_at"] == first["completion_detected_at"]
+    assert second["documents"][0]["downloaded_at"] == first["documents"][0]["downloaded_at"]
+    assert second["documents"][0]["verified_at"] == first["documents"][0]["verified_at"]
+
+
+@pytest.mark.parametrize("verified", [None, "invalid", "2020-01-01T10:00:00", "2020-01-01T10:00:00Z", "2999-01-01T10:00:00Z"])
+def test_manual_download_date_does_not_bypass_completion_check(tmp_path, monkeypatch, verified):
+    detail = _detail()
+    client = SessionNetClient(storage_root=tmp_path)
+    path = _seed(client, detail)
+    manifest_path = path.parent / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    entry = manifest["documents"][0]
+    entry["downloaded_at"] = client._format_timestamp(datetime.now(UTC))
+    entry["verified_at"] = verified
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    calls = []
+
+    def request(self, method, url, **kwargs):
+        calls.append(method)
+        response = _Response()
+        response.headers = {"ETag": '"original"'}
+        return response
+
+    monkeypatch.setattr(SessionNetClient, "_request", request)
+    client.download_documents(detail)
+
+    assert calls == ["HEAD"]
+    updated = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert updated["documents"][0]["downloaded_at"] == entry["downloaded_at"]
+
+
+def test_failed_completion_check_retains_metadata_and_retries_without_stale_cache(tmp_path, monkeypatch):
+    detail = _detail()
+    client = SessionNetClient(storage_root=tmp_path)
+    path = _seed(client, detail, checked=False)
+    calls = []
+
+    def failing_request(self, method, url, **kwargs):
+        calls.append(method)
+        raise FetchingError("offline")
+
+    monkeypatch.setattr(SessionNetClient, "_request", failing_request)
+    client.download_documents(detail)
+    manifest_path = path.parent / "manifest.json"
+    failed = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert failed["documents"][0]["downloaded_at"] == "2020-01-01T10:00:00Z"
+    assert failed["documents"][0]["verified_at"] is None
+    assert path.read_bytes() == b"%PDF-existing"
+
+    def successful_request(self, method, url, **kwargs):
+        calls.append(method)
+        return _Response()
+
+    calls.clear()
+    monkeypatch.setattr(SessionNetClient, "_request", successful_request)
+    client.download_documents(detail)
+    assert calls == ["HEAD", "GET"]
+    successful = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert successful["completion_detected_at"] == failed["completion_detected_at"]
+    assert successful["documents"][0]["verified_at"] is not None
+
+
+def test_pre_completion_download_is_not_confirmed_by_memory_cache(tmp_path, monkeypatch):
+    detail = _detail(category="VO")
+    client = SessionNetClient(storage_root=tmp_path)
+    calls = []
+
+    def request(self, method, url, **kwargs):
+        calls.append(method)
+        response = _Response()
+        response.headers = {}  # No validators: a fresh GET is needed after completion.
+        return response
+
+    monkeypatch.setattr(SessionNetClient, "_request", request)
+    client.download_documents(detail)
+    detail.session_documents[0].category = "PR"
+    client.download_documents(detail)
+    assert calls == ["GET", "HEAD", "GET"]
+
+
+def test_legacy_download_date_stays_unknown_after_header_verification(tmp_path, monkeypatch):
+    detail = _detail()
+    client = SessionNetClient(storage_root=tmp_path)
+    path = _seed(client, detail, checked=False)
+    manifest_path = path.parent / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    del manifest["documents"][0]["downloaded_at"]
+    del manifest["documents"][0]["verified_at"]
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    def request(self, method, url, **kwargs):
+        assert method == "HEAD"
+        response = _Response()
+        response.headers = {"ETag": '"original"'}
+        return response
+
+    monkeypatch.setattr(SessionNetClient, "_request", request)
+    client.download_documents(detail)
+    updated = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert updated["documents"][0]["downloaded_at"] is None
+    assert updated["documents"][0]["verified_at"] is not None
+
+
+def test_metadata_rebuild_preserves_manually_entered_download_timestamp(tmp_path):
+    detail = _detail()
+    client = SessionNetClient(storage_root=tmp_path)
+    path = _seed(client, detail)
+    manifest_path = path.parent / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    original = manifest["documents"][0]
+    original["downloaded_at"] = "2026-01-12T15:30:00+01:00"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    entries = client.manifest_entries_from_detail(path.parent, detail)
+
+    assert entries[0]["downloaded_at"] == original["downloaded_at"]
+    assert entries[0]["verified_at"] == original["verified_at"]
+    assert json.loads(manifest_path.read_text(encoding="utf-8")) == manifest

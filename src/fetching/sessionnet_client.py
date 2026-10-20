@@ -125,16 +125,25 @@ class SessionNetClient:
         existing_manifest = self._load_manifest(target_dir)
         manifest_entries = []
         sequence = count(1)
-        reuse_local = self._has_published_results(detail) and not force_download
-        if force_download:
-            self._document_cache.clear()
-            self._document_head_cache.clear()
+        download_times: dict[str, str] = {}
+        now = datetime.now(UTC)
+        completed = self._has_published_results(detail)
+        previous_completion = self._load_manifest_payload(target_dir).get("completion_detected_at")
+        completion = self._parse_timestamp(previous_completion)
+        if completion is not None and (completion > now or completion.astimezone().date() <= detail.reference.date):
+            completion = None
+        if completed and completion is None:
+            completion = now
+        completion_detected_at = self._format_timestamp(completion) if completion is not None else None
+        # A previous call's cached response cannot confirm current remote contents.
+        self._document_cache.clear()
+        self._document_head_cache.clear()
 
         def _store_document(document: DocumentReference, scope_dir: Path) -> None:
             scope_dir.mkdir(parents=True, exist_ok=True)
             existing_entry = self._find_existing_manifest_entry(existing_manifest, document)
             existing_path = self._resolve_existing_document_path(target_dir, existing_entry)
-            if reuse_local:
+            if completed:
                 if existing_path is None:
                     existing_entry = next(
                         (entry for entry in existing_manifest if entry.get("url") == document.url), None
@@ -142,7 +151,13 @@ class SessionNetClient:
                     existing_path = self._resolve_existing_document_path(target_dir, existing_entry)
                 if existing_path is None:
                     existing_path = self._find_local_document_by_url_hash(target_dir, document)
-                if existing_path is not None and self._is_complete_local_document(existing_path, existing_entry):
+                verified = self._parse_timestamp((existing_entry or {}).get("verified_at"))
+                if (
+                    not force_download and existing_path is not None
+                    and self._is_complete_local_document(existing_path, existing_entry)
+                    and verified is not None and completion is not None
+                    and completion <= verified <= now
+                ):
                     LOGGER.info("Reusing local document from completed session %s: %s", detail.reference.session_id, document.url)
                     previous = existing_entry or {}
                     headers = {
@@ -155,11 +170,14 @@ class SessionNetClient:
                     manifest_entries.append(self._build_manifest_entry(
                         document=document, path=existing_path, headers=headers,
                         sha1=self._read_sha1(existing_path, existing_entry), target_dir=target_dir,
+                        existing_entry=existing_entry,
                     ))
                     return
             remote_headers = (
                 self._head_document(document)
-                if existing_path is not None and not force_download and not reuse_local
+                if existing_path is not None and not force_download
+                and self._is_complete_local_document(existing_path, existing_entry)
+                and document.url not in self._document_cache
                 else {}
             )
 
@@ -172,6 +190,8 @@ class SessionNetClient:
                         headers=remote_headers or existing_entry or {},
                         sha1=self._read_sha1(existing_path, existing_entry),
                         target_dir=target_dir,
+                        existing_entry=existing_entry,
+                        verified_at=self._format_timestamp(datetime.now(UTC)),
                     )
                 )
                 return
@@ -180,6 +200,11 @@ class SessionNetClient:
                 content, headers = self._fetch_document_payload(document)
             except FetchingError:
                 LOGGER.exception("Failed to download document %s", document.url)
+                if existing_entry is not None:
+                    manifest_entries.append({
+                        **existing_entry, "title": document.title, "category": document.category,
+                        "agenda_item": document.on_agenda_item, "url": document.url,
+                    })
                 return
 
             file_extension = self._detect_extension(document, headers)
@@ -192,6 +217,7 @@ class SessionNetClient:
                 path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(content)
             digest = sha1(content).hexdigest()
+            downloaded_at = download_times.setdefault(document.url, self._format_timestamp(datetime.now(UTC)))
             manifest_entries.append(
                 self._build_manifest_entry(
                     document=document,
@@ -199,6 +225,8 @@ class SessionNetClient:
                     headers=headers,
                     sha1=digest,
                     target_dir=target_dir,
+                    downloaded_at=downloaded_at,
+                    verified_at=downloaded_at,
                 )
             )
 
@@ -214,7 +242,9 @@ class SessionNetClient:
             for document in agenda_item.documents:
                 _store_document(document, agenda_dir)
 
-        self._write_manifest(target_dir, detail, manifest_entries)
+        self._write_manifest(
+            target_dir, detail, manifest_entries, completion_detected_at=completion_detected_at,
+        )
         self.write_agenda_summary(target_dir, detail)
 
     @staticmethod
@@ -237,6 +267,18 @@ class SessionNetClient:
         size = path.stat().st_size
         expected = SessionNetClient._parse_content_length((entry or {}).get("content_length"))
         return size > 0 and (expected is None or expected == size)
+
+    @staticmethod
+    def _parse_timestamp(value: object) -> datetime | None:
+        if not isinstance(value, str):
+            return None
+        try:
+            parsed = datetime.fromisoformat(value)
+            if parsed.tzinfo is None:
+                return None
+            return parsed.astimezone(UTC)
+        except (ValueError, OverflowError):
+            return None
 
     # ------------------------------------------------------------------
     # Parsing helpers
@@ -619,15 +661,16 @@ class SessionNetClient:
                 backoff *= self.retry_backoff
         raise FetchingError(str(last_error)) from last_error
 
-    def _load_manifest(self, session_dir: Path) -> list[dict]:
+    def _load_manifest_payload(self, session_dir: Path) -> dict:
         manifest_path = session_dir / "manifest.json"
-        if not manifest_path.exists():
-            return []
         try:
             payload = json.loads(manifest_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
-            return []
-        documents = payload.get("documents") if isinstance(payload, dict) else None
+            return {}
+        return payload if isinstance(payload, dict) else {}
+
+    def _load_manifest(self, session_dir: Path) -> list[dict]:
+        documents = self._load_manifest_payload(session_dir).get("documents")
         if not isinstance(documents, list):
             return []
         return [entry for entry in documents if isinstance(entry, dict)]
@@ -691,6 +734,9 @@ class SessionNetClient:
         headers: Dict[str, str] | dict,
         sha1: str,
         target_dir: Path,
+        existing_entry: dict | None = None,
+        downloaded_at: str | None = None,
+        verified_at: str | None = None,
     ) -> dict:
         resolved_target_dir = target_dir.resolve(strict=False)
         resolved_path = path.resolve(strict=False)
@@ -706,6 +752,8 @@ class SessionNetClient:
             "content_length": self._parse_content_length(headers.get("Content-Length")) or resolved_path.stat().st_size,
             "etag": headers.get("ETag"),
             "last_modified": headers.get("Last-Modified"),
+            "downloaded_at": downloaded_at if downloaded_at is not None else (existing_entry or {}).get("downloaded_at"),
+            "verified_at": verified_at if verified_at is not None else (existing_entry or {}).get("verified_at"),
         }
 
     @staticmethod
@@ -868,7 +916,10 @@ class SessionNetClient:
 
         return extension or ".bin"
 
-    def _write_manifest(self, session_dir: Path, detail: SessionDetail, documents: List[dict]) -> None:
+    def _write_manifest(
+        self, session_dir: Path, detail: SessionDetail, documents: List[dict],
+        *, completion_detected_at: str | None = None,
+    ) -> None:
         manifest = {
             "session": {
                 "id": detail.reference.session_id,
@@ -881,6 +932,7 @@ class SessionNetClient:
             "retrieved_at": self._format_timestamp(detail.retrieved_at),
             "source_html_sha1": self.source_html_sha1(detail.raw_html),
             "documents": documents,
+            "completion_detected_at": completion_detected_at,
         }
         self._write_json(session_dir / "manifest.json", manifest)
 
@@ -956,6 +1008,8 @@ class SessionNetClient:
                         "content_length": None,
                         "etag": None,
                         "last_modified": None,
+                        "downloaded_at": None,
+                        "verified_at": None,
                     }
                 )
                 continue
@@ -972,6 +1026,7 @@ class SessionNetClient:
                     headers=headers,
                     sha1=self._read_sha1(local_path, existing_entry),
                     target_dir=session_dir,
+                    existing_entry=existing_entry,
                 )
             )
 
