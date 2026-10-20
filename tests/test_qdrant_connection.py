@@ -377,6 +377,55 @@ def test_status_matches_search_fallback_and_missing_collection(tmp_path, remote)
     assert not directory.exists()
 
 
+@pytest.mark.integration
+def test_build_progress_uses_passages_even_before_search_release(tmp_path, remote):
+    from src.indexing.id_strategy import stable_document_id
+    from src.indexing.vector_status import vector_index_status
+    from test_vector_status import _write_local_index
+    db = tmp_path / "source.sqlite"
+    _write_local_index(db)
+    directory = tmp_path / "unused"
+    legacy = DocumentVectorStore(directory)
+    legacy.ensure_collection()
+    legacy.upsert_batch([point(50)])
+    store = DocumentVectorStore(directory, "ratsi_passages")
+    store.ensure_collection()
+    p = point()
+    p["payload"]["document_id"] = stable_document_id("7123", "https://example.test/1", "Oe 7")
+    store.upsert_batch([p])
+    status = vector_index_status(db, directory)
+    assert status["collection_name"] == "ratsi_documents"
+    assert status["build_complete_document_count"] == 1
+    assert status["build_missing_document_count"] == 1
+    assert status["build_coverage_percent"] == 50.0
+    assert status["build_passage_count"] == 1
+
+
+@pytest.mark.integration
+def test_service_check_reads_vectors_without_modifying_index_or_marker(tmp_path, monkeypatch, remote, compatibility, capsys):
+    from scripts import check_vector_index
+    from test_passage_index import document
+    store = DocumentVectorStore(tmp_path / "unused", "ratsi_passages")
+    store.ensure_collection()
+    store.begin_build(compatibility, validate_vectors=False)
+    store.upsert_batch([point(compatibility=compatibility)])
+    store.finish_build(compatibility)
+    marker = store.connection.ready_path.read_bytes()
+    before = remote.retrieve("ratsi_passages", [1], with_vectors=True)
+    db = tmp_path / "input.sqlite"
+    db.touch()
+    doc, _ = document(tmp_path)
+    monkeypatch.setattr(check_vector_index, "_load_documents", lambda db, **kw: [doc])
+    monkeypatch.setattr(check_vector_index, "current_index_compatibility", lambda **kw: compatibility)
+    check_vector_index.main(["--db", str(db), "--qdrant-dir", str(tmp_path / "unused")])
+    result = json.loads(capsys.readouterr().out)
+    assert result["read_only"] is True
+    assert result["points"] == 1
+    assert len(result["vectors_sha256"]) == 64
+    assert store.connection.ready_path.read_bytes() == marker
+    assert remote.retrieve("ratsi_passages", [1], with_vectors=True) == before
+
+
 def test_server_status_unreachable_is_distinct(tmp_path, monkeypatch):
     from src.indexing.vector_status import vector_index_status
     monkeypatch.setenv("RATSI_QDRANT_URL", "http://test.invalid:6333")

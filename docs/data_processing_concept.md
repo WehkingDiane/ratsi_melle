@@ -403,10 +403,17 @@ Der angezeigte Score ist:
 
 - benoetigt erreichbares Qdrant und den vorbereiteten lokalen Modellbestand aus derselben Python-Umgebung
 - Testfolge: `python scripts/prepare_embedding_models.py --download`, danach `python scripts/prepare_embedding_models.py --check` und `python scripts/build_vector_index.py --limit 10`
-- baut oder aktualisiert `ratsi_passages` mit Harrier und BM25
-- erkennt geaenderte Quellen und Konfigurationen per Fingerprint
-- `--limit N` verarbeitet hoechstens die naechsten `N` geaenderten Dokumente
+- ergaenzt ausschliesslich fehlende oder unvollstaendige Dokumente in `ratsi_passages` mit Harrier und BM25
+- ueberspringt vollstaendige Dokumente ohne Dateizugriff oder erneute Fingerprint-Berechnung
+- `--limit N` verarbeitet hoechstens die naechsten `N` fehlenden Dokumente
 - aktiviert den Abschnittsindex erst nach vollstaendigem Erstaufbau
+
+### Service fuer den Ratsinfo-Vektorindex
+
+- `scripts/check_vector_index.py` prueft den Modell- und Vektorbestand lesend; veraendert weder Index noch Freigabemarker
+- `scripts/update_vector_index.py` erkennt geaenderte Quellen und Konfigurationen per Fingerprint und aktualisiert sie bewusst
+- nur der Aktualisierungsbefehl bietet `--refresh`, Extraktionsoptionen und die optionale Bereinigung `--cleanup-orphans`
+- Aufbaufortschritt der Vektorseite bezieht sich immer auf `ratsi_passages`, unabhaengig vom fuer die Suche aktiven Rueckfallindex
 
 ### `scripts/evaluate_search.py`
 - validiert 30 Recherchefragen mit Original-URL, PDF-Seite und Beleg

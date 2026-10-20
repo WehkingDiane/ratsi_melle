@@ -188,6 +188,9 @@ def main(argv=None, *, maintenance=False):
                                        str(d.get("agenda_item") or "")) for d in documents}
         inventory = store.get_passage_inventory()
         missing = expected - complete_document_ids(inventory)
+        if not maintenance:
+            print(f"Dokumente: {len(expected)}; vollständig vorhanden: {len(expected - missing)}; "
+                  f"fehlend oder unvollständig: {len(missing)}", flush=True)
         ready_before = store.connection.passages_ready(store._get_client())
         needs_build = maintenance or bool(missing) or bool(expected and not ready_before)
         if needs_build:

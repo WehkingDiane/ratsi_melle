@@ -18,7 +18,8 @@ Der Landkreis-Builder bleibt ein eigener Dokumentindex.
   `deu+eng`. Pro Werkzeugaufruf gilt ein Timeout von 120 Sekunden.
 - Fehlende OCR oder unlesbare Seiten werden als `unreadable_pages` gespeichert
   und im Build ausgegeben. Eine erfolgreiche Indexierung garantiert daher nicht,
-  dass jede Seite Text geliefert hat. `--refresh` wiederholt die Extraktion.
+  dass jede Seite Text geliefert hat. `scripts/update_vector_index.py --refresh`
+  wiederholt die Extraktion als ausdrueckliche Wartungsaufgabe.
 - Text-, Markdown-, HTML- und CSV-Dateien werden ebenfalls verarbeitet.
 - Fehlende Dateien oder vollstaendig leere Extraktionen erhalten einen expliziten
   Metadaten-Fallback; fehlerhafte PDFs werden als Buildfehler gemeldet.
@@ -56,32 +57,61 @@ Weitere Build-Aufrufe:
 ```bash
 python scripts/build_vector_index.py
 python scripts/build_vector_index.py --limit 25
-python scripts/build_vector_index.py --chunk-tokens 768 --overlap-tokens 96 --batch-size 4
-python scripts/build_vector_index.py --refresh
+python scripts/build_vector_index.py --batch-size 4
 ```
 
-`--limit` begrenzt geaenderte Dokumente, nicht Abschnitte. Weitere Laeufe setzen den
+Seit 0.5.59 ergaenzt der normale Build ausschliesslich fehlende oder unvollstaendige
+Dokumente. Ein Dokument gilt als vorhanden, wenn mindestens eine vollstaendig
+bestaetigte Generation mit allen Abschnittspositionen vorliegt. Vollstaendige
+Dokumente werden vor Dateizugriff und Fingerprint-Berechnung uebersprungen.
+Ein veraenderter SQLite-Zeilenschluessel, Dateiinhalt oder Metadatensatz fuehrt
+dadurch nicht mehr zu einem unbeabsichtigten Neuaufbau.
+
+`--limit` begrenzt fehlende Dokumente, nicht Abschnitte. Weitere Laeufe setzen den
 Aufbau fort. Ein erfolgreicher Testlauf kann `ready: false` liefern:
 `pending_documents` nennt die noch ausstehenden Dokumente; die vollstaendige
 Freigabe erfolgt erst nach Abschluss des Aufbaus. Ohne `--limit` werden alle
-ausstehenden Dokumente verarbeitet. `--no-ocr` deaktiviert die optionale OCR.
-Aenderungen von Dateiinhalten,
-Metadaten oder Chunk-Konfiguration loesen eine erneute Verarbeitung aus. Fuer
-unveraenderte Quellen werden vorhandene Vektoren wiederverwendet.
+ausstehenden Dokumente verarbeitet. Der normale Build gleicht nur kompakte
+Abschnittsmetadaten mit SQLite ab, prueft den Modellvertrag und das Qdrant-Schema
+und laedt keine numerischen Bestandsvektoren. Wenn nichts fehlt und der Index
+bereits freigegeben ist, bleiben Marker und Index unveraendert; Tokenizer und
+Embedding-Modell werden nicht geladen.
+
+Service-Befehle sind bewusst getrennt:
+
+```bash
+python scripts/check_vector_index.py
+python scripts/update_vector_index.py
+python scripts/update_vector_index.py --refresh
+python scripts/update_vector_index.py --chunk-tokens 768 --overlap-tokens 96 --no-ocr
+python scripts/update_vector_index.py --cleanup-orphans
+```
+
+Die Pruefung liest Modellartefakte tief, kontrolliert Vertrag und vorhandene
+Vektoren und meldet Vollstaendigkeit, verwaiste Dokumente und unbestaetigte
+Abschnitte. Sie schreibt weder Vektoren noch Freigabemarker und berechnet keine
+Embeddings zum Vergleich neu. Eine Inhaltsaktualisierung vergleicht dagegen die
+Datei-/Metadaten-Fingerprints und ersetzt geaenderte Generationen. `--refresh`
+erzwingt die Neuberechnung auch ohne Aenderung. Abweichende Modellvertraege
+werden weiterhin abgelehnt; diese Skripte sind keine automatische Modellmigration.
 
 Neue Abschnitte werden vor dem Entfernen der alten Generation geschrieben und
 erst nach vollstaendigem Schreiben des Dokuments fuer die Suche freigeschaltet.
 Abgebrochene Generationen lassen sich beim naechsten Lauf vervollstaendigen.
-Verwaiste Dokumente werden nur nach einem vollstaendigen fehlerfreien Lauf
-bereinigt; bei `--limit` bleibt diese Bereinigung aus.
+Verwaiste Dokumente bleiben beim normalen Build erhalten. Nur die ausdrueckliche
+Service-Aktualisierung mit `--cleanup-orphans` bereinigt sie nach einem
+vollstaendigen fehlerfreien Lauf; bei `--limit` bleibt diese Bereinigung aus.
 
 Der bisherige Index `ratsi_documents` bleibt erhalten. Erst wenn alle im SQLite-Index
 enthaltenen Dokumente vollstaendig als Abschnitte oder Metadaten-Fallback vorliegen,
 schreibt der Builder `data/db/qdrant/ratsi_passages.ready.json`. Die Websuche nutzt
 anschliessend die neue Collection. Vorher greift sie auf den bisherigen Index zu.
-Der Status verwendet dieselbe Collection-Auswahl wie die Suche und meldet einen
-noch nicht freigegebenen Abschnittsindex als unvollständig. Bei aktivem
-Abschnittsindex sind Vektoranzahl und Dokumentanzahl unterschiedliche Größen. Lokale Qdrant-Zugriffe
+Die Vektorseite zeigt den Aufbaufortschritt immer aus `ratsi_passages`, auch wenn
+die Suche noch `ratsi_documents` verwendet. Vollstaendige und fehlende Dokumente,
+Abschnitte und Abdeckung sind vom aktiven Suchindex und seiner Freigabe getrennt.
+Ein abgebrochener Build laesst die Anzeige dadurch nicht mehr auf die geringere
+Abdeckung des alten Suchindexes zurueckfallen. Modellverwaltung und Legacy-Pruefung
+stehen im eingeklappten Bereich „Service und Wartung“. Lokale Qdrant-Zugriffe
 muessen zeitlich koordiniert werden, da der eingebettete Store einen Dateilock nutzt.
 
 ## 30 Recherchefragen mit Belegen
@@ -174,15 +204,25 @@ liegen unabhängig davon unter
 für dieselbe Serveradresse dieselbe Statuswurzel sehen. Ein abschließender Slash
 der URL wird entfernt. Andere URL-Schreibweisen erhalten getrennte Marker.
 
-Vor jedem Passage-Build wird dessen Freigabe zurückgenommen. Erst ein fehlerfreier
+Vor einem Passage-Build mit Schreibbedarf wird dessen Freigabe zurückgenommen.
+Ein Build ohne fehlende Dokumente belaesst eine bestehende Freigabe unveraendert.
+Erst ein fehlerfreier
 Lauf mit vollständigen, bestätigten Generationen aller aktuellen Dokumente und
-ohne ausstehende Änderungen schreibt den Marker atomar. Auch `--limit` prüft die
-Fingerprints aller Dokumente; die Grenze beschränkt nur die neu aufgebauten
-Dokumente. Der Servermarker enthält den SHA-256-Hash der URL, die exakte Punktzahl,
+ohne unbestaetigte Abschnitte schreibt den Marker atomar. Der normale Build
+vergleicht keine Fingerprints vollstaendiger Dokumente; das gehoert zur
+Service-Aktualisierung. Der Servermarker enthält den SHA-256-Hash der URL, die exakte Punktzahl,
 den Collection-Namen und den vollstaendigen Kompatibilitaetsdatensatz aus
 Modell-IDs und Revisionen, Manifest-Hash, Vektordimension und Pipeline-Version.
 Der lokale Marker enthaelt denselben Kompatibilitaetsdatensatz und
 Collection-Namen.
+Normale Builds speichern `validation_mode: payload` mit `payload_sha256`: einen
+stabilen Hash aus Punkt-IDs, Modellvertraegen und kompakten Abschnittsmetadaten.
+Numerische Bestandsvektoren sind darin bewusst nicht enthalten. Die Suche
+beruecksichtigt diesen Modus; strikte bestehende Marker und Service-Builds nutzen
+weiterhin `vectors_sha256`. Eine solche Bestandspruefung ist keine Garantie fuer
+inhaltlich richtige Embeddings; fuer gezielte Diagnose gibt es den separaten
+Pruefbefehl. Bei einem unterbrochenen Build darf die Punktzahl vom letzten
+Zwischenmarker abweichen, damit fehlende Dokumente fortgesetzt werden koennen.
 Baut ein Indexer eine vorhandene Collection fort, muss auch deren Qdrant-Schema
 mit Vektornamen, Dense-Dimension und Cosine-Distanz passen; das gilt selbst fuer
 eine leere Collection. Die Websuche vergleicht den Marker der ausgewaehlten
@@ -194,8 +234,9 @@ Passage-Build schreibt einen neuen Marker. Die
 Suche prüft, dass Punktzahl und Anzahl der `committed`-Punkte dazu passen.
 Ein kopierter lokaler Marker oder die bloße Existenz einer migrierten Collection
 aktiviert die Passage-Suche nicht. Beim Ersetzen oder Wiederherstellen einer
-Server-Collection muss deren Marker entfernt und ein vollständiger Build zur
-erneuten Prüfung ausgeführt werden; der Marker ist kein Backup des Index.
+Server-Collection ist eine gezielte Service-Pruefung beziehungsweise verifizierte
+Uebernahme erforderlich; ein normaler Build ist kein Wiederherstellungswerkzeug.
+Der Marker ist kein Backup des Index.
 
 Während des Builds bleibt ein vorhandener `ratsi_documents`-Index als Rückweg
 für die Suche verfügbar. Fehlt er ebenfalls, meldet die Suche den unvollständigen

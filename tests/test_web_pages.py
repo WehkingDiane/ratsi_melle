@@ -1234,6 +1234,11 @@ def test_service_vector_page_renders_vector_status(client, monkeypatch) -> None:
             "missing_vector_count": 2,
             "orphaned_vector_count": 1,
             "coverage_percent": 77.8,
+            "build_coverage_percent": 77.8,
+            "build_complete_document_count": 7,
+            "build_missing_document_count": 2,
+            "build_orphaned_document_count": 1,
+            "build_passage_count": 70,
             "latest_session_date": "2026-03-11",
             "warnings": ["Vektorindex ist nicht vollstaendig."],
         },
@@ -1261,6 +1266,10 @@ def test_service_vector_page_renders_vector_status(client, monkeypatch) -> None:
     assert "Ratsinfo-Vektorindex bauen" in content
     assert "Landkreis-Vektorindex bauen" in content
     assert "Ratsinfo-Vektorstatus" in content
+    assert "Fehlende Dokumente indexieren" in content
+    assert "Vollständig indexierte Dokumente" in content
+    assert "Service und Wartung" in content
+    assert content.index("Ratsinfo-Vektorstatus") < content.index("Lokale Embedding-Modelle")
     assert "Landkreis-Vektorstatus" in content
     assert "SQLite-Dokumente" in content
     assert "10" in content

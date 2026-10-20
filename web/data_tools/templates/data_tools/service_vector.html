@@ -7,8 +7,8 @@
 <section class="page-heading">
   <p class="eyebrow">Daten</p>
   <h1>Vektorindex</h1>
-  <p>Semantischen Suchindex aus lokal indexierten Dokumenten aufbauen.</p>
-  <p>Ratsinfo wird mit Harrier abschnittsweise über alle PDF-Seiten indexiert. Bei Scans werden installierte OCR-Werkzeuge genutzt. Der bisherige Suchindex bleibt aktiv, bis alle Dokumente im neuen Abschnittsindex aufgebaut sind.</p>
+  <p>Fehlende Dokumente zum semantischen Suchindex ergänzen.</p>
+  <p>Der normale Ratsinfo-Build ergänzt nur fehlende oder unvollständige Dokumente. Vollständig indexierte Dokumente bleiben unverändert. Prüfung und Aktualisierung sind getrennte Service-Aufgaben.</p>
 </section>
 
 {% include "core/partials/service_result.html" %}
@@ -16,11 +16,12 @@
 <section class="grid two-columns">
   <article class="panel">
     <h2>Ratsinfo-Vektorindex bauen</h2>
+    <p>Nur fehlende Dokumente indexieren. Ein Limit begrenzt die Anzahl der neu verarbeiteten Dokumente.</p>
     <form method="post" class="form-stack">
       {% csrf_token %}
       <input type="hidden" name="action" value="build_vector_index">
       <label>Limit <input type="number" name="limit" min="1" placeholder="Optional, z. B. 100"></label>
-      <button class="button primary" type="submit">Ratsinfo-Vektorindex bauen</button>
+      <button class="button primary" type="submit">Fehlende Dokumente indexieren</button>
     </form>
   </article>
 
@@ -37,6 +38,64 @@
   </article>
 </section>
 
+<section class="grid two-columns">
+  <article class="panel">
+    <h2>Ratsinfo-Vektorstatus</h2>
+    <p>Aufbaufortschritt in <code>ratsi_passages</code>. Die Zahlen bleiben auch bei unterbrochenem Build auf diesen Index bezogen.</p>
+    {% if vector_status %}
+      <dl class="facts">
+        <div><dt>Suchfreigabe</dt><dd class="{% if vector_status.qdrant_state == 'ready' %}status-ok{% else %}status-warning{% endif %}">{% if vector_status.qdrant_state == 'ready' %}Freigegeben{% elif vector_status.qdrant_state == 'incomplete' %}Noch nicht freigegeben{% else %}Nicht verfügbar{% endif %}</dd></div>
+        <div><dt>Aktueller Suchindex</dt><dd>{{ vector_status.collection_name|default:"Nicht verfügbar" }}</dd></div>
+        <div><dt>Qdrant-Ziel</dt><dd>{{ vector_status.qdrant_target }}</dd></div>
+        <div><dt>SQLite-Dokumente</dt><dd>{{ vector_status.sqlite_document_count|default_if_none:"-" }}</dd></div>
+        <div><dt>Indexierbare Dokumente</dt><dd>{{ vector_status.indexable_document_count|default_if_none:"-" }}</dd></div>
+        <div><dt>Vollständig indexierte Dokumente</dt><dd>{{ vector_status.build_complete_document_count|default_if_none:"-" }}</dd></div>
+        <div><dt>Indexierte Abschnitte</dt><dd>{{ vector_status.build_passage_count|default_if_none:"-" }}</dd></div>
+        <div><dt>Dokumente ohne vollständigen Index</dt><dd>{{ vector_status.build_missing_document_count|default_if_none:"-" }}</dd></div>
+        <div><dt>Verwaiste Dokumente im Index</dt><dd>{{ vector_status.build_orphaned_document_count|default_if_none:"-" }}</dd></div>
+        <div><dt>Abdeckung</dt><dd>{% if vector_status.build_coverage_percent is not None %}{{ vector_status.build_coverage_percent }} %{% else %}-{% endif %}</dd></div>
+        <div><dt>Neueste Sitzung</dt><dd>{{ vector_status.latest_session_date|default_if_none:"-" }}</dd></div>
+      </dl>
+      {% if vector_status.warnings %}
+        <ul class="plain-list status-warning">
+          {% for warning in vector_status.warnings %}
+            <li>{{ warning }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endif %}
+  </article>
+
+  <article class="panel">
+    <h2>Landkreis-Vektorstatus</h2>
+    {% if landkreis_vector_status %}
+      <dl class="facts">
+        <div><dt>Status</dt><dd class="{% if landkreis_vector_status.status == 'ok' %}status-ok{% elif landkreis_vector_status.status == 'needs_update' or landkreis_vector_status.status == 'missing_qdrant' or landkreis_vector_status.status == 'missing_local_index' or landkreis_vector_status.status == 'warning' or landkreis_vector_status.status == 'server_unreachable' or landkreis_vector_status.status == 'missing_collection' or landkreis_vector_status.status == 'incomplete' %}status-warning{% else %}status-muted{% endif %}">{{ landkreis_vector_status.status }}</dd></div>
+        <div><dt>Qdrant-Ziel</dt><dd>{{ landkreis_vector_status.qdrant_target }}</dd></div>
+        <div><dt>SQLite-Dokumente</dt><dd>{{ landkreis_vector_status.sqlite_document_count|default_if_none:"-" }}</dd></div>
+        <div><dt>Indexierbare Dokumente</dt><dd>{{ landkreis_vector_status.indexable_document_count|default_if_none:"-" }}</dd></div>
+        <div><dt>Indexierte Vektoren</dt><dd>{{ landkreis_vector_status.indexed_vector_count|default_if_none:"-" }}</dd></div>
+        <div><dt>Fehlende Vektoren</dt><dd>{{ landkreis_vector_status.missing_vector_count|default_if_none:"-" }}</dd></div>
+        <div><dt>Verwaiste Vektoren</dt><dd>{{ landkreis_vector_status.orphaned_vector_count|default_if_none:"-" }}</dd></div>
+        <div><dt>Abdeckung</dt><dd>{% if landkreis_vector_status.coverage_percent is not None %}{{ landkreis_vector_status.coverage_percent }} %{% else %}-{% endif %}</dd></div>
+        <div><dt>Neueste Veröffentlichung</dt><dd>{{ landkreis_vector_status.latest_document_date|default_if_none:"-" }}</dd></div>
+      </dl>
+      {% if landkreis_vector_status.warnings %}
+        <ul class="plain-list status-warning">
+          {% for warning in landkreis_vector_status.warnings %}
+            <li>{{ warning }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endif %}
+  </article>
+</section>
+
+<details class="panel">
+  <summary><strong>Service und Wartung</strong></summary>
+  <div class="page-stack">
+    <p>Für den normalen Build ist hier keine Prüfung erforderlich. Modellverwaltung und Legacy-Prüfung sind für Einrichtung oder gezielte Wartung vorgesehen.</p>
+    <p>Gründliche Indexprüfung: <code>python scripts/check_vector_index.py</code>. Geänderte Dokumente aktualisieren: <code>python scripts/update_vector_index.py</code>.</p>
 {% with models=status.embedding_models %}
 <section class="panel service-status" data-service-status data-status-url="{% url 'data_tools:service_status' %}" id="embedding-model-status">
   {% include "core/partials/panel_header.html" with heading="Lokale Embedding-Modelle" refresh_label="Modellstatus aktualisieren" only %}
@@ -103,55 +162,8 @@
   <p class="muted">Landkreis: Neuaufbau erforderlich (rebuild_required). Hier wird keine Übernahme angeboten.</p>
 </section>
 
-<section class="grid two-columns">
-  <article class="panel">
-    <h2>Ratsinfo-Vektorstatus</h2>
-    {% if vector_status %}
-      <dl class="facts">
-        <div><dt>Status</dt><dd class="{% if vector_status.status == 'ok' %}status-ok{% elif vector_status.status == 'needs_update' or vector_status.status == 'missing_qdrant' or vector_status.status == 'missing_local_index' or vector_status.status == 'warning' or vector_status.status == 'server_unreachable' or vector_status.status == 'missing_collection' or vector_status.status == 'incomplete' %}status-warning{% else %}status-muted{% endif %}">{{ vector_status.status }}</dd></div>
-        <div><dt>Qdrant-Ziel</dt><dd>{{ vector_status.qdrant_target }}</dd></div>
-        <div><dt>SQLite-Dokumente</dt><dd>{{ vector_status.sqlite_document_count|default_if_none:"-" }}</dd></div>
-        <div><dt>Indexierbare Dokumente</dt><dd>{{ vector_status.indexable_document_count|default_if_none:"-" }}</dd></div>
-        <div><dt>Indexierte Vektoren</dt><dd>{{ vector_status.indexed_vector_count|default_if_none:"-" }}</dd></div>
-        <div><dt>Dokumente ohne vollständigen Index</dt><dd>{{ vector_status.missing_vector_count|default_if_none:"-" }}</dd></div>
-        <div><dt>Verwaiste Dokumente im Index</dt><dd>{{ vector_status.orphaned_vector_count|default_if_none:"-" }}</dd></div>
-        <div><dt>Abdeckung</dt><dd>{% if vector_status.coverage_percent is not None %}{{ vector_status.coverage_percent }} %{% else %}-{% endif %}</dd></div>
-        <div><dt>Neueste Sitzung</dt><dd>{{ vector_status.latest_session_date|default_if_none:"-" }}</dd></div>
-      </dl>
-      {% if vector_status.warnings %}
-        <ul class="plain-list status-warning">
-          {% for warning in vector_status.warnings %}
-            <li>{{ warning }}</li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-    {% endif %}
-  </article>
-
-  <article class="panel">
-    <h2>Landkreis-Vektorstatus</h2>
-    {% if landkreis_vector_status %}
-      <dl class="facts">
-        <div><dt>Status</dt><dd class="{% if landkreis_vector_status.status == 'ok' %}status-ok{% elif landkreis_vector_status.status == 'needs_update' or landkreis_vector_status.status == 'missing_qdrant' or landkreis_vector_status.status == 'missing_local_index' or landkreis_vector_status.status == 'warning' or landkreis_vector_status.status == 'server_unreachable' or landkreis_vector_status.status == 'missing_collection' or landkreis_vector_status.status == 'incomplete' %}status-warning{% else %}status-muted{% endif %}">{{ landkreis_vector_status.status }}</dd></div>
-        <div><dt>Qdrant-Ziel</dt><dd>{{ landkreis_vector_status.qdrant_target }}</dd></div>
-        <div><dt>SQLite-Dokumente</dt><dd>{{ landkreis_vector_status.sqlite_document_count|default_if_none:"-" }}</dd></div>
-        <div><dt>Indexierbare Dokumente</dt><dd>{{ landkreis_vector_status.indexable_document_count|default_if_none:"-" }}</dd></div>
-        <div><dt>Indexierte Vektoren</dt><dd>{{ landkreis_vector_status.indexed_vector_count|default_if_none:"-" }}</dd></div>
-        <div><dt>Fehlende Vektoren</dt><dd>{{ landkreis_vector_status.missing_vector_count|default_if_none:"-" }}</dd></div>
-        <div><dt>Verwaiste Vektoren</dt><dd>{{ landkreis_vector_status.orphaned_vector_count|default_if_none:"-" }}</dd></div>
-        <div><dt>Abdeckung</dt><dd>{% if landkreis_vector_status.coverage_percent is not None %}{{ landkreis_vector_status.coverage_percent }} %{% else %}-{% endif %}</dd></div>
-        <div><dt>Neueste Veröffentlichung</dt><dd>{{ landkreis_vector_status.latest_document_date|default_if_none:"-" }}</dd></div>
-      </dl>
-      {% if landkreis_vector_status.warnings %}
-        <ul class="plain-list status-warning">
-          {% for warning in landkreis_vector_status.warnings %}
-            <li>{{ warning }}</li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-    {% endif %}
-  </article>
-</section>
+  </div>
+</details>
 
 {% include "core/partials/service_status.html" %}
 {% endblock %}

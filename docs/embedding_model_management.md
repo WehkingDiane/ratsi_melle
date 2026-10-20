@@ -688,9 +688,11 @@ muss ein gueltiger, ziel- und collectionsgebundener Freigabemarker exakt den
 aktiven Kompatibilitaetsdatensatz enthalten. Ein fehlender, ungueltiger oder
 abweichender Marker bricht den Build vor dem ersten Qdrant-Schreibzugriff ab.
 Der Marker erfasst die Punktzahl auch bei lokalem Qdrant. Ein freigegebener
-Marker enthaelt ausserdem einen Digest der Punkt-IDs und Vektoren. Build und
-Suche vergleichen den gesamten Vektorbestand und die Kompatibilitaetsdaten
-aller Punkte mit dem aktuellen Vertrag. Erfolgreiche Suchpruefungen werden je
+Marker enthaelt ausserdem einen Digest der Punkt-IDs und Vektoren. Strikte
+Service-Builds und die Suche bei solchen Markern vergleichen den gesamten
+Vektorbestand und die Kompatibilitaetsdaten aller Punkte mit dem aktuellen Vertrag.
+Der unten beschriebene normale Ergaenzungsbuild nutzt seit 0.5.59 stattdessen
+einen kompakten Abschnittsbestand. Erfolgreiche Suchpruefungen werden je
 Prozess bis zu fuenf Minuten zwischengespeichert; Marker- oder
 Punktzahlaenderungen erzwingen sofort eine neue Pruefung. Ein Austausch bei
 gleicher Punktzahl und unveraendertem Marker kann waehrend dieser Frist
@@ -700,7 +702,7 @@ wird vor der Abfrage abgewiesen. Auch bei einem Cache-Treffer wird der Marker
 nach der Qdrant-Abfrage erneut gelesen; ein zwischenzeitlich widerrufener
 Stand wird abgewiesen. Ein alter Marker fuer eine
 ersetzte Collection mit gleicher Punktzahl und abweichenden Vektoren oder
-Payloads wird abgelehnt. Bei einem Marker mit `ready=false` darf die Punktzahl
+Payloads wird im jeweiligen Pruefumfang abgelehnt. Bei einem Marker mit `ready=false` darf die Punktzahl
 durch den angefangenen Build wachsen oder schrumpfen; alle vorhandenen Punkte
 muessen weiterhin den aktiven Vertrag tragen. Nach erfolgreichem Abschluss
 wird der Digest fuer den neuen Bestand geschrieben.
@@ -718,7 +720,7 @@ Schemaabgleich umfasst neben dem Dense-Distanzmass den Dense-Datentyp,
 vektorspezifische HNSW- und Quantisierungsoptionen sowie BM25-Modifikator und
 Sparse-Datentyp. Die Suche prueft das aktuelle Collection-Schema vor einem
 moeglichen Cache-Treffer erneut. Jeder
-Build haelt einen Marker mit `ready=false` und Vertrag fest, bis der Lauf
+Build mit Schreibbedarf haelt einen Marker mit `ready=false` und Vertrag fest, bis der Lauf
 erfolgreich freigegeben ist; dadurch bleibt eine unterbrochene inkrementelle
 Fortsetzung pruefbar. Die Passage-Suche behandelt `ready=false` als nicht
 freigegeben. Der Collection-Marker behaelt nach einer verifizierten Uebernahme
@@ -735,6 +737,38 @@ ausgewaehlten Collection mit dem aktiven Modellvertrag und weist fehlende oder
 abweichende Vertraege sowie `ready=false` zurueck. Die Evaluations-CLI prueft
 ihre ausdruecklich gewaehlte Collection auf dieselbe Weise, bevor sie Encoder
 startet oder Ergebnisse schreibt.
+
+Seit 0.5.59 sind Ratsinfo-Ergaenzung und Wartung getrennt:
+
+- `build_vector_index.py` gleicht kompakte Abschnittsmetadaten mit den stabilen
+  SQLite-Dokument-IDs ab und verarbeitet nur fehlende/unvollstaendige Dokumente.
+  Vollstaendige Dokumente bleiben auch bei abweichendem Inhalts-Fingerprint
+  unveraendert. Modellvertrag, Schema und die Punktzahl einer bestehenden
+  Freigabe werden weiterhin vor Schreibzugriffen verglichen; ein ausstehender
+  Marker darf fuer den Wiederanlauf eine andere Punktzahl enthalten.
+- Eine bereits freigegebene Collection ohne fehlende Dokumente wird nicht
+  angefasst; Tokenizer und Embedding-Modell werden nicht geladen.
+- Nach einem normalen Ergaenzungsbuild enthaelt der Marker
+  `validation_mode: payload` und `payload_sha256`. Dieser Hash umfasst Punkt-IDs,
+  Modellvertraege, Dokument-/Generationszuordnung, Fingerprint, Abschnittszahl,
+  Abschnittsposition und Commit-Status, aber keine numerischen Vektorwerte.
+  Die Suche erkennt diesen Modus und validiert denselben kompakten Bestand.
+  Eine gleich grosse Veraenderung ausschliesslich numerischer Vektoren wird
+  damit bewusst nicht erkannt. Strikte Marker behalten `vectors_sha256`.
+- `check_vector_index.py` prueft Modelle tief und liest auch numerische
+  Bestandsvektoren samt Vertraegen. Es meldet Vollstaendigkeit und
+  unbestaetigte/verwaiste Eintraege, schreibt aber weder Index noch Marker
+  und berechnet Embeddings nicht erneut zum Vergleich.
+- `update_vector_index.py` ist die ausdrueckliche Wartung fuer
+  Fingerprint-basierte Inhaltsaktualisierungen. Nur dort stehen `--refresh`,
+  Extraktionsoptionen und `--cleanup-orphans` bereit. Diese Wartung ersetzt
+  keine verifizierte Uebernahme einer Collection ohne gueltigen Marker.
+
+Auf der Vektorseite bezieht sich der Aufbaufortschritt unabhaengig vom
+Such-Rueckfall immer auf `ratsi_passages`. Freigabe und aktiver Suchindex werden
+separat angezeigt; Modellverwaltung und Legacy-Pruefungen sind als Service
+eingeklappt. Ein normaler Ergaenzungslauf setzt keine vorherige Service-Pruefung
+voraus, sofern der vorhandene Modell-/Collection-Vertrag passt.
 
 M5.8 gibt bei einer inkompatiblen Fortsetzung in allen drei Build-CLIs nur
 eine `ERROR: Index <Collection> inkompatibel: ...`-Zeile mit dem Grund und dem
