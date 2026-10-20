@@ -122,7 +122,7 @@ class _StubClient:
     references: list[SessionReference]
     detail: SessionDetail
 
-    def fetch_month(self, year: int, month: int) -> list[SessionReference]:
+    def fetch_month(self, year: int, month: int, *, include_planned: bool = False) -> list[SessionReference]:
         return self.references
 
     def fetch_session(self, reference: SessionReference) -> SessionDetail:

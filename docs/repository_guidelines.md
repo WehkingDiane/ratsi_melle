@@ -48,7 +48,7 @@ Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinfor
 - Ein Modul pro Verantwortlichkeit; umfangreiche Komponenten werden in Unterpakete zerlegt.
 - Öffentliche Funktionen dokumentieren Eingabeparameter, Rückgabewerte und Ausnahmen mittels Docstrings oder vergleichbarer Mechanismen.
 - Laufzeitcode nutzt die gemeinsame Konfiguration aus `src/observability.py`. CLI und Django schreiben UTC-Zeit, Level, Komponente, Lauf-ID und Logger in demselben Format. CLI-Ausgaben gehen zusätzlich an die Konsole; rotierende Laufzeitlogs liegen unter `logs/<komponente>.log`. Die Weboberflaeche speichert die begrenzten Ausgaben ihrer letzten Datenjobs in `data/db/service_jobs.sqlite` und reicht deren Job-ID als Lauf-ID an den Kindprozess weiter. Beim Loglevel gilt die Reihenfolge explizites `--log-level`, `RATSI_LOG_LEVEL`, Standard `INFO`; `RATSI_LOG_DIR` überschreibt die Ablage. Dauerhafte Logdateien werden nicht eingecheckt.
-- UI-spezifisch: Oberflaechenarbeit erfolgt unter `web/`. Gemeinsam genutzte Integrationslogik bleibt in klar abgegrenzten Modulen unter `src/`.
+- UI-spezifisch: Oberflaechenarbeit erfolgt unter `web/`. Gemeinsam genutzte Integrationslogik bleibt in klar abgegrenzten Modulen unter `src/`. Gemeinsame Gestaltungswerte, Seitencontainer und Template-Bausteine nach [Gemeinsame Darstellungsregeln](ui_guidelines.md) verwenden; keine seitenweisen Abstandskorrekturen kopieren.
 
 ## Datenhaltung
 
@@ -85,11 +85,11 @@ Diese Regeln bilden das Fundament für den weiteren Projektverlauf und können b
 ## CLI-Indexdatenbanken
 
 - `scripts/build_local_index.py` erzeugt einen lokalen Index aus bereits heruntergeladenen SessionNet-Rohdaten direkt unter `data/raw/YYYY/MM/` und schreibt standardmäßig nach `data/db/local_index.sqlite`. Eine abweichende `session_detail.html` wird vor dem Import geparst und nur im SQLite-Index mit den JSON-Metadaten abgeglichen; lokale Dateien werden über den URL-Hash wieder zugeordnet. Dateien unter `data/raw/` bleiben unverändert. Nur die getrennte Landkreis-Datenwurzel direkt unter dem konfigurierten Datenwurzelpfad wird ausgeschlossen.
-- `scripts/build_online_index_db.py` erzeugt einen Online-Index ohne Dokumentdownloads und ohne Änderungen unter `data/raw/`; Ziel ist standardmäßig `data/db/online_session_index.sqlite`. Mit `--refresh-existing` werden vorhandene Sitzungen neu eingelesen; `--only-refresh` aktualisiert ausschließlich bestehende Sitzungen.
+- `scripts/build_online_index_db.py` erzeugt einen Online-Index ohne Dokumentdownloads und ohne Änderungen unter `data/raw/`; Ziel ist standardmäßig `data/db/online_session_index.sqlite`. Auch angekündigte Termine ohne Detaillink werden anhand ihrer Kalender-ID mit Datum, Uhrzeit und Ort erfasst; sobald ein Detaillink erscheint, werden ihre Details beim nächsten Build automatisch ergänzt. Mit `--refresh-existing` werden vorhandene Sitzungen neu eingelesen; `--only-refresh` aktualisiert ausschließlich bestehende Sitzungen.
 - `scripts/fetch_landkreis_publications.py` erfasst Landkreis-Bekanntmachungen und Amtsblätter als Rohdaten. `scripts/build_landkreis_publications_db.py` baut daraus die getrennte SQLite-DB. `scripts/search_landkreis_publications.py` durchsucht diese DB per SQLite-FTS, z. B. nach `Melle Genehmigung`.
 - Die beiden SessionNet-Indexe enthalten in `documents` ein normalisiertes Feld `document_type` (`vorlage`, `beschlussvorlage`, `protokoll`, `bekanntmachung`, `sonstiges`) sowie Metadatenfelder `sha1` und `retrieved_at`.
 - Die früher versionierten Dateien aus `old/` wurden bytegleich nach `archive/old/` verschoben. Dieses lokale Archiv wird nicht eingecheckt; historische Versionen sind über Git zugänglich.
-- Der Ratsinfo-Vektorbuild erzeugt `ratsi_passages` aus allen PDF-Seiten mit maximal 768 Tokens je Abschnitt. `ratsi_documents` bleibt als Legacy-Index erhalten. Die eigene Suchextraktion erlaubt 100 MiB pro Datei; der aeltere Extraktionspfad bleibt bei 25 MiB. Migration und der belegte Recherche-Benchmark stehen in `docs/search_quality.md`.
+- Der Ratsinfo-Vektorbuild erzeugt `ratsi_passages` aus allen PDF-Seiten mit maximal 768 Tokens je Abschnitt. `ratsi_documents` bleibt als Legacy-Index erhalten. Die eigene Suchextraktion erlaubt 128 MiB pro Datei; der aeltere Extraktionspfad bleibt bei 25 MiB. Migration und der belegte Recherche-Benchmark stehen in `docs/search_quality.md`.
 
 ## Testauswahl und Regression
 

@@ -259,7 +259,7 @@ def test_nested_pages_use_absolute_static_urls(client) -> None:
     response = client.get("/analyse/starten/")
     content = response.content.decode("utf-8")
 
-    assert 'href="/static/core/css/base.css"' in content
+    assert 'href="/static/core/css/base.css?v=' in content
     assert 'src="/static/core/js/service_status.js"' in content
     assert 'src="/static/core/js/navigation.js"' in content
     assert 'href="static/' not in content
@@ -278,6 +278,9 @@ def test_templates_are_kept_in_their_feature_apps() -> None:
     assert core_templates == {
         "base.html",
         "core/dashboard.html",
+        "core/partials/dashboard_sessions.html",
+        "core/partials/messages.html",
+        "core/partials/panel_header.html",
         "core/partials/service_result.html",
         "core/partials/service_status.html",
     }
@@ -367,7 +370,7 @@ def test_navigation_dropdowns_have_expected_links(client) -> None:
             "Sitzungen",
             "Analysejobs",
         ],
-        "Daten": ["Fetch: Daten holen", "Build: Datenbank-Tools", "Build: Vektorindex"],
+        "Daten": ["Fetch: Daten holen", "Build: Datenbank-Tools", "Build: Vektorindex", "Datenstatus nach Jahr"],
         "Veröffentlichung": ["Veröffentlichung öffnen"],
         "Suche": ["Suche öffnen"],
         "Einstellungen": ["Einstellungen öffnen"],

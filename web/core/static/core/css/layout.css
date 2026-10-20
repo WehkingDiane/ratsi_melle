@@ -55,12 +55,21 @@
   padding: 16px 32px;
 }
 
-.page-heading {
-  margin-bottom: 28px;
+.page-stack,
+.content-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-page);
+  min-width: 0;
+}
+
+.page-stack > *,
+.content-stack > * {
+  min-width: 0;
 }
 
 .page-heading h1 {
-  font-size: 32px;
+  font-size: var(--font-page-title);
   line-height: 1.2;
   margin: 0 0 8px;
 }
@@ -82,7 +91,7 @@
 
 .grid {
   display: grid;
-  gap: 20px;
+  gap: var(--space-page);
 }
 
 .two-columns {
@@ -93,34 +102,108 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.area-grid,
-.dashboard-status {
-  margin-bottom: 28px;
-}
-
 .split-content {
   display: grid;
-  gap: 24px;
+  gap: var(--space-page);
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  margin-top: 28px;
 }
 
 .answer-reader {
   display: grid;
-  gap: 24px;
+  gap: var(--space-page);
   grid-template-columns: minmax(230px, 0.34fr) minmax(0, 1fr);
+}
+
+.dashboard-session-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.dashboard-session-table th:first-child {
+  width: 18%;
+}
+
+.dashboard-session-table th:nth-child(2) {
+  width: 27%;
+}
+
+.dashboard-session-table th:nth-child(3) {
+  width: 12%;
+}
+
+.dashboard-session-table th:nth-child(4) {
+  width: 25%;
+}
+
+.dashboard-session-table td:nth-child(3) {
+  white-space: nowrap;
+}
+
+.dashboard-date time,
+.dashboard-relative {
+  display: block;
+}
+
+.dashboard-date time,
+.dashboard-meeting {
+  font-weight: 700;
+}
+
+.dashboard-relative {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.dashboard-relative-today {
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.dashboard-today {
+  background: #eef4ff;
+}
+
+.dashboard-summary dl {
+  margin: 0 0 16px;
+}
+
+.dashboard-summary dl > div {
+  display: flex;
+  gap: 24px;
+  padding: 6px 0;
+}
+
+.dashboard-summary dt {
+  color: var(--muted);
+  width: 240px;
+  flex-shrink: 0;
+}
+
+.dashboard-summary dd {
+  margin: 0;
+}
+
+.dashboard-summary > p:last-child {
+  margin-bottom: 0;
 }
 
 .section-title {
   align-items: center;
   display: flex;
   justify-content: space-between;
-  margin: 20px 0 10px;
+  gap: var(--space-content);
+  flex-wrap: wrap;
+  margin: 0 0 var(--space-content);
+}
+
+.section-title > * {
+  margin: 0;
 }
 
 .section-title h2,
 .panel h2 {
-  font-size: 18px;
+  font-size: var(--font-section-title);
   margin: 0;
 }
 

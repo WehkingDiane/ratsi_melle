@@ -30,7 +30,7 @@ class AgendaItem:
 
 @dataclass(slots=True)
 class SessionReference:
-    """Summary information for a council meeting (Sitzung)."""
+    """Summary of a meeting; detail_url is empty for calendar-only entries."""
 
     committee: str
     meeting_name: str

@@ -10,7 +10,7 @@
   <p>Der Job läuft im Hintergrund weiter, auch wenn du die Seite wechselst.</p>
 </section>
 
-{% if errors %}<section class="panel status-error" role="alert">{% for error in errors %}<p>{{ error }}</p>{% endfor %}</section>{% endif %}
+{% include "core/partials/messages.html" with errors=errors only %}
 
 {% if job %}
 <section class="panel" data-service-job-id="{{ job_id }}" data-legacy-job="{% if job.action == 'inspect_legacy_index' or job.action == 'apply_legacy_index' %}true{% else %}false{% endif %}" data-service-job-running="{% if job.status == 'running' or job.status == 'queued' %}true{% else %}false{% endif %}">

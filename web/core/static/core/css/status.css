@@ -1,29 +1,53 @@
 .empty-state {
-  background: #fff8e6;
-  border: 1px solid #f0d58c;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  color: #624b00;
+  color: var(--muted);
   margin: 0;
-  padding: 14px;
+  padding: var(--space-content);
 }
 
+.notice,
 .empty-state.service-note {
-  margin: 0 0 22px;
+  background: var(--status-info-bg);
+  border: 1px solid var(--status-info-border);
+  border-radius: 8px;
+  color: var(--status-info);
+  padding: var(--space-content);
+  margin: 0;
 }
 
 .status-ok {
-  color: #116329;
+  color: var(--status-success);
 }
 
 .status-warning {
-  color: #9a6700;
+  color: var(--status-warning);
 }
 
 .status-error {
-  color: #b42318;
+  color: var(--status-error);
   font-weight: 700;
 }
 
 .status-muted {
   color: var(--muted);
+}
+
+.notice.status-ok {
+  background: var(--status-success-bg);
+  border-color: var(--status-success-border);
+  color: var(--status-success);
+}
+
+.notice.status-error {
+  background: var(--status-error-bg);
+  border-color: var(--status-error-border);
+  color: var(--status-error);
+}
+
+.notice.status-warning {
+  background: var(--status-warning-bg);
+  border-color: var(--status-warning-border);
+  color: var(--status-warning);
 }

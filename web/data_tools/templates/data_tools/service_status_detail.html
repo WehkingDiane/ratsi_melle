@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Datenstatus nach Jahr - Ratsi Melle{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow">Daten</p>
+  <h1>Datenstatus nach Jahr</h1>
+  <p>Alle vorhandenen Jahre und ihre Sitzungsbestände im Vergleich.</p>
+  <div class="actions">
+    <a class="button secondary" href="{% url 'data_tools:index' %}">Zum Datenbereich</a>
+    <a class="button utility" href="{% url 'data_tools:service_status_detail' %}">Details aktualisieren</a>
+  </div>
+</section>
+
+{% if inventory.warnings %}
+<section class="panel">
+  <h2>Hinweise zum Bestand</h2>
+  <ul>{% for warning in inventory.warnings %}<li>{{ warning }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+<section class="panel">
+  <h2>Jahresübersicht</h2>
+  <p class="muted">Die Zahlen vergleichen vorhandene Sitzungen. Sie belegen keine vollständige Erfassung des Online-Kalenders. Ein Strich bedeutet „nicht ermittelbar“, eine Null einen leeren Bestand.</p>
+  {% if inventory.years %}
+  <div class="table-wrap">
+    <table class="compact-table">
+      <caption class="visually-hidden">Sitzungsbestände je Jahr</caption>
+      <thead><tr><th scope="col">Jahr</th><th scope="col">Rohdatenordner</th><th scope="col">Lokal: Sitzungen / Dokumente</th><th scope="col">Online: Sitzungen / Dokumente</th><th scope="col">Im Online-Index fehlen</th><th scope="col">Online ohne Rohdaten</th><th scope="col">Rohdaten ohne lokalen Index</th></tr></thead>
+      <tbody>
+      {% for year in inventory.years %}
+      <tr>
+        <th scope="row"><a href="#jahr-{{ year.year }}">{{ year.year|stringformat:"d" }}</a></th>
+        <td>{{ year.raw_count|default_if_none:"–" }}</td>
+        <td>{{ year.local_count|default_if_none:"–" }} / {{ year.local_documents|default_if_none:"–" }}</td>
+        <td>{{ year.online_count|default_if_none:"–" }} / {{ year.online_documents|default_if_none:"–" }}</td>
+        <td>{{ year.missing_online|default_if_none:"–" }}</td>
+        <td>{{ year.missing_raw|default_if_none:"–" }}</td>
+        <td>{{ year.missing_local|default_if_none:"–" }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="muted">„Im Online-Index fehlen“ zählt Sitzungen mit Rohdaten oder lokalem Indexeintrag, für die kein Online-Eintrag vorliegt. Ein vorhandener Rohdatenordner bestätigt nicht, dass alle Dokumente heruntergeladen sind.</p>
+  {% else %}<p class="empty-state">Noch keine Sitzungen einem Jahr zugeordnet.</p>{% endif %}
+</section>
+
+{% for year in inventory.years %}
+<section class="panel" id="jahr-{{ year.year }}">
+  <details>
+    <summary>Sitzungen {{ year.year|stringformat:"d" }} – {{ year.sessions|length }} bekannte Sitzungen</summary>
+    <div class="table-wrap">
+      <table class="compact-table">
+        <caption class="visually-hidden">Einzelne Sitzungen {{ year.year|stringformat:"d" }}</caption>
+        <thead><tr><th scope="col">Datum</th><th scope="col">ID</th><th scope="col">Gremium</th><th scope="col">Rohdaten</th><th scope="col">Lokaler Index</th><th scope="col">Online-Index</th></tr></thead>
+        <tbody>
+        {% for session in year.sessions %}
+        <tr>
+          <td>{{ session.date|default:"–" }}</td>
+          <td>{{ session.session_id }}</td>
+          <td>{{ session.meeting_name|default:session.committee|default:"–" }}</td>
+          <td>{{ session.raw_present|yesno:"vorhanden,fehlt,nicht ermittelbar" }}</td>
+          <td>{% if session.local_present %}<a href="{% url 'analysis:session_detail' session.session_id %}">vorhanden</a>{% else %}{{ session.local_present|yesno:"vorhanden,fehlt,nicht ermittelbar" }}{% endif %}</td>
+          <td>{{ session.online_present|yesno:"vorhanden,fehlt,nicht ermittelbar" }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+</section>
+{% endfor %}
+
+<section class="panel">
+  <h2>Vektorindex</h2>
+  <p>{{ status.qdrant_summary }}</p>
+  <p class="muted">Die Freigabe betrifft den gesamten Vektorindex. Aus den Sitzungszahlen lässt sich keine Vektorabdeckung je Jahr ableiten.</p>
+  <a href="{% url 'data_tools:service_vector' %}">Vektorstatus und Aufbau öffnen</a>
+</section>
+{% endblock %}

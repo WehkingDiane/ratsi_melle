@@ -10,20 +10,7 @@
   <p>Erstelle einen Tagesordnungsüberblick oder analysiere einzelne TOPs mit Quellen, offenen Fragen und kritischen Prüfpunkten.</p>
 </section>
 
-{% if errors %}
-<section class="message-list">
-  {% for error in errors %}
-  <p class="status-error">{{ error }}</p>
-  {% endfor %}
-</section>
-{% endif %}
-{% if messages %}
-<section class="message-list">
-  {% for message in messages %}
-  <p class="status-ok">{{ message }}</p>
-  {% endfor %}
-</section>
-{% endif %}
+{% include "core/partials/messages.html" with errors=errors messages=messages only %}
 
 <section class="grid two-columns">
   <article class="panel">

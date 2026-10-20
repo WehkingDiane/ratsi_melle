@@ -8,8 +8,11 @@ Der Landkreis-Builder bleibt ein eigener Dokumentindex.
 ## Vollstaendige Quellen und Fundstellen
 
 - PDF-Text wird auf allen Seiten mit `pypdf` gelesen, bis zu einer Dateigroesse von
-  einschliesslich 100 MiB. Diese Suchpipeline ist unabhaengig von der aelteren
-  Extraktionspipeline mit 25-MiB-Grenze.
+  einschliesslich 128 MiB. Diese Suchpipeline ist unabhaengig von der aelteren
+  Extraktionspipeline mit 25-MiB-Grenze. Die Grenze von 128 MiB erlaubt auch
+  den vollstaendigen Abschlussbericht Radverkehrskonzept (etwa 102,5 MiB).
+  Das automatische SessionNet-Downloadlimit liegt weiterhin bei 100 MiB;
+  groessere Originaldateien muessen manuell am hinterlegten Quellpfad abgelegt werden.
 - Fuer einzelne Seiten ohne Text wird automatisch OCR versucht, auch bei
   gemischten Text-/Scan-PDFs. Erforderlich sind `pdftoppm` und `tesseract` mit
   `deu+eng`. Pro Werkzeugaufruf gilt ein Timeout von 120 Sekunden.

@@ -13,12 +13,33 @@
 
 {% include "core/partials/service_result.html" %}
 
+<section class="grid two-columns">
+  <article class="panel">
+    <h2>Ratsinfo-Vektorindex bauen</h2>
+    <form method="post" class="form-stack">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="build_vector_index">
+      <label>Limit <input type="number" name="limit" min="1" placeholder="Optional, z. B. 100"></label>
+      <button class="button primary" type="submit">Ratsinfo-Vektorindex bauen</button>
+    </form>
+  </article>
+
+  <article class="panel">
+    <h2>Landkreis-Vektorindex bauen</h2>
+    <form method="post" class="form-stack">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="build_landkreis_vector_index">
+      <label>Datenwurzel <input type="text" name="data_dir" placeholder="Optional, z. B. /mnt/d/landkreis_osnabrueck"></label>
+      <label>Limit <input type="number" name="limit" min="1" placeholder="Optional, z. B. 100"></label>
+      <label>Maximale Textzeichen <input type="number" name="max_text_chars" min="1" placeholder="Standard: 6000"></label>
+      <button class="button primary" type="submit">Landkreis-Vektorindex bauen</button>
+    </form>
+  </article>
+</section>
+
 {% with models=status.embedding_models %}
 <section class="panel service-status" data-service-status data-status-url="{% url 'data_tools:service_status' %}" id="embedding-model-status">
-  <div class="service-status-header">
-    <h2>Lokale Embedding-Modelle</h2>
-    <button class="button utility small" type="button" data-service-status-refresh>Modellstatus aktualisieren</button>
-  </div>
+  {% include "core/partials/panel_header.html" with heading="Lokale Embedding-Modelle" refresh_label="Modellstatus aktualisieren" only %}
   <dl class="facts" aria-live="polite">
     <div><dt>Gemeinsamer Modellbestand</dt><dd data-model-field="status" data-model-format="status" class="{% if models.status == 'bereit' %}status-ok{% else %}status-warning{% endif %}">{% if models.status == 'unvollstaendig' %}unvollständig{% else %}{{ models.status|default:"Nicht verfügbar" }}{% endif %}</dd></div>
     <div><dt>Ergebnis der aktuellen Schnellprüfung</dt><dd data-model-field="message">{{ models.message|default:"Nicht verfügbar" }}</dd></div>
@@ -83,28 +104,6 @@
 </section>
 
 <section class="grid two-columns">
-  <article class="panel">
-    <h2>Ratsinfo-Vektorindex bauen</h2>
-    <form method="post" class="form-stack">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="build_vector_index">
-      <label>Limit <input type="number" name="limit" min="1" placeholder="Optional, z. B. 100"></label>
-      <button class="button primary" type="submit">Ratsinfo-Vektorindex bauen</button>
-    </form>
-  </article>
-
-  <article class="panel">
-    <h2>Landkreis-Vektorindex bauen</h2>
-    <form method="post" class="form-stack">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="build_landkreis_vector_index">
-      <label>Datenwurzel <input type="text" name="data_dir" placeholder="Optional, z. B. /mnt/d/landkreis_osnabrueck"></label>
-      <label>Limit <input type="number" name="limit" min="1" placeholder="Optional, z. B. 100"></label>
-      <label>Maximale Textzeichen <input type="number" name="max_text_chars" min="1" placeholder="Standard: 6000"></label>
-      <button class="button primary" type="submit">Landkreis-Vektorindex bauen</button>
-    </form>
-  </article>
-
   <article class="panel">
     <h2>Ratsinfo-Vektorstatus</h2>
     {% if vector_status %}

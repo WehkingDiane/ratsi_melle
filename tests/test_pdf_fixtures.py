@@ -153,7 +153,7 @@ def test_analysis_limits_long_original_text_without_losing_page_evidence(monkeyp
     assert "Inkrafttreten" in result.page_texts[-1]["text"]
 
 
-@pytest.mark.parametrize("pipeline,limit", [("analysis", 25 * 1024 * 1024), ("search", 100 * 1024 * 1024)])
+@pytest.mark.parametrize("pipeline,limit", [("analysis", 25 * 1024 * 1024), ("search", 128 * 1024 * 1024)])
 @pytest.mark.parametrize("extra_byte", [0, 1])
 def test_actual_size_boundaries_before_pdf_reading_or_ocr(tmp_path, monkeypatch, pipeline, limit, extra_byte):
     path = tmp_path / "size_boundary.pdf"
@@ -181,7 +181,7 @@ def test_actual_size_boundaries_before_pdf_reading_or_ocr(tmp_path, monkeypatch,
             pages=[SimpleNamespace(extract_text=lambda: text)]))
         monkeypatch.setattr(passages, "ocr_page", reject_ocr)
         if extra_byte:
-            with pytest.raises(ValueError, match="100 MiB"):
+            with pytest.raises(ValueError, match="128 MiB"):
                 passages.extract_pages(path)
         else:
             assert passages.extract_pages(path)[0]["text"] == text.strip()

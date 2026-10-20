@@ -153,8 +153,8 @@ def _populate(
     doc_count = 0
     seen_sessions: set[str] = set()
     existing = {
-        row[0]
-        for row in conn.execute("SELECT session_id FROM sessions").fetchall()
+        row[0]: row[1]
+        for row in conn.execute("SELECT session_id, detail_url FROM sessions").fetchall()
         if row and row[0]
     }
 
@@ -162,21 +162,26 @@ def _populate(
     total_references = 0
     for month_index, month in enumerate(months, start=1):
         logging.info("Build progress: fetching month %04d-%02d (%d/%d)", year, month, month_index, len(months))
-        references = client.fetch_month(year=year, month=month)
+        references = client.fetch_month(year=year, month=month, include_planned=True)
         total_references += len(references)
         logging.info("Found %d sessions for %04d-%02d", len(references), year, month)
         for reference_index, reference in enumerate(references, start=1):
             if reference.session_id in seen_sessions:
                 continue
-            if reference.session_id in existing and not refresh_existing:
+            refresh_session = refresh_existing or (
+                reference.session_id in existing
+                and not existing[reference.session_id]
+                and bool(reference.detail_url)
+            )
+            if reference.session_id in existing and not refresh_session:
                 continue
             if reference.session_id not in existing and only_refresh:
                 continue
             seen_sessions.add(reference.session_id)
             logging.info("Build progress: %d/%d sessions in %04d-%02d; indexing %s", reference_index, len(references), year, month, reference.session_id)
-            detail = client.fetch_session(reference)
+            detail = client.fetch_session(reference) if reference.detail_url else None
 
-            if reference.session_id in existing and refresh_existing:
+            if reference.session_id in existing and refresh_session and detail is not None:
                 conn.execute("DELETE FROM agenda_items WHERE session_id = ?", (reference.session_id,))
                 conn.execute("DELETE FROM documents WHERE session_id = ?", (reference.session_id,))
 
@@ -201,8 +206,9 @@ def _populate(
             )
             session_count += 1
 
-            agenda_count += _insert_agenda_items(conn, reference.session_id, detail)
-            doc_count += _insert_documents(conn, reference.session_id, detail)
+            if detail is not None:
+                agenda_count += _insert_agenda_items(conn, reference.session_id, detail)
+                doc_count += _insert_documents(conn, reference.session_id, detail)
 
     conn.commit()
     logging.info("Build complete: indexed_sessions=%d agenda_items=%d documents=%d discovered_sessions=%d", session_count, agenda_count, doc_count, total_references)

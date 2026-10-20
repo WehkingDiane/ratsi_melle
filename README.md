@@ -139,6 +139,28 @@ maskiert.
 
 Der lokale Index-Build behandelt `session_detail.html` als kanonische Quelle und übernimmt daraus abweichende TOP- und Dokumentmetadaten direkt in den SQLite-Index. `agenda_summary.json`, `manifest.json` und andere Rohdaten bleiben dabei unverändert; bereits vorhandene Dateien werden im Index wieder ihren Dokumentlinks zugeordnet. Berücksichtigt werden nur SessionNet-Sitzungsordner unter `data/raw/YYYY/MM/`; Landkreis-Rohdaten bleiben getrennt. Auch der Online-Index-Build verändert keine Dateien unter `data/raw/`.
 
+Das Dashboard ist für den Desktop als durchgehende Spalte aufgebaut:
+„Kommende Sitzungen“, „Vergangene Sitzungen“, danach ein kompakter Datenstatus.
+Beide Listen zeigen jeweils fünf bekannte Kalendertermine aus dem Online-Index
+und ergänzend dem lokalen Bestand, unabhängig von lokal verfügbaren Unterlagen.
+Kommende Termine beginnen heute und sind aufsteigend sortiert; vergangene Termine
+liegen vor heute und zeigen den jüngsten zuerst. Maßgeblich ist das heutige Datum
+in Europe/Berlin; heutige Sitzungen bleiben den ganzen Tag unter „Kommende Sitzungen“.
+Wochentag, Datum und relative Angaben wie „Heute“ oder „in 3 Tagen“ helfen bei der
+Einordnung. Bei verschobenen Terminen hat das Datum aus dem Online-Index Vorrang.
+Lokale Unterlagen und veröffentlichte Ratsinfo-Details werden passend verlinkt.
+Der Online-Index ist ein gespeicherter Kalenderstand, kein Live-Abruf beim Öffnen
+des Dashboards. Änderungen bestehender Termine werden über „Daten → Build“ mit
+„Bestehende Sitzungen aktualisieren“ übernommen. Der Online-Build
+erfasst auch angekündigte Termine ohne veröffentlichte Tagesordnung über ihre
+Kalender-ID. Sobald ein Detaillink erscheint, übernimmt der nächste Online-Build
+die Tagesordnung auch ohne „Bestehende Sitzungen aktualisieren“. Über
+„Datenstatus nach Jahr“ im Datenmenü beziehungsweise „Details nach Jahr“ im Datenbereich
+öffnet sich `/daten/status/details/`: Rohdaten, lokaler und Online-Index werden
+je Jahr mit Dokumentanzahlen und aufklappbaren Sitzungslisten verglichen.
+Alle vorhandenen Jahre bleiben sichtbar, auch vor August 2021. Die Ansicht
+verändert keine Daten; fehlende Quellen werden gesondert ausgewiesen.
+
 Die Django-Weboberfläche startet lokal mit:
 
 ```bash
@@ -154,6 +176,8 @@ Sie ist danach standardmäßig unter `http://127.0.0.1:8000/` erreichbar. Detail
 - Landkreis-Veröffentlichungen: `data/db/landkreis_publications.sqlite`
 - Lokaler Vektorindex: `data/db/qdrant/`; Ratsinfo verwendet den neuen Abschnittsindex `ratsi_passages` mit Harrier und BM25. Der bisherige Index `ratsi_documents` bleibt bis zum vollstaendigen Erstaufbau aktiv. Landkreis nutzt weiterhin `landkreis_publications`.
 - Django-Datenpflege unter `/daten/`: SessionNet- und Landkreis-Fetch-, SQLite-Build- und Vektorindex-Jobs starten; die Vektorseite zeigt Status fuer Ratsinfo und Landkreis sowie den lokalen Modellbestand fuer Harrier, Tokenizer und BM25 mit Revisionen und Pflichtdateigroessen. „Lokal pruefen“ startet die Offline-Modellpruefung als Datenjob. Die Vektorseite zeigt je Modell-/Legacy-Aktion den letzten abgeschlossenen Versuch (auch Fehler) und laufende Jobs separat. Ergebnisse sind an Modellpfad, Modellvertrag, Bibliotheksstand und bei Erfolg Manifest-Hash gebunden; nach Aenderungen erscheinen sie als historisch. Jobdetails zeigen den Ausfuehrungsstatus ohne erfundene Prozentwerte. Modellvorbereitung, Legacy-Pruefung/-Uebernahme und alle Vektor-Builds teilen eine Prozesssperre am Modellverzeichnis; es laeuft nur ein Build gleichzeitig. Webstarts melden „bereits aktiv“, direkte CLI-Aufrufe warten. Sperren bleiben bis zum Schliessen des Qdrant-Clients bestehen.
+- Auf `/daten/vektor/` stehen die Build-Formulare für Ratsinfo und Landkreis oben; Modellverwaltung, Prüfungen und Status folgen darunter. Vektorseite und Jahresstatus unter `/daten/status/details/` verwenden einheitlich 20 px Abstand zwischen Bereichen und 18 px Innenabstand in den Panels.
+- Alle Arbeitsbereiche verwenden gemeinsame Regeln für Seitenabstände, Panels, Formulare, Buttons und Rückmeldungen. Die zentrale Pflege und wiederverwendbaren Bausteine beschreibt [Gemeinsame Darstellungsregeln](docs/ui_guidelines.md).
 - Django-Suche unter `/suche/`: semantische Dokumentensuche ueber den konfigurierten Qdrant-Vektorindex; Standard ist Ratsinfo. Fuer Landkreis-Treffer zuerst `python scripts/build_landkreis_vector_index.py` oder `/daten/vektor/` nutzen; fuer Ratsinfo `python scripts/build_vector_index.py` oder `/daten/vektor/`
 - Analyse-Workflow und v2-Ausgaben: [docs/analysis_outputs.md](docs/analysis_outputs.md)
 - Analyse-Start unter `/analyse/starten/`: Sitzung vorbereiten, TOPs kritisch analysieren oder Prompt/Grundlage für manuelle ChatGPT-Nutzung erzeugen; vorbereitete Jobs lassen sich anschließend auf derselben Jobseite an einen API-Provider absenden
