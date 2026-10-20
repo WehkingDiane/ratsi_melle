@@ -22,7 +22,7 @@ def _incompatible(collection: str, reason: str) -> IndexBuildCompatibilityError:
 
 def check_build_compatibility(
     connection: QdrantConnection, client, collection: str, compatibility: IndexCompatibility,
-    *, build_options: dict | None = None,
+    *, build_options: dict | None = None, validate_vectors: bool = True,
 ) -> str:
     """Return existing provenance, rejecting missing or different release contracts."""
 
@@ -51,13 +51,20 @@ def check_build_compatibility(
             raise _incompatible(collection, "Build-Optionen im Freigabemarker sind nicht lesbar.") from error
         if marker.get("build_options") != build_options:
             raise _incompatible(collection, "Bestehende Collection hat andere Build-Optionen.")
-    if not connection.collection_contents_match(client, collection, compatibility):
-        raise _incompatible(collection, "Freigabemarker und Qdrant-Punktbestand stimmen nicht ueberein.")
     try:
         marker = json.loads(connection.release_path(collection).read_text(encoding="utf-8"))
     except (OSError, UnicodeError, ValueError) as error:
         raise _incompatible(collection, "Freigabemarker ist nicht lesbar.") from error
+    # Released header digests remain binding even when numeric-vector reads are
+    # intentionally disabled. Pending builds may have added or replaced points.
+    check_payload_release = marker.get("validation_mode") == "payload" and marker.get("ready") is not False
+    if (validate_vectors or check_payload_release) and not connection.collection_contents_match(client, collection, compatibility):
+        raise _incompatible(collection, "Freigabemarker und Qdrant-Punktbestand stimmen nicht ueberein.")
     provenance = marker.get("provenance", "native")
     if provenance not in {"native", "legacy_verified"}:
         raise _incompatible(collection, "Freigabemarker hat eine ungueltige Herkunft.")
+    if not validate_vectors and marker.get("ready") is not False:
+        count = client.count(collection_name=collection, exact=True).count
+        if type(marker.get("points_count")) is not int or marker["points_count"] != count:
+            raise _incompatible(collection, "Punktzahl weicht von der letzten Freigabe ab; Service-Pruefung erforderlich.")
     return provenance

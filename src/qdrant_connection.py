@@ -76,8 +76,8 @@ class QdrantConnection:
             return None
 
     def _point_snapshot(self, client, collection: str, compatibility: IndexCompatibility,
-                        *, check_contract: bool = True) -> tuple[int, str] | None:
-        """Read a complete, stable point list and hash IDs with their stored vectors."""
+                        *, check_contract: bool = True, with_vectors: bool = True) -> tuple[int, str] | None:
+        """Hash a stable point list, selecting numeric vectors or compact headers."""
         try:
             expected_count = client.count(collection_name=collection, exact=True).count
             if type(expected_count) is not int or expected_count < 0:
@@ -86,12 +86,15 @@ class QdrantConnection:
             seen = set()
             digest = sha256()
             while True:
+                fields = ["index_compatibility", "document_id", "generation", "fingerprint",
+                          "chunk_count", "chunk_index", "committed"]
                 records, next_offset = client.scroll(
-                    collection_name=collection, with_payload=check_contract, with_vectors=True,
-                    limit=256, offset=offset,
+                    collection_name=collection,
+                    with_payload=check_contract if with_vectors else fields,
+                    with_vectors=with_vectors, limit=1000, offset=offset,
                 )
                 for record in records:
-                    if record.id in seen or record.vector is None:
+                    if record.id in seen or (with_vectors and record.vector is None):
                         return None
                     seen.add(record.id)
                     if check_contract:
@@ -99,7 +102,7 @@ class QdrantConnection:
                             record.payload.get("index_compatibility")
                         ) != compatibility:
                             return None
-                    point = record.model_dump(mode="json", include={"id", "vector"})
+                    point = record.model_dump(mode="json", include={"id", "vector" if with_vectors else "payload"})
                     digest.update(json.dumps(point, sort_keys=True, separators=(",", ":")).encode())
                     digest.update(b"\n")
                 if next_offset is None:
@@ -115,17 +118,18 @@ class QdrantConnection:
             return None
 
     def collection_contents_match(self, client, collection: str, compatibility: IndexCompatibility) -> bool:
-        """Allow pending additions; require an exact vector snapshot for releases."""
+        """Compare a release with its recorded vector or compact-header snapshot."""
         try:
             marker = json.loads(self.release_path(collection).read_text(encoding="utf-8"))
-            snapshot = self._point_snapshot(client, collection, compatibility)
+            payload_mode = marker.get("validation_mode") == "payload"
+            snapshot = self._point_snapshot(client, collection, compatibility, with_vectors=not payload_mode)
             if snapshot is None:
                 return False
             if marker.get("ready") is False:
                 return True
             return (type(marker.get("points_count")) is int
                     and marker["points_count"] == snapshot[0]
-                    and marker.get("vectors_sha256") == snapshot[1])
+                    and marker.get("payload_sha256" if payload_mode else "vectors_sha256") == snapshot[1])
         except (OSError, UnicodeError, ValueError, TypeError, AttributeError):
             return False
 
@@ -243,7 +247,8 @@ class QdrantConnection:
 
     def write_readiness(self, client, metadata: dict, *,
                         collection: str = "ratsi_passages",
-                        compatibility: IndexCompatibility | None = None) -> None:
+                        compatibility: IndexCompatibility | None = None,
+                        validate_vectors: bool = True) -> None:
         """Atomically record the completed build for the selected backend."""
         path = self.release_path(collection)
         marker = dict(metadata)
@@ -254,10 +259,16 @@ class QdrantConnection:
         if self.url or compatibility is not None:
             marker["points_count"] = client.count(collection_name=collection, exact=True).count
         if compatibility is not None and marker.get("ready") is True:
-            snapshot = self._point_snapshot(client, collection, compatibility, check_contract=False)
+            snapshot = self._point_snapshot(client, collection, compatibility,
+                                            check_contract=not validate_vectors,
+                                            with_vectors=validate_vectors)
             if snapshot is None or snapshot[0] != marker["points_count"]:
                 raise ValueError("Qdrant-Punktbestand konnte nicht stabil gelesen werden.")
-            marker["vectors_sha256"] = snapshot[1]
+            if validate_vectors:
+                marker["vectors_sha256"] = snapshot[1]
+            else:
+                marker["validation_mode"] = "payload"
+                marker["payload_sha256"] = snapshot[1]
         path.parent.mkdir(parents=True, exist_ok=True)
         temporary = path.with_name(f".{path.name}.{uuid4().hex}.tmp")
         try:

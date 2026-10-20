@@ -8,6 +8,7 @@ from typing import Any
 
 from src.config.settings import QdrantSettingsError
 from src.indexing.id_strategy import stable_document_id
+from src.indexing.passage_inventory import INVENTORY_FIELDS, complete_document_ids, indexed_document_ids
 from src.qdrant_connection import QdrantConnection, collection_state
 from src.paths import LANDKREIS_PUBLICATIONS_DB, LOCAL_INDEX_DB, QDRANT_DIR
 
@@ -79,6 +80,14 @@ def vector_index_status(
             status["coverage_percent"] = round(len(indexed_current_ids) * 100 / indexable_count, 1)
         else:
             status["coverage_percent"] = 100.0
+
+    build_ids = status.pop("_build_complete_ids", None)
+    build_all_ids = status.pop("_build_all_ids", None)
+    if current_ids is not None and build_ids is not None:
+        status["build_complete_document_count"] = len(current_ids & build_ids)
+        status["build_missing_document_count"] = len(current_ids - build_ids)
+        status["build_orphaned_document_count"] = len(build_all_ids - current_ids)
+        status["build_coverage_percent"] = round(100 * len(current_ids & build_ids) / len(current_ids), 1) if current_ids else 100.0
 
     if status["status"] == "unknown":
         if warnings:
@@ -284,13 +293,35 @@ def _read_qdrant_ids(
     client = None
     try:
         client = connection.create_client()
+        if collection_name == COLLECTION_NAME:
+            # Progress concerns the build target even while search uses the old
+            # collection. Do not interpret search fallback as lost documents.
+            names = {item.name for item in client.get_collections().collections}
+            payloads = {}
+            if "ratsi_passages" in names:
+                offset = None
+                while True:
+                    records, offset = client.scroll(
+                        collection_name="ratsi_passages", with_payload=INVENTORY_FIELDS,
+                        with_vectors=False, limit=1000, offset=offset,
+                    )
+                    payloads.update((record.id, record.payload or {}) for record in records)
+                    if offset is None:
+                        break
+            status["_build_complete_ids"] = complete_document_ids(payloads)
+            status["_build_all_ids"] = indexed_document_ids(payloads)
+            status["build_passage_count"] = len(payloads)
         selection = collection_state(connection, client, collection_name)
         collection_name = selection["collection_name"]
         passage_mode = collection_name == "ratsi_passages"
         status["collection_name"] = collection_name
         status["qdrant_state"] = selection["state"]
         if selection["state"] == "incomplete":
-            warnings.append(selection["message"])
+            warnings.append(
+                "Der Abschnittsindex ist noch nicht für die Suche freigegeben. "
+                "Der Aufbaufortschritt zählt die bereits vollständig indexierten Dokumente."
+                if "_build_complete_ids" in status else selection["message"]
+            )
             status["status"] = "incomplete"
         if not selection["collection_exists"]:
             warnings.append(f"Qdrant-Collection fehlt: {collection_name}")
@@ -298,6 +329,16 @@ def _read_qdrant_ids(
             if status["status"] != "incomplete":
                 status["status"] = "missing_collection"
             return set()
+
+        if passage_mode and "_build_complete_ids" in status:
+            indexed_ids = status["_build_complete_ids"]
+            parents = status["_build_all_ids"]
+            status["indexed_vector_count"] = status["build_passage_count"]
+            status["indexed_document_count"] = len(indexed_ids)
+            status["incomplete_document_count"] = len(parents - indexed_ids)
+            if status["incomplete_document_count"]:
+                warnings.append("Abschnittsindex enthaelt unvollstaendige Dokumente; Build erneut starten.")
+            return indexed_ids
 
         info = client.get_collection(collection_name=collection_name)
         status["indexed_vector_count"] = int(info.points_count or 0)

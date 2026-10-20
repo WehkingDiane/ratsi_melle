@@ -377,6 +377,125 @@ def test_status_matches_search_fallback_and_missing_collection(tmp_path, remote)
     assert not directory.exists()
 
 
+@pytest.mark.integration
+def test_build_progress_uses_passages_even_before_search_release(tmp_path, remote):
+    from src.indexing.id_strategy import stable_document_id
+    from src.indexing.vector_status import vector_index_status
+    from test_vector_status import _write_local_index
+    db = tmp_path / "source.sqlite"
+    _write_local_index(db)
+    directory = tmp_path / "unused"
+    legacy = DocumentVectorStore(directory)
+    legacy.ensure_collection()
+    legacy.upsert_batch([point(50)])
+    store = DocumentVectorStore(directory, "ratsi_passages")
+    store.ensure_collection()
+    p = point()
+    p["payload"]["document_id"] = stable_document_id("7123", "https://example.test/1", "Oe 7")
+    store.upsert_batch([p])
+    status = vector_index_status(db, directory)
+    assert status["collection_name"] == "ratsi_documents"
+    assert status["build_complete_document_count"] == 1
+    assert status["build_missing_document_count"] == 1
+    assert status["build_coverage_percent"] == 50.0
+    assert status["build_passage_count"] == 1
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("target_kind", ["missing", "file"])
+def test_service_check_rejects_missing_local_target_without_creating_storage(tmp_path, monkeypatch, capsys, target_kind):
+    from scripts import check_vector_index
+    db = tmp_path / "input.sqlite"
+    db.touch()
+    target = tmp_path / "missing-parent" / "qdrant"
+    if target_kind == "file":
+        target = tmp_path / "not-a-directory"
+        target.write_bytes(b"not an index")
+    monkeypatch.setenv("RATSI_QDRANT_MODE", "local")
+    monkeypatch.delenv("RATSI_QDRANT_URL", raising=False)
+    monkeypatch.setattr(QdrantConnection, "create_client", lambda self: pytest.fail("Missing target opened a client"))
+    monkeypatch.setattr(check_vector_index, "current_index_compatibility", lambda **kwargs: pytest.fail("Missing target loaded models"))
+    before = {path.relative_to(tmp_path) for path in tmp_path.rglob("*")}
+    with pytest.raises(SystemExit) as error:
+        check_vector_index.main(["--db", str(db), "--qdrant-dir", str(target)])
+    assert error.value.code == 1
+    output = capsys.readouterr()
+    assert output.out == ""
+    assert "Lokaler Vektorindex fehlt" in output.err
+    assert "Traceback" not in output.err
+    assert {path.relative_to(tmp_path) for path in tmp_path.rglob("*")} == before
+    if target_kind == "file":
+        assert target.read_bytes() == b"not an index"
+
+
+@pytest.mark.integration
+def test_service_check_reads_vectors_without_modifying_index_or_marker(tmp_path, monkeypatch, remote, compatibility, capsys):
+    from scripts import check_vector_index
+    from test_passage_index import document
+    store = DocumentVectorStore(tmp_path / "unused", "ratsi_passages")
+    store.ensure_collection()
+    store.begin_build(compatibility, validate_vectors=False)
+    store.upsert_batch([point(compatibility=compatibility)])
+    store.finish_build(compatibility)
+    marker = store.connection.ready_path.read_bytes()
+    before = remote.retrieve("ratsi_passages", [1], with_vectors=True)
+    db = tmp_path / "input.sqlite"
+    db.touch()
+    doc, _ = document(tmp_path)
+    monkeypatch.setattr(check_vector_index, "_load_documents", lambda db, **kw: [doc])
+    monkeypatch.setattr(check_vector_index, "current_index_compatibility", lambda **kw: compatibility)
+    assert not (tmp_path / "unused").exists()
+    check_vector_index.main(["--db", str(db), "--qdrant-dir", str(tmp_path / "unused")])
+    result = json.loads(capsys.readouterr().out)
+    assert result["read_only"] is True
+    assert result["points"] == 1
+    assert len(result["vectors_sha256"]) == 64
+    assert store.connection.ready_path.read_bytes() == marker
+    assert remote.retrieve("ratsi_passages", [1], with_vectors=True) == before
+    assert not (tmp_path / "unused").exists()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("committed", [True, False])
+def test_status_and_service_check_count_incomplete_orphan_documents(
+    tmp_path, monkeypatch, remote, compatibility, capsys, committed,
+):
+    from scripts import check_vector_index
+    from src.indexing.id_strategy import stable_document_id
+    from src.indexing.vector_status import vector_index_status
+    from test_vector_status import _write_local_index
+    db = tmp_path / "input.sqlite"
+    _write_local_index(db)
+    directory = tmp_path / "unused"
+    store = DocumentVectorStore(directory, "ratsi_passages")
+    store.begin_build(compatibility, validate_vectors=False)
+    present = point(compatibility=compatibility)
+    present["payload"]["document_id"] = stable_document_id("7123", "https://example.test/1", "Oe 7")
+    orphan = point(2, committed=committed, compatibility=compatibility)
+    orphan["payload"].update(document_id=99, chunk_count=2)
+    store.upsert_batch([present, orphan])
+    before = remote.retrieve("ratsi_passages", [1, 2], with_vectors=True)
+    marker = store.connection.ready_path.read_bytes()
+    monkeypatch.setattr(check_vector_index, "current_index_compatibility", lambda **kwargs: compatibility)
+    try:
+        status = vector_index_status(db, directory)
+        assert status["build_complete_document_count"] == 1
+        assert status["build_missing_document_count"] == 1
+        assert status["build_orphaned_document_count"] == 1
+        assert status["build_coverage_percent"] == 50.0
+        assert "_build_all_ids" not in status
+        check_vector_index.main(["--db", str(db), "--qdrant-dir", str(directory)])
+        result = json.loads(capsys.readouterr().out)
+        assert result["orphaned_documents"] == 1
+        assert result["complete_documents"] == 1
+        assert result["missing_documents"] == 1
+        assert result["uncommitted_passages"] == (0 if committed else 1)
+        assert store.connection.ready_path.read_bytes() == marker
+        assert remote.retrieve("ratsi_passages", [1, 2], with_vectors=True) == before
+    finally:
+        store.close()
+
+
 def test_server_status_unreachable_is_distinct(tmp_path, monkeypatch):
     from src.indexing.vector_status import vector_index_status
     monkeypatch.setenv("RATSI_QDRANT_URL", "http://test.invalid:6333")
@@ -489,6 +608,16 @@ def test_passage_build_only_marks_complete_current_documents(tmp_path, monkeypat
     assert points and all(point.payload['index_compatibility'] == compatibility.as_dict()
                           for point in points)
     source.write_text('Changed document source')
+    marker_before = config.ready_path.read_bytes()
+    stored_before = remote.retrieve('ratsi_passages', [p.id for p in points], with_vectors=True)
+    with monkeypatch.context() as unchanged:
+        unchanged.setattr(passage_builder, '_load_tokenizer', lambda: pytest.fail('Complete index loaded tokenizer'))
+        unchanged.setattr(passage_builder, 'file_digest', lambda path: pytest.fail('Complete source read'))
+        passage_builder.main(args)
+    assert config.ready_path.read_bytes() == marker_before
+    assert remote.retrieve('ratsi_passages', [p.id for p in points], with_vectors=True) == stored_before
+    docs.extend([{**doc, 'id': 3, 'url': 'https://example.org/third'},
+                 {**doc, 'id': 4, 'url': 'https://example.org/fourth'}])
     passage_builder.main(args + ['--limit', '1'])
     assert config.ready_path.exists()
     assert not config.passages_ready(remote)
@@ -496,6 +625,58 @@ def test_passage_build_only_marks_complete_current_documents(tmp_path, monkeypat
     passage_builder.main(args + ['--limit', '1'])
     assert config.passages_ready(remote)
     assert not (tmp_path / 'absent').exists()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("cleanup_fails", [False, True])
+def test_normal_cli_recovers_interrupted_refresh_without_reencoding(
+    tmp_path, monkeypatch, remote, compatibility, capsys, cleanup_fails,
+):
+    from scripts import build_vector_index
+    from src.indexing import passage_builder
+    from test_passage_index import Tokenizer, Vectorizer, document
+    db = tmp_path / "input.sqlite"
+    db.touch()
+    doc, _ = document(tmp_path)
+    monkeypatch.setattr(build_vector_index, "_load_documents", lambda db: [doc])
+    monkeypatch.setattr(passage_builder, "current_index_compatibility", lambda: compatibility)
+    monkeypatch.setattr(passage_builder, "_load_tokenizer", Tokenizer)
+    monkeypatch.setattr(passage_builder, "HybridVectorizer", lambda *args: Vectorizer())
+    directory = tmp_path / "unused"
+    args = ["--db", str(db), "--qdrant-dir", str(directory)]
+    passage_builder.main(args)
+    original, _ = remote.scroll("ratsi_passages", with_payload=True, with_vectors=True, limit=100)
+    store = DocumentVectorStore(directory, "ratsi_passages")
+    try:
+        store.begin_build(compatibility)
+        partial = point(999, committed=False, compatibility=compatibility)
+        partial["payload"].update(document_id=original[0].payload["document_id"],
+                                  generation="interrupted-refresh", chunk_count=2)
+        store.upsert_batch([partial])
+        assert not store.connection.passages_ready(remote)
+    finally:
+        store.close()
+    monkeypatch.setattr(passage_builder, "_load_tokenizer", lambda: pytest.fail("Tokenizer loaded during cleanup"))
+    monkeypatch.setattr(passage_builder, "resolve_local_file_path", lambda **kwargs: pytest.fail("Complete source accessed"))
+    monkeypatch.setattr(passage_builder, "HybridVectorizer", lambda *args: pytest.fail("Model loaded during cleanup"))
+    if cleanup_fails:
+        def fail_delete(self, ids):
+            raise RuntimeError("cleanup unavailable")
+        monkeypatch.setattr(DocumentVectorStore, "delete_ids", fail_delete)
+        with pytest.raises(SystemExit) as error:
+            passage_builder.main(args + ["--limit", "1"])
+        assert error.value.code == 1
+    else:
+        passage_builder.main(args + ["--limit", "1"])
+    result = json.loads(capsys.readouterr().out.splitlines()[-1])
+    assert result["processed_documents"] == 0
+    assert result["cleaned_partial_passages"] == (0 if cleanup_fails else 1)
+    assert bool(result["failures"]) is cleanup_fails
+    assert result["ready"] is not cleanup_fails
+    config = QdrantConnection.from_env(directory)
+    assert config.passages_ready(remote) is not cleanup_fails
+    assert bool(remote.retrieve("ratsi_passages", [999])) is cleanup_fails
+    assert remote.retrieve("ratsi_passages", [p.id for p in original], with_vectors=True) == original
 
 
 def test_runtime_read_failures_are_not_reported_as_empty_index(tmp_path):

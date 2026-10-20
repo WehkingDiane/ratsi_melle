@@ -48,6 +48,82 @@ def _store(tmp_path, collection, compatibility=None):
 
 
 @pytest.mark.integration
+def test_missing_only_build_reads_headers_without_numeric_vectors(tmp_path, monkeypatch, compatibility):
+    collection = "ratsi_passages"
+    store = _store(tmp_path, collection, compatibility)
+    client = store._get_client()
+    try:
+        store.connection.write_readiness(client, {"ready": True}, collection=collection, compatibility=compatibility)
+        original_scroll = client.scroll
+        def headers_only(*args, **kwargs):
+            assert kwargs.get("with_vectors") is False
+            return original_scroll(*args, **kwargs)
+        monkeypatch.setattr(client, "scroll", headers_only)
+        store.begin_build(compatibility, validate_vectors=False)
+        store.finish_build(compatibility)
+        marker = json.loads(store.connection.ready_path.read_text())
+        assert marker["ready"] is True
+        assert marker["validation_mode"] == "payload"
+        assert "vectors_sha256" not in marker
+        assert store.connection.collection_contents_match(client, collection, compatibility)
+        store.begin_build(compatibility, validate_vectors=False)
+        store.finish_build(compatibility)
+        client.set_payload(collection, {"generation": "unexpected"}, points=[1])
+        assert not store.connection.collection_contents_match(client, collection, compatibility)
+    finally:
+        store.close()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("mutation", [
+    {"document_id": 99}, {"generation": "replaced"}, {"chunk_count": 2},
+    {"chunk_index": 1}, {"committed": False},
+])
+def test_missing_only_build_rejects_changed_released_headers_before_writes(tmp_path, monkeypatch, compatibility, mutation):
+    collection = "ratsi_passages"
+    store = _store(tmp_path, collection, compatibility)
+    client = store._get_client()
+    try:
+        client.set_payload(collection, {"document_id": 10, "generation": "first", "fingerprint": "source",
+                                       "chunk_count": 1, "chunk_index": 0, "committed": True}, points=[1])
+        store.connection.write_readiness(client, {"ready": True}, collection=collection,
+                                         compatibility=compatibility, validate_vectors=False)
+        marker = store.connection.ready_path.read_bytes()
+        client.set_payload(collection, mutation, points=[1])
+        before = client.retrieve(collection, ids=[1], with_vectors=True)
+        original_scroll = client.scroll
+        def headers_only(*args, **kwargs):
+            assert kwargs.get("with_vectors") is False
+            return original_scroll(*args, **kwargs)
+        monkeypatch.setattr(client, "scroll", headers_only)
+        monkeypatch.setattr(store, "ensure_collection", lambda: pytest.fail("Preflight reached writes"))
+        with pytest.raises(IndexBuildCompatibilityError, match="Punktbestand"):
+            store.begin_build(compatibility, validate_vectors=False)
+        assert store.connection.ready_path.read_bytes() == marker
+        assert client.retrieve(collection, ids=[1], with_vectors=True) == before
+    finally:
+        store.close()
+
+
+@pytest.mark.integration
+def test_missing_only_build_resumes_pending_marker_with_added_headers(tmp_path, monkeypatch, compatibility):
+    from qdrant_client.models import PointStruct
+    collection = "ratsi_passages"
+    store = _store(tmp_path, collection, compatibility)
+    client = store._get_client()
+    try:
+        store.connection.write_readiness(client, {"ready": False}, collection=collection, compatibility=compatibility)
+        old = client.retrieve(collection, ids=[1], with_vectors=True)[0]
+        client.upsert(collection, [PointStruct(id=2, vector=old.vector, payload=old.payload)])
+        monkeypatch.setattr(client, "scroll", lambda **kwargs: pytest.fail("Pending continuation read vectors"))
+        store.begin_build(compatibility, validate_vectors=False)
+        assert json.loads(store.connection.ready_path.read_text())["ready"] is False
+        assert client.count(collection, exact=True).count == 2
+    finally:
+        store.close()
+
+
+@pytest.mark.integration
 def test_concurrent_builds_serialize_before_readiness_and_writes(tmp_path, compatibility):
     collection = "ratsi_passages"
     first = _store(tmp_path, collection, compatibility)

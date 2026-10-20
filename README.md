@@ -176,7 +176,7 @@ Sie ist danach standardmäßig unter `http://127.0.0.1:8000/` erreichbar. Detail
 - Landkreis-Veröffentlichungen: `data/db/landkreis_publications.sqlite`
 - Lokaler Vektorindex: `data/db/qdrant/`; Ratsinfo verwendet den neuen Abschnittsindex `ratsi_passages` mit Harrier und BM25. Der bisherige Index `ratsi_documents` bleibt bis zum vollstaendigen Erstaufbau aktiv. Landkreis nutzt weiterhin `landkreis_publications`.
 - Django-Datenpflege unter `/daten/`: SessionNet- und Landkreis-Fetch-, SQLite-Build- und Vektorindex-Jobs starten; die Vektorseite zeigt Status fuer Ratsinfo und Landkreis sowie den lokalen Modellbestand fuer Harrier, Tokenizer und BM25 mit Revisionen und Pflichtdateigroessen. „Lokal pruefen“ startet die Offline-Modellpruefung als Datenjob. Die Vektorseite zeigt je Modell-/Legacy-Aktion den letzten abgeschlossenen Versuch (auch Fehler) und laufende Jobs separat. Ergebnisse sind an Modellpfad, Modellvertrag, Bibliotheksstand und bei Erfolg Manifest-Hash gebunden; nach Aenderungen erscheinen sie als historisch. Jobdetails zeigen den Ausfuehrungsstatus ohne erfundene Prozentwerte. Modellvorbereitung, Legacy-Pruefung/-Uebernahme und alle Vektor-Builds teilen eine Prozesssperre am Modellverzeichnis; es laeuft nur ein Build gleichzeitig. Webstarts melden „bereits aktiv“, direkte CLI-Aufrufe warten. Sperren bleiben bis zum Schliessen des Qdrant-Clients bestehen.
-- Auf `/daten/vektor/` stehen die Build-Formulare für Ratsinfo und Landkreis oben; Modellverwaltung, Prüfungen und Status folgen darunter. Vektorseite und Jahresstatus unter `/daten/status/details/` verwenden einheitlich 20 px Abstand zwischen Bereichen und 18 px Innenabstand in den Panels.
+- Auf `/daten/vektor/` stehen die Build-Formulare für Ratsinfo und Landkreis oben, danach der Indexstatus. Ratsinfo ergänzt nur fehlende Dokumente. Modellverwaltung und Legacy-Prüfungen liegen im eingeklappten Bereich „Service und Wartung“. Der Ratsinfo-Aufbaufortschritt zählt immer die vollständigen Dokumente in `ratsi_passages`, unabhängig vom aktiven Suchindex. Vektorseite und Jahresstatus unter `/daten/status/details/` verwenden einheitlich 20 px Abstand zwischen Bereichen und 18 px Innenabstand in den Panels.
 - Alle Arbeitsbereiche verwenden gemeinsame Regeln für Seitenabstände, Panels, Formulare, Buttons und Rückmeldungen. Die zentrale Pflege und wiederverwendbaren Bausteine beschreibt [Gemeinsame Darstellungsregeln](docs/ui_guidelines.md).
 - Django-Suche unter `/suche/`: semantische Dokumentensuche ueber den konfigurierten Qdrant-Vektorindex; Standard ist Ratsinfo. Fuer Landkreis-Treffer zuerst `python scripts/build_landkreis_vector_index.py` oder `/daten/vektor/` nutzen; fuer Ratsinfo `python scripts/build_vector_index.py` oder `/daten/vektor/`
 - Analyse-Workflow und v2-Ausgaben: [docs/analysis_outputs.md](docs/analysis_outputs.md)
@@ -211,7 +211,20 @@ Vorbereitung, Build und Websuche muessen dieselbe Python-Umgebung und denselben
 Modellstamm verwenden: standardmaessig `data/models/`, alternativ
 `RATSI_MODELS_DIR`. Nach einer Aenderung dieser Umgebung Django neu starten.
 
-`--limit 10` verarbeitet hoechstens zehn geaenderte Dokumente. `failures: []`
+Der normale Ratsinfo-Build ergaenzt ausschliesslich fehlende oder unvollstaendige
+Dokumente. Vollstaendige Dokumente werden nicht erneut gelesen, gehasht oder
+berechnet, auch wenn Dateiinhalt oder Metadaten inzwischen anders sind. Vorab
+werden nur Dokument-IDs und Abschnitts-Vollstaendigkeit abgeglichen sowie
+Modellvertrag und Collection-Schema verglichen. Numerische Bestandsvektoren
+werden dabei nicht vollstaendig eingelesen. Sind nach einer abgebrochenen Wartung
+neben einer vollstaendigen Generation noch unfertige Zusatzgenerationen desselben
+aktuellen Dokuments vorhanden, entfernt der normale Build nur diese Reste.
+Alle vollstaendigen Generationen bleiben erhalten; Dateien, Tokenizer und
+Embedding-Modell werden dafuer nicht geladen. `cleaned_partial_passages` nennt
+die entfernten Abschnitte. Ohne fehlende Dokumente oder solche Reste bleibt eine
+bestehende Freigabe unveraendert. Verwaiste Dokumente bleiben Aufgabe der Wartung.
+
+`--limit 10` verarbeitet hoechstens zehn fehlende Dokumente. `failures: []`
 und `status=ok` melden einen erfolgreichen Lauf; `pending_documents` nennt die
 noch ausstehenden Dokumente. `ready: false` bedeutet, dass der Gesamtindex
 noch nicht freigegeben ist. Weitere begrenzte Laeufe setzen den Aufbau fort;
@@ -221,6 +234,21 @@ Bei einer bestehenden Collection ohne Kompatibilitaetsmarker zuerst den
 verwenden. Nur ein Bericht mit `result: verified` darf uebernommen werden;
 Bei nicht nachgewiesener Vektorkompatibilitaet ist ein getrennter Neuaufbau
 erforderlich; bei Verbindungsfehlern zuerst die Ursache beheben und erneut pruefen.
+
+Fuer bewusst gestartete Wartung gibt es getrennte Skripte:
+
+```powershell
+python .\scripts\check_vector_index.py
+python .\scripts\update_vector_index.py
+```
+
+Die Pruefung liest Modelle und gespeicherte Vektoren, veraendert aber weder
+Index noch Freigabe. Die Aktualisierung prueft Inhalts-Fingerprints und ersetzt
+geaenderte Dokumente. Nur dort sind `--refresh`, `--chunk-tokens`,
+`--overlap-tokens`, `--no-ocr` und `--cleanup-orphans` verfuegbar. `--refresh`
+berechnet auch unveraenderte Dokumente neu; `--cleanup-orphans` entfernt nach
+einem erfolgreichen unbegrenzten Aktualisierungslauf nicht mehr vorhandene
+Dokumente. Der normale Build loescht solche Dokumente nicht.
 
 ### Lokalen Embedding-Modellbestand pruefen
 
