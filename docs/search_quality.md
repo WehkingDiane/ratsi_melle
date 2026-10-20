@@ -134,7 +134,7 @@ die Suche noch `ratsi_documents` verwendet. Vollstaendige und fehlende Dokumente
 Abschnitte und Abdeckung sind vom aktiven Suchindex und seiner Freigabe getrennt.
 Ein abgebrochener Build laesst die Anzeige dadurch nicht mehr auf die geringere
 Abdeckung des alten Suchindexes zurueckfallen. Modellverwaltung und Legacy-Pruefung
-stehen im eingeklappten Bereich „Service und Wartung“. Lokale Qdrant-Zugriffe
+stehen unter „Service → Wartung“ auf `/service/wartung/`. Lokale Qdrant-Zugriffe
 muessen zeitlich koordiniert werden, da der eingebettete Store einen Dateilock nutzt.
 
 ## 30 Recherchefragen mit Belegen

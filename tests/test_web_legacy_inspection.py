@@ -127,8 +127,8 @@ def test_inspection_rejects_stale_or_invalid_binding(setup, monkeypatch, change)
 def test_inspection_forms_csrf_post_and_busy_state(setup):
     from bs4 import BeautifulSoup
     client = Client(enforce_csrf_checks=True)
-    assert client.post("/daten/vektor/", post_data("ratsi_passages")).status_code == 403
-    page = client.get("/daten/vektor/")
+    assert client.post("/service/wartung/", post_data("ratsi_passages")).status_code == 403
+    page = client.get("/service/wartung/")
     soup = BeautifulSoup(page.content, "html.parser")
     forms = soup.select("#legacy-inspection form")
     assert len(forms) == 2
@@ -136,9 +136,9 @@ def test_inspection_forms_csrf_post_and_busy_state(setup):
         assert {item["name"] for item in form.select("[name]")} == {"action", "collection", "csrfmiddlewaretoken", "inspection_binding"}
     assert "rebuild_required" in page.content.decode()
     data = post_data("ratsi_passages") | {"csrfmiddlewaretoken": client.cookies["csrftoken"].value}
-    response = client.post("/daten/vektor/", data)
+    response = client.post("/service/wartung/", data)
     assert response.status_code == 302
-    assert client.post("/daten/vektor/", data).status_code == 200
+    assert client.post("/service/wartung/", data).status_code == 200
     assert len(service_jobs.list_service_jobs()) == 1
 
 
@@ -289,7 +289,7 @@ def test_server_url_secrets_are_not_stored_or_displayed(setup, monkeypatch):
 @pytest.mark.integration
 def test_invalid_post_never_starts_legacy_job(setup, monkeypatch):
     client = Client(enforce_csrf_checks=True)
-    client.get("/daten/vektor/")
+    client.get("/service/wartung/")
     data = post_data("ratsi_passages") | {"report": "foreign.json", "csrfmiddlewaretoken": client.cookies["csrftoken"].value}
     monkeypatch.setattr(service_jobs, "start_service_job", lambda *a, **kw: pytest.fail("job started"))
-    assert client.post("/daten/vektor/", data).status_code == 200
+    assert client.post("/service/wartung/", data).status_code == 200

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Service - Ratsi Melle{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+  <p class="eyebrow">Arbeitsbereich</p>
+  <h1>Service</h1>
+  <p>Wartung, Prüfungen und Einstellungen der lokalen Anwendung.</p>
+</section>
+
+<section class="panel">
+  <h2>Wartung</h2>
+  <p>Lokale Modelle verwalten, Legacy-Bestände prüfen und bisherige Prüfergebnisse ansehen.</p>
+  <div class="actions"><a class="button secondary" href="{% url 'service:maintenance' %}">Wartung öffnen</a></div>
+</section>
+
+<section class="panel">
+  <h2>Einstellungen</h2>
+  <p>Lokale Konfiguration und sicher gespeicherte Zugangsdaten verwalten.</p>
+  <div class="actions"><a class="button secondary" href="{% url 'settings_ui:index' %}">Einstellungen öffnen</a></div>
+</section>
+
+<section class="panel">
+  <h2>Letzte Wartungsjobs</h2>
+  {% if jobs %}
+  <div class="table-wrap">
+    <table class="compact-table">
+      <thead><tr><th>Job</th><th>Aktion</th><th>Status</th><th>Start</th></tr></thead>
+      <tbody>
+      {% for job in jobs %}
+        <tr>
+          <td><a href="{% url 'service:job_detail' job_id=job.job_id %}">{{ job.job_id }}</a></td>
+          <td>{{ job.action }}</td>
+          <td>{{ job.status_label }}</td>
+          <td class="datetime-value">{{ job.started_at|default:"-" }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<p class="empty-state">Noch keine Wartungsjobs vorhanden.</p>{% endif %}
+</section>
+{% endblock %}

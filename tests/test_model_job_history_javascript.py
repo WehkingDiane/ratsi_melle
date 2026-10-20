@@ -37,7 +37,7 @@ vm.runInNewContext(fs.readFileSync(process.argv[1], 'utf8'), {
     association_label: 'Historisches Ergebnis', models_dir: '<img src=x>', manifest_sha256: 'old'}}]};
   await refresh();
   assert.equal(last.children[2].textContent, 'Modellverzeichnis: <img src=x>');
-  assert.equal(last.children[4].href, '/daten/jobs/id%2Fencoded/');
+  assert.equal(last.children[4].href, '/service/jobs/id%2Fencoded/');
   assert.equal(feedback.hidden, true);
   failed = true;
   await refresh();

@@ -48,6 +48,7 @@ web/
     services.py
     templates/analysis/
   data_tools/
+    service_urls.py
     urls.py
     views.py
     services.py
@@ -79,7 +80,7 @@ Das gemeinsame Layout in `web/core/templates/base.html` stellt Header, Hauptnavi
 - Daten mit Unterpunkten für Fetch, Build und Vektorindex
 - Veröffentlichung
 - Suche
-- Einstellungen
+- Service mit Unterpunkten für Übersicht, Wartung und Einstellungen
 
 Die Navigation ist per Tastatur bedienbar, besitzt sichtbare Fokusmarkierungen und lässt sich auf kleinen Bildschirmen mit einem semantischen Menübutton öffnen. Ein Sprunglink führt direkt zum Hauptinhalt. Lange Formulare verwenden passende Zahlen-, Datums- und Suchfelder; sicherheitsrelevante Löschaktionen verlangen eine Bestätigung.
 
@@ -115,7 +116,7 @@ Alle Seiten erhalten ihren gemeinsamen `page-stack` automatisch aus `base.html`.
 - `/daten/` zeigt links die Weiterleitungen zu Fetch, Build und Vektorindex; rechts stehen der aktuelle Status mit manueller Aktualisierung und die letzten Datenjobs.
 - `/daten/fetch/` startet vorhandene Fetch-Skripte für SessionNet-Sitzungen und Landkreis-Veröffentlichungen.
 - `/daten/build/` startet vorhandene SQLite-Build-Skripte für Ratsinfo- und Landkreis-Indizes. Der lokale Ratsinfo-Build übernimmt veraltete TOP- und Dokumentmetadaten aus einer neueren `session_detail.html` direkt in SQLite, ohne Dateien unter `data/raw/` zu verändern; Dokumentanzahl und lokale Verfügbarkeit bleiben dabei getrennt. Auch der Online-Build verändert `data/raw/` nicht.
-- `/daten/vektor/` stellt die beiden Build-Formulare für Ratsinfo und Landkreis direkt unter Überschrift und Jobhinweis an den Anfang. Darunter folgen Modellstatus, Jobhistorie, Legacy-Prüfung, die beiden Vektorstatus und der allgemeine Datenstatus. Zwischen den Bereichen liegen einheitlich 20 px; die Panels verwenden den gemeinsamen Innenabstand von 18 px. Beim Landkreis-Build koennen Datenwurzel und maximale Textlaenge pro Dokument fuer externe Rohdaten und knappen XPU/GPU-Speicher gesetzt werden.
+- `/daten/vektor/` stellt die beiden Build-Formulare für Ratsinfo und Landkreis direkt unter Überschrift und Jobhinweis an den Anfang. Darunter folgen die beiden Vektorstatus und der allgemeine Datenstatus. Modellverwaltung, Jobhistorie und Legacy-Prüfung stehen auf der eigenen Wartungsseite. Zwischen den Bereichen liegen einheitlich 20 px; die Panels verwenden den gemeinsamen Innenabstand von 18 px. Beim Landkreis-Build koennen Datenwurzel und maximale Textlaenge pro Dokument fuer externe Rohdaten und knappen XPU/GPU-Speicher gesetzt werden.
 - `/daten/jobs/<job_id>/` zeigt Status und Ausgabe eines gestarteten Datenjobs. Die letzten 50 Datenjobs werden in `data/db/service_jobs.sqlite` gespeichert und bleiben nach einem Serverneustart sichtbar; zuvor laufende Jobs werden dabei als unterbrochen markiert.
 - `/daten/jobs/<job_id>/status/` liefert den aktuellen Datenjobstatus als JSON für die automatische Logaktualisierung.
 - Die Datenjob-ID wird als `run_id` an das gestartete Skript weitergegeben. Damit lassen sich die begrenzte Ausgabe in der Weboberfläche und das vollständige rotierende Log unter `logs/<skriptname>.log` eindeutig zuordnen.
@@ -124,7 +125,10 @@ Alle Seiten erhalten ihren gemeinsamen `page-stack` automatisch aus `base.html`.
 - `/veroeffentlichung/` ist ein Platzhalter für Publikations- und Reviewfunktionen.
 - `/suche/` durchsucht lokal indexierte Dokumentinhalte semantisch über den Qdrant-Vektorindex. Die Suche nutzt Harrier-Dense-Embeddings, BM25-Sparse-Vektoren und RRF-Rangfusion. Bei aktiven Datums-, Gremiums- oder Dokumenttypfiltern werden bis zu 100 semantische Kandidaten geladen, anschließend gefiltert und erst danach auf 20 sichtbare Treffer begrenzt. Dadurch können relevante gefilterte Dokumente auch dann erscheinen, wenn sie im ungefilterten Ranking hinter Platz 20 liegen. Neu aufgebaute Vektorindizes liefern außerdem kurze Textausschnitte. Die Quellen-Auswahl bietet Ratsinfo als Standard und Landkreis als getrennte Collection `landkreis_publications`; beim Wechsel zu Landkreis werden die dort nicht anwendbaren Ratsinfo-Filter Gremium und Dokumenttyp verworfen.
 - Ratsinfo nutzt nach vollstaendigem Erstaufbau `ratsi_passages`. Die Treffer zeigen einzelne Abschnitte, Seitenzahlen und Links zur lokalen PDF-Fundstelle. Bis zur Umschaltung bleibt `ratsi_documents` aktiv. Details zu Migration und Messung stehen in [search_quality.md](search_quality.md).
-- `/einstellungen/` verwaltet lokale Einstellungen, darunter die sichere Ablage eines Hugging-Face-Tokens im OS-Schlüsselring.
+- `/service/` erschließt Wartung und Einstellungen und zeigt die letzten Wartungsjobs. Die Datenübersicht listet dagegen normale Datenjobs.
+- `/service/wartung/` enthält Modellstatus, Modellvorbereitung, gespeicherte Modell-/Legacy-Jobs und die Legacy-Prüfung. Für den normalen Build ist keine zusätzliche Legacy-Prüfung erforderlich. Wartungsaufträge werden nur hier gestartet; die Vektorseite nimmt weiterhin ausschließlich die normalen Build-Aktionen an.
+- `/service/jobs/<job_id>/` zeigt einen Wartungsjob mit Status, Ausgabe und gegebenenfalls Prüfbericht. Bisherige Links unter `/daten/jobs/<job_id>/` bleiben nutzbar und ordnen Wartungsjobs derselben Service-Navigation zu.
+- `/service/einstellungen/` verwaltet lokale Einstellungen, darunter die sichere Ablage eines Hugging-Face-Tokens im OS-Schlüsselring. Der bisherige Pfad `/einstellungen/` bleibt kompatibel; Navigation und benannte URL verweisen auf den Service-Pfad.
 
 Alte Service-URLs unter `/analyse/service/` werden auf den Datenbereich umgeleitet, damit technische Datenpflege nicht mehr im Analysebereich hängt.
 
@@ -161,11 +165,11 @@ Jede vorbereitete Markdown-Datei enthält bereits die leere Überschrift `## KI-
 - Sitzungsliste und Sitzungsdetails aus `data/db/local_index.sqlite`
 - PDF-Ansicht aus den Sitzungsdetails in einem separaten Browser-Tab oder -Fenster, sofern die PDF lokal vorhanden ist
 - semantische Dokumentensuche unter `/suche/`
-- Hugging-Face-Token-Verwaltung unter `/einstellungen/`
+- Hugging-Face-Token-Verwaltung unter `/service/einstellungen/`
 - Analysejobliste und Analysejobdetails aus `data/analysis_outputs/`
 - Anzeige alter v1-Analyseoutputs
 - Fetch-, Build- und Vektorindex-Servicefunktionen für Ratsinfo und Landkreis unter `/daten/`
-- Statusanzeige für laufende Datenjobs im Header; ohne laufenden Job bleibt sie ausgeblendet
+- Statusanzeige für laufende Daten- und Wartungsjobs im Header; Wartungsjobs heißen dort „Wartungsjob“ und verlinken auf `/service/jobs/<job_id>/`, normale Datenjobs auf `/daten/jobs/<job_id>/`. Mehrere gleichartige Jobs werden entsprechend benannt; bei gemischten Aufträgen steht die gemeinsame Anzahl als „Jobs“. Der Link führt zum zuletzt aufgeführten aktiven Job. Ohne laufenden Job bleibt die Anzeige ausgeblendet.
 - manuelle Aktualisierung des aktuellen Datenstatus auf den Service-Seiten ohne vollständigen Seitenwechsel
 - automatische Aktualisierung der Logausgabe auf Datenjob-Detailseiten; nach Abschluss werden der verständliche Endstatus und der aktuelle Datenstatus automatisch nachgeladen
 
@@ -231,19 +235,19 @@ Caches oder alten Modellstände. Diese Schnellprüfung lädt keine Modelle,
 verwendet kein Modellnetzwerk und verändert keine Dateien.
 
 Die Service-Fassade stellt dieselben Werte über `embedding_model_status()` ohne
-Qdrant-Abfrage bereit. Auf `/daten/vektor/` zeigt „Lokale Embedding-Modelle“
+Qdrant-Abfrage bereit. Auf `/service/wartung/` zeigt „Lokale Embedding-Modelle“
 den gemeinsamen Status und die Angaben zu Harrier, Tokenizer und BM25.
 „Modellstatus aktualisieren“ erneuert diese Werte ohne Seitenwechsel. Bei einem
 Gesamtfehler zeigen die Karten „Nicht einzeln verifiziert“ und ersetzen alte
 Revisionen und Größen durch „Nicht verifiziert“. „Lokal prüfen“ startet den
-festen Befehl `prepare_embedding_models.py --check --json` als Datenjob und
-öffnet dessen Jobdetailseite. Die Aktion verwendet POST mit CSRF-Schutz und
+festen Befehl `prepare_embedding_models.py --check --json` als Wartungsjob und
+öffnet dessen Detailseite unter `/service/jobs/<job_id>/`. Die Aktion verwendet POST mit CSRF-Schutz und
 akzeptiert keine zusätzlichen Modell-, Pfad- oder Kommandoargumente. Beide
 Modellaktionen weisen außerdem doppelte Formularfelder und widersprüchliche
 Aktionsnamen ab. Modell-ID, Revision und Zielpfad sind nicht frei eingebbar.
 „Lokal prüfen“ arbeitet offline und schreibt keine Modelldateien. Bei einem
 unbrauchbaren Bestand endet der Job mit Fehlerstatus; die JSON-Ausgabe unterscheidet weiterhin
-`fehlt`, `unvollstaendig` und `inkompatibel`. Die Vektorseite zeigt je Modell- und Legacy-Aktion den letzten abgeschlossenen
+`fehlt`, `unvollstaendig` und `inkompatibel`. Die Wartungsseite zeigt je Modell- und Legacy-Aktion den letzten abgeschlossenen
 Versuch einschließlich Fehlern; laufende Jobs stehen separat. Die Zuordnung
 bindet Aktion, aufgelösten Modellpfad, Modellvertrag und Bibliotheksstand.
 Erfolgreiche Ergebnisse speichern zusätzlich den Manifest-Hash. Änderungen
@@ -264,7 +268,7 @@ ausgegeben.
 „Modelle vorbereiten“ lädt nach ausdrücklicher Bestätigung die angezeigten,
 fest konfigurierten Revisionen in das konfigurierte Modellverzeichnis. Dafür
 müssen die Modellbibliotheken im Python-Umfeld des Servers installiert sein.
-Die Aktion läuft als Datenjob mit `--download --json`; die Jobdetailseite zeigt
+Die Aktion läuft als Wartungsjob mit `--download --json`; die Detailseite unter `/service/jobs/<job_id>/` zeigt
 das geprüfte Ergebnis oder einen festen Fehlercode. Rohe Downloadausgaben und
 Provider-Tracebacks werden nicht gespeichert. Die signierte Bestätigung ist
 15 Minuten gültig und bindet Modellpfad, Revisionen und Bibliotheksstand. Nach

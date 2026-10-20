@@ -1,19 +1,19 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Datenjob {{ job_id }} - Ratsi Melle{% endblock %}
+{% block title %}{{ job_label }} {{ job_id }} - Ratsi Melle{% endblock %}
 
 {% block content %}
 <section class="page-heading">
-  <p class="eyebrow">Daten</p>
-  <h1>Datenjob</h1>
+  <p class="eyebrow">{% if active_nav == 'service' %}<a href="{% url 'service:maintenance' %}">Service → Wartung</a>{% else %}Daten{% endif %}</p>
+  <h1>{{ job_label }}</h1>
   <p>Der Job läuft im Hintergrund weiter, auch wenn du die Seite wechselst.</p>
 </section>
 
 {% include "core/partials/messages.html" with errors=errors only %}
 
 {% if job %}
-<section class="panel" data-service-job-id="{{ job_id }}" data-legacy-job="{% if job.action == 'inspect_legacy_index' or job.action == 'apply_legacy_index' %}true{% else %}false{% endif %}" data-service-job-running="{% if job.status == 'running' or job.status == 'queued' %}true{% else %}false{% endif %}">
+<section class="panel" data-service-job-id="{{ job_id }}" data-job-label="{{ job_label }}" data-legacy-job="{% if job.action == 'inspect_legacy_index' or job.action == 'apply_legacy_index' %}true{% else %}false{% endif %}" data-service-job-running="{% if job.status == 'running' or job.status == 'queued' %}true{% else %}false{% endif %}">
   <h2>{{ job.action }}</h2>
   <dl class="facts inline">
     <div><dt>Status</dt><dd id="job-status" class="{% if job.status == 'ok' %}status-ok{% elif job.status == 'running' or job.status == 'queued' %}status-warning{% else %}status-error{% endif %}">{{ job.status_label|default:job.status }}</dd></div>
@@ -28,7 +28,7 @@
   </div>
   {% endif %}
   <p id="job-completion-message" class="{% if job.status == 'ok' %}status-ok{% else %}status-error{% endif %}" aria-live="polite"{% if job.status == "running" or job.status == "queued" %} hidden{% endif %}>
-    {% if job.status == "ok" %}Datenjob wurde erfolgreich abgeschlossen.{% elif job.status != "running" and job.status != "queued" %}Datenjob ist fehlgeschlagen.{% endif %}
+    {% if job.status == "ok" %}{{ job_label }} wurde erfolgreich abgeschlossen.{% elif job.status != "running" and job.status != "queued" %}{{ job_label }} ist fehlgeschlagen.{% endif %}
   </p>
   <pre class="text-block compact">{{ job.command_text }}</pre>
   <p id="job-progress-text" aria-live="polite">{{ job.progress.message }}</p>
@@ -51,7 +51,7 @@
 <section class="panel" id="legacy-report">
   <h2>Legacy-Prüfprotokoll</h2>
   {% if legacy_report.pending %}
-  <p>Die Bestandsprüfung läuft. <a href="{% url 'data_tools:service_job_detail' job_id=job_id %}">Nach Abschluss Prüfprotokoll anzeigen</a>.</p>
+  <p>Die Bestandsprüfung läuft. <a href="{% url job_detail_route job_id=job_id %}">Nach Abschluss Prüfprotokoll anzeigen</a>.</p>
   {% elif legacy_report.invalid %}
   <p class="status-error">Kein gültiges, unverändertes Prüfprotokoll für diesen Job verfügbar.</p>
   {% else %}
@@ -81,7 +81,7 @@
 </section>
 {% endif %}
 {% else %}
-<p class="empty-state">Dieser Datenjob wurde nicht gefunden.</p>
+<p class="empty-state">Dieser Job wurde nicht gefunden.</p>
 {% endif %}
 
 {% include "core/partials/service_status.html" %}

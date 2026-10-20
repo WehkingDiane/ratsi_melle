@@ -50,7 +50,7 @@ def job_ids():
 
 
 def post_job(client, action, source, data=None):
-    url = f"/daten/jobs/{source.job_id}/" if action == "apply_legacy_index" else "/daten/vektor/"
+    url = f"/daten/jobs/{source.job_id}/" if action == "apply_legacy_index" else "/service/wartung/"
     client.get(url)
     values = request_data(action, source) if data is None else dict(data)
     values.setdefault("csrfmiddlewaretoken", client.cookies["csrftoken"].value)
@@ -65,7 +65,7 @@ def test_missing_malformed_or_foreign_csrf_never_reserves_a_job(verified, monkey
     monkeypatch.setattr(views.service_jobs, "start_service_job",
                         lambda *a, **kw: pytest.fail("CSRF failure reached job start"))
     client = Client(enforce_csrf_checks=True)
-    url = f"/daten/jobs/{source.job_id}/" if action == "apply_legacy_index" else "/daten/vektor/"
+    url = f"/daten/jobs/{source.job_id}/" if action == "apply_legacy_index" else "/service/wartung/"
     client.get(url)
     data = request_data(action, source)
     if token is not None:
@@ -108,7 +108,7 @@ def test_confirmed_web_post_reserves_one_job_and_redirects_to_it(verified, actio
     added = job_ids() - before
     assert len(added) == 1
     job = service_jobs.get_service_job(added.pop())
-    assert response.headers["Location"] == f"/daten/jobs/{job.job_id}/"
+    assert response.headers["Location"] == f"/service/jobs/{job.job_id}/"
     assert job.action == action and job.status == "queued"
     assert job.command[0] == sys.executable
     assert "--json" in job.command or "--inspect" in job.command or "--apply" in job.command
@@ -133,7 +133,7 @@ def test_signed_binding_alone_does_not_authorize_a_write(verified, action, conse
 def test_changed_library_contract_requires_fresh_confirmation(verified, monkeypatch, action, when):
     source, _, _ = verified
     client = Client(enforce_csrf_checks=True)
-    client.get(f"/daten/jobs/{source.job_id}/" if action == "apply_legacy_index" else "/daten/vektor/")
+    client.get(f"/daten/jobs/{source.job_id}/" if action == "apply_legacy_index" else "/service/wartung/")
     data = request_data(action, source)
     before = job_ids()
 
@@ -192,7 +192,9 @@ def test_private_child_failures_stay_private_in_storage_and_all_web_surfaces(
     assert not service_jobs.active_service_jobs()
     client = Client()
     public = [json.dumps(record.to_dict()), caplog.text]
-    for url in (f"/daten/jobs/{job_id}/", f"/daten/jobs/{job_id}/status/",
+    for url in (f"/service/jobs/{job_id}/", f"/service/jobs/{job_id}/status/",
+                "/service/", "/service/wartung/", "/service/model-jobs/status/",
+                f"/daten/jobs/{job_id}/", f"/daten/jobs/{job_id}/status/",
                 "/daten/jobs/status/", "/daten/model-jobs/status/", "/daten/status/"):
         response = client.get(url)
         assert response.status_code == 200
@@ -263,7 +265,9 @@ def test_successful_worker_discards_extra_fields_across_public_surfaces(verified
     service_jobs._run_job(job_id, ROOT)
     assert record.status == "ok"
     client = Client()
-    for url in (f"/daten/jobs/{job_id}/", f"/daten/jobs/{job_id}/status/",
+    for url in (f"/service/jobs/{job_id}/", f"/service/jobs/{job_id}/status/",
+                "/service/", "/service/wartung/", "/service/model-jobs/status/",
+                f"/daten/jobs/{job_id}/", f"/daten/jobs/{job_id}/status/",
                 "/daten/jobs/status/", "/daten/model-jobs/status/"):
         response = client.get(url)
         assert response.status_code == 200 and secret not in response.content.decode()
