@@ -37,3 +37,20 @@ def complete_document_ids(payloads: dict) -> set[int]:
             continue
         complete.add(parent)
     return complete
+
+
+def stale_partial_point_ids(payloads: dict) -> set[int]:
+    """Find incomplete generations removable beside a complete document version."""
+    complete = complete_document_ids(payloads)
+    groups = defaultdict(dict)
+    for point_id, payload in payloads.items():
+        parent = payload.get("document_id")
+        if type(parent) is int and parent in complete:
+            generation = payload.get("generation", payload.get("fingerprint"))
+            groups[parent, generation][point_id] = payload
+    return {
+        point_id
+        for (parent, _), parts in groups.items()
+        if parent not in complete_document_ids(parts)
+        for point_id in parts
+    }

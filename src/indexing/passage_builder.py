@@ -13,7 +13,7 @@ from uuid import uuid4
 from src.fetching.storage_layout import resolve_local_file_path
 from src.indexing.id_strategy import stable_document_id
 from src.indexing.payload_builder import build_document_payload
-from src.indexing.passage_inventory import complete_document_ids
+from src.indexing.passage_inventory import complete_document_ids, stale_partial_point_ids
 from src.indexing.passages import COLLECTION, MODEL, PIPELINE_VERSION, chunk_pages, extract_pages, file_digest
 from src.indexing.vectorizer import HybridVectorizer
 from src.paths import LOCAL_INDEX_DB, QDRANT_DIR
@@ -49,6 +49,10 @@ def build_passage_index(documents, store, tokenizer, vectorizer_factory, *, limi
         raise ValueError("Forced refresh belongs to scripts/update_vector_index.py")
     indexed = store.get_point_payloads() if indexed_payloads is None else indexed_payloads
     complete_ids = complete_document_ids(indexed)
+    stale_by_parent = {}
+    if not update_existing:
+        for point_id in stale_partial_point_ids(indexed):
+            stale_by_parent.setdefault(indexed[point_id]["document_id"], set()).add(point_id)
     groups = {}
     for point_id, payload in indexed.items():
         groups.setdefault(payload.get("document_id"), {})[point_id] = payload
@@ -58,11 +62,23 @@ def build_passage_index(documents, store, tokenizer, vectorizer_factory, *, limi
     failures = []
     vectorizer = None
     skipped = 0
+    cleaned_partial_passages = 0
     for document in documents:
         parent = stable_document_id(str(document.get("session_id") or ""),
                                     str(document.get("url") or ""), str(document.get("agenda_item") or ""))
         current.add(parent)
         if not update_existing and parent in complete_ids:
+            stale = stale_by_parent.pop(parent, set())
+            if stale:
+                try:
+                    store.delete_ids(stale)
+                except Exception as exc:
+                    failures.append({"document_id": parent, "error": str(exc)})
+                    LOGGER.exception("event=partial_generation_cleanup_failed document_id=%s", parent)
+                    print(f"ERROR {parent}: {exc}", flush=True)
+                    continue
+                cleaned_partial_passages += len(stale)
+                LOGGER.info("event=partial_generation_cleaned document_id=%s passages=%d", parent, len(stale))
             skipped += 1
             continue
         if not update_existing and limit is not None and changed >= limit:
@@ -143,6 +159,7 @@ def build_passage_index(documents, store, tokenizer, vectorizer_factory, *, limi
     if cleanup_orphans and limit is None and not failures:
         store.delete_ids({pid for parent, points in groups.items() if parent not in current for pid in points})
     return {"processed_documents": changed, "pending_documents": pending,
+            "cleaned_partial_passages": cleaned_partial_passages,
             "skipped_documents": skipped, "failures": failures, "collection": COLLECTION}
 
 
@@ -192,7 +209,10 @@ def main(argv=None, *, maintenance=False):
             print(f"Dokumente: {len(expected)}; vollständig vorhanden: {len(expected - missing)}; "
                   f"fehlend oder unvollständig: {len(missing)}", flush=True)
         ready_before = store.connection.passages_ready(store._get_client())
-        needs_build = maintenance or bool(missing) or bool(expected and not ready_before)
+        needs_cleanup = not maintenance and any(
+            inventory[point_id]["document_id"] in expected for point_id in stale_partial_point_ids(inventory)
+        )
+        needs_build = maintenance or bool(missing) or needs_cleanup or bool(expected and not ready_before)
         if needs_build:
             store.begin_build(compatibility, validate_vectors=maintenance)
         tokenizer = _load_tokenizer() if missing or maintenance else None

@@ -76,7 +76,8 @@ Aufbau fort. Ein erfolgreicher Testlauf kann `ready: false` liefern:
 Freigabe erfolgt erst nach Abschluss des Aufbaus. Ohne `--limit` werden alle
 ausstehenden Dokumente verarbeitet. Der normale Build gleicht nur kompakte
 Abschnittsmetadaten mit SQLite ab, prueft den Modellvertrag und das Qdrant-Schema
-und laedt keine numerischen Bestandsvektoren. Wenn nichts fehlt und der Index
+und laedt keine numerischen Bestandsvektoren. Wenn weder Dokumente noch
+aufzuraeumende Teilgenerationen ausstehen und der Index
 bereits freigegeben ist, bleiben Marker und Index unveraendert; Tokenizer und
 Embedding-Modell werden nicht geladen.
 
@@ -105,6 +106,15 @@ werden weiterhin abgelehnt; diese Skripte sind keine automatische Modellmigratio
 Neue Abschnitte werden vor dem Entfernen der alten Generation geschrieben und
 erst nach vollstaendigem Schreiben des Dokuments fuer die Suche freigeschaltet.
 Abgebrochene Generationen lassen sich beim naechsten Lauf vervollstaendigen.
+Hat ein aktuelles Dokument bereits mindestens eine vollstaendige Generation,
+entfernt der normale Build ausschliesslich seine daneben liegenden unfertigen
+Zusatzgenerationen. Alle vollstaendigen Generationen bleiben unveraendert; die
+Quelldatei wird nicht gelesen und kein Tokenizer oder Embedding-Modell geladen.
+Diese Wiederanlaufbereinigung ist auch mit `--limit` moeglich und zaehlt nicht
+als neu berechnetes Dokument. `cleaned_partial_passages` meldet die Anzahl der
+entfernten Abschnitte. Ein Loeschfehler wird als Buildfehler gemeldet und
+verhindert die Freigabe. Die Freigabe wird erst nach dem erneuten Abgleich des
+bereinigten Bestands geschrieben.
 Verwaiste Dokumente bleiben beim normalen Build erhalten. Nur die ausdrueckliche
 Service-Aktualisierung mit `--cleanup-orphans` bereinigt sie nach einem
 vollstaendigen fehlerfreien Lauf; bei `--limit` bleibt diese Bereinigung aus.
