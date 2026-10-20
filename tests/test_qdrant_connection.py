@@ -489,6 +489,16 @@ def test_passage_build_only_marks_complete_current_documents(tmp_path, monkeypat
     assert points and all(point.payload['index_compatibility'] == compatibility.as_dict()
                           for point in points)
     source.write_text('Changed document source')
+    marker_before = config.ready_path.read_bytes()
+    stored_before = remote.retrieve('ratsi_passages', [p.id for p in points], with_vectors=True)
+    with monkeypatch.context() as unchanged:
+        unchanged.setattr(passage_builder, '_load_tokenizer', lambda: pytest.fail('Complete index loaded tokenizer'))
+        unchanged.setattr(passage_builder, 'file_digest', lambda path: pytest.fail('Complete source read'))
+        passage_builder.main(args)
+    assert config.ready_path.read_bytes() == marker_before
+    assert remote.retrieve('ratsi_passages', [p.id for p in points], with_vectors=True) == stored_before
+    docs.extend([{**doc, 'id': 3, 'url': 'https://example.org/third'},
+                 {**doc, 'id': 4, 'url': 'https://example.org/fourth'}])
     passage_builder.main(args + ['--limit', '1'])
     assert config.ready_path.exists()
     assert not config.passages_ready(remote)

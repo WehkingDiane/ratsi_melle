@@ -1,0 +1,34 @@
+"""Compact passage inventory shared by builds, checks and status pages."""
+
+from __future__ import annotations
+
+from collections import defaultdict
+
+
+INVENTORY_FIELDS = [
+    "document_id", "generation", "fingerprint", "chunk_count", "chunk_index", "committed",
+]
+
+
+def complete_document_ids(payloads: dict) -> set[int]:
+    """Find documents with at least one fully committed passage generation."""
+    groups = defaultdict(list)
+    for payload in payloads.values():
+        parent = payload.get("document_id")
+        if type(parent) is int:
+            generation = payload.get("generation", payload.get("fingerprint"))
+            groups[parent, generation].append(payload)
+    complete = set()
+    for (parent, _), parts in groups.items():
+        count = parts[0].get("chunk_count")
+        if (type(count) is not int or count < 1 or len(parts) != count
+                or not all(p.get("committed") is True and p.get("chunk_count") == count for p in parts)):
+            continue
+        # Older inventories did not request chunk_index. When supplied, verify
+        # every distinct position rather than accepting duplicate/missing chunks.
+        if any("chunk_index" in p for p in parts) and {
+            p.get("chunk_index") for p in parts
+        } != set(range(count)):
+            continue
+        complete.add(parent)
+    return complete

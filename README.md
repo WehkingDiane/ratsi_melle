@@ -211,7 +211,15 @@ Vorbereitung, Build und Websuche muessen dieselbe Python-Umgebung und denselben
 Modellstamm verwenden: standardmaessig `data/models/`, alternativ
 `RATSI_MODELS_DIR`. Nach einer Aenderung dieser Umgebung Django neu starten.
 
-`--limit 10` verarbeitet hoechstens zehn geaenderte Dokumente. `failures: []`
+Der normale Ratsinfo-Build ergaenzt ausschliesslich fehlende oder unvollstaendige
+Dokumente. Vollstaendige Dokumente werden nicht erneut gelesen, gehasht oder
+berechnet, auch wenn Dateiinhalt oder Metadaten inzwischen anders sind. Vorab
+werden nur Dokument-IDs und Abschnitts-Vollstaendigkeit abgeglichen sowie
+Modellvertrag und Collection-Schema verglichen. Numerische Bestandsvektoren
+werden dabei nicht vollstaendig eingelesen. Ohne fehlende Dokumente bleibt eine
+bestehende Freigabe unveraendert; Tokenizer und Embedding-Modell werden nicht geladen.
+
+`--limit 10` verarbeitet hoechstens zehn fehlende Dokumente. `failures: []`
 und `status=ok` melden einen erfolgreichen Lauf; `pending_documents` nennt die
 noch ausstehenden Dokumente. `ready: false` bedeutet, dass der Gesamtindex
 noch nicht freigegeben ist. Weitere begrenzte Laeufe setzen den Aufbau fort;
@@ -221,6 +229,21 @@ Bei einer bestehenden Collection ohne Kompatibilitaetsmarker zuerst den
 verwenden. Nur ein Bericht mit `result: verified` darf uebernommen werden;
 Bei nicht nachgewiesener Vektorkompatibilitaet ist ein getrennter Neuaufbau
 erforderlich; bei Verbindungsfehlern zuerst die Ursache beheben und erneut pruefen.
+
+Fuer bewusst gestartete Wartung gibt es getrennte Skripte:
+
+```powershell
+python .\scripts\check_vector_index.py
+python .\scripts\update_vector_index.py
+```
+
+Die Pruefung liest Modelle und gespeicherte Vektoren, veraendert aber weder
+Index noch Freigabe. Die Aktualisierung prueft Inhalts-Fingerprints und ersetzt
+geaenderte Dokumente. Nur dort sind `--refresh`, `--chunk-tokens`,
+`--overlap-tokens`, `--no-ocr` und `--cleanup-orphans` verfuegbar. `--refresh`
+berechnet auch unveraenderte Dokumente neu; `--cleanup-orphans` entfernt nach
+einem erfolgreichen unbegrenzten Aktualisierungslauf nicht mehr vorhandene
+Dokumente. Der normale Build loescht solche Dokumente nicht.
 
 ### Lokalen Embedding-Modellbestand pruefen
 

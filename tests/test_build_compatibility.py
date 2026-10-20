@@ -48,6 +48,31 @@ def _store(tmp_path, collection, compatibility=None):
 
 
 @pytest.mark.integration
+def test_missing_only_build_reads_headers_without_numeric_vectors(tmp_path, monkeypatch, compatibility):
+    collection = "ratsi_passages"
+    store = _store(tmp_path, collection, compatibility)
+    client = store._get_client()
+    try:
+        store.connection.write_readiness(client, {"ready": True}, collection=collection, compatibility=compatibility)
+        original_scroll = client.scroll
+        def headers_only(*args, **kwargs):
+            assert kwargs.get("with_vectors") is False
+            return original_scroll(*args, **kwargs)
+        monkeypatch.setattr(client, "scroll", headers_only)
+        store.begin_build(compatibility, validate_vectors=False)
+        store.finish_build(compatibility)
+        marker = json.loads(store.connection.ready_path.read_text())
+        assert marker["ready"] is True
+        assert marker["validation_mode"] == "payload"
+        assert "vectors_sha256" not in marker
+        assert store.connection.collection_contents_match(client, collection, compatibility)
+        client.set_payload(collection, {"generation": "unexpected"}, points=[1])
+        assert not store.connection.collection_contents_match(client, collection, compatibility)
+    finally:
+        store.close()
+
+
+@pytest.mark.integration
 def test_concurrent_builds_serialize_before_readiness_and_writes(tmp_path, compatibility):
     collection = "ratsi_passages"
     first = _store(tmp_path, collection, compatibility)

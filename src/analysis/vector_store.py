@@ -39,6 +39,7 @@ class DocumentVectorStore:
         self._build_provenance: str | None = None
         self._build_compatibility: IndexCompatibility | None = None
         self._build_options: dict | None = None
+        self._validate_build_vectors = True
         self._build_lock: Any = None
 
     # ------------------------------------------------------------------
@@ -82,7 +83,8 @@ class DocumentVectorStore:
         if lock is not None:
             lock.__exit__(None, None, None)
 
-    def begin_build(self, compatibility: IndexCompatibility, *, build_options: dict | None = None) -> None:
+    def begin_build(self, compatibility: IndexCompatibility, *, build_options: dict | None = None,
+                    validate_vectors: bool = True) -> None:
         """Check before writing; callers must close the store even on failure."""
         from src.indexing.build_compatibility import check_build_compatibility
 
@@ -94,6 +96,7 @@ class DocumentVectorStore:
         provenance = check_build_compatibility(
             self.connection, client, self.collection_name, compatibility,
             build_options=build_options,
+            validate_vectors=validate_vectors,
         )
         self.ensure_collection()
         self.connection.write_readiness(
@@ -104,6 +107,7 @@ class DocumentVectorStore:
         self._build_provenance = provenance
         self._build_compatibility = compatibility
         self._build_options = build_options
+        self._validate_build_vectors = validate_vectors
 
     def finish_build(self, compatibility: IndexCompatibility, *, build_options: dict | None = None) -> None:
         """Atomically publish the completed generation and its provenance."""
@@ -115,24 +119,35 @@ class DocumentVectorStore:
                 self._get_client(), {"ready": True, "provenance": self._build_provenance,
                                      **({"build_options": build_options} if build_options is not None else {})},
                 collection=self.collection_name, compatibility=compatibility,
+                validate_vectors=self._validate_build_vectors,
             )
         finally:
             # Publication does not end the client lifetime. A competing local
             # job must wait until close(), including if marker writing fails.
             self._build_provenance = None
 
-    def get_point_payloads(self) -> dict[int, dict]:
+    def get_point_payloads(self, *, fields: list[str] | None = None) -> dict[int, dict]:
         """Read passage metadata; propagate failures to prevent unsafe cleanup."""
         client = self._get_client()
         result = {}
         offset = None
         while True:
             records, offset = client.scroll(collection_name=self.collection_name,
-                                            with_payload=True, with_vectors=False,
-                                            limit=256, offset=offset)
+                                            with_payload=fields if fields is not None else True,
+                                            with_vectors=False, limit=1000, offset=offset)
             result.update({record.id: record.payload or {} for record in records})
             if offset is None:
                 return result
+
+    def get_passage_inventory(self) -> dict[int, dict]:
+        """Read completeness metadata without document text or vector values."""
+        from src.indexing.passage_inventory import INVENTORY_FIELDS
+
+        client = self._get_client()
+        names = {entry.name for entry in client.get_collections().collections}
+        if self.collection_name not in names:
+            return {}
+        return self.get_point_payloads(fields=INVENTORY_FIELDS)
 
     def commit_passages(self, ids: set[int]) -> None:
         """Make a completely written document generation searchable."""

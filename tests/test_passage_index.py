@@ -107,7 +107,7 @@ def test_changed_sources_replace_chunks_and_failures_preserve_old(tmp_path):
     doc, path = document(tmp_path)
     store = Store()
     def build(**kwargs):
-        return build_passage_index([doc], store, Tokenizer(), Vectorizer, tokens=32, overlap=8, **kwargs)
+        return build_passage_index([doc], store, Tokenizer(), Vectorizer, tokens=32, overlap=8, update_existing=True, **kwargs)
     assert build()["processed_documents"] == 1
     old_ids = set(store.points)
     assert len(old_ids) > 1
@@ -131,6 +131,8 @@ def test_limit_preserves_unprocessed_and_deleted_sources(tmp_path):
     build_passage_index([], store, Tokenizer(), Vectorizer, limit=1)
     assert set(store.points) == original
     build_passage_index([], store, Tokenizer(), Vectorizer)
+    assert set(store.points) == original
+    build_passage_index([], store, Tokenizer(), Vectorizer, cleanup_orphans=True)
     assert not store.points
 
 
@@ -149,11 +151,11 @@ def test_failed_forced_refresh_preserves_committed_generation(tmp_path):
         upsert(points)
     store.upsert_batch = interrupt
     result = build_passage_index([doc], store, Tokenizer(), Vectorizer,
-                                 tokens=32, overlap=8, batch_size=1, refresh=True)
+                                 tokens=32, overlap=8, batch_size=1, refresh=True, update_existing=True)
     assert result["failures"]
     assert all(store.points[pid]["payload"]["committed"] for pid in original)
     store.upsert_batch = upsert
-    build_passage_index([doc], store, Tokenizer(), Vectorizer, tokens=32, overlap=8)
+    build_passage_index([doc], store, Tokenizer(), Vectorizer, tokens=32, overlap=8, update_existing=True)
     assert set(store.points) == original
 
 
@@ -248,9 +250,54 @@ def test_limited_build_does_not_treat_outdated_generations_as_ready(tmp_path):
     store = Store()
     build_passage_index([doc, second], store, Tokenizer(), Vectorizer)
     path.write_text("Updated source text")
-    result = build_passage_index([doc, second], store, Tokenizer(), Vectorizer, limit=1)
+    result = build_passage_index([doc, second], store, Tokenizer(), Vectorizer, limit=1, update_existing=True)
     assert result["processed_documents"] == 1
     assert result["pending_documents"] == 1
-    result = build_passage_index([doc, second], store, Tokenizer(), Vectorizer, limit=1)
+    result = build_passage_index([doc, second], store, Tokenizer(), Vectorizer, limit=1, update_existing=True)
     assert result["processed_documents"] == 1
     assert result["pending_documents"] == 0
+
+
+def test_normal_build_never_reads_complete_sources_or_changes_existing_points(tmp_path, monkeypatch):
+    from copy import deepcopy
+    doc, path = document(tmp_path)
+    store = Store()
+    build_passage_index([doc], store, Tokenizer(), Vectorizer)
+    original = deepcopy(store.points)
+    path.write_text("Changed PDF content")
+    doc.update(id=999, title="Changed metadata")
+    monkeypatch.setattr(passage_builder, "resolve_local_file_path", lambda **kwargs: pytest.fail("Complete source accessed"))
+    result = build_passage_index([doc], store, None, lambda: pytest.fail("Model loaded"))
+    assert result["processed_documents"] == 0
+    assert result["skipped_documents"] == 1
+    assert store.points == original
+
+
+def test_normal_build_resumes_only_incomplete_document(tmp_path):
+    from copy import deepcopy
+    doc, _ = document(tmp_path)
+    other = {**doc, "url": "https://example.org/other.pdf"}
+    store = Store()
+    build_passage_index([doc], store, Tokenizer(), Vectorizer, tokens=32, overlap=8)
+    original = deepcopy(store.points)
+    build_passage_index([other], store, Tokenizer(), Vectorizer, tokens=32, overlap=8)
+    other_ids = set(store.points) - set(original)
+    del store.points[next(iter(other_ids))]
+    result = build_passage_index([doc, other], store, Tokenizer(), Vectorizer, tokens=32, overlap=8)
+    assert result["processed_documents"] == 1
+    assert result["skipped_documents"] == 1
+    assert all(store.points[pid] == point for pid, point in original.items())
+    assert set(store.points) == set(original) | other_ids
+
+
+def test_inventory_rejects_duplicate_positions_and_uncommitted_generations():
+    from src.indexing.passage_inventory import complete_document_ids
+    inventory = {
+        1: {"document_id": 1, "generation": "a", "chunk_count": 2, "chunk_index": 0, "committed": True},
+        2: {"document_id": 1, "generation": "a", "chunk_count": 2, "chunk_index": 0, "committed": True},
+    }
+    assert complete_document_ids(inventory) == set()
+    inventory[2]["chunk_index"] = 1
+    assert complete_document_ids(inventory) == {1}
+    inventory[2]["committed"] = False
+    assert complete_document_ids(inventory) == set()
