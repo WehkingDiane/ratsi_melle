@@ -598,6 +598,58 @@ def test_passage_build_only_marks_complete_current_documents(tmp_path, monkeypat
     assert not (tmp_path / 'absent').exists()
 
 
+@pytest.mark.integration
+@pytest.mark.parametrize("cleanup_fails", [False, True])
+def test_normal_cli_recovers_interrupted_refresh_without_reencoding(
+    tmp_path, monkeypatch, remote, compatibility, capsys, cleanup_fails,
+):
+    from scripts import build_vector_index
+    from src.indexing import passage_builder
+    from test_passage_index import Tokenizer, Vectorizer, document
+    db = tmp_path / "input.sqlite"
+    db.touch()
+    doc, _ = document(tmp_path)
+    monkeypatch.setattr(build_vector_index, "_load_documents", lambda db: [doc])
+    monkeypatch.setattr(passage_builder, "current_index_compatibility", lambda: compatibility)
+    monkeypatch.setattr(passage_builder, "_load_tokenizer", Tokenizer)
+    monkeypatch.setattr(passage_builder, "HybridVectorizer", lambda *args: Vectorizer())
+    directory = tmp_path / "unused"
+    args = ["--db", str(db), "--qdrant-dir", str(directory)]
+    passage_builder.main(args)
+    original, _ = remote.scroll("ratsi_passages", with_payload=True, with_vectors=True, limit=100)
+    store = DocumentVectorStore(directory, "ratsi_passages")
+    try:
+        store.begin_build(compatibility)
+        partial = point(999, committed=False, compatibility=compatibility)
+        partial["payload"].update(document_id=original[0].payload["document_id"],
+                                  generation="interrupted-refresh", chunk_count=2)
+        store.upsert_batch([partial])
+        assert not store.connection.passages_ready(remote)
+    finally:
+        store.close()
+    monkeypatch.setattr(passage_builder, "_load_tokenizer", lambda: pytest.fail("Tokenizer loaded during cleanup"))
+    monkeypatch.setattr(passage_builder, "resolve_local_file_path", lambda **kwargs: pytest.fail("Complete source accessed"))
+    monkeypatch.setattr(passage_builder, "HybridVectorizer", lambda *args: pytest.fail("Model loaded during cleanup"))
+    if cleanup_fails:
+        def fail_delete(self, ids):
+            raise RuntimeError("cleanup unavailable")
+        monkeypatch.setattr(DocumentVectorStore, "delete_ids", fail_delete)
+        with pytest.raises(SystemExit) as error:
+            passage_builder.main(args + ["--limit", "1"])
+        assert error.value.code == 1
+    else:
+        passage_builder.main(args + ["--limit", "1"])
+    result = json.loads(capsys.readouterr().out.splitlines()[-1])
+    assert result["processed_documents"] == 0
+    assert result["cleaned_partial_passages"] == (0 if cleanup_fails else 1)
+    assert bool(result["failures"]) is cleanup_fails
+    assert result["ready"] is not cleanup_fails
+    config = QdrantConnection.from_env(directory)
+    assert config.passages_ready(remote) is not cleanup_fails
+    assert bool(remote.retrieve("ratsi_passages", [999])) is cleanup_fails
+    assert remote.retrieve("ratsi_passages", [p.id for p in original], with_vectors=True) == original
+
+
 def test_runtime_read_failures_are_not_reported_as_empty_index(tmp_path):
     store = DocumentVectorStore(tmp_path / 'index')
     store._client = Mock()

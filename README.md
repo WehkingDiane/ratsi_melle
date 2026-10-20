@@ -217,8 +217,13 @@ Dokumente. Vollstaendige Dokumente werden nicht erneut gelesen, gehasht oder
 berechnet, auch wenn Dateiinhalt oder Metadaten inzwischen anders sind. Vorab
 werden nur Dokument-IDs und Abschnitts-Vollstaendigkeit abgeglichen sowie
 Modellvertrag und Collection-Schema verglichen. Numerische Bestandsvektoren
-werden dabei nicht vollstaendig eingelesen. Ohne fehlende Dokumente bleibt eine
-bestehende Freigabe unveraendert; Tokenizer und Embedding-Modell werden nicht geladen.
+werden dabei nicht vollstaendig eingelesen. Sind nach einer abgebrochenen Wartung
+neben einer vollstaendigen Generation noch unfertige Zusatzgenerationen desselben
+aktuellen Dokuments vorhanden, entfernt der normale Build nur diese Reste.
+Alle vollstaendigen Generationen bleiben erhalten; Dateien, Tokenizer und
+Embedding-Modell werden dafuer nicht geladen. `cleaned_partial_passages` nennt
+die entfernten Abschnitte. Ohne fehlende Dokumente oder solche Reste bleibt eine
+bestehende Freigabe unveraendert. Verwaiste Dokumente bleiben Aufgabe der Wartung.
 
 `--limit 10` verarbeitet hoechstens zehn fehlende Dokumente. `failures: []`
 und `status=ok` melden einen erfolgreichen Lauf; `pending_documents` nennt die

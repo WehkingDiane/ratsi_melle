@@ -746,8 +746,15 @@ Seit 0.5.59 sind Ratsinfo-Ergaenzung und Wartung getrennt:
   unveraendert. Modellvertrag, Schema und die Punktzahl einer bestehenden
   Freigabe werden weiterhin vor Schreibzugriffen verglichen; ein ausstehender
   Marker darf fuer den Wiederanlauf eine andere Punktzahl enthalten.
-- Eine bereits freigegebene Collection ohne fehlende Dokumente wird nicht
+- Eine bereits freigegebene Collection ohne fehlende Dokumente oder unfertige
+  Zusatzgenerationen aktueller Dokumente wird nicht
   angefasst; Tokenizer und Embedding-Modell werden nicht geladen.
+- Bleiben nach abgebrochener Wartung neben einer vollstaendigen Generation
+  unfertige Zusatzgenerationen desselben aktuellen Dokuments zurueck, entfernt
+  der normale Build nur diese Reste und kann anschliessend wieder freigeben.
+  Vollstaendige Generationen und verwaiste Dokumente bleiben dabei erhalten.
+  Dateien und Modelle werden fuer diese Bereinigung nicht geladen; ein
+  Loeschfehler verhindert die Freigabe.
 - Nach einem normalen Ergaenzungsbuild enthaelt der Marker
   `validation_mode: payload` und `payload_sha256`. Dieser Hash umfasst Punkt-IDs,
   Modellvertraege, Dokument-/Generationszuordnung, Fingerprint, Abschnittszahl,

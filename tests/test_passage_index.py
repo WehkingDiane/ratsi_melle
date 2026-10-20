@@ -137,11 +137,13 @@ def test_limit_preserves_unprocessed_and_deleted_sources(tmp_path):
 
 
 @pytest.mark.integration
-def test_failed_forced_refresh_preserves_committed_generation(tmp_path):
+def test_failed_forced_refresh_preserves_committed_generation(tmp_path, monkeypatch):
+    from copy import deepcopy
     doc, _ = document(tmp_path)
     store = Store()
     build_passage_index([doc], store, Tokenizer(), Vectorizer, tokens=32, overlap=8)
     original = set(store.points)
+    original_points = deepcopy(store.points)
     upsert = store.upsert_batch
     calls = []
     def interrupt(points):
@@ -154,9 +156,40 @@ def test_failed_forced_refresh_preserves_committed_generation(tmp_path):
                                  tokens=32, overlap=8, batch_size=1, refresh=True, update_existing=True)
     assert result["failures"]
     assert all(store.points[pid]["payload"]["committed"] for pid in original)
+    partial = set(store.points) - original
+    assert partial
     store.upsert_batch = upsert
-    build_passage_index([doc], store, Tokenizer(), Vectorizer, tokens=32, overlap=8, update_existing=True)
-    assert set(store.points) == original
+    monkeypatch.setattr(passage_builder, "resolve_local_file_path", lambda **kwargs: pytest.fail("Complete source accessed"))
+    result = build_passage_index([doc], store, None, lambda: pytest.fail("Model loaded"), limit=1)
+    assert not result["failures"]
+    assert result["processed_documents"] == 0
+    assert result["cleaned_partial_passages"] == len(partial)
+    assert store.points == original_points
+
+
+def test_normal_cleanup_preserves_all_complete_generations_and_orphans(tmp_path):
+    from copy import deepcopy
+    doc, _ = document(tmp_path)
+    store = Store()
+    build_passage_index([doc], store, Tokenizer(), Vectorizer, tokens=32, overlap=8)
+    for number, point in enumerate(list(store.points.values())):
+        duplicate = deepcopy(point)
+        duplicate["id"] = 1000 + number
+        duplicate["payload"]["generation"] = "second-complete"
+        store.points[duplicate["id"]] = duplicate
+    partial = deepcopy(next(iter(store.points.values())))
+    partial["id"] = 5000
+    partial["payload"].update(generation="interrupted", committed=False, chunk_count=2)
+    orphan = deepcopy(partial)
+    orphan["id"] = 5001
+    orphan["payload"]["document_id"] = 99
+    store.points[5001] = orphan
+    preserved = deepcopy(store.points)
+    store.points[5000] = partial
+    result = build_passage_index([doc], store, None, lambda: pytest.fail("Model loaded"))
+    assert result["cleaned_partial_passages"] == 1
+    assert result["processed_documents"] == 0
+    assert store.points == preserved
 
 
 def test_metadata_fallback_without_local_file(tmp_path):
