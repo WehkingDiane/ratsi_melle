@@ -103,6 +103,12 @@ Datei-/Metadaten-Fingerprints und ersetzt geaenderte Generationen. `--refresh`
 erzwingt die Neuberechnung auch ohne Aenderung. Abweichende Modellvertraege
 werden weiterhin abgelehnt; diese Skripte sind keine automatische Modellmigration.
 
+Bei lokalem Qdrant prueft `check_vector_index.py` vor dem Oeffnen des Clients,
+ob das Zielverzeichnis bereits existiert. Fehlt es oder ist der Zielpfad eine
+Datei, endet der Befehl mit Exitcode 1 und „Lokaler Vektorindex fehlt“, ohne
+Speicher anzulegen oder die Modellpruefung zu starten. Im Servermodus muss der
+lokale Ersatzpfad nicht existieren; es wird nur der konfigurierte Server geprueft.
+
 Neue Abschnitte werden vor dem Entfernen der alten Generation geschrieben und
 erst nach vollstaendigem Schreiben des Dokuments fuer die Suche freigeschaltet.
 Abgebrochene Generationen lassen sich beim naechsten Lauf vervollstaendigen.

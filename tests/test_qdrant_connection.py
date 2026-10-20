@@ -402,6 +402,33 @@ def test_build_progress_uses_passages_even_before_search_release(tmp_path, remot
 
 
 @pytest.mark.integration
+@pytest.mark.parametrize("target_kind", ["missing", "file"])
+def test_service_check_rejects_missing_local_target_without_creating_storage(tmp_path, monkeypatch, capsys, target_kind):
+    from scripts import check_vector_index
+    db = tmp_path / "input.sqlite"
+    db.touch()
+    target = tmp_path / "missing-parent" / "qdrant"
+    if target_kind == "file":
+        target = tmp_path / "not-a-directory"
+        target.write_bytes(b"not an index")
+    monkeypatch.setenv("RATSI_QDRANT_MODE", "local")
+    monkeypatch.delenv("RATSI_QDRANT_URL", raising=False)
+    monkeypatch.setattr(QdrantConnection, "create_client", lambda self: pytest.fail("Missing target opened a client"))
+    monkeypatch.setattr(check_vector_index, "current_index_compatibility", lambda **kwargs: pytest.fail("Missing target loaded models"))
+    before = {path.relative_to(tmp_path) for path in tmp_path.rglob("*")}
+    with pytest.raises(SystemExit) as error:
+        check_vector_index.main(["--db", str(db), "--qdrant-dir", str(target)])
+    assert error.value.code == 1
+    output = capsys.readouterr()
+    assert output.out == ""
+    assert "Lokaler Vektorindex fehlt" in output.err
+    assert "Traceback" not in output.err
+    assert {path.relative_to(tmp_path) for path in tmp_path.rglob("*")} == before
+    if target_kind == "file":
+        assert target.read_bytes() == b"not an index"
+
+
+@pytest.mark.integration
 def test_service_check_reads_vectors_without_modifying_index_or_marker(tmp_path, monkeypatch, remote, compatibility, capsys):
     from scripts import check_vector_index
     from test_passage_index import document
@@ -417,6 +444,7 @@ def test_service_check_reads_vectors_without_modifying_index_or_marker(tmp_path,
     doc, _ = document(tmp_path)
     monkeypatch.setattr(check_vector_index, "_load_documents", lambda db, **kw: [doc])
     monkeypatch.setattr(check_vector_index, "current_index_compatibility", lambda **kw: compatibility)
+    assert not (tmp_path / "unused").exists()
     check_vector_index.main(["--db", str(db), "--qdrant-dir", str(tmp_path / "unused")])
     result = json.loads(capsys.readouterr().out)
     assert result["read_only"] is True
@@ -424,6 +452,7 @@ def test_service_check_reads_vectors_without_modifying_index_or_marker(tmp_path,
     assert len(result["vectors_sha256"]) == 64
     assert store.connection.ready_path.read_bytes() == marker
     assert remote.retrieve("ratsi_passages", [1], with_vectors=True) == before
+    assert not (tmp_path / "unused").exists()
 
 
 @pytest.mark.integration
