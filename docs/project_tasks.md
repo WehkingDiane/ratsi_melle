@@ -64,6 +64,8 @@ Jeder offene Punkt kann eine grobe Aufwandseinstufung und eine Modell-Empfehlung
 
 #### Konkrete Aufgaben
 
+- [ ] **Höchste Priorität (P0):** Vorhandene SessionNet-Dateien abgeschlossener Sitzungen ohne erneuten HEAD-/PDF-Abruf wiederverwenden: Sitzungsdatum liegt zurück und Protokoll oder Beschlussübersicht ist veröffentlicht. Neue und fehlende Dateien weiterhin laden, Dokumente über URL/ID statt allein über Namen zuordnen und einen ausdrücklichen Aktualisierungsmodus anbieten. `[Mittel · GPT-6 Sol / Medium]`
+- [ ] **Höchste Priorität (P0):** TOP-Beschlusserkennung korrigieren: Beschlusstext aus dem Titelbereich oder einer expliziten Statusspalte lesen, niemals die Vorlagennummer als Status übernehmen; reale HTML-Struktur und bisherige Varianten durch Regressionstests absichern. `[Mittel · GPT-6 Sol / Medium]`
 - Fetch-Workflows bei Änderungen an SessionNet robust halten und anpassen `[Mittel · GPT-6 Sol / Medium]`
 - Inkrementelle Downloads geänderter oder fehlender Dokumente weiter verbessern `[Mittel · GPT-6 Sol / Medium]`
 - Landkreis-PDFs, Detailseiten und Manifeste atomar schreiben und vorhandene Dateien auf Vollständigkeit prüfen, damit abgebrochene Downloads nicht als erfolgreich gelten `[Mittel · GPT-6 Sol / Medium]`
