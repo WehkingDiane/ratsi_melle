@@ -15,7 +15,7 @@ Dieses Projekt sammelt öffentliche Sitzungs- und Dokumentdaten aus dem Ratsinfo
 
 ## Voraussetzungen
 
-- Python 3.11+
+- Python 3.14 empfohlen fuer die vollstaendige Umgebung unter Windows und WSL
 - `pip`
 - `git`
 
@@ -25,7 +25,11 @@ Dieses Projekt sammelt öffentliche Sitzungs- und Dokumentdaten aus dem Ratsinfo
 pip install -r requirements.txt
 ```
 
-`torch` wird weiterhin separat installiert, passend zur Zielumgebung.
+`torch` wird ueber `sentence-transformers` mitinstalliert. Fuer die gezielte CPU-
+oder Intel-XPU-Variante die Befehle in `requirements.txt` in der aktivierten
+Umgebung ausfuehren. `--upgrade` ermoeglicht den Wechsel von CPU zu XPU; der
+dort angegebene Pruefbefehl sollte fuer eine nutzbare Intel-XPU eine Version
+mit `+xpu` und `True` ausgeben.
 Unter WSL sollte die virtuelle Umgebung `.venv-wsl` verwendet werden; wenn `python`
 in der Shell fehlt, funktionieren die Projektbefehle nach Aktivierung oder direkt
 mit `.venv-wsl/bin/python`.
@@ -136,6 +140,34 @@ Zugangsdaten im User-Info-Teil von HTTP(S)-URLs werden im gemeinsamen Formatter
 maskiert.
 
 `fetch_session_from_index.py` nutzt `data/db/online_session_index.sqlite` als Auswahlquelle. Damit kann eine einzelne Sitzung anhand ihrer `session_id` nach `data/raw/` geladen werden, ohne die Monatsübersicht erneut komplett abzuarbeiten.
+
+Bei SessionNet-Sitzungen vor dem heutigen Datum mit veroeffentlichtem Protokoll
+oder Beschlussuebersicht werden vorhandene Dateien einmal zum erkannten Abschluss
+abgeglichen. Erst danach werden sie ohne HEAD- oder erneuten PDF-Abruf
+wiederverwendet. Fehlen verlaessliche Serverangaben, ist fuer diesen Abgleich ein
+erneuter Download erforderlich. Eine bekannte Dateilaenge muss
+mit dem lokalen Bestand uebereinstimmen. Die Zuordnung erfolgt innerhalb der
+Sitzung ueber die Dokument-URL (Manifest oder eindeutiger URL-Hash im Dateinamen),
+nicht allein ueber den Titel. Detailseiten werden weiterhin abgerufen; neue und
+fehlende Dateien werden nachgeladen. Fuer heutige, kommende oder noch nicht als
+abgeschlossen erkennbare Sitzungen bleibt die bisherige Serverpruefung aktiv.
+
+Das Sitzungsmanifest speichert `completion_detected_at` und pro Dokument
+`downloaded_at` sowie `verified_at`. Einen bekannten Downloadzeitpunkt darfst du
+in `documents[].downloaded_at` manuell als ISO-8601-Wert mit Zeitzone nachtragen,
+zum Beispiel `"2026-10-20T14:30:00+02:00"`. Ein Nachtrag ersetzt keinen bestaetigten
+Abschlussabgleich; `verified_at` und `completion_detected_at` werden vom Fetcher
+verwaltet. Bei unbekanntem Downloadzeitpunkt bleibt `downloaded_at` leer (`null`).
+
+Ein bewusster erneuter Dokumentabruf ist ueber die CLI moeglich:
+
+```bash
+python scripts/fetch_sessions.py 2026 --months 4 --force-download
+python scripts/fetch_session_from_index.py --session-id 7128 --force-download
+```
+
+TOP-Beschluesse werden aus dem Beschlussabsatz im Titelbereich oder einer
+expliziten Statusspalte gelesen; Vorlagennummern gelten nicht als Status.
 
 Der lokale Index-Build behandelt `session_detail.html` als kanonische Quelle und übernimmt daraus abweichende TOP- und Dokumentmetadaten direkt in den SQLite-Index. `agenda_summary.json`, `manifest.json` und andere Rohdaten bleiben dabei unverändert; bereits vorhandene Dateien werden im Index wieder ihren Dokumentlinks zugeordnet. Berücksichtigt werden nur SessionNet-Sitzungsordner unter `data/raw/YYYY/MM/`; Landkreis-Rohdaten bleiben getrennt. Auch der Online-Index-Build verändert keine Dateien unter `data/raw/`.
 

@@ -20,6 +20,10 @@ from scripts._logging_utils import configure_file_logging  # noqa: E402
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--force-download", action="store_true",
+        help="Download documents again, including existing files from completed sessions.",
+    )
     parser.add_argument("year", type=int, help="Year to fetch meetings for")
     parser.add_argument(
         "--months",
@@ -43,7 +47,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def fetch_months(client: SessionNetClient, year: int, months: Iterable[int]) -> None:
+def fetch_months(client: SessionNetClient, year: int, months: Iterable[int], *, force_download: bool = False) -> None:
     months = tuple(months)
     total_sessions = 0
     for month_index, month in enumerate(months, start=1):
@@ -53,7 +57,7 @@ def fetch_months(client: SessionNetClient, year: int, months: Iterable[int]) -> 
         for session_index, reference in enumerate(references, start=1):
             logging.info("Fetching session %s (%d/%d in month)", reference.session_id, session_index, len(references))
             detail = client.fetch_session(reference)
-            client.download_documents(detail)
+            client.download_documents(detail, force_download=force_download)
             total_sessions += 1
     logging.info("Fetch complete: sessions=%d months=%d", total_sessions, len(months))
 
@@ -65,7 +69,7 @@ def main() -> None:
     logging.info("Starting session fetch: year=%d log_file=%s", args.year, log_path)
     try:
         client = SessionNetClient(base_url=args.base_url)
-        fetch_months(client, args.year, args.months)
+        fetch_months(client, args.year, args.months, force_download=args.force_download)
     except Exception:
         logging.exception("Session fetch failed")
         raise
