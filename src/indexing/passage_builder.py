@@ -82,10 +82,10 @@ def build_passage_index(documents, store, tokenizer, vectorizer_factory, *, limi
             old = groups.get(parent, {})
             generations = {}
             for pid, payload in old.items():
-                if payload.get("fingerprint") == fingerprint and payload.get("committed"):
+                if payload.get("fingerprint") == fingerprint:
                     generations.setdefault(payload.get("generation", fingerprint), {})[pid] = payload
             complete = next((parts for parts in generations.values()
-                             if len(parts) == next(iter(parts.values())).get("chunk_count")), None)
+                             if parent in complete_document_ids(parts)), None)
             if update_existing and not refresh and complete:
                 store.delete_ids(set(old) - set(complete))
                 skipped += 1

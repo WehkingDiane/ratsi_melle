@@ -301,3 +301,24 @@ def test_inventory_rejects_duplicate_positions_and_uncommitted_generations():
     assert complete_document_ids(inventory) == {1}
     inventory[2]["committed"] = False
     assert complete_document_ids(inventory) == set()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("mutation", [{"chunk_index": 0}, {"chunk_count": 3}, {"committed": False}])
+def test_service_rebuilds_structurally_incomplete_matching_generation(tmp_path, mutation):
+    from src.indexing.passage_inventory import complete_document_ids
+    doc, path = document(tmp_path)
+    path.write_text(" ".join(f"word{i}" for i in range(64)), encoding="utf-8")
+    store = Store()
+    def update():
+        return build_passage_index([doc], store, Tokenizer(), Vectorizer,
+                                   tokens=32, overlap=0, update_existing=True)
+    assert update()["processed_documents"] == 1
+    second = next(p["payload"] for p in store.points.values() if p["payload"]["chunk_index"] == 1)
+    second.update(mutation)
+    assert not complete_document_ids(store.get_point_payloads())
+    result = update()
+    assert result["processed_documents"] == 1
+    assert not result["failures"]
+    assert len(complete_document_ids(store.get_point_payloads())) == 1
+    assert update()["processed_documents"] == 0
