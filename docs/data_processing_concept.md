@@ -92,7 +92,7 @@ SQLite-FTS oder getrennte Qdrant-Collection landkreis_publications
 1. Monatsweise Sitzungsliste laden
 2. Sitzungsdetailseiten laden
 3. TOPs und Dokumentverweise extrahieren
-4. Dokumente herunterladen
+4. Vorhandene Dokumente abgeschlossener Sitzungen wiederverwenden; neue oder fehlende Dateien herunterladen
 5. Fehler robust behandeln, ohne ganze Laeufe unnötig abzubrechen
 
 Alternativ kann eine einzelne Sitzung aus dem Online-Index ausgewaehlt werden:
@@ -103,6 +103,33 @@ python scripts/fetch_session_from_index.py --session-id 7128
 ```
 
 Dieser Einzelsitzungs-Abruf liest `session_id`, Datum, Gremium und `detail_url` aus `data/db/online_session_index.sqlite`, ruft direkt die Detailseite ab und laedt nur die Dokumente dieser Sitzung nach `data/raw/`. Die Monatsuebersicht wird dabei nicht erneut heruntergeladen.
+
+Vergangene Sitzungen mit sitzungsweitem Protokoll (`PR`/`Pnö`) oder einer
+Beschlussuebersicht (`BÜ`/`Bnö`) gelten fuer die lokale Dateiwiederverwendung als
+abgeschlossen. Ohne Kategorie werden eindeutige Titel mit Beginn Protokoll,
+Niederschrift oder Beschlussuebersicht erkannt. Einzelne TOP-Beschluesse und das
+vergangene Datum allein reichen nicht aus. Vorhandene Dateien werden innerhalb
+der Sitzung anhand der URL beziehungsweise des eindeutigen URL-Hashes gesucht;
+ein gleicher Titel bei anderer URL reicht nicht. Nicht leere Dateien mit passender
+bekannter Dateilaenge werden ohne HEAD/GET wiederverwendet. Neue, fehlende, leere
+oder anhand der gespeicherten Laenge unvollstaendige Dateien werden geladen.
+Ohne gespeicherte Laenge wird keine vollstaendige Integritaetspruefung zugesichert.
+
+Die Detailseite wird auch bei abgeschlossenen Sitzungen neu geladen, damit neue
+Anlagen und Protokolle entdeckt werden. Fuer nicht abgeschlossene Sitzungen
+bleibt der Vergleich ueber ETag beziehungsweise Last-Modified/Content-Length
+bestehen. Beide Fetch-Skripte bieten `--force-download`: vorhandene Dateien
+werden ohne Headervergleich erneut abgerufen; der Speicher-Downloadcache wird
+vorher geleert. Der Abschluss ist eine praktische Downloadregel, keine Garantie,
+dass die Quelle spaeter niemals Dateien ersetzt.
+
+TOP-Statuswerte stammen aus `.smc_field_smcdv0_box2_beschluss` im Titelbereich
+oder einer expliziten Status-/Beschlussspalte. Beschlusstext wird dabei aus Titel
+und Berichterstatter entfernt; die Vorlagenspalte ist keine Statusquelle. Die
+Schemafelder bleiben unveraendert. Beim naechsten Fetch werden auch die
+JSON-Ableitungen mit den korrigierten Statuswerten geschrieben. Anschliessend
+aktualisiert `python scripts/build_local_index.py --refresh-existing` bestehende
+Indexeintraege. Der Index-Build selbst veraendert keine Rohdaten oder Manifeste.
 
 ### Abrufschutz
 

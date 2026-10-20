@@ -50,6 +50,37 @@ def test_parse_session_detail_collects_documents(tmp_path):
     assert second_item.title == "Haushalt 2025"
     assert second_item.reporter == "Fachbereich Finanzen"
     assert [doc.title for doc in second_item.documents] == ["Entwurf", "Anlage"]
+    assert [item.status for item in detail.agenda_items] == ["in Vorbereitung", "beschlossen", "ohne Beschluss"]
+
+
+def test_parse_embedded_decisions_without_polluting_titles_or_reporters(tmp_path):
+    html = Path("tests/fixtures/si0057_embedded_decisions.html").read_text(encoding="utf-8")
+    client = SessionNetClient(storage_root=tmp_path, persist_raw=False)
+
+    detail = client.parse_session_detail(_sample_reference(), html)
+
+    assert detail.raw_html == html
+    first, second, third = detail.agenda_items
+    assert (first.title, first.reporter, first.status) == (
+        "Umbau der Jugendherberge", "Frau Beispiel", "einstimmig empfohlen"
+    )
+    assert first.documents[0].title == "Beschlussvorlage 01/2021/0236"
+    assert second.title == "Haushalt"
+    assert second.status == "mehrheitlich beschlossen"
+    assert third.status is None
+    entries = client.agenda_entries_from_detail(detail)
+    assert entries[1]["decision"] == "accepted"
+    assert entries[2]["decision"] is None
+
+
+@pytest.mark.parametrize("attributes", ['class="tostatus"', 'data-label="Status"', 'data-label="Beschluss"'])
+def test_parse_explicit_status_column(tmp_path, attributes):
+    html = f'''<table summary="Tagesordnung"><tr>
+        <td>Ö 1</td><td>Antrag</td><td {attributes}>abgelehnt</td>
+        <td class="tovo">01/2026/0001</td><td></td>
+    </tr></table>'''
+    detail = SessionNetClient(storage_root=tmp_path, persist_raw=False).parse_session_detail(_sample_reference(), html)
+    assert detail.agenda_items[0].status == "abgelehnt"
 
 
 @pytest.mark.integration

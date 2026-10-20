@@ -141,6 +141,25 @@ maskiert.
 
 `fetch_session_from_index.py` nutzt `data/db/online_session_index.sqlite` als Auswahlquelle. Damit kann eine einzelne Sitzung anhand ihrer `session_id` nach `data/raw/` geladen werden, ohne die Monatsübersicht erneut komplett abzuarbeiten.
 
+Bei SessionNet-Sitzungen vor dem heutigen Datum mit veroeffentlichtem Protokoll
+oder Beschlussuebersicht werden vorhandene, nicht leere Dokumentdateien ohne
+HEAD- oder erneuten PDF-Abruf wiederverwendet. Eine bekannte Dateilaenge muss
+mit dem lokalen Bestand uebereinstimmen. Die Zuordnung erfolgt innerhalb der
+Sitzung ueber die Dokument-URL (Manifest oder eindeutiger URL-Hash im Dateinamen),
+nicht allein ueber den Titel. Detailseiten werden weiterhin abgerufen; neue und
+fehlende Dateien werden nachgeladen. Fuer heutige, kommende oder noch nicht als
+abgeschlossen erkennbare Sitzungen bleibt die bisherige Serverpruefung aktiv.
+
+Ein bewusster erneuter Dokumentabruf ist ueber die CLI moeglich:
+
+```bash
+python scripts/fetch_sessions.py 2026 --months 4 --force-download
+python scripts/fetch_session_from_index.py --session-id 7128 --force-download
+```
+
+TOP-Beschluesse werden aus dem Beschlussabsatz im Titelbereich oder einer
+expliziten Statusspalte gelesen; Vorlagennummern gelten nicht als Status.
+
 Der lokale Index-Build behandelt `session_detail.html` als kanonische Quelle und übernimmt daraus abweichende TOP- und Dokumentmetadaten direkt in den SQLite-Index. `agenda_summary.json`, `manifest.json` und andere Rohdaten bleiben dabei unverändert; bereits vorhandene Dateien werden im Index wieder ihren Dokumentlinks zugeordnet. Berücksichtigt werden nur SessionNet-Sitzungsordner unter `data/raw/YYYY/MM/`; Landkreis-Rohdaten bleiben getrennt. Auch der Online-Index-Build verändert keine Dateien unter `data/raw/`.
 
 Das Dashboard ist für den Desktop als durchgehende Spalte aufgebaut:

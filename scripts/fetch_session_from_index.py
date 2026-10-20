@@ -53,6 +53,10 @@ class IndexedSession:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
+        "--force-download", action="store_true",
+        help="Download documents again, including existing files from completed sessions.",
+    )
+    parser.add_argument(
         "--session-id",
         help="Session ID from data/db/online_session_index.sqlite, for example 7128.",
     )
@@ -221,12 +225,12 @@ def print_session_list(sessions: list[IndexedSession]) -> None:
         print(f"{session.session_id}\t{session.date.isoformat()}{start_time}\t{session.committee}")
 
 
-def fetch_single_session(client: SessionNetClient, indexed_session: IndexedSession) -> Path:
+def fetch_single_session(client: SessionNetClient, indexed_session: IndexedSession, *, force_download: bool = False) -> Path:
     """Fetch detail HTML and documents for one indexed session."""
 
     reference = indexed_session.to_reference()
     detail = client.fetch_session(reference)
-    client.download_documents(detail)
+    client.download_documents(detail, force_download=force_download)
     return client._build_session_directory(reference)
 
 
@@ -255,7 +259,7 @@ def main() -> None:
         indexed_session = load_session_from_index(args.db, args.session_id)
         logging.info("Fetching session %s (%s)", indexed_session.session_id, indexed_session.date)
         client = SessionNetClient(base_url=args.base_url)
-        session_dir = fetch_single_session(client, indexed_session)
+        session_dir = fetch_single_session(client, indexed_session, force_download=args.force_download)
         logging.info("Fetch complete: session=%s path=%s", indexed_session.session_id, session_dir)
         print(f"Downloaded session {indexed_session.session_id} to {session_dir}")
     except Exception:
