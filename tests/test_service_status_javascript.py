@@ -8,6 +8,67 @@ import pytest
 
 
 @pytest.mark.integration
+def test_global_job_indicator_classifies_maintenance_data_and_mixed_jobs():
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is required for JavaScript execution")
+    script = Path(__file__).resolve().parents[1] / "web/core/static/core/js/service_status.js"
+    harness = r"""
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const indicator = {hidden: true, href: ''};
+const text = {textContent: ''};
+let payload = {active: []};
+let poll;
+vm.runInNewContext(fs.readFileSync(process.argv[1], 'utf8'), {
+  document: {
+    getElementById: id => id === 'job-indicator' ? indicator : text,
+    querySelectorAll: () => [], addEventListener: () => {},
+  },
+  window: {setInterval: callback => { poll = callback; }},
+  fetch: async () => ({ok: true, json: async () => payload}),
+});
+async function show(active) {
+  payload = {active}; poll();
+  await new Promise(resolve => setImmediate(resolve));
+}
+const data = {job_id: 'data-1', action: 'build_vector_index', area: 'data', detail_url: '/daten/jobs/data-1/'};
+const maintenance = {job_id: 'service-1', action: 'check_embedding_models', area: 'service', detail_url: '/service/jobs/service-1/'};
+(async () => {
+  await show([]);
+  assert.equal(indicator.hidden, true);
+  await show([maintenance]);
+  assert.equal(indicator.hidden, false);
+  assert.equal(indicator.href, maintenance.detail_url);
+  assert.equal(text.textContent, 'Wartungsjob läuft: check_embedding_models');
+  await show([data]);
+  assert.equal(indicator.href, data.detail_url);
+  assert.equal(text.textContent, 'Datenjob läuft: build_vector_index');
+  await show([maintenance, {...maintenance, job_id: 'service-2', detail_url: '/service/jobs/service-2/'}]);
+  assert.equal(text.textContent, '2 Wartungsjobs laufen');
+  assert.equal(indicator.href, '/service/jobs/service-2/');
+  await show([data, {...data, job_id: 'data-2', detail_url: '/daten/jobs/data-2/'}]);
+  assert.equal(text.textContent, '2 Datenjobs laufen');
+  assert.equal(indicator.href, '/daten/jobs/data-2/');
+  await show([data, maintenance]);
+  assert.equal(text.textContent, '2 Jobs laufen');
+  assert.equal(indicator.href, maintenance.detail_url);
+  await show([maintenance, data]);
+  assert.equal(text.textContent, '2 Jobs laufen');
+  assert.equal(indicator.href, data.detail_url);
+  await show([{job_id: 'id/encoded', action: 'build_local_index'}]);
+  assert.equal(indicator.href, '/daten/jobs/id%2Fencoded/');
+  assert.equal(text.textContent, 'Datenjob läuft: build_local_index');
+  await show([]);
+  assert.equal(indicator.hidden, true);
+})().catch(error => { console.error(error); process.exitCode = 1; });
+"""
+    result = subprocess.run([node, "-e", harness, str(script)], capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.integration
 def test_model_refresh_clears_stale_values_and_uses_text_content():
     node = shutil.which("node")
     if node is None:

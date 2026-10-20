@@ -429,6 +429,28 @@ def test_existing_maintenance_job_links_open_in_service_area(client, monkeypatch
     assert soup.select_one('main a[href="/service/wartung/"]')
 
 
+@pytest.mark.parametrize("action,area,prefix", [
+    ("check_embedding_models", "service", "/service/jobs/"),
+    ("prepare_embedding_models", "service", "/service/jobs/"),
+    ("inspect_legacy_index", "service", "/service/jobs/"),
+    ("apply_legacy_index", "service", "/service/jobs/"),
+    ("build_local_index", "data", "/daten/jobs/"),
+    ("build_vector_index", "data", "/daten/jobs/"),
+    ("build_landkreis_vector_index", "data", "/daten/jobs/"),
+])
+def test_active_job_indicator_metadata_uses_matching_workspace(client, monkeypatch, action, area, prefix):
+    from core.service_jobs import ServiceJob
+    from data_tools import views
+    job = ServiceJob("indicator-test", action, [], status="running")
+    monkeypatch.setattr(views.service_jobs, "active_service_jobs", lambda: [job])
+    monkeypatch.setattr(views.service_jobs, "list_service_jobs", lambda **kwargs: [job])
+    response = client.get("/daten/jobs/status/")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["active"] == [{**job.to_dict(), "area": area, "detail_url": prefix + job.job_id + "/"}]
+    assert payload["recent"] == [job.to_dict()]
+
+
 @pytest.mark.parametrize(
     ("path", "active_label"),
     [

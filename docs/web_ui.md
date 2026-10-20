@@ -169,7 +169,7 @@ Jede vorbereitete Markdown-Datei enthält bereits die leere Überschrift `## KI-
 - Analysejobliste und Analysejobdetails aus `data/analysis_outputs/`
 - Anzeige alter v1-Analyseoutputs
 - Fetch-, Build- und Vektorindex-Servicefunktionen für Ratsinfo und Landkreis unter `/daten/`
-- Statusanzeige für laufende Datenjobs im Header; ohne laufenden Job bleibt sie ausgeblendet
+- Statusanzeige für laufende Daten- und Wartungsjobs im Header; Wartungsjobs heißen dort „Wartungsjob“ und verlinken auf `/service/jobs/<job_id>/`, normale Datenjobs auf `/daten/jobs/<job_id>/`. Mehrere gleichartige Jobs werden entsprechend benannt; bei gemischten Aufträgen steht die gemeinsame Anzahl als „Jobs“. Der Link führt zum zuletzt aufgeführten aktiven Job. Ohne laufenden Job bleibt die Anzeige ausgeblendet.
 - manuelle Aktualisierung des aktuellen Datenstatus auf den Service-Seiten ohne vollständigen Seitenwechsel
 - automatische Aktualisierung der Logausgabe auf Datenjob-Detailseiten; nach Abschluss werden der verständliche Endstatus und der aktuelle Datenstatus automatisch nachgeladen
 

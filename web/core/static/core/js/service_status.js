@@ -18,10 +18,13 @@
       }
       const job = active[active.length - 1];
       indicator.hidden = false;
-      indicator.href = "/daten/jobs/" + job.job_id + "/";
+      indicator.href = job.detail_url || "/daten/jobs/" + encodeURIComponent(job.job_id) + "/";
+      const maintenanceCount = active.filter(item => item.area === "service").length;
+      const jobsLabel = maintenanceCount === 0 ? "Datenjobs"
+        : maintenanceCount === active.length ? "Wartungsjobs" : "Jobs";
       text.textContent = active.length === 1
-        ? "Datenjob läuft: " + job.action
-        : active.length + " Datenjobs laufen";
+        ? (job.area === "service" ? "Wartungsjob" : "Datenjob") + " läuft: " + job.action
+        : active.length + " " + jobsLabel + " laufen";
     } catch (_error) {
       return;
     }

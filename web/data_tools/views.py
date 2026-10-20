@@ -6,6 +6,7 @@ from django.http import HttpResponseNotFound
 from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.shortcuts import render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_safe
 
@@ -226,7 +227,16 @@ def service_model_history_status(request):
 
 
 def service_job_status(request):
-    active = [job.to_dict() for job in service_jobs.active_service_jobs()]
+    active = []
+    for job in service_jobs.active_service_jobs():
+        maintenance = job.action in MAINTENANCE_ACTIONS
+        entry = job.to_dict()
+        entry.update(
+            area="service" if maintenance else "data",
+            detail_url=reverse("service:job_detail" if maintenance else "data_tools:service_job_detail",
+                               kwargs={"job_id": job.job_id}),
+        )
+        active.append(entry)
     recent = [job.to_dict() for job in service_jobs.list_service_jobs(limit=5)]
     return JsonResponse({"active": active, "recent": recent})
 
