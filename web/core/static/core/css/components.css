@@ -489,14 +489,14 @@ tr:last-child td {
   margin-bottom: 18px;
 }
 
-.vector-page {
+.service-page {
   display: grid;
   gap: 20px;
 }
 
-.vector-page > .page-heading,
-.vector-page > .service-status,
-.vector-page > .empty-state.service-note {
+.service-page > .page-heading,
+.service-page > .service-status,
+.service-page > .empty-state.service-note {
   margin: 0;
 }
 
