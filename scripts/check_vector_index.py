@@ -29,6 +29,8 @@ def main(argv=None):
         parser.error(f"Database not found: {args.db}")
     store = DocumentVectorStore(args.qdrant_dir, collection_name=COLLECTION)
     try:
+        if not store.connection.url and not store.connection.path.is_dir():
+            raise ValueError(f"Lokaler Vektorindex fehlt: {store.connection.path}")
         client = store._get_client()
         compatibility = current_index_compatibility(deep=True)
         check_build_compatibility(store.connection, client, COLLECTION, compatibility)
