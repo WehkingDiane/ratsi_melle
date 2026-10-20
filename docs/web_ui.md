@@ -240,14 +240,14 @@ den gemeinsamen Status und die Angaben zu Harrier, Tokenizer und BM25.
 „Modellstatus aktualisieren“ erneuert diese Werte ohne Seitenwechsel. Bei einem
 Gesamtfehler zeigen die Karten „Nicht einzeln verifiziert“ und ersetzen alte
 Revisionen und Größen durch „Nicht verifiziert“. „Lokal prüfen“ startet den
-festen Befehl `prepare_embedding_models.py --check --json` als Datenjob und
-öffnet dessen Jobdetailseite. Die Aktion verwendet POST mit CSRF-Schutz und
+festen Befehl `prepare_embedding_models.py --check --json` als Wartungsjob und
+öffnet dessen Detailseite unter `/service/jobs/<job_id>/`. Die Aktion verwendet POST mit CSRF-Schutz und
 akzeptiert keine zusätzlichen Modell-, Pfad- oder Kommandoargumente. Beide
 Modellaktionen weisen außerdem doppelte Formularfelder und widersprüchliche
 Aktionsnamen ab. Modell-ID, Revision und Zielpfad sind nicht frei eingebbar.
 „Lokal prüfen“ arbeitet offline und schreibt keine Modelldateien. Bei einem
 unbrauchbaren Bestand endet der Job mit Fehlerstatus; die JSON-Ausgabe unterscheidet weiterhin
-`fehlt`, `unvollstaendig` und `inkompatibel`. Die Vektorseite zeigt je Modell- und Legacy-Aktion den letzten abgeschlossenen
+`fehlt`, `unvollstaendig` und `inkompatibel`. Die Wartungsseite zeigt je Modell- und Legacy-Aktion den letzten abgeschlossenen
 Versuch einschließlich Fehlern; laufende Jobs stehen separat. Die Zuordnung
 bindet Aktion, aufgelösten Modellpfad, Modellvertrag und Bibliotheksstand.
 Erfolgreiche Ergebnisse speichern zusätzlich den Manifest-Hash. Änderungen
@@ -268,7 +268,7 @@ ausgegeben.
 „Modelle vorbereiten“ lädt nach ausdrücklicher Bestätigung die angezeigten,
 fest konfigurierten Revisionen in das konfigurierte Modellverzeichnis. Dafür
 müssen die Modellbibliotheken im Python-Umfeld des Servers installiert sein.
-Die Aktion läuft als Datenjob mit `--download --json`; die Jobdetailseite zeigt
+Die Aktion läuft als Wartungsjob mit `--download --json`; die Detailseite unter `/service/jobs/<job_id>/` zeigt
 das geprüfte Ergebnis oder einen festen Fehlercode. Rohe Downloadausgaben und
 Provider-Tracebacks werden nicht gespeichert. Die signierte Bestätigung ist
 15 Minuten gültig und bindet Modellpfad, Revisionen und Bibliotheksstand. Nach
