@@ -6,6 +6,15 @@ Einstellungen. Die fachliche Reihenfolge bleibt: Überschrift, Hauptaufgabe,
 Ergebnisse und ergänzende Informationen. Das Dashboard bleibt eine durchgehende
 Spalte mit kommenden Sitzungen, vergangenen Sitzungen und anschließendem Status.
 
+## Arbeitsbereiche
+
+„Daten“ enthält die normalen Fetch- und Build-Abläufe mit ihrem Status.
+„Service“ bündelt Wartung und Einstellungen. Modellvorbereitung, Prüfungen und
+Modell-/Legacy-Jobhistorie stehen auf `/service/wartung/`, Einstellungen auf
+`/service/einstellungen/`. Wartungsjobs verwenden auch beim Öffnen älterer
+Datenjob-Links die Service-Navigation. Die Vektorseite zeigt nur normale Builds
+und Indexstatus; ein Link führt zur Wartung. Seitenaufrufe starten keine Jobs.
+
 ## Zentrale Werte
 
 Gestaltungswerte stehen in `web/core/static/core/css/base.css` unter `:root`.

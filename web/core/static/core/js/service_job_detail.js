@@ -5,6 +5,7 @@
   }
 
   const jobId = container.getAttribute("data-service-job-id");
+  const jobLabel = container.getAttribute("data-job-label") || "Datenjob";
   const statusNode = document.getElementById("job-status");
   const exitCodeNode = document.getElementById("job-exit-code");
   const startedAtNode = document.getElementById("job-started-at");
@@ -77,8 +78,8 @@
       }
       if (completionMessage && status !== "queued" && status !== "running") {
         completionMessage.textContent = status === "ok"
-          ? "Datenjob wurde erfolgreich abgeschlossen."
-          : "Datenjob ist fehlgeschlagen.";
+          ? jobLabel + " wurde erfolgreich abgeschlossen."
+          : jobLabel + " ist fehlgeschlagen.";
         completionMessage.classList.toggle("status-ok", status === "ok");
         completionMessage.classList.toggle("status-error", status !== "ok");
         completionMessage.hidden = false;

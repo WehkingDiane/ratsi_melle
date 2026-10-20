@@ -14,6 +14,11 @@ from core import service_jobs
 from . import services
 
 
+MAINTENANCE_ACTIONS = frozenset({
+    "check_embedding_models", "prepare_embedding_models", "inspect_legacy_index", "apply_legacy_index",
+})
+
+
 def _start_job(request, command):
     action = request.POST.get("action", "")
     if action == "apply_legacy_index":
@@ -37,7 +42,8 @@ def service_home(request):
         {
             "active_nav": "data",
             "status": services.service_status(),
-            "jobs": service_jobs.list_service_jobs(),
+            "jobs": [job for job in service_jobs.list_service_jobs(limit=service_jobs.MAX_RETAINED_JOBS)
+                     if job.action not in MAINTENANCE_ACTIONS][:20],
         },
     )
 
@@ -107,10 +113,12 @@ def service_build(request):
 def service_vector(request):
     errors: list[str] = []
     if request.method == "POST":
-        command, errors = services.build_service_command(
-            request.POST.get("action", ""),
-            request.POST,
-        )
+        if request.POST.get("action") not in {"build_vector_index", "build_landkreis_vector_index"}:
+            command, errors = None, ["Prüfungen und Modellverwaltung befinden sich unter Service → Wartung."]
+        else:
+            command, errors = services.build_service_command(
+                request.POST.get("action", ""), request.POST,
+            )
         if command:
             try:
                 job = _start_job(request, command)
@@ -118,6 +126,38 @@ def service_vector(request):
                 errors.append(str(error))
             else:
                 return redirect("data_tools:service_job_detail", job_id=job.job_id)
+    return render(request, "data_tools/service_vector.html", {
+        "active_nav": "data", "status": services.service_status(),
+        "vector_status": services.vector_index_status(),
+        "landkreis_vector_status": services.landkreis_vector_index_status(), "errors": errors,
+    })
+
+
+@require_safe
+def service_overview(request):
+    """Open maintenance and settings without starting any service operation."""
+    return render(request, "data_tools/service_overview.html", {
+        "active_nav": "service",
+        "jobs": [job for job in service_jobs.list_service_jobs(limit=service_jobs.MAX_RETAINED_JOBS)
+                 if job.action in MAINTENANCE_ACTIONS][:20],
+    })
+
+
+def service_maintenance(request):
+    """Keep explicit model preparation and legacy inspection in the Service area."""
+    errors = []
+    if request.method == "POST":
+        if request.POST.get("action") not in MAINTENANCE_ACTIONS - {"apply_legacy_index"}:
+            command, errors = None, ["Hier sind nur Wartungsaufträge verfügbar. Normale Builds stehen unter Daten."]
+        else:
+            command, errors = services.build_service_command(request.POST.get("action", ""), request.POST)
+        if command:
+            try:
+                job = _start_job(request, command)
+            except (service_jobs.ServiceJobStartError, ValueError) as error:
+                errors.append(str(error))
+            else:
+                return redirect("service:job_detail", job_id=job.job_id)
     try:
         confirmation = services.preparation_confirmation()
     except (ValueError, OSError, RuntimeError):
@@ -128,14 +168,12 @@ def service_vector(request):
         legacy_forms = []
     return render(
         request,
-        "data_tools/service_vector.html",
+        "data_tools/service_maintenance.html",
         {
-            "active_nav": "data",
+            "active_nav": "service",
             "status": services.service_status(),
             "preparation_confirmation": confirmation,
             "legacy_inspection_forms": legacy_forms,
-            "vector_status": services.vector_index_status(),
-            "landkreis_vector_status": services.landkreis_vector_index_status(),
             "errors": errors,
         },
     )
@@ -155,13 +193,15 @@ def service_job_detail(request, job_id: str):
                 except (service_jobs.ServiceJobStartError, ValueError) as error:
                     errors.append(str(error))
                 else:
-                    return redirect("data_tools:service_job_detail", job_id=started.job_id)
+                    return redirect("service:job_detail", job_id=started.job_id)
     status = services.service_status()
     return render(
         request,
         "data_tools/service_job_detail.html",
         {
-            "active_nav": "data",
+            "active_nav": "service" if job and job.action in MAINTENANCE_ACTIONS else "data",
+            "job_label": "Wartungsjob" if job and job.action in MAINTENANCE_ACTIONS else "Datenjob",
+            "job_detail_route": "service:job_detail" if job and job.action in MAINTENANCE_ACTIONS else "data_tools:service_job_detail",
             "job": job,
             "job_id": job_id,
             "legacy_report": services.inspection_result(job),

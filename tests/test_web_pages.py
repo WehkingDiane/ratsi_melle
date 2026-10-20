@@ -56,6 +56,9 @@ def client():
         "/veroeffentlichung/",
         "/suche/",
         "/einstellungen/",
+        "/service/",
+        "/service/wartung/",
+        "/service/einstellungen/",
     ],
 )
 def test_analysis_pages_load(path: str, client) -> None:
@@ -137,17 +140,17 @@ def test_local_model_check_form_and_post_use_existing_job(client, monkeypatch):
         return ServiceJob("model-check-123", action, command)
 
     monkeypatch.setattr(views.service_jobs, "start_service_job", start_job)
-    page = client.get("/daten/vektor/")
+    page = client.get("/service/wartung/")
     soup = BeautifulSoup(page.content, "html.parser")
     form = soup.select_one('#embedding-model-status input[value="check_embedding_models"]').find_parent("form")
     assert form["method"] == "post"
     assert form.select_one('input[name="csrfmiddlewaretoken"]')
     assert form.select_one("button").get_text(strip=True) == "Lokal prüfen"
 
-    response = client.post("/daten/vektor/", {"action": "check_embedding_models"})
+    response = client.post("/service/wartung/", {"action": "check_embedding_models"})
 
     assert response.status_code == 302
-    assert response.headers["Location"] == "/daten/jobs/model-check-123/"
+    assert response.headers["Location"] == "/service/jobs/model-check-123/"
     assert captured == [(
         "check_embedding_models",
         [sys.executable, "scripts/prepare_embedding_models.py", "--check", "--json"],
@@ -167,7 +170,7 @@ def test_local_model_check_rejects_manipulated_post(client, monkeypatch, data):
         raise AssertionError("Invalid model-check POST must not start a job")
 
     monkeypatch.setattr(views.service_jobs, "start_service_job", reject_start)
-    response = client.post("/daten/vektor/", data)
+    response = client.post("/service/wartung/", data)
     assert response.status_code == 200
     assert "Modellprüfung" in response.content.decode()
 
@@ -185,17 +188,17 @@ def test_local_model_check_requires_csrf(client, monkeypatch):
         return ServiceJob("csrf-model-check", action, command)
 
     monkeypatch.setattr(views.service_jobs, "start_service_job", start_job)
-    assert strict_client.post("/daten/vektor/", {"action": "check_embedding_models"}).status_code == 403
+    assert strict_client.post("/service/wartung/", {"action": "check_embedding_models"}).status_code == 403
     assert not starts
-    page = strict_client.get("/daten/vektor/")
+    page = strict_client.get("/service/wartung/")
     token = BeautifulSoup(page.content, "html.parser").select_one('input[name="csrfmiddlewaretoken"]')["value"]
-    response = strict_client.post("/daten/vektor/", {"action": "check_embedding_models", "csrfmiddlewaretoken": token})
+    response = strict_client.post("/service/wartung/", {"action": "check_embedding_models", "csrfmiddlewaretoken": token})
     assert response.status_code == 302
     assert starts == ["check_embedding_models"]
 
 
 @pytest.mark.parametrize("state", ["bereit", "fehlt", "unvollstaendig", "inkompatibel", "settings"])
-def test_vector_page_displays_verified_model_components(client, tmp_path, monkeypatch, state):
+def test_maintenance_page_displays_verified_model_components(client, tmp_path, monkeypatch, state):
     from core.services import status as status_service
     from data_tools import services as data_services
     from src.config import embedding_model_status as model_status
@@ -228,7 +231,7 @@ def test_vector_page_displays_verified_model_components(client, tmp_path, monkey
 
     monkeypatch.setattr(model_status, "load_and_validate_model_inventory", record_check)
     monkeypatch.setattr("core.service_jobs.start_service_job", reject_job)
-    response = client.get("/daten/vektor/")
+    response = client.get("/service/wartung/")
 
     assert response.status_code == 200
     assert checks == ([] if state == "settings" else [False])
@@ -373,12 +376,57 @@ def test_navigation_dropdowns_have_expected_links(client) -> None:
         "Daten": ["Fetch: Daten holen", "Build: Datenbank-Tools", "Build: Vektorindex", "Datenstatus nach Jahr"],
         "Veröffentlichung": ["Veröffentlichung öffnen"],
         "Suche": ["Suche öffnen"],
-        "Einstellungen": ["Einstellungen öffnen"],
+        "Service": ["Service-Übersicht", "Wartung", "Einstellungen öffnen"],
     }
     assert all(
         menu.select_one(".nav-menu-label").get("aria-haspopup") == "true"
         for menu in soup.select(".main-nav .nav-menu")
     )
+
+
+def test_service_overview_separates_maintenance_jobs_and_links_settings(client, monkeypatch):
+    from core.service_jobs import ServiceJob
+    from data_tools import views
+    from django.urls import reverse
+
+    jobs = [ServiceJob(f"build-{i}", "build_vector_index", []) for i in range(21)]
+    jobs.append(ServiceJob("legacy-check", "inspect_legacy_index", []))
+    monkeypatch.setattr(views.service_jobs, "list_service_jobs", lambda **kwargs: jobs)
+    service = BeautifulSoup(client.get("/service/").content, "html.parser")
+    data = BeautifulSoup(client.get("/daten/").content, "html.parser")
+    assert reverse("settings_ui:index") == "/service/einstellungen/"
+    assert service.select_one('main a[href="/service/einstellungen/"]')
+    assert service.select_one('main a[href="/service/jobs/legacy-check/"]')
+    assert not service.select_one('main a[href="/daten/jobs/build-0/"]')
+    assert data.select_one('main a[href="/daten/jobs/build-0/"]')
+    assert not data.select_one('main a[href$="/legacy-check/"]')
+
+
+@pytest.mark.parametrize("path,action", [
+    ("/daten/vektor/", "inspect_legacy_index"),
+    ("/daten/vektor/", "check_embedding_models"),
+    ("/daten/vektor/", "prepare_embedding_models"),
+    ("/service/wartung/", "build_vector_index"),
+    ("/service/wartung/", "build_landkreis_vector_index"),
+])
+def test_build_and_maintenance_posts_stay_in_their_own_area(client, monkeypatch, path, action):
+    from data_tools import views
+    monkeypatch.setattr(views.service_jobs, "start_service_job", lambda *args, **kwargs: pytest.fail("Wrong-area job started"))
+    response = client.post(path, {"action": action})
+    assert response.status_code == 200
+    assert "Service" in response.content.decode()
+
+
+@pytest.mark.parametrize("path", ["/daten/jobs/maintenance-test/", "/service/jobs/maintenance-test/"])
+def test_existing_maintenance_job_links_open_in_service_area(client, monkeypatch, path):
+    from core.service_jobs import ServiceJob
+    from data_tools import views
+    job = ServiceJob("maintenance-test", "check_embedding_models", [], status="ok")
+    monkeypatch.setattr(views.service_jobs, "get_service_job", lambda job_id: job)
+    soup = BeautifulSoup(client.get(path).content, "html.parser")
+    assert soup.select_one("h1").get_text(strip=True) == "Wartungsjob"
+    assert soup.select_one(".nav-menu-label.active").get_text(strip=True) == "Service"
+    assert soup.select_one('main a[href="/service/wartung/"]')
 
 
 @pytest.mark.parametrize(
@@ -389,7 +437,10 @@ def test_navigation_dropdowns_have_expected_links(client) -> None:
         ("/daten/", "Daten"),
         ("/veroeffentlichung/", "Veröffentlichung"),
         ("/suche/", "Suche"),
-        ("/einstellungen/", "Einstellungen"),
+        ("/einstellungen/", "Service"),
+        ("/service/", "Service"),
+        ("/service/wartung/", "Service"),
+        ("/service/einstellungen/", "Service"),
     ],
 )
 def test_active_navigation_matches_section(path: str, active_label: str, client) -> None:
@@ -1268,8 +1319,10 @@ def test_service_vector_page_renders_vector_status(client, monkeypatch) -> None:
     assert "Ratsinfo-Vektorstatus" in content
     assert "Fehlende Dokumente indexieren" in content
     assert "Vollständig indexierte Dokumente" in content
-    assert "Service und Wartung" in content
-    assert content.index("Ratsinfo-Vektorstatus") < content.index("Lokale Embedding-Modelle")
+    assert "Service → Wartung" in content
+    assert 'id="embedding-model-status"' not in content
+    assert 'id="model-job-history"' not in content
+    assert 'id="legacy-inspection"' not in content
     assert "Landkreis-Vektorstatus" in content
     assert "SQLite-Dokumente" in content
     assert "10" in content

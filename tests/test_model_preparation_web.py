@@ -72,13 +72,13 @@ def test_preparation_form_post_and_csrf(confirmation, monkeypatch):
         return service_jobs.ServiceJob("prep-test", action, command)
     monkeypatch.setattr(views.service_jobs, "start_service_job", start)
     client = Client(enforce_csrf_checks=True)
-    assert client.post("/daten/vektor/", confirmation).status_code == 403
-    page = client.get("/daten/vektor/")
+    assert client.post("/service/wartung/", confirmation).status_code == 403
+    page = client.get("/service/wartung/")
     assert page.status_code == 200
     assert b'Modelle vorbereiten' in page.content
     assert b'name="preparation_binding"' in page.content
     confirmation["csrfmiddlewaretoken"] = client.cookies["csrftoken"].value
-    response = client.post("/daten/vektor/", confirmation)
+    response = client.post("/service/wartung/", confirmation)
     assert response.status_code == 302
     assert captured[0][0] == "prepare_embedding_models"
     assert captured[0][2]["preparation_binding"] == model_preparation_binding()
@@ -91,7 +91,7 @@ def test_busy_preparation_displays_error_without_redirect(confirmation, monkeypa
     def busy(*args, **kwargs):
         raise service_jobs.ServiceJobStartError("Modellvorbereitung oder Indexjob ist bereits aktiv.")
     monkeypatch.setattr(views.service_jobs, "start_service_job", busy)
-    response = Client().post("/daten/vektor/", confirmation)
+    response = Client().post("/service/wartung/", confirmation)
     assert response.status_code == 200
     assert b'bereits aktiv' in response.content
 
@@ -361,7 +361,7 @@ def test_model_command_rejects_mismatched_action(action, confirmation):
 def test_model_forms_expose_only_fixed_action_fields(action, confirmation):
     from bs4 import BeautifulSoup
     from django.test import Client
-    response = Client().get("/daten/vektor/")
+    response = Client().get("/service/wartung/")
     assert response.status_code == 200
     soup = BeautifulSoup(response.content, "html.parser")
     form = soup.select_one(f'#embedding-model-status input[value="{action}"]').find_parent("form")
@@ -383,9 +383,9 @@ def test_manipulated_model_post_never_starts_job(action, field, confirmation, mo
     from data_tools import views
     monkeypatch.setattr(views.service_jobs, "start_service_job", lambda *a, **kw: pytest.fail("job started"))
     client = Client(enforce_csrf_checks=True)
-    client.get("/daten/vektor/")
+    client.get("/service/wartung/")
     data = dict(confirmation) if action == "prepare_embedding_models" else {"action": action}
     data.update({"csrfmiddlewaretoken": client.cookies["csrftoken"].value, field: "untrusted-value"})
-    response = client.post("/daten/vektor/", data)
+    response = client.post("/service/wartung/", data)
     assert response.status_code == 200
     assert "keine zusätzlichen Parameter" in response.content.decode()

@@ -766,8 +766,8 @@ Seit 0.5.59 sind Ratsinfo-Ergaenzung und Wartung getrennt:
 
 Auf der Vektorseite bezieht sich der Aufbaufortschritt unabhaengig vom
 Such-Rueckfall immer auf `ratsi_passages`. Freigabe und aktiver Suchindex werden
-separat angezeigt; Modellverwaltung und Legacy-Pruefungen sind als Service
-eingeklappt. Ein normaler Ergaenzungslauf setzt keine vorherige Service-Pruefung
+separat angezeigt; Modellverwaltung und Legacy-Pruefungen liegen seit 0.5.60
+auf `/service/wartung/` unter „Service → Wartung“. Ein normaler Ergaenzungslauf setzt keine vorherige Service-Pruefung
 voraus, sofern der vorhandene Modell-/Collection-Vertrag passt.
 
 M5.8 gibt bei einer inkompatiblen Fortsetzung in allen drei Build-CLIs nur
@@ -965,8 +965,8 @@ Ein Modellwechsel folgt spaeter diesem Ablauf:
 
 ## Einbindung in die Service-Oberflaeche
 
-Die Modellverwaltung wird im technischen Servicebereich bei den
-Vektorindex-Funktionen unter `/daten/vektor/` ergaenzt. Sie verwendet die
+Die Modellverwaltung liegt unter „Service → Wartung“ auf `/service/wartung/`.
+Die normalen Vektorindex-Builds bleiben unter `/daten/vektor/`. Sie verwendet die
 bestehende Servicejob-Infrastruktur und fuehrt keine Modelllogik im Django-View
 selbst aus.
 
@@ -1624,7 +1624,8 @@ und serverseitige Schreibzugriffe fremder Clients sind damit nicht abgedeckt.
   Pruefhistorie; deren Zuordnung folgt in M6.8. 162 gezielte Modell-, CLI-,
   Kompatibilitaets-, Webseiten- und Servicestatus-Tests bestehen, ohne echte
   Modelle oder produktive Qdrant-Bestaende. Allgemeine Version: `0.5.38`.
-- **M6.2** umgesetzt: `/daten/vektor/` zeigt den gemeinsamen Modellstatus sowie
+- **M6.2** umgesetzt: Die Modellverwaltung (seit 0.5.60 unter `/service/wartung/`,
+  zuvor `/daten/vektor/`) zeigt den gemeinsamen Modellstatus sowie
   Harrier, Tokenizer und BM25 mit konfigurierten/vorbereiteten Revisionen und
   Pflichtdateigroessen. Die manuelle Aktualisierung entfernt alte Einzelwerte
   bei einem Gesamtfehler; sie startet keinen Modelljob. Gespeicherte

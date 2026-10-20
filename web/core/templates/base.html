@@ -66,8 +66,10 @@
           </div>
         </div>
         <div class="nav-menu">
-          <a class="nav-menu-label {% if active_nav == 'settings' %}active{% endif %}" href="{% url 'settings_ui:index' %}" aria-haspopup="true"{% if active_nav == 'settings' %} aria-current="page"{% endif %}>Einstellungen</a>
-          <div class="nav-dropdown" aria-label="Einstellungen-Untermenü">
+          <a class="nav-menu-label {% if active_nav == 'service' %}active{% endif %}" href="{% url 'service:index' %}" aria-haspopup="true"{% if active_nav == 'service' %} aria-current="page"{% endif %}>Service</a>
+          <div class="nav-dropdown" aria-label="Service-Untermenü">
+            <a href="{% url 'service:index' %}">Service-Übersicht</a>
+            <a href="{% url 'service:maintenance' %}">Wartung</a>
             <a href="{% url 'settings_ui:index' %}">Einstellungen öffnen</a>
           </div>
         </div>

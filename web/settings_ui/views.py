@@ -56,7 +56,7 @@ def index(request):
         request,
         "settings_ui/index.html",
         {
-            "active_nav": "settings",
+            "active_nav": "service",
             "messages": messages,
             "errors": errors,
             "token_sources": token_sources,

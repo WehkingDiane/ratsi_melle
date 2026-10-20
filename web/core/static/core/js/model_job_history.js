@@ -9,7 +9,7 @@
   }
   function link(parent, jobId, label) {
     const node = document.createElement("a");
-    node.href = "/daten/jobs/" + encodeURIComponent(jobId) + "/";
+    node.href = "/service/jobs/" + encodeURIComponent(jobId) + "/";
     node.textContent = label;
     parent.appendChild(node);
   }
