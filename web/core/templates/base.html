@@ -5,11 +5,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Ratsi Melle{% endblock %}</title>
-  <link rel="stylesheet" href="{% static 'core/css/base.css' %}">
-  <link rel="stylesheet" href="{% static 'core/css/layout.css' %}">
-  <link rel="stylesheet" href="{% static 'core/css/navigation.css' %}">
-  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v=0.5.57">
-  <link rel="stylesheet" href="{% static 'core/css/status.css' %}">
+  {% with ui_version="0.5.58" %}
+  <link rel="stylesheet" href="{% static 'core/css/base.css' %}?v={{ ui_version }}">
+  <link rel="stylesheet" href="{% static 'core/css/layout.css' %}?v={{ ui_version }}">
+  <link rel="stylesheet" href="{% static 'core/css/navigation.css' %}?v={{ ui_version }}">
+  <link rel="stylesheet" href="{% static 'core/css/components.css' %}?v={{ ui_version }}">
+  <link rel="stylesheet" href="{% static 'core/css/status.css' %}?v={{ ui_version }}">
+  {% endwith %}
 </head>
 <body>
   <a class="skip-link" href="#main-content">Zum Hauptinhalt</a>
@@ -77,7 +79,9 @@
     </div>
   </header>
   <main class="shell" id="main-content" tabindex="-1">
+    <div class="page-stack">
     {% block content %}{% endblock %}
+    </div>
   </main>
   <footer class="site-footer">
     <div class="site-footer-inner">Lokale Entwicklungsoberfläche</div>

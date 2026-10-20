@@ -3,7 +3,6 @@
 {% block title %}Dashboard - Ratsi Melle{% endblock %}
 
 {% block content %}
-<div class="dashboard-flow">
 <header class="page-heading dashboard-heading">
   <p class="eyebrow">Dashboard</p>
   <h1>Sitzungen im Überblick</h1>
@@ -11,26 +10,18 @@
 </header>
 
 <section class="panel dashboard-section" aria-labelledby="upcoming-heading">
-  <div class="dashboard-section-heading">
-    <h2 id="upcoming-heading">Kommende Sitzungen</h2>
-    <span class="muted">Ab heute · nächste fünf Termine</span>
-  </div>
+  {% include "core/partials/panel_header.html" with heading="Kommende Sitzungen" heading_id="upcoming-heading" meta="Ab heute · nächste fünf Termine" only %}
   {% include "core/partials/dashboard_sessions.html" with sessions=upcoming_sessions empty_message="Keine kommenden Termine im bekannten Sitzungskalender. Das bedeutet nicht, dass keine weiteren Sitzungen geplant sind." %}
 </section>
 
 <section class="panel dashboard-section" aria-labelledby="past-heading">
-  <div class="dashboard-section-heading">
-    <h2 id="past-heading">Vergangene Sitzungen</h2>
-    <span class="muted">Vor heute · jüngste fünf Termine zuerst</span>
-  </div>
+  {% include "core/partials/panel_header.html" with heading="Vergangene Sitzungen" heading_id="past-heading" meta="Vor heute · jüngste fünf Termine zuerst" only %}
   {% include "core/partials/dashboard_sessions.html" with sessions=recent_sessions empty_message="Keine vergangenen Termine im bekannten Sitzungskalender." %}
 </section>
 
 <section class="panel dashboard-section dashboard-summary" aria-labelledby="status-heading">
-  <div class="dashboard-section-heading">
-    <h2 id="status-heading">Datenstatus</h2>
-    <a href="{% url 'data_tools:service_status_detail' %}">Bestand und Details ansehen</a>
-  </div>
+  {% url 'data_tools:service_status_detail' as status_url %}
+  {% include "core/partials/panel_header.html" with heading="Datenstatus" heading_id="status-heading" link_url=status_url link_label="Bestand und Details ansehen" only %}
   <dl>
     <div><dt>Terminquelle</dt><dd>{% if online_available %}Online-Index des Ratsinfo-Kalenders{% else %}Lokaler Bestand{% endif %}</dd></div>
     <div><dt>Bekannte Online-Termine</dt><dd>{{ online_session_count|default_if_none:"Nicht verfügbar" }}</dd></div>
@@ -40,5 +31,4 @@
   {% if upcoming_notice %}<p class="status-warning">{{ upcoming_notice }}</p>{% endif %}
   <p class="muted">Beide Listen verwenden die bekannten Kalendertermine, unabhängig von lokal verfügbaren Unterlagen. Terminänderungen werden nach einer Aktualisierung des Online-Index unter <a href="{% url 'data_tools:service_build' %}">Daten → Build</a> sichtbar; zum Abgleich bestehender Termine „Bestehende Sitzungen aktualisieren“ auswählen.</p>
 </section>
-</div>
 {% endblock %}

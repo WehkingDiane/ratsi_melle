@@ -259,7 +259,7 @@ def test_nested_pages_use_absolute_static_urls(client) -> None:
     response = client.get("/analyse/starten/")
     content = response.content.decode("utf-8")
 
-    assert 'href="/static/core/css/base.css"' in content
+    assert 'href="/static/core/css/base.css?v=' in content
     assert 'src="/static/core/js/service_status.js"' in content
     assert 'src="/static/core/js/navigation.js"' in content
     assert 'href="static/' not in content
@@ -279,6 +279,8 @@ def test_templates_are_kept_in_their_feature_apps() -> None:
         "base.html",
         "core/dashboard.html",
         "core/partials/dashboard_sessions.html",
+        "core/partials/messages.html",
+        "core/partials/panel_header.html",
         "core/partials/service_result.html",
         "core/partials/service_status.html",
     }

@@ -1,0 +1,10 @@
+<div class="panel-header">
+  <h2{% if heading_id %} id="{{ heading_id }}"{% endif %}>{{ heading }}</h2>
+  {% if refresh_label %}
+  <button class="button utility small" type="button" data-service-status-refresh>{{ refresh_label }}</button>
+  {% elif link_url %}
+  <a href="{{ link_url }}">{{ link_label }}</a>
+  {% elif meta %}
+  <span class="muted">{{ meta }}</span>
+  {% endif %}
+</div>

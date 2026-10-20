@@ -55,12 +55,21 @@
   padding: 16px 32px;
 }
 
-.page-heading {
-  margin-bottom: 28px;
+.page-stack,
+.content-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-page);
+  min-width: 0;
+}
+
+.page-stack > *,
+.content-stack > * {
+  min-width: 0;
 }
 
 .page-heading h1 {
-  font-size: 32px;
+  font-size: var(--font-page-title);
   line-height: 1.2;
   margin: 0 0 8px;
 }
@@ -82,7 +91,7 @@
 
 .grid {
   display: grid;
-  gap: 20px;
+  gap: var(--space-page);
 }
 
 .two-columns {
@@ -93,41 +102,16 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.area-grid,
-.dashboard-status {
-  margin-bottom: 28px;
-}
-
 .split-content {
   display: grid;
-  gap: 24px;
+  gap: var(--space-page);
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  margin-top: 28px;
 }
 
 .answer-reader {
   display: grid;
-  gap: 24px;
+  gap: var(--space-page);
   grid-template-columns: minmax(230px, 0.34fr) minmax(0, 1fr);
-}
-
-/* The dashboard keeps calendar sections in a single desktop column. */
-.dashboard-flow {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.dashboard-heading {
-  margin-bottom: 0;
-}
-
-.dashboard-section-heading {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 18px;
 }
 
 .dashboard-session-table {
@@ -208,12 +192,18 @@
   align-items: center;
   display: flex;
   justify-content: space-between;
-  margin: 20px 0 10px;
+  gap: var(--space-content);
+  flex-wrap: wrap;
+  margin: 0 0 var(--space-content);
+}
+
+.section-title > * {
+  margin: 0;
 }
 
 .section-title h2,
 .panel h2 {
-  font-size: 18px;
+  font-size: var(--font-section-title);
   margin: 0;
 }
 

@@ -11,6 +11,15 @@
 
 <section class="grid two-columns">
   <article class="panel">
+    <h2>Einstieg</h2>
+    <div class="actions">
+      <a class="button secondary" href="{% url 'analysis:analysis_start' %}">KI-Analyse starten</a>
+      <a class="button secondary" href="{% url 'analysis:answer_reader' %}">Antworten lesen</a>
+      <a class="button secondary" href="{% url 'analysis:session_list' %}">Sitzungen ansehen</a>
+      <a class="button secondary" href="{% url 'analysis:job_list' %}">Analysejobs prüfen</a>
+    </div>
+  </article>
+  <article class="panel">
     <h2>Datenstatus</h2>
     <dl class="facts">
       <div><dt>Lokaler Index</dt><dd class="{% if overview.local_index_exists %}status-ok{% else %}status-muted{% endif %}">{{ overview.local_index_path }}</dd></div>
@@ -18,15 +27,6 @@
       <div><dt>Sitzungen</dt><dd>{{ overview.session_count }}</dd></div>
       <div><dt>Analysen</dt><dd>{{ overview.analysis_count }}</dd></div>
     </dl>
-  </article>
-  <article class="panel">
-    <h2>Einstieg</h2>
-    <div class="actions">
-      <a class="button primary" href="{% url 'analysis:analysis_start' %}">KI-Analyse starten</a>
-      <a class="button secondary" href="{% url 'analysis:answer_reader' %}">Antworten lesen</a>
-      <a class="button secondary" href="{% url 'analysis:session_list' %}">Sitzungen ansehen</a>
-      <a class="button secondary" href="{% url 'analysis:job_list' %}">Analysejobs prüfen</a>
-    </div>
   </article>
 </section>
 

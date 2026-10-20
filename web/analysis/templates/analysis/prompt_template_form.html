@@ -9,13 +9,7 @@
   <p>Vorlagen werden im privaten Datenbereich gespeichert.</p>
 </section>
 
-{% if errors %}
-<section class="message-list">
-  {% for error in errors %}
-  <p class="status-error">{{ error }}</p>
-  {% endfor %}
-</section>
-{% endif %}
+{% include "core/partials/messages.html" with errors=errors only %}
 
 <section class="panel">
   <form method="post" class="form-stack">

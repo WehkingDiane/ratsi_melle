@@ -12,10 +12,39 @@
   --action-secondary-strong: #1f2937;
   --action-danger: #b42318;
   --action-danger-strong: #912018;
+  --space-page: 20px;
+  --space-panel: 18px;
+  --space-content: 14px;
+  --space-inline: 10px;
+  --space-field: 6px;
+  --space-compact: 8px;
+  --control-height: 44px;
+  --control-height-small: 30px;
+  --font-page-title: 32px;
+  --font-section-title: 18px;
+  --font-caption: 13px;
+  --table-cell-padding: 10px 12px;
+  --table-compact-padding: 8px 10px;
+  --status-success: #116329;
+  --status-success-bg: #eef7f2;
+  --status-success-border: #bddcca;
+  --status-warning: #624b00;
+  --status-warning-bg: #fff8e6;
+  --status-warning-border: #f0d58c;
+  --status-error: #b42318;
+  --status-error-bg: #fff1f0;
+  --status-error-border: #f1b8b3;
+  --status-info: #174ea6;
+  --status-info-bg: #eef4ff;
+  --status-info-border: #bfd3f7;
 }
 
 * {
   box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
 }
 
 body {

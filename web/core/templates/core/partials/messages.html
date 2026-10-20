@@ -1,0 +1,10 @@
+{% if messages or errors %}
+<section class="message-list" aria-label="Rückmeldungen">
+  {% for message in messages %}
+  <p class="notice status-ok" role="status">{{ message }}</p>
+  {% endfor %}
+  {% for error in errors %}
+  <p class="notice status-error" role="alert">{{ error }}</p>
+  {% endfor %}
+</section>
+{% endif %}

@@ -4,7 +4,6 @@
 {% block title %}Vektorindex - Ratsi Melle{% endblock %}
 
 {% block content %}
-<div class="service-page">
 <section class="page-heading">
   <p class="eyebrow">Daten</p>
   <h1>Vektorindex</h1>
@@ -40,10 +39,7 @@
 
 {% with models=status.embedding_models %}
 <section class="panel service-status" data-service-status data-status-url="{% url 'data_tools:service_status' %}" id="embedding-model-status">
-  <div class="service-status-header">
-    <h2>Lokale Embedding-Modelle</h2>
-    <button class="button utility small" type="button" data-service-status-refresh>Modellstatus aktualisieren</button>
-  </div>
+  {% include "core/partials/panel_header.html" with heading="Lokale Embedding-Modelle" refresh_label="Modellstatus aktualisieren" only %}
   <dl class="facts" aria-live="polite">
     <div><dt>Gemeinsamer Modellbestand</dt><dd data-model-field="status" data-model-format="status" class="{% if models.status == 'bereit' %}status-ok{% else %}status-warning{% endif %}">{% if models.status == 'unvollstaendig' %}unvollständig{% else %}{{ models.status|default:"Nicht verfügbar" }}{% endif %}</dd></div>
     <div><dt>Ergebnis der aktuellen Schnellprüfung</dt><dd data-model-field="message">{{ models.message|default:"Nicht verfügbar" }}</dd></div>
@@ -158,5 +154,4 @@
 </section>
 
 {% include "core/partials/service_status.html" %}
-</div>
 {% endblock %}

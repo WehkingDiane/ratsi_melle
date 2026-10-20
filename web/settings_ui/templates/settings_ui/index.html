@@ -10,16 +10,7 @@
   <p>Lokale Konfigurationen und sichere Token-Ablage.</p>
 </section>
 
-{% if messages or errors %}
-<section class="message-list">
-  {% for message in messages %}
-  <div class="info-panel"><p>{{ message }}</p></div>
-  {% endfor %}
-  {% for error in errors %}
-  <div class="running-banner"><p>{{ error }}</p></div>
-  {% endfor %}
-</section>
-{% endif %}
+{% include "core/partials/messages.html" with messages=messages errors=errors only %}
 
 <section class="panel">
   <h2>Hugging Face Token</h2>

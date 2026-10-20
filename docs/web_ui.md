@@ -93,7 +93,7 @@ Der Header zeigt den Projektnamen "Ratsi Melle" und die Unterzeile "Lokale Arbei
 
 Buttons folgen einem funktionsbezogenen Farbschema: `primary` ist auslösenden Hauptaktionen wie Starten, Speichern, Suchen oder Bauen vorbehalten; `secondary` kennzeichnet Navigation und reine Ansicht; `utility` steht für Filter, Reset und Abbruch; `danger` kennzeichnet löschende oder deaktivierende Aktionen.
 
-Vektorseite und Jahresstatus verwenden den gemeinsamen Layout-Container `service-page`: 20 px Abstand zwischen den Bereichen, 18 px Innenabstand in den Panels. Eigene Außenabstände von Überschrift, Jobhinweis und Statuspanel werden dort zurückgesetzt, damit sie sich nicht addieren. Der Verweis auf `components.css` trägt für diese Korrektur den Versionsparameter `v=0.5.57`, damit Browser die aktualisierten Abstandsregeln laden.
+Alle Seiten erhalten ihren gemeinsamen `page-stack` automatisch aus `base.html`. Er legt 20 px zwischen Bereichen fest; Panels verwenden 18 px Innenabstand und 14 px zwischen Inhalten. Formularfelder und normale Buttons sind mindestens 44 px hoch. Bereichsköpfe und Rückmeldungen verwenden gemeinsame Template-Bausteine. Gestaltungswerte, Buttonrollen, Statusfarben und Prüfregeln stehen in [Gemeinsame Darstellungsregeln](ui_guidelines.md). Die Stylesheets erhalten eine gemeinsame Versionskennung, damit Browser aktualisierte Regeln laden.
 
 ## URLs
 
