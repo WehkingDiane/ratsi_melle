@@ -433,7 +433,7 @@ Der angezeigte Score ist:
 - `sentence-transformers` 5.x und `transformers` 5.x fuer das Harrier-Qwen3-Modell
 - `qdrant-client`
 - `fastembed`
-- `torch` separat fuer CPU oder XPU
+- `torch` wird ueber `sentence-transformers` mitinstalliert; CPU- oder Intel-XPU-Variante gezielt mit den Befehlen in `requirements.txt` auswaehlen
 
 ## 12. Betriebsregeln
 

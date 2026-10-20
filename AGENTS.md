@@ -55,7 +55,7 @@
 
 ## Voraussetzungen
 
-- Python 3.11+ und pip sind fuer Skripte und Tests erforderlich.
+- Python 3.14 wird fuer die vollstaendige Umgebung unter Windows und WSL empfohlen; pip ist fuer die Paketinstallation erforderlich.
 - Git ist fuer Versionskontrolle und Zusammenarbeit erforderlich.
 - Fuer optionale UI-Arbeiten wird Tkinter benoetigt; unter WSL `python3-tk` installieren.
 
@@ -114,7 +114,7 @@
 - Empfohlenes Setup:
   - Unter WSL die virtuelle Umgebung `.venv-wsl` verwenden.
   - Unter Windows die virtuelle Umgebung `.venv` verwenden.
-  - WSL-Setup: `python3 -m venv .venv-wsl`
+  - WSL-Setup: `python3.14 -m venv .venv-wsl`
   - Aktivieren unter WSL: `source .venv-wsl/bin/activate`
   - `python -m pip install -r requirements.txt`
 - Bei Paketinstallationen oder Testlaeufen unter WSL ggf. mit laengerem Timeout arbeiten.

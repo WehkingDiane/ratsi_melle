@@ -104,7 +104,7 @@ Diese Regeln bilden das Fundament für den weiteren Projektverlauf und können b
 - Wenn `python` fehlt, `python3` verwenden.
 - Unter WSL die virtuelle Umgebung `.venv-wsl` verwenden.
 - Unter Windows die virtuelle Umgebung `.venv` verwenden.
-- Empfehlung unter WSL: `python3 -m venv .venv-wsl` und `source .venv-wsl/bin/activate`.
+- Empfehlung unter WSL: `python3.14 -m venv .venv-wsl` und `source .venv-wsl/bin/activate`.
 - Abhängigkeiten mit `python -m pip install -r requirements.txt` installieren.
 - Tests unter WSL entweder nach Aktivierung mit `python -m pytest` oder direkt mit `.venv-wsl/bin/python -m pytest` starten.
 

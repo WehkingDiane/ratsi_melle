@@ -15,7 +15,7 @@ Dieses Projekt sammelt öffentliche Sitzungs- und Dokumentdaten aus dem Ratsinfo
 
 ## Voraussetzungen
 
-- Python 3.11+
+- Python 3.14 empfohlen fuer die vollstaendige Umgebung unter Windows und WSL
 - `pip`
 - `git`
 
@@ -25,7 +25,11 @@ Dieses Projekt sammelt öffentliche Sitzungs- und Dokumentdaten aus dem Ratsinfo
 pip install -r requirements.txt
 ```
 
-`torch` wird weiterhin separat installiert, passend zur Zielumgebung.
+`torch` wird ueber `sentence-transformers` mitinstalliert. Fuer die gezielte CPU-
+oder Intel-XPU-Variante die Befehle in `requirements.txt` in der aktivierten
+Umgebung ausfuehren. `--upgrade` ermoeglicht den Wechsel von CPU zu XPU; der
+dort angegebene Pruefbefehl sollte fuer eine nutzbare Intel-XPU eine Version
+mit `+xpu` und `True` ausgeben.
 Unter WSL sollte die virtuelle Umgebung `.venv-wsl` verwendet werden; wenn `python`
 in der Shell fehlt, funktionieren die Projektbefehle nach Aktivierung oder direkt
 mit `.venv-wsl/bin/python`.
