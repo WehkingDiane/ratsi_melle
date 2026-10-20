@@ -489,6 +489,17 @@ tr:last-child td {
   margin-bottom: 18px;
 }
 
+.vector-page {
+  display: grid;
+  gap: 20px;
+}
+
+.vector-page > .page-heading,
+.vector-page > .service-status,
+.vector-page > .empty-state.service-note {
+  margin: 0;
+}
+
 .job-indicator {
   align-items: center;
   background: #fff8e6;
