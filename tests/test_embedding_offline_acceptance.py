@@ -66,7 +66,7 @@ model_files = {path: (path.stat().st_size, path.stat().st_mtime_ns)
 assert prepare(['--check', '--deep', '--json']) == 0
 assert prepare(['--download', '--json']) == 0  # Reuse must also stay offline.
 arguments = ['--db', str(root / 'source.sqlite'), '--qdrant-dir', str(root / 'qdrant'),
-             '--no-ocr', '--batch-size', '1']
+             '--batch-size', '1']
 build(arguments)
 connection = QdrantConnection.from_env(root / 'qdrant')
 marker_path = connection.release_path('ratsi_passages')
