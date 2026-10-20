@@ -1430,6 +1430,10 @@ uebersprungen. Unter WSL ist dieser Test im Gesamtlauf enthalten.
 **Praktische Offline-Abnahme:** `test_embedding_offline_acceptance.py` verwendet
 echte zuvor heruntergeladene Modelle, einen leeren separaten Hub-Cache und einen
 eigenen SQLite-/Qdrant-Testbestand. Globale Offline-Schalter sind nicht aktiviert.
+Der Build-Aufruf verwendet den normalen Einstieg `build_vector_index.py` mit
+`--batch-size 1` und dessen Standard-Extraktion. `--no-ocr` gehoert nur zum
+Service-Einstieg `update_vector_index.py` und wird bei dieser Abnahme nicht
+an den normalen Builder uebergeben.
 Socket-Verbindungen und Online-Hub-Aufrufe werden blockiert; auch abgefangene
 Netzwerkversuche werden gezaehlt. Der native Windows-Lauf besteht mit **einem
 Test in 37,16 Sekunden**, Intel-XPU, zwei Original-PDF-Fixtures mit vier Seiten,
