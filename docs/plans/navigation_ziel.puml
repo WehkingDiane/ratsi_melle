@@ -3,24 +3,24 @@
 ' Unterknoten beschreiben Seiten und Funktionen, nicht zwingend Dropdown-Ebenen.
 * Ratsi Melle – vorgeschlagene Navigation
 ** Übersicht
-*** Kommende und vergangene öffentliche Sitzungen
+*** Gemeinsamer Sitzungskalender
+**** Kommende und vergangene Sitzungen
+***** Bürgerinformationen öffnen – sofern vorhanden
+***** Ratsinformationen öffnen – sofern vorhanden und berechtigt
 *** Datenstatus
-** Sitzungen
-*** Öffentliche Sitzungen
+**** Bürgerinformation und Landkreis
+**** Ratsinformation – nur mit Berechtigung
+** Bürgerinformation
+*** Sitzungen und Unterlagen
 **** Tagesordnung und Dokumente
-** Suche
-*** Öffentliche Ratsinfo-Unterlagen
-*** Landkreis-Veröffentlichungen
-** Daten
-*** Unterlagen herunterladen
-*** Datenbank aktualisieren
-*** Suchindex aktualisieren
-*** Datenstatus nach Jahr
-*** Laufende und abgeschlossene Datenjobs
+*** Dokumentensuche
+*** Datenpflege
+**** Unterlagen herunterladen
+**** Datenbank aktualisieren
+**** Suchindex aktualisieren
+**** Datenstatus nach Jahr und Datenjobs
 **[#FFE0A3] Ratsbereich – geschützt, geplant
 *** Anmeldung / Zugang verwalten
-*** Ratsübersicht
-**** Kommende und vergangene RI-Sitzungen
 *** Sitzungen und Unterlagen
 **** Tagesordnung und Dokumente
 **** Kennzeichnung Ö / N / unklar
@@ -30,6 +30,13 @@
 **** RI-Datenbank aktualisieren
 **** RI-Suchindex aktualisieren
 **** RI-Datenstatus und Jobs
+** Landkreis
+*** Dokumentensuche
+*** Datenpflege
+**** Veröffentlichungen herunterladen
+**** Datenbank aktualisieren
+**** Suchindex aktualisieren
+**** Datenstatus und Datenjobs
 ** Erweiterungen
 *** Analyse – öffentliche Quellen
 **** Analyse-Übersicht

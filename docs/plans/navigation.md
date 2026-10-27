@@ -7,13 +7,13 @@ Stand: 27.10.2026. Die Diagramme beschreiben die aktuelle Navigation und einen E
 
 ## Vorgeschlagene Änderungen
 
-Die Hauptnavigation lautet **Übersicht · Sitzungen · Suche · Daten · Ratsbereich · Erweiterungen · Einstellungen**. Übersicht, Sitzungen und Suche stehen vorne, weil sie den täglichen Rechercheablauf bilden. Übersicht und Suche öffnen direkt ihre Seite; ein zusätzliches Untermenü mit nur „öffnen“ entfällt.
+Die Hauptnavigation lautet **Übersicht · Bürgerinformation · Ratsbereich · Landkreis · Erweiterungen · Einstellungen**. Die Übersicht enthält einen gemeinsamen Sitzungskalender und den Datenstatus. Pro Sitzung werden die verfügbaren Einstiege „Bürgerinformationen öffnen“ und „Ratsinformationen öffnen“ angeboten; der RI-Einstieg setzt die entsprechende Berechtigung voraus. Eine Sitzung erhält nach geprüfter Zuordnung der Quellen einen gemeinsamen Kalendereintrag. Ausschließlich intern bekannte Termine und interne Metadaten sind nur für berechtigte Nutzer sichtbar.
 
-„Veröffentlichung“ entfällt aus der Navigation. „Analyse“ wird unter „Erweiterungen“ gebündelt. Die Sitzungsübersicht erhält einen eigenen Hauptpunkt, damit sie unabhängig von der Analyse erreichbar ist. „Service“ wird in „Einstellungen“ umbenannt und bündelt Konfiguration, Wartung und Wartungsjobs. Datenjobs bleiben bei „Daten“.
+„Veröffentlichung“ entfällt aus der Navigation. „Analyse“ wird unter „Erweiterungen“ gebündelt. Bürgerinformation und Ratsbereich enthalten jeweils Sitzungen, Dokumentensuche und Datenpflege. Landkreis-Unterlagen erhalten einen eigenen Bereich mit Suche und Datenpflege. „Service“ wird in „Einstellungen“ umbenannt und bündelt Konfiguration, Wartung und Wartungsjobs. Datenjobs bleiben bei der jeweiligen Quelle. Als erster Schritt können die vorhandenen öffentlichen Seiten über die neue Menüstruktur erreichbar gemacht werden; die vollständige Trennung der gemeinsamen Such- und Datenseiten folgt mit der Umsetzung.
 
 ## Ergänzungen für RI
 
-Der orange markierte Ratsbereich erhält eine eigene Übersicht, Sitzungen, Dokumente, Suche und Datenpflege. Eine klare Kennzeichnung bleibt beim Navigieren sichtbar. Seine Termine umfassen kommende und vergangene RI-Sitzungen: Der Zeitablauf macht interne Unterlagen nicht öffentlich.
+Der orange markierte Ratsbereich erhält Sitzungen, Dokumente, Suche und Datenpflege. Der gemeinsame Kalender bleibt auf der Übersicht; ein zweiter RI-Kalender ist nicht vorgesehen. Eine klare Kennzeichnung bleibt beim Navigieren sichtbar. Der Zeitablauf macht interne Unterlagen nicht öffentlich.
 
 Öffentliche Suche und öffentliche Datenpflege bleiben auf ihre bestehenden Bestände begrenzt. RI-Dokumente verwenden ihre eigene Datenbank und ihren eigenen Suchindex. Die Kennzeichnung Ö / N / unklar ist eine Information zum Dokument und keine automatische Freigabe. Analyse unter „Erweiterungen“ bietet zunächst nur öffentliche Quellen an.
 

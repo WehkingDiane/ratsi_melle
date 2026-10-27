@@ -71,7 +71,7 @@ Die Freigabe des RI-Index hängt von der Betriebsentscheidung aus Phase 0 ab. Be
 
 ## 4. Einbindung in die Oberfläche
 
-Die [Navigationsübersicht mit Ist- und Ziel-Diagramm](navigation.md) konkretisiert diese Phase: Recherche über Übersicht, Sitzungen und Suche; ein eigener geschützter Ratsbereich; Analyse unter „Erweiterungen“; Veröffentlichung entfällt aus der Navigation.
+Die [Navigationsübersicht mit Ist- und Ziel-Diagramm](navigation.md) konkretisiert diese Phase: ein gemeinsamer Sitzungskalender mit verfügbaren BI-/RI-Einstiegen; Bürgerinformation und geschützter Ratsbereich mit jeweils Sitzungen, Suche und Datenpflege; Analyse unter „Erweiterungen“; Veröffentlichung entfällt aus der Navigation. Interne Termine, Links und Metadaten im gemeinsamen Kalender benötigen die entsprechende Berechtigung.
 
 Einen deutlich gekennzeichneten Ratsbereich für „Sitzungen abrufen“, „Datenbank bauen“ und „Suchen“ schaffen. Quelle und Schutzstatus bleiben auf jeder RI-Seite sichtbar. Start von RI-Jobs und Zugriff auf RI-Dateien werden serverseitig geschützt; ein bloßer Navigationsschalter oder eine lokale Browseransicht genügen nicht. Die bestehende Django-Konfiguration muss vor einer Nutzung mit RI-Daten hinsichtlich Debug-Modus, Secret-Key, Benutzeranmeldung, Sitzungen und Dateiauslieferung angepasst werden.
 
