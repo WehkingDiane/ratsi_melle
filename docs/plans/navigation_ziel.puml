@@ -1,51 +1,65 @@
 @startwbs
-' Vorschlag, noch nicht umgesetzt. Orange = RI-Erweiterung.
-' Unterknoten beschreiben Seiten und Funktionen, nicht zwingend Dropdown-Ebenen.
-* Ratsi Melle – vorgeschlagene Navigation
-** Übersicht
-*** Gemeinsamer Sitzungskalender
-**** Kommende und vergangene Sitzungen
-***** Bürgerinformationen öffnen – sofern vorhanden
-***** Ratsinformationen öffnen – sofern vorhanden und berechtigt
-*** Datenstatus
-**** Bürgerinformation und Landkreis
-**** Ratsinformation – nur mit Berechtigung
-** Bürgerinformation
-*** Sitzungen und Unterlagen
-**** Tagesordnung und Dokumente
-*** Dokumentensuche
-*** Datenpflege
-**** Unterlagen herunterladen
-**** Datenbank aktualisieren
-**** Suchindex aktualisieren
-**** Datenstatus nach Jahr und Datenjobs
-**[#FFE0A3] Ratsbereich – geschützt, geplant
-*** Anmeldung / Zugang verwalten
-*** Sitzungen und Unterlagen
-**** Tagesordnung und Dokumente
-**** Kennzeichnung Ö / N / unklar
-*** Interne Suche
-*** Interne Datenpflege
-**** RI-Unterlagen herunterladen
-**** RI-Datenbank aktualisieren
-**** RI-Suchindex aktualisieren
-**** RI-Datenstatus und Jobs
-** Landkreis
-*** Dokumentensuche
-*** Datenpflege
-**** Veröffentlichungen herunterladen
-**** Datenbank aktualisieren
-**** Suchindex aktualisieren
-**** Datenstatus und Datenjobs
-** Erweiterungen
-*** Analyse – öffentliche Quellen
-**** Analyse-Übersicht
-**** KI-Analyse starten
-**** Antworten lesen
-**** Prompt-Vorlagen
-**** Analysejobs
-** Einstellungen
-*** Allgemeine Einstellungen und Zugänge
-*** Wartung und Suchmodelle
-*** Wartungsjobs
+' Vorschlag, noch nicht umgesetzt.
+' Blau = Seite; Grün = Container innerhalb einer Seite;
+' Grau = Menügruppe; Gelb = Link/Aktion innerhalb eines Containers.
+' [RI] kennzeichnet geschützte Inhalte. Farben ergänzen die Textkennzeichnung.
+* Ratsi Melle – Navigation und Seitenaufbau
+**[#D6EAF8] [Seite] Dashboard / Übersicht
+***[#D5F5E3] [Container] Kommende Sitzungen
+****[#D5F5E3] [Eintrag] Sitzung – einmal pro Termin
+*****[#FCF3CF] [Link] Öffentliche Unterlagen
+*****[#FCF3CF] [Link, RI] Ratsunterlagen – wenn verfügbar und berechtigt
+***[#D5F5E3] [Container] Vergangene Sitzungen
+****[#D5F5E3] [Eintrag] Sitzung – einmal pro Termin
+*****[#FCF3CF] [Link] Öffentliche Unterlagen
+*****[#FCF3CF] [Link, RI] Ratsunterlagen – wenn verfügbar und berechtigt
+***[#D5F5E3] [Container] Datenstatus
+****[#FCF3CF] [Link] Datenstatus nach Jahr
+**[#E5E7E9] [Menügruppe] Bürgerinformation
+***[#D6EAF8] [Seite] Sitzungen
+****[#FCF3CF] [Link] Sitzungsdetails / öffentliche Unterlagen
+***[#D6EAF8] [Seite] Sitzungsdetails
+****[#D5F5E3] [Container] Tagesordnung und Dokumente
+***[#D6EAF8] [Seite] Dokumentensuche
+****[#D5F5E3] [Container] Suchfeld und Filter
+****[#D5F5E3] [Container] Suchergebnisse
+***[#E5E7E9] [Menügruppe] Datenpflege
+****[#D6EAF8] [Seite] Unterlagen herunterladen
+****[#D6EAF8] [Seite] Datenbank aktualisieren
+****[#D6EAF8] [Seite] Suchindex aktualisieren
+****[#D6EAF8] [Seite] Datenstatus nach Jahr
+****[#D6EAF8] [Seite] Datenjobs
+**[#E5E7E9] [Menügruppe, RI] Ratsbereich
+***[#D6EAF8] [Seite, RI] Anmeldung / Zugang verwalten
+***[#D6EAF8] [Seite, RI] Sitzungen
+****[#FCF3CF] [Link, RI] Sitzungsdetails / Ratsunterlagen
+***[#D6EAF8] [Seite, RI] Sitzungsdetails
+****[#D5F5E3] [Container, RI] Tagesordnung und Dokumente
+****[#D5F5E3] [Container, RI] Kennzeichnung Ö / N / unklar
+***[#D6EAF8] [Seite, RI] Interne Suche
+****[#D5F5E3] [Container, RI] Suchfeld und Filter
+****[#D5F5E3] [Container, RI] Suchergebnisse
+***[#E5E7E9] [Menügruppe, RI] Datenpflege
+****[#D6EAF8] [Seite, RI] Unterlagen herunterladen
+****[#D6EAF8] [Seite, RI] Datenbank aktualisieren
+****[#D6EAF8] [Seite, RI] Suchindex aktualisieren
+****[#D6EAF8] [Seite, RI] Datenstatus und Jobs
+**[#E5E7E9] [Menügruppe] Landkreis
+***[#D6EAF8] [Seite] Dokumentensuche
+***[#E5E7E9] [Menügruppe] Datenpflege
+****[#D6EAF8] [Seite] Veröffentlichungen herunterladen
+****[#D6EAF8] [Seite] Datenbank aktualisieren
+****[#D6EAF8] [Seite] Suchindex aktualisieren
+****[#D6EAF8] [Seite] Datenstatus und Jobs
+**[#E5E7E9] [Menügruppe] Erweiterungen
+***[#E5E7E9] [Menügruppe] Analyse – öffentliche Quellen
+****[#D6EAF8] [Seite] Analyse-Übersicht
+****[#D6EAF8] [Seite] KI-Analyse starten
+****[#D6EAF8] [Seite] Antworten lesen
+****[#D6EAF8] [Seite] Prompt-Vorlagen
+****[#D6EAF8] [Seite] Analysejobs
+**[#E5E7E9] [Menügruppe] Einstellungen
+***[#D6EAF8] [Seite] Allgemeine Einstellungen und Zugänge
+***[#D6EAF8] [Seite] Wartung und Suchmodelle
+***[#D6EAF8] [Seite] Wartungsjobs
 @endwbs
