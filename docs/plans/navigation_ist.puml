@@ -1,0 +1,27 @@
+@startwbs
+' Stand: 27.10.2026. Quelle: web/core/templates/base.html.
+' Hauptnavigation und ihre tatsächlich sichtbaren Untermenüs.
+* Ratsi Melle – aktuelle Navigation
+** Dashboard
+*** Dashboard öffnen
+** Analyse
+*** Analyse-Übersicht
+*** Prompt-Vorlagen
+*** KI-Analyse starten
+*** Antworten lesen
+*** Sitzungen
+*** Analysejobs
+** Daten
+*** Fetch: Daten holen
+*** Build: Datenbank-Tools
+*** Build: Vektorindex
+*** Datenstatus nach Jahr
+** Veröffentlichung
+*** Veröffentlichung öffnen
+** Suche
+*** Suche öffnen
+** Service
+*** Service-Übersicht
+*** Wartung
+*** Einstellungen öffnen
+@endwbs

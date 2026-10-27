@@ -15,4 +15,5 @@ Zugangsdaten für `/ri/` liegen noch nicht vor. Gleichheit der RI-Seitenstruktur
 - [ ] Getrennte RI-Rohdatenwurzel und RI-SQLite-Indizes aufbauen; Herkunft und Kennzeichnung pro Dokument speichern.
 - [ ] RI-Dokumente in einem eigenen, zugriffsgeschützten Suchindex indexieren und getrennt durchsuchen.
 - [ ] Abruf, Datenbankaufbau und Suche in einen geschützten Ratsbereich der Django-Oberfläche integrieren.
+- [ ] Den [Navigationsentwurf](navigation.md) in der Oberflächenphase umsetzen: Sitzungen direkt erreichbar machen, Analyse unter Erweiterungen bündeln und Veröffentlichung aus der Navigation entfernen.
 - [ ] Trennung zwischen öffentlichem und internem Bestand mit Tests und einer kleinen lokalen RI-Stichprobe abnehmen; Betriebsdokumentation aktualisieren.

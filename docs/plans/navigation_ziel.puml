@@ -1,0 +1,44 @@
+@startwbs
+' Vorschlag, noch nicht umgesetzt. Orange = RI-Erweiterung.
+' Unterknoten beschreiben Seiten und Funktionen, nicht zwingend Dropdown-Ebenen.
+* Ratsi Melle – vorgeschlagene Navigation
+** Übersicht
+*** Kommende und vergangene öffentliche Sitzungen
+*** Datenstatus
+** Sitzungen
+*** Öffentliche Sitzungen
+**** Tagesordnung und Dokumente
+** Suche
+*** Öffentliche Ratsinfo-Unterlagen
+*** Landkreis-Veröffentlichungen
+** Daten
+*** Unterlagen herunterladen
+*** Datenbank aktualisieren
+*** Suchindex aktualisieren
+*** Datenstatus nach Jahr
+*** Laufende und abgeschlossene Datenjobs
+**[#FFE0A3] Ratsbereich – geschützt, geplant
+*** Anmeldung / Zugang verwalten
+*** Ratsübersicht
+**** Kommende und vergangene RI-Sitzungen
+*** Sitzungen und Unterlagen
+**** Tagesordnung und Dokumente
+**** Kennzeichnung Ö / N / unklar
+*** Interne Suche
+*** Interne Datenpflege
+**** RI-Unterlagen herunterladen
+**** RI-Datenbank aktualisieren
+**** RI-Suchindex aktualisieren
+**** RI-Datenstatus und Jobs
+** Erweiterungen
+*** Analyse – öffentliche Quellen
+**** Analyse-Übersicht
+**** KI-Analyse starten
+**** Antworten lesen
+**** Prompt-Vorlagen
+**** Analysejobs
+** Einstellungen
+*** Allgemeine Einstellungen und Zugänge
+*** Wartung und Suchmodelle
+*** Wartungsjobs
+@endwbs
