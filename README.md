@@ -1,506 +1,62 @@
-# Ratsinformations-Analysetool Melle
+# Ratsi Melle
 
-Dieses Projekt sammelt öffentliche Sitzungs- und Dokumentdaten aus dem Ratsinformationssystem der Stadt Melle, bereitet sie strukturiert auf und stellt sie für Recherche, KI-Analysen und semantische Suche bereit.
+Die Anwendung sammelt **öffentliche** Sitzungs- und Dokumentdaten aus dem Bürgerinformationssystem der Stadt Melle (`/bi/`) und Veröffentlichungen des Landkreises Osnabrück. Sie erstellt lokale SQLite-Indizes, bietet semantische Suche und eine Django-Oberfläche für Datenpflege und Analyse. Der geschützte Ratsbereich (`/ri/`) ist derzeit geplant und noch nicht implementiert.
 
-## Zweck
+Der [Ist-Stand](docs/ist_stand.md) beschreibt Quellen, Datenhaltung, Suche und Oberfläche. Der [RI-Plan](docs/ri_ratsbereich_plan.md) ist das einzige aktuelle Ausbauvorhaben.
 
-- Sitzungen, Tagesordnungspunkte und Dokumente aus SessionNet erfassen
-- lokale und online-basierte Indizes für Recherche aufbauen
-- Dokumente für KI-gestützte Sitzungsbriefings und TOP-Analysen vorbereiten
-- semantische Suche über einen lokalen Qdrant-Index oder Qdrant-Server bereitstellen
+## Voraussetzungen und Start
 
-## Oberflächen
-
-- **Django-Weboberflaeche** unter `web/` ist der aktive und primaere UI-Pfad fuer Recherche, Analyse, Prompt-Vorlagen und Datenpflege.
-
-## Voraussetzungen
-
-- Python 3.14 empfohlen fuer die vollstaendige Umgebung unter Windows und WSL
-- `pip`
-- `git`
-
-## Installation
+Python 3.14, pip und Git werden empfohlen. Für die Oberfläche wird Tkinter nicht benötigt. Unter WSL kann `.venv-wsl` verwendet werden; falls `python` fehlt, `python3` beziehungsweise `.venv-wsl/bin/python` nutzen.
 
 ```bash
 pip install -r requirements.txt
+python scripts/run_web.py
 ```
 
-`torch` wird ueber `sentence-transformers` mitinstalliert. Fuer die gezielte CPU-
-oder Intel-XPU-Variante die Befehle in `requirements.txt` in der aktivierten
-Umgebung ausfuehren. `--upgrade` ermoeglicht den Wechsel von CPU zu XPU; der
-dort angegebene Pruefbefehl sollte fuer eine nutzbare Intel-XPU eine Version
-mit `+xpu` und `True` ausgeben.
-Unter WSL sollte die virtuelle Umgebung `.venv-wsl` verwendet werden; wenn `python`
-in der Shell fehlt, funktionieren die Projektbefehle nach Aktivierung oder direkt
-mit `.venv-wsl/bin/python`.
+Die lokale Django-Oberfläche ist danach unter `http://127.0.0.1:8000/` erreichbar. Sie ist aktuell für lokale Entwicklung konfiguriert und besitzt keine Benutzeranmeldung.
 
-Die lokale Extraktionspipeline kann Scan-PDFs optional per OCR verarbeiten. Dafuer
-muessen `pdftoppm` (Poppler) und `tesseract` mit den Sprachdaten `deu` und `eng`
-als Systemwerkzeuge verfuegbar sein. Ohne diese Werkzeuge bleiben Scan-PDFs mit
-dem Status `ocr_needed` gekennzeichnet. Bei gemischten PDFs werden nur Seiten
-ohne Textebene per OCR verarbeitet; bleiben solche Seiten ohne Text, ist das
-Ergebnis `partial` mit `ocr_needed`, und vorhandener Text bleibt erhalten.
-Seitenzahlen und leere Seiteneinträge bleiben nachvollziehbar. Die Pipeline verwendet fuer regulaere
-PDFs `pypdf`, damit eingebettete Schriften, Woerter und Zahlen korrekt gelesen
-werden. Unlesbare PDF-Strukturen liefern den Status `error`.
-
-## Wichtige Befehle
+## Daten aufbauen
 
 ```bash
+# Öffentliche SessionNet-Daten und Indizes
 python scripts/fetch_sessions.py 2024 --months 5 6
+python scripts/build_online_index_db.py 2024 --months 5 6
 python scripts/fetch_session_from_index.py --list --from-date 2026-04-01 --to-date 2026-04-30
 python scripts/fetch_session_from_index.py --session-id 7128
 python scripts/build_local_index.py
-python scripts/build_online_index_db.py 2024 --months 5 6
+
+# Lokale Suchmodelle und Ratsinfo-Vektorindex
 python scripts/prepare_embedding_models.py --download
 python scripts/build_vector_index.py
-python scripts/evaluate_search.py --validate-only
+
+# Landkreis-Veröffentlichungen
 python scripts/fetch_landkreis_publications.py --source all
 python scripts/build_landkreis_publications_db.py
 python scripts/build_landkreis_vector_index.py
-python scripts/search_landkreis_publications.py "Melle Genehmigung"
-python scripts/run_web.py
-python -m pytest
 ```
+
+Die Befehle sind Beispiele. Fetch-Jahr, Monate und Sitzungs-ID müssen zum gewünschten Datenbestand passen. Die Weboberfläche bietet die entsprechenden Datenjobs unter `/daten/`. Die Suche liegt unter `/suche/`; die SQLite-Suche für Landkreis-Daten ist außerdem mit `python scripts/search_landkreis_publications.py "Melle Genehmigung"` nutzbar.
+
+Standardmäßig verwendet die Suche Qdrant unter `http://127.0.0.1:6333`. Ein anderer Server kann mit `RATSI_QDRANT_URL` gewählt werden. Für lokalen Speicher ohne Server `RATSI_QDRANT_MODE=local` setzen und `RATSI_QDRANT_URL` frei lassen. Vor dem Vektorbuild müssen die lokalen Modelle vorbereitet sein.
+
+## Lokale Daten
+
+Öffentliche SessionNet-Rohdaten liegen unter `data/raw/YYYY/MM/`, Landkreis-Rohdaten unter `data/raw/landkreis/`. SQLite-Dateien liegen unter `data/db/`, private Prompt-Dateien unter `data/private/`, Analyseausgaben unter `data/analysis_outputs/`. Diese Laufzeitdaten und Geheimnisse werden nicht versioniert. Die Struktur der Analyseartefakte steht in [Analyseausgaben](docs/analysis_outputs.md).
 
 ## Tests gezielt ausfuehren
 
-Die Marker sind in `pyproject.toml` registriert:
-
-| Marker | Bedeutung |
-| --- | --- |
-| `integration` | Prueft das Zusammenspiel mehrerer Komponenten mit lokalen Dateien, SQLite, Qdrant-Client-Typen oder Local-Mode, Git-Subprozessen oder dem Django-Testclient. Ohne zusaetzliches `live` werden externe Zugriffe simuliert. |
-| `live` | Benutzt einen echten API-/Modellanbieter oder ein nicht versioniertes Quell-PDF; dafuer sind passende Schluessel, Modelle oder Rohdaten noetig. |
-
-Tests ohne diese Marker pruefen vor allem einzelne Funktionen oder Komponenten mit Mocks und temporaeren Fixtures. Ein Test kann beide Marker tragen. Die Auswahl basiert auf dem tatsaechlichen Verhalten: Beispiel-URLs allein bedeuten keinen externen Zugriff, und eine temporaere SQLite-Datei allein macht einen Test noch nicht zum Integrationstest.
+Die Marker `integration` und `live` sind in `pyproject.toml` registriert. `integration` prüft das Zusammenspiel mehrerer Komponenten mit lokalen oder simulierten Abhängigkeiten. `live` benötigt echte Dienste, Modelle oder nicht versionierte Quelldaten und ist im normalen Lauf ausgeschlossen.
 
 ```bash
-# Normale Entwicklung: schneller Kern ohne mehrschichtige Workflows
 python -m pytest -m "not integration and not live"
-
-# Lokale Integrationspruefung nach Aenderungen an Workflows, Daten oder Web-UI
 python -m pytest -m "integration and not live"
-
-# Vollstaendige Regression der regulaeren Suite (wie bisher, ohne live)
 python -m pytest
-
-# Live-Tests nur gezielt mit bereitgestellten Schluesseln/Modellen/Rohdaten
-python -m pytest -o addopts='' -m live
-
-# Alle Tests einschliesslich live, mit denselben externen Voraussetzungen
-python -m pytest -o addopts=''
 ```
 
-Unter WSL kann `python` jeweils durch `.venv-wsl/bin/python` ersetzt werden. Die normale Entwicklungsrunde nutzt den schnellen Kern und bei Bedarf die betroffenen Integrationsmodule; vor PRs ist `python -m pytest` empfohlen. Live-Tests sind wegen externer Dienste, variabler Laufzeit und ggf. Kosten getrennt und bleiben wie bisher standardmaessig ausgeschlossen.
-
-Eine eigene `-m`-Auswahl ersetzt den voreingestellten Ausdruck `not live`. Fuer lokale Teilmengen deshalb `and not live` explizit angeben. Marker filtern erst nach der Sammlung: Modulimporte und vorhandene Verfuegbarkeitspruefungen (Schluesselring/Ollama) koennen auch bei abgewaehlten Live-Tests stattfinden. Ein schneller Teillauf ersetzt die regulaere Regression nicht.
-
-Echte PDF-Testdaten liegen als unveraenderte Originalkopien unter
-[`tests/fixtures/pdf/`](tests/fixtures/pdf/README.md). Herkunft, Pruefsummen und
-konkrete Seiten-/Texterwartungen stehen im dortigen Manifest. Die Tests laufen
-ohne Rohdatenverzeichnis, Netzwerk oder Modell-Download. OCR-Aufrufe werden
-simuliert; die echten PDF-Textebenen werden gelesen. Groessenpruefungen erzeugen
-nur temporaere Dateien an den 25-/100-MiB-Grenzen.
-
-```bash
-python -m pytest tests/test_pdf_fixtures.py -m "integration and not live" -q
-
-# Optional unter Bash/WSL: 300 Seiten aus echten Originalseiten erzeugen
-RATSI_PDF_STRESS=1 python -m pytest tests/test_pdf_fixtures.py -m "integration and not live" -k stress -q
-```
-
-Unter PowerShell fuer den optionalen Lauf zuerst `$env:RATSI_PDF_STRESS = "1"`
-setzen und danach den zweiten `python`-Befehl ohne den Bash-Praefix ausfuehren.
-Ohne diese Umgebungsvariable wird der Belastungstest uebersprungen.
-
-Repository-Hooks werden lokal mit folgendem Befehl aktiviert:
-
-```bash
-git config core.hooksPath .githooks
-```
-
-## Laufzeitlogs und Fehlerdiagnose
-
-CLI-Skripte und Django verwenden dasselbe Logformat mit UTC-Zeit, Komponente und
-`run_id`. Rotierende Dateien liegen standardmaessig unter `logs/<komponente>.log`;
-CLI-Meldungen erscheinen zusätzlich auf stderr. Routinemeldungen von `httpx` und
-`httpcore` bleiben ausschliesslich im Dateilog; deren Warnungen und Fehler
-bleiben auch im Terminal sichtbar. Dies gilt ebenfalls bei `DEBUG`.
-Nicht behandelte Fehler der
-Vektor-, Such- und Evaluationsskripte enthalten dort einen Stacktrace. Bei über
-die Weboberfläche gestarteten Datenjobs entspricht die `run_id` der sichtbaren
-Job-ID, sodass Status, begrenzte Jobausgabe und vollständiges Dateilog
-zusammengeführt werden können.
-
-Mit `--log-level DEBUG` kann das Level für unterstützte CLI-Skripte pro Lauf
-gesetzt werden. Ohne diese Option gilt `RATSI_LOG_LEVEL`, danach als Standard
-`INFO`. `RATSI_LOG_DIR` legt die Logablage fest; `RATSI_RUN_ID` dient zur
-Korrelation über Kindprozesse hinweg.
-Zugangsdaten im User-Info-Teil von HTTP(S)-URLs werden im gemeinsamen Formatter
-maskiert.
-
-`fetch_session_from_index.py` nutzt `data/db/online_session_index.sqlite` als Auswahlquelle. Damit kann eine einzelne Sitzung anhand ihrer `session_id` nach `data/raw/` geladen werden, ohne die Monatsübersicht erneut komplett abzuarbeiten.
-
-Bei SessionNet-Sitzungen vor dem heutigen Datum mit veroeffentlichtem Protokoll
-oder Beschlussuebersicht werden vorhandene Dateien einmal zum erkannten Abschluss
-abgeglichen. Erst danach werden sie ohne HEAD- oder erneuten PDF-Abruf
-wiederverwendet. Fehlen verlaessliche Serverangaben, ist fuer diesen Abgleich ein
-erneuter Download erforderlich. Eine bekannte Dateilaenge muss
-mit dem lokalen Bestand uebereinstimmen. Die Zuordnung erfolgt innerhalb der
-Sitzung ueber die Dokument-URL (Manifest oder eindeutiger URL-Hash im Dateinamen),
-nicht allein ueber den Titel. Detailseiten werden weiterhin abgerufen; neue und
-fehlende Dateien werden nachgeladen. Fuer heutige, kommende oder noch nicht als
-abgeschlossen erkennbare Sitzungen bleibt die bisherige Serverpruefung aktiv.
-
-Das Sitzungsmanifest speichert `completion_detected_at` und pro Dokument
-`downloaded_at` sowie `verified_at`. Einen bekannten Downloadzeitpunkt darfst du
-in `documents[].downloaded_at` manuell als ISO-8601-Wert mit Zeitzone nachtragen,
-zum Beispiel `"2026-10-20T14:30:00+02:00"`. Ein Nachtrag ersetzt keinen bestaetigten
-Abschlussabgleich; `verified_at` und `completion_detected_at` werden vom Fetcher
-verwaltet. Bei unbekanntem Downloadzeitpunkt bleibt `downloaded_at` leer (`null`).
-
-Ein bewusster erneuter Dokumentabruf ist ueber die CLI moeglich:
-
-```bash
-python scripts/fetch_sessions.py 2026 --months 4 --force-download
-python scripts/fetch_session_from_index.py --session-id 7128 --force-download
-```
-
-TOP-Beschluesse werden aus dem Beschlussabsatz im Titelbereich oder einer
-expliziten Statusspalte gelesen; Vorlagennummern gelten nicht als Status.
-
-Der lokale Index-Build behandelt `session_detail.html` als kanonische Quelle und übernimmt daraus abweichende TOP- und Dokumentmetadaten direkt in den SQLite-Index. `agenda_summary.json`, `manifest.json` und andere Rohdaten bleiben dabei unverändert; bereits vorhandene Dateien werden im Index wieder ihren Dokumentlinks zugeordnet. Berücksichtigt werden nur SessionNet-Sitzungsordner unter `data/raw/YYYY/MM/`; Landkreis-Rohdaten bleiben getrennt. Auch der Online-Index-Build verändert keine Dateien unter `data/raw/`.
-
-Das Dashboard ist für den Desktop als durchgehende Spalte aufgebaut:
-„Kommende Sitzungen“, „Vergangene Sitzungen“, danach ein kompakter Datenstatus.
-Beide Listen zeigen jeweils fünf bekannte Kalendertermine aus dem Online-Index
-und ergänzend dem lokalen Bestand, unabhängig von lokal verfügbaren Unterlagen.
-Kommende Termine beginnen heute und sind aufsteigend sortiert; vergangene Termine
-liegen vor heute und zeigen den jüngsten zuerst. Maßgeblich ist das heutige Datum
-in Europe/Berlin; heutige Sitzungen bleiben den ganzen Tag unter „Kommende Sitzungen“.
-Wochentag, Datum und relative Angaben wie „Heute“ oder „in 3 Tagen“ helfen bei der
-Einordnung. Bei verschobenen Terminen hat das Datum aus dem Online-Index Vorrang.
-Lokale Unterlagen und veröffentlichte Ratsinfo-Details werden passend verlinkt.
-Der Online-Index ist ein gespeicherter Kalenderstand, kein Live-Abruf beim Öffnen
-des Dashboards. Änderungen bestehender Termine werden über „Daten → Build“ mit
-„Bestehende Sitzungen aktualisieren“ übernommen. Der Online-Build
-erfasst auch angekündigte Termine ohne veröffentlichte Tagesordnung über ihre
-Kalender-ID. Sobald ein Detaillink erscheint, übernimmt der nächste Online-Build
-die Tagesordnung auch ohne „Bestehende Sitzungen aktualisieren“. Über
-„Datenstatus nach Jahr“ im Datenmenü beziehungsweise „Details nach Jahr“ im Datenbereich
-öffnet sich `/daten/status/details/`: Rohdaten, lokaler und Online-Index werden
-je Jahr mit Dokumentanzahlen und aufklappbaren Sitzungslisten verglichen.
-Alle vorhandenen Jahre bleiben sichtbar, auch vor August 2021. Die Ansicht
-verändert keine Daten; fehlende Quellen werden gesondert ausgewiesen.
-
-Die Django-Weboberfläche startet lokal mit:
-
-```bash
-python scripts/run_web.py
-```
-
-Sie ist danach standardmäßig unter `http://127.0.0.1:8000/` erreichbar. Details stehen in [docs/web_ui.md](docs/web_ui.md).
-
-## Daten und Suche
-
-- Lokaler SQLite-Index: `data/db/local_index.sqlite`
-- Online-Index: `data/db/online_session_index.sqlite`
-- Landkreis-Veröffentlichungen: `data/db/landkreis_publications.sqlite`
-- Lokaler Vektorindex: `data/db/qdrant/`; Ratsinfo verwendet den neuen Abschnittsindex `ratsi_passages` mit Harrier und BM25. Der bisherige Index `ratsi_documents` bleibt bis zum vollstaendigen Erstaufbau aktiv. Landkreis nutzt weiterhin `landkreis_publications`.
-- Django-Datenpflege unter `/daten/`: SessionNet- und Landkreis-Fetch-, SQLite-Build- und Vektorindex-Jobs starten; die Vektorseite zeigt den Status fuer Ratsinfo und Landkreis. Unter „Service → Wartung“ (`/service/wartung/`) stehen Modellbestand, Vorbereitung und Legacy-Pruefung. „Lokal pruefen“ startet dort die Offline-Modellpruefung als Wartungsjob. Die Wartungsseite zeigt je Modell-/Legacy-Aktion den letzten abgeschlossenen Versuch (auch Fehler) und laufende Jobs separat. Ergebnisse sind an Modellpfad, Modellvertrag, Bibliotheksstand und bei Erfolg Manifest-Hash gebunden; nach Aenderungen erscheinen sie als historisch. Jobdetails zeigen den Ausfuehrungsstatus ohne erfundene Prozentwerte. Modellvorbereitung, Legacy-Pruefung/-Uebernahme und alle Vektor-Builds teilen eine Prozesssperre am Modellverzeichnis; es laeuft nur ein Build gleichzeitig. Webstarts melden „bereits aktiv“, direkte CLI-Aufrufe warten. Sperren bleiben bis zum Schliessen des Qdrant-Clients bestehen.
-- Auf `/daten/vektor/` stehen die Build-Formulare für Ratsinfo und Landkreis oben, danach der Indexstatus. Ratsinfo ergänzt nur fehlende Dokumente. Modellverwaltung und Legacy-Prüfungen liegen auf der eigenen Seite „Service → Wartung“. Der Ratsinfo-Aufbaufortschritt zählt immer die vollständigen Dokumente in `ratsi_passages`, unabhängig vom aktiven Suchindex. Vektorseite und Jahresstatus unter `/daten/status/details/` verwenden einheitlich 20 px Abstand zwischen Bereichen und 18 px Innenabstand in den Panels.
-- „Service“ (`/service/`) bündelt Wartung und Einstellungen. Die Service-Übersicht zeigt die letzten Wartungsjobs; die Datenübersicht zeigt normale Datenjobs. Einstellungen sind unter `/service/einstellungen/` erreichbar. Alte Einstellungs- und Datenjob-Links bleiben nutzbar.
-- Alle Arbeitsbereiche verwenden gemeinsame Regeln für Seitenabstände, Panels, Formulare, Buttons und Rückmeldungen. Die zentrale Pflege und wiederverwendbaren Bausteine beschreibt [Gemeinsame Darstellungsregeln](docs/ui_guidelines.md).
-- Django-Suche unter `/suche/`: semantische Dokumentensuche ueber den konfigurierten Qdrant-Vektorindex; Standard ist Ratsinfo. Fuer Landkreis-Treffer zuerst `python scripts/build_landkreis_vector_index.py` oder `/daten/vektor/` nutzen; fuer Ratsinfo `python scripts/build_vector_index.py` oder `/daten/vektor/`
-- Analyse-Workflow und v2-Ausgaben: [docs/analysis_outputs.md](docs/analysis_outputs.md)
-- Analyse-Start unter `/analyse/starten/`: Sitzung vorbereiten, TOPs kritisch analysieren oder Prompt/Grundlage für manuelle ChatGPT-Nutzung erzeugen; vorbereitete Jobs lassen sich anschließend auf derselben Jobseite an einen API-Provider absenden
-- Antwort-Leseansicht unter `/analyse/antworten/`: fertig ausgeführte Analysen ohne technische Job- und Promptdetails lesen
-- Private Prompt-Vorlagen: `data/private/prompt_templates.json`
-- Private Prompt-Artefakte und gerenderte Snapshots: `data/private/analysis_prompts/` und `data/private/prompt_snapshots/`
-- Optionaler Hugging-Face-Token: sichere Ablage ueber `/service/einstellungen/` im OS-Schluesselring; Fallback ueber `HF_TOKEN` oder `HUGGING_FACE_HUB_TOKEN`
-
-Landkreis-Veröffentlichungen aus Bekanntmachungen und Amtsblättern werden bewusst getrennt vom SessionNet-Index verarbeitet. Rohdateien liegen standardmaessig unter `data/raw/landkreis/`; alternativ kann ein externer Speicherort per `RATSI_LANDKREIS_DATA_DIR` oder `--data-dir` gesetzt werden. Die interne Ordnerstruktur bleibt dabei gleich, und die SQLite-DB speichert relative Pfade innerhalb dieser Landkreis-Datenwurzel.
-
-### Modelle vorbereiten und Vektoraufbau testen
-
-Vor dem ersten Vektoraufbau ist die Modellvorbereitung erforderlich. Ein alter
-Hugging-Face-Cache allein ersetzt den geprueften lokalen Modellbestand nicht.
-Qdrant muss erreichbar sein; Start und Verbindungspruefung stehen unter
-[Qdrant](#qdrant-lokaler-speicher-oder-server).
-Unter PowerShell im Repository und mit aktivierter `.venv`:
-
-```powershell
-python .\scripts\prepare_embedding_models.py --download
-python .\scripts\prepare_embedding_models.py --check
-python .\scripts\build_vector_index.py --limit 10
-```
-
-Die Vorbereitung ist bei bereitem Bestand nicht vor jedem Build erforderlich.
-Bei „Lokales Embedding-Modell fehlt, ist unvollstaendig oder inkompatibel“
-erneut `--download` ausfuehren, etwa nach einem Wechsel der Bibliotheksversionen
-oder des Modellpfads. Der Befehl prueft vorhandene Bestaende und verwendet
-passende Artefakte wieder; er laedt nicht zwingend alle Modelle neu herunter.
-Vorbereitung, Build und Websuche muessen dieselbe Python-Umgebung und denselben
-Modellstamm verwenden: standardmaessig `data/models/`, alternativ
-`RATSI_MODELS_DIR`. Nach einer Aenderung dieser Umgebung Django neu starten.
-
-Der normale Ratsinfo-Build ergaenzt ausschliesslich fehlende oder unvollstaendige
-Dokumente. Vollstaendige Dokumente werden nicht erneut gelesen, gehasht oder
-berechnet, auch wenn Dateiinhalt oder Metadaten inzwischen anders sind. Vorab
-werden nur Dokument-IDs und Abschnitts-Vollstaendigkeit abgeglichen sowie
-Modellvertrag und Collection-Schema verglichen. Numerische Bestandsvektoren
-werden dabei nicht vollstaendig eingelesen. Sind nach einer abgebrochenen Wartung
-neben einer vollstaendigen Generation noch unfertige Zusatzgenerationen desselben
-aktuellen Dokuments vorhanden, entfernt der normale Build nur diese Reste.
-Alle vollstaendigen Generationen bleiben erhalten; Dateien, Tokenizer und
-Embedding-Modell werden dafuer nicht geladen. `cleaned_partial_passages` nennt
-die entfernten Abschnitte. Ohne fehlende Dokumente oder solche Reste bleibt eine
-bestehende Freigabe unveraendert. Verwaiste Dokumente bleiben Aufgabe der Wartung.
-
-`--limit 10` verarbeitet hoechstens zehn fehlende Dokumente. `failures: []`
-und `status=ok` melden einen erfolgreichen Lauf; `pending_documents` nennt die
-noch ausstehenden Dokumente. `ready: false` bedeutet, dass der Gesamtindex
-noch nicht freigegeben ist. Weitere begrenzte Laeufe setzen den Aufbau fort;
-`python .\scripts\build_vector_index.py` verarbeitet alle ausstehenden Dokumente.
-Bei einer bestehenden Collection ohne Kompatibilitaetsmarker zuerst den
-[Legacy-Pruef- und Uebernahmepfad](docs/embedding_model_management.md#einmalige-uebernahme-bestehender-collections)
-verwenden. Nur ein Bericht mit `result: verified` darf uebernommen werden;
-Bei nicht nachgewiesener Vektorkompatibilitaet ist ein getrennter Neuaufbau
-erforderlich; bei Verbindungsfehlern zuerst die Ursache beheben und erneut pruefen.
-
-Fuer bewusst gestartete Wartung gibt es getrennte Skripte:
-
-```powershell
-python .\scripts\check_vector_index.py
-python .\scripts\update_vector_index.py
-```
-
-Die Pruefung liest Modelle und gespeicherte Vektoren, veraendert aber weder
-Index noch Freigabe. Die Aktualisierung prueft Inhalts-Fingerprints und ersetzt
-geaenderte Dokumente. Nur dort sind `--refresh`, `--chunk-tokens`,
-`--overlap-tokens`, `--no-ocr` und `--cleanup-orphans` verfuegbar. `--refresh`
-berechnet auch unveraenderte Dokumente neu; `--cleanup-orphans` entfernt nach
-einem erfolgreichen unbegrenzten Aktualisierungslauf nicht mehr vorhandene
-Dokumente. Der normale Build loescht solche Dokumente nicht.
-
-### Lokalen Embedding-Modellbestand pruefen
-
-`python scripts/prepare_embedding_models.py --check` prueft den lokalen Bestand
-ohne Netzwerkzugriff; `--check --deep` prueft zusaetzlich die Artefakt-SHA-256-Werte.
-Mit `--json` gibt jeder Pruefmodus ein einzelnes JSON-Objekt mit `status`,
-`message`, `manifest_sha256` und `check_level` (`fast` oder `deep`) aus.
-Der Modellstamm ist `data/models/`; `RATSI_MODELS_DIR`
-ueberschreibt ihn. Exitcode `0` bedeutet `bereit`, `1` einen fehlenden,
-unvollstaendigen oder inkompatiblen Bestand und `2` einen Aufruf- oder
-Konfigurationsfehler.
-
-`python scripts/prepare_embedding_models.py --download` laedt ausschliesslich die
-fest konfigurierten Revisionen und Kernartefakte in einen eigenen Ordner unter
-`data/models/.preparation/` beziehungsweise dem konfigurierten Modellstamm.
-Harrier und Tokenizer teilen sich dabei ihren gepinnten Snapshot. Nach der
-Vollstaendigkeits- und SHA-256-Pruefung entsteht ein Manifest mit Revisionen,
-Artefaktgroessen, Pruefsummen und Bibliotheksversionen. Der gepruefte Bestand liegt
-unter `inventories/<Bestands-Hash>/`; erst der atomare Austausch von `manifest.json`
-gibt ihn frei. Bisherige Modelldateien bleiben erhalten. Bei Abbruch bleibt der
-vorherige Bestand aktiv; ohne vorheriges Manifest bleibt der Status `fehlt`.
-Exitcode `0` bedeutet jetzt auch bei `--download` einen bereiten Bestand.
-`--download --json` liefert `operation`, `status`, `message`, `inventory_dir` und
-`manifest_sha256`; rohe SDK-Fortschrittsausgaben werden unterdrueckt. Kandidaten
-und alte Bestaende werden nicht automatisch geloescht. Ein tiefengepruefter aktiver Bestand
-mit passenden Bibliotheksversionen wird ohne Hub-Zugriff oder Manifestwechsel
-wiederverwendet. Gepruefte, noch nicht aktivierte Bestaende werden ohne Download
-freigegeben. Abgebrochene Vorbereitungen werden nur bei exakt passendem
-Downloadplan fortgesetzt: bestaetigte Snapshots werden nach erneuter SHA-256-Pruefung
-uebernommen; unbestaetigte oder beschaedigte Snapshots werden vollstaendig neu
-geladen. `reused` in der Download-JSON-Ausgabe kennzeichnet die Wiederverwendung
-eines bereits vollstaendig geprueften Bestands.
-
-Erwartbare Vorbereitungsfehler enden mit einer kurzen Meldung und Exitcode `1`,
-ohne Traceback. `--download --json` ergaenzt `error_code`, unter anderem
-`network_unavailable`, `disk_full`, `permission_denied` oder `incomplete_artifacts`.
-Sichere Diagnosefelder stehen in `logs/embedding_model_preparation.log`;
-`RATSI_LOG_DIR` ueberschreibt das Logverzeichnis. `--log-level` hat Vorrang vor
-`RATSI_LOG_LEVEL`, sonst gilt `INFO`. `--check` legt weiterhin keine Logs an.
-Auch Pfadaufloesungsfehler, etwa Symlink-Schleifen unter Python 3.11/3.12,
-liefern beim Download die kurze Fehlermeldung beziehungsweise das JSON-Fehlerschema.
-`--check` und `--download` sind gegenseitig ausgeschlossen; `--deep` ist nur bei
-`--check` erlaubt. Ein optionaler Hugging-Face-Token stammt aus der vorhandenen
-Secret-Verwaltung (Keyring vor `HF_TOKEN` vor `HUGGING_FACE_HUB_TOKEN`). Ohne Token
-wird explizit anonym geladen, ohne Zugangsdaten aus dem Hub-Cache zu verwenden.
-Tokens werden nur als API-Argument weitergegeben; die Token-Umgebung bleibt
-unveraendert. Rohe Python-Ausgaben und Logs des SDK werden waehrend des Downloads
-unterdrueckt, auch bei `DEBUG`; sichere Start-/Endereignisse stehen im Komponentenlog.
-`huggingface-hub>=1.0,<2.0` ist jetzt eine direkte Abhaengigkeit.
-Details stehen in [docs/embedding_model_management.md](docs/embedding_model_management.md).
-
-Die Vorbereitung laesst sich getrennt und ohne echten Hub testen:
-
-```bash
-python -m pytest tests/test_embedding_model_preparation.py tests/test_prepare_embedding_models.py tests/test_embedding_model_preparation_integration.py -m "not live" -q
-```
-
-Hub-Live-Tests benoetigen Internet und `huggingface-hub`, bleiben standardmaessig
-ausgeschlossen und erfordern zusaetzlich eine ausdrueckliche Freigabe (Bash):
-
-```bash
-# Nur gepinnte Hub-Metadaten und kleine config.json-Dateien; keine Gewichte
-RATSI_EMBEDDING_LIVE_SMOKE=1 python -m pytest tests/test_embedding_model_preparation_live.py -o addopts='' -m live -k small_config -q
-
-# Vollstaendiger Modelldownload: Speicherplatz im GB-Bereich und laengere Laufzeit
-RATSI_EMBEDDING_LIVE_DOWNLOAD=1 python -m pytest tests/test_embedding_model_preparation_live.py -o addopts='' -m live -k full_download -q
-```
-
-Diese Tests arbeiten anonym, ohne den OS-Schluesselring oder bestehende Hub-Tokens
-zu lesen. Modelle, Hub-/Xet-Caches und Logs liegen ausschliesslich im temporaeren
-Testverzeichnis; der Projektbestand bleibt unberuehrt. Der Smoke-Test bestaetigt
-keine Modellbereitschaft. Der Volltest prueft Download, Manifest, Tiefenpruefung
-und anschliessende Wiederverwendung bei gesperrtem Netzwerk.
-
-Indexierung, Evaluation und Suche laden Harrier, den Passage-Tokenizer und BM25
-aus dem freigegebenen lokalen Modellbestand. Fehlende oder inkompatible Modelle
-werden vor dem Laden gemeldet; der Hinweis nennt den Vorbereitungsbefehl. Die
-Websuche verweist zusaetzlich auf den technischen Servicebereich. Nur der
-ausdrueckliche Aufruf mit `--download` darf Modellartefakte beschaffen.
-Die praktische Offline-Abnahme mit echten vorbereiteten Modellen ist in
-[Phase 7](docs/embedding_model_management.md#abschlusspruefung-phase-7-2026-10-04)
-dokumentiert. Sie laesst sich mit einem bereits vorbereiteten Bestand wiederholen:
-
-```bash
-RATSI_EMBEDDING_ACCEPTANCE_MODELS=/pfad/zum/modellstamm python -m pytest tests/test_embedding_offline_acceptance.py -m live -q -s
-```
-
-Unter PowerShell zuerst `$env:RATSI_EMBEDDING_ACCEPTANCE_MODELS = "C:\Pfad\zum\Modellstamm"`
-setzen und anschliessend denselben pytest-Befehl ohne die Bash-Variablenzuweisung
-starten. Der Test baut einen vollstaendigen separaten Index aus zwei Original-PDF-
-Fixtures, prueft den Suchservice und die Evaluation und sperrt Netzwerkzugriffe.
-Er prueft auch fehlende Modelle, eine unerreichbare Quelle und einen inkompatiblen
-Index. Modelle werden nur gelesen; Index, SQLite, Fehlerkandidaten und Logs liegen
-im temporaeren Testverzeichnis. Der Marker `live` bezeichnet hier echte lokale
-Modellinferenz; der Test benoetigt keinen Internetzugang. Ohne die Pfadangabe
-wird er uebersprungen.
-Der Schutz gegen kollidierende Vorbereitungs-, Legacy- und Indexjobs ist
-in Phase 6 umgesetzt; Web und CLI teilen die Prozesssperren.
-
-### Landkreis-Veröffentlichungen
-
-Der Landkreis-Import ist als eigenstaendige Datenquelle umgesetzt und veraendert weder `data/db/local_index.sqlite` noch die SessionNet-Rohdaten. Er verarbeitet derzeit:
-
-- Bekanntmachungen: `https://www.landkreis-osnabrueck.de/verwaltung/veroeffentlichungen/bekanntmachungen`
-- Amtsblaetter: `https://www.landkreis-osnabrueck.de/verwaltung/veroeffentlichungen/amtsblaetter`
-
-Typische Nutzung:
-
-```bash
-python scripts/fetch_landkreis_publications.py --source all
-python scripts/build_landkreis_publications_db.py
-python scripts/build_landkreis_vector_index.py
-python scripts/fetch_landkreis_publications.py --source bekanntmachungen --query Melle
-python scripts/search_landkreis_publications.py "Melle Genehmigung"
-```
-
-`fetch_landkreis_publications.py` speichert nur Rohdaten aus dem Online-Angebot. Bereits vorhandene Landkreis-Veröffentlichungen mit lokalem `manifest.json` werden bei spaeteren Laeufen uebersprungen. Fuer neue Bekanntmachungen werden Detailseiten und Dokument-Metadaten erfasst, aber keine PDF-Dateien heruntergeladen. Neue Amtsblaetter werden vollstaendig geladen. Die SQLite-Datenbank wird danach mit `build_landkreis_publications_db.py` aus den gespeicherten Manifests und lokalen Dateien aufgebaut. `build_landkreis_vector_index.py` indexiert lokal vorhandene Landkreis-Dokumente in die getrennte Qdrant-Collection `landkreis_publications`, ergaenzt fehlende Treffertexte in bereits indexierten Punkten ohne erneutes Embedding, loest lokale Pfade gegen dieselbe Landkreis-Datenwurzel (`RATSI_LANDKREIS_DATA_DIR` oder `--data-dir`) auf und begrenzt den Embedding-Text standardmaessig auf 6000 Zeichen pro Dokument; bei knappem XPU/GPU-Speicher kann `--max-text-chars` weiter reduziert werden.
-
-Fuer grosse Downloads kann die Rohdatenablage ausserhalb des Projekts liegen:
-
-```bash
-RATSI_LANDKREIS_DATA_DIR=/mnt/d/landkreis_osnabrueck \
-python scripts/fetch_landkreis_publications.py --source all
-RATSI_LANDKREIS_DATA_DIR=/mnt/d/landkreis_osnabrueck \
-python scripts/build_landkreis_publications_db.py
-```
-
-Alternativ kann der Speicherort pro Lauf mit `--data-dir` gesetzt werden; Fetch, DB-Build und Vektor-Build sollten dabei dieselbe Datenwurzel verwenden. Die Datenbank bleibt standardmaessig unter `data/db/landkreis_publications.sqlite`; mit `RATSI_LANDKREIS_DB` oder `--db` kann auch dieser Pfad ueberschrieben werden.
-
-Echte Prompt-Vorlagen und gerenderte Prompt-Snapshots gehören nicht ins Repository. Die privaten Pfade unter `data/private/` sind durch `.gitignore` geschützt.
-
-## Sicherheitsgrenzen
-
-- Lokale Dokumentpfade werden nur akzeptiert, wenn sie unter einer zulässigen `data/raw/`-Wurzel liegen.
-- `manifest.json`-Pfade bleiben auf das jeweilige Sitzungspaket begrenzt; Traversal per `../` wird verworfen.
-- SessionNet-Dokumentdownloads warnen bei mehr als 25 MiB und werden bei mehr als 100 MiB abgebrochen. Liefert der Server keine verwertbare `Content-Length`, erfolgt die Pruefung waehrend des Streamings; das betroffene Dokument wird nicht gespeichert, der restliche Sitzungslauf wird fortgesetzt.
-- Downloads von Landkreis-Amtsblaettern sowie Dateien in der lokalen Extraktionspipeline sind auf jeweils 25 MiB begrenzt. Das Extraktionslimit ist vom SessionNet-Downloadlimit unabhaengig.
-- Provider-Keys werden aus dem OS-Schluesselring oder aus `OPENAI_API_KEY` beziehungsweise `ANTHROPIC_API_KEY` gelesen. Der optionale Hugging-Face-Token kann unter `/service/einstellungen/` im OS-Schluesselring verwaltet werden; `HF_TOKEN` und `HUGGING_FACE_HUB_TOKEN` bleiben als Fallback moeglich. Secrets gehoeren nicht in Repository-Dateien.
-
-Die gemeinsame Grundlagen-Doku für Zielsystem, Fetching, Datenhaltung, Vektorindex und semantische Suche steht in [docs/data_processing_concept.md](docs/data_processing_concept.md).
-
-## Weitere Dokumentation
-
-- Abschnittsindex und Recherche-Benchmark: [docs/search_quality.md](docs/search_quality.md)
-- Projekt- und Arbeitsregeln: [AGENTS.md](AGENTS.md)
-- Repository-Regeln: [docs/repository_guidelines.md](docs/repository_guidelines.md)
-- Architekturdiagramm: [docs/architecture_overview.puml](docs/architecture_overview.puml)
-- Aktueller Stand der Django-Weboberfläche: [docs/web_ui.md](docs/web_ui.md)
-- Django-Zielkonzept: [docs/django_ui_concept.md](docs/django_ui_concept.md)
-- Offene Aufgaben und Ausbaupfade: [docs/project_tasks.md](docs/project_tasks.md)
-
-## Qdrant: lokaler Speicher oder Server
-
-Standardmäßig verwenden Vektorbuilds, Evaluation, Websuche und Statusanzeigen den
-Qdrant-Server unter `http://127.0.0.1:6333`. Das gilt auch für
-`python scripts/build_vector_index.py`, ohne dass eine Variable gesetzt werden
-muss. `RATSI_QDRANT_URL` kann einen anderen Server angeben. Bei Serverfehlern
-gibt es keinen automatischen lokalen Rückfall. Die Vektor-Builds pruefen den
-Server vor dem Modellstart und beenden sich bei Nichterreichbarkeit mit einer
-kurzen Fehlermeldung ohne Python-Traceback.
-
-Vor dem ersten Vektor-Build einen lokalen Qdrant-Server starten. Dafür wird
-Docker Desktop oder Docker Engine benötigt. Die folgenden Befehle funktionieren
-in PowerShell und unter WSL; das benannte Docker-Volume erhält die Daten auch
-nach einem Neustart des Containers:
-
-```text
-docker volume create ratsi-qdrant-storage
-docker run -d --name ratsi-qdrant -p 127.0.0.1:6333:6333 -v ratsi-qdrant-storage:/qdrant/storage qdrant/qdrant:v1.19.1
-```
-
-Mit `curl http://127.0.0.1:6333/healthz` (WSL) oder
-`Invoke-RestMethod http://127.0.0.1:6333/healthz` (PowerShell) prüfen,
-ob der Server erreichbar ist. Später mit `docker stop ratsi-qdrant` anhalten
-und mit `docker start ratsi-qdrant` wieder starten. Der Server ist nur an
-`127.0.0.1` des Docker-Hosts gebunden. Weitere Optionen stehen in der
-[Qdrant-Installationsanleitung](https://qdrant.tech/documentation/installation/).
-
-Für den bisherigen lokalen Speicher `data/db/qdrant/` `RATSI_QDRANT_URL` entfernen
-und `RATSI_QDRANT_MODE=local` setzen. Erst dann wirkt `--qdrant-dir` für einen
-abweichenden lokalen Pfad. CLI und Django müssen dieselben Einstellungen nutzen.
-Ungültige Modi und Serveradressen werden als nicht verfügbar gemeldet. Enthält die
-Serveradresse Zugangsdaten oder einen URL-Pfad, zeigt die Oberfläche nur Schema,
-Host und Port; Verbindungsfehler geben keine Zugangsdaten aus.
-
-```powershell
-python scripts/build_vector_index.py
-```
-
-Bei einer bereits gefuellten Collection prueft der Build vor Aenderungen den
-passenden Kompatibilitaetsmarker, die Punktzahl, Vektoren und Kompatibilitaetsdaten
-aller vorhandenen Punkte. Die Suche prueft denselben Bestand vor der Abfrage;
-bei grossen Collections wird eine erfolgreiche Pruefung bis zu fuenf Minuten
-zwischengespeichert. Bei Marker- oder Punktzahlaenderungen erfolgt die Pruefung
-sofort erneut; ein Austausch mit gleicher Punktzahl kann bis zum Ablauf des
-Caches unentdeckt bleiben.
-Landkreis-Builds speichern die Grenze von `--max-text-chars` im Marker und
-lehnen eine Fortsetzung mit abweichender Grenze ab.
-Auch das Vektorschema jeder vorhandenen
-Collection wird vor Aenderungen geprueft, selbst wenn sie leer ist. Alte
-Collections ohne Kompatibilitaetsnachweis muessen
-zuerst mit dem [Legacy-Pruef- und Uebernahmepfad](docs/embedding_model_management.md#einmalige-uebernahme-bestehender-collections)
-verifiziert werden. Die Legacy-Pruefung beruecksichtigt die automatische
-Normierung der Dense-Vektoren durch Qdrant-Cosine. Ein durch `bfloat16` leicht
-von Laenge 1 abweichender neu berechneter Vektor wird deshalb vor dem Vergleich
-normiert; die festen Toleranzen werden nicht erweitert. Eine unterbrochene Fortsetzung behaelt den Modellvertrag
-im Marker, auch wenn der Passage-Index voruebergehend nicht freigegeben ist.
-Bei einem fehlenden oder abweichenden Vertrag beendet sich der Build mit
-Exitcode 1 und einer kurzen Meldung: vollstaendiger Neuaufbau oder getrennte
-Aufbau-Collection erforderlich. Der bestehende Index bleibt dabei unveraendert.
-Die Websuche vergleicht den Marker der tatsaechlich ausgewaehlten Collection mit
-dem aktiven Modellvertrag, bevor sie Suchvektoren berechnet. Bei fehlendem oder
-abweichendem Vertrag oder `ready=false` zeigt sie einen Fehler statt Ergebnisse
-aus einem alten oder noch nicht freigegebenen Index. Die Evaluations-CLI nutzt
-dieselbe Pruefung vor der Query-Kodierung.
-
-Für die Standardadresse ist diese Einstellung nicht mehr nötig. Ein anderer
-Server wird unter WSL mit `export RATSI_QDRANT_URL=...` gewählt. Änderungen an der
-Umgebung werden nach einem Neustart der betroffenen Prozesse wirksam. Die
-Einstellung kopiert keine Daten. Die vorhandenen Collections müssen vor der echten Umschaltung gesondert
-migriert und geprüft werden. Details zu Freigabe, Betrieb und Rückweg stehen in
-[Suchqualität](docs/search_quality.md#qdrant-serverbetrieb).
+## Dokumentation
+
+- [Ist-Stand](docs/ist_stand.md): vorhandene Datenflüsse, Speicherorte, Suche und Oberfläche
+- [RI-Plan](docs/ri_ratsbereich_plan.md): einziges aktuelles Ausbauvorhaben
+- [Aktuelle Aufgaben](docs/project_tasks.md): Arbeitspakete des RI-Vorhabens
+- [Repository-Regeln](docs/repository_guidelines.md) und [Agentenregeln](AGENTS.md)
+- [UI-Regeln](docs/ui_guidelines.md) und [Analyseausgaben](docs/analysis_outputs.md)

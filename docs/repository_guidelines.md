@@ -1,131 +1,24 @@
 # Repository-Grundlagen
 
-Dieses Dokument definiert die Grundstruktur und Arbeitsweisen für das Ratsinformations-Analysetool. Es richtet sich an alle Beitragenden und dient als Referenz für neue Dateien, Module und Dokumentationen.
+Stand: 27.10.2026. Die verbindlichen Agenten- und Branchregeln stehen in [AGENTS.md](../AGENTS.md). Der [Ist-Stand](ist_stand.md) beschreibt den laufenden Datenfluss; der [RI-Plan](ri_ratsbereich_plan.md) ist das einzige aktuelle Ausbauvorhaben.
 
-## Verzeichnisstruktur
+## Struktur und Ablage
 
-```.
-├── data/
-│   ├── raw/               # Unveränderte Quelldaten aus Zielsystemen
-│   ├── db/                # SQLite-Infrastrukturdatenbanken
-│   ├── analysis_requests/ # Reproduzierbare Analyse-Eingabebatches (JSON)
-│   ├── analysis_outputs/  # Analyse-Ergebnisse (Markdown/JSON/Prompts)
-│   ├── private/           # Nicht versionierte Prompt-Vorlagen und Snapshots
-│   ├── archive/           # Ehemaliger Ablageort; Sicherungen unter archive/ im Stamm
-│   ├── models/            # Lokale Modellartefakte
-│   └── processed/         # Interne Normalisierungen/Ableitungen (ohne DBs)
-├── docs/                  # Projektweite Dokumentation und Recherchen
-│   └── examples/          # Versionierte Beispielkonfigurationen
-├── logs/                  # Laufzeit- und Zugriffprotokolle
-├── scripts/               # CLI-Werkzeuge für Betrieb, Wartung und Automatisierung
-├── src/
-│   ├── fetching/          # Module für Datenerfassung aus Zielsystemen
-│   ├── parsing/           # Normalisierung, Parser und Metadaten-Anreicherung
-│   ├── analysis/          # Auswertungs- und Scoring-Komponenten
-│   └── interfaces/        # gemeinsam genutzte Integrationsschichten
-├── web/                   # Aktive Django-Weboberflaeche
-└── tests/                 # Unit-, Integrations- und End-to-End-Tests
-```
+- `src/` enthält Fetching, Parsing, Analyse, Indexierung und gemeinsam genutzte Dienste. `scripts/` enthält CLI-Einstiege. `web/` enthält die aktive Django-Oberfläche. `tests/` enthält pytest-Tests und Fixtures.
+- `docs/` enthält aktive Projektdokumente und versionierte Beispiele. `docs/project_tasks.md` enthält nur aktuelle Aufgaben. Historische Fassungen liegen in Git; lokal archivierte Kopien entfernter Dateien liegen unter `archive/`.
+- Rohdaten liegen unter `data/raw/`, abgeleitete Dateien unter `data/processed/`, SQLite-Datenbanken unter `data/db/`. Analyse-Eingaben liegen unter `data/analysis_requests/`, Ausgaben unter `data/analysis_outputs/`, private Prompt-Dateien unter `data/private/`.
+- Laufzeitdaten, Modelle, Logs, Geheimnisse und das lokale Archiv werden nicht eingecheckt. Echte Zugangsdaten gehören in einen geeigneten Secret-Speicher. Dokumente und Suchtreffer dürfen nur auf erlaubte Datenwurzeln verweisen.
+- Python-Module heißen `snake_case.py`. Sitzungsordner folgen dem vorhandenen Schema unter `data/raw/YYYY/MM/`; SessionNet-Dokumente und Manifeste behalten ihre ursprünglichen Rohdaten.
 
-- Leere Verzeichnisse werden mit `.gitkeep` vorgehalten.
-- Temporäre Dateien und große Artefakte gehören nicht in das Repository und werden über `.gitignore` ausgeschlossen.
+## Entwicklung und Dokumentation
 
-## Namenskonventionen
+- Anwendungsänderungen erhalten passende Tests und eine Aktualisierung der betroffenen Dokumentation. Für Web-Änderungen gelten die [UI-Regeln](ui_guidelines.md); Datenformate und Nutzerwege werden im [Ist-Stand](ist_stand.md) beziehungsweise in der README beschrieben.
+- Die normale Entwicklung prüft `python -m pytest -m "not integration and not live"`; für betroffene Abläufe kommen Integrationstests hinzu. Vor PRs `python -m pytest` ausführen. `live` ist dabei standardmäßig ausgeschlossen.
+- Die kanonische Version steht in `VERSION`. Bei sichtbaren funktionalen Änderungen wird bewusst entschieden, ob sie erhöht wird.
+- Branches verwenden das Agentenpräfix, Codex also `codex/`. Auf `main` wird nicht gearbeitet. Commits sind klein und zusammenhängend.
+- Bei Entfernen oder Ablösen einer Datei zuerst eine bytegleiche Kopie unter `archive/<ursprünglicher-pfad>` anlegen und per SHA-256 prüfen. `archive/` wird von Git ignoriert und muss außerhalb von Git gesichert werden, wenn die lokale Kopie dauerhaft benötigt wird. Frühere Versionen bleiben außerdem in Git erreichbar.
 
-- Python-Module verwenden `snake_case.py`. Andere Sprachen sollen sich an idiomatische Konventionen halten (z. B. `kebab-case` für JavaScript-Dateien, `UpperCamelCase` für Klassen).
-- Verzeichnisse nutzen konsequent `snake_case`.
-- Datenordner verwenden das Muster `YYYY-MM-DD_gremium_sitzungs-id/` für Sitzungspakete und `NN_kurztitel/` für Vorlagenunterordner.
-- Konfigurationsdateien enthalten sprechende Präfixe, z. B. `config.production.json`, `secrets.template.env`.
+## Laufzeitgrenzen
 
-## Dokumentationsstandards
-
-- Projektweite Dokumente entstehen im Ordner `docs/` als Markdown (`.md`).
-- Jede funktionale Änderung benötigt eine begleitende Notiz (z. B. Architekturentscheidungen, Datenquellen, Compliance-Ergebnisse).
-- README-Dateien in Unterordnern dienen als Einstieg und listen relevante Skripte oder Module auf.
-
-## Code-Richtlinien
-
-- Ein Modul pro Verantwortlichkeit; umfangreiche Komponenten werden in Unterpakete zerlegt.
-- Öffentliche Funktionen dokumentieren Eingabeparameter, Rückgabewerte und Ausnahmen mittels Docstrings oder vergleichbarer Mechanismen.
-- Laufzeitcode nutzt die gemeinsame Konfiguration aus `src/observability.py`. CLI und Django schreiben UTC-Zeit, Level, Komponente, Lauf-ID und Logger in demselben Format. CLI-Ausgaben gehen zusätzlich an die Konsole; rotierende Laufzeitlogs liegen unter `logs/<komponente>.log`. Die Weboberflaeche speichert die begrenzten Ausgaben ihrer letzten Datenjobs in `data/db/service_jobs.sqlite` und reicht deren Job-ID als Lauf-ID an den Kindprozess weiter. Beim Loglevel gilt die Reihenfolge explizites `--log-level`, `RATSI_LOG_LEVEL`, Standard `INFO`; `RATSI_LOG_DIR` überschreibt die Ablage. Dauerhafte Logdateien werden nicht eingecheckt.
-- UI-spezifisch: Oberflaechenarbeit erfolgt unter `web/`. Gemeinsam genutzte Integrationslogik bleibt in klar abgegrenzten Modulen unter `src/`. Gemeinsame Gestaltungswerte, Seitencontainer und Template-Bausteine nach [Gemeinsame Darstellungsregeln](ui_guidelines.md) verwenden; keine seitenweisen Abstandskorrekturen kopieren.
-
-## Datenhaltung
-
-- Rohdaten bleiben unverändert in `data/raw/`. Eine Reproduzierbarkeit der Verarbeitungsschritte ist sicherzustellen.
-- Verarbeitete Daten in `data/processed/` enthalten nur interne Normalisierungen/Ableitungen ohne SQLite-Infrastruktur.
-- SQLite-Datenbanken liegen unter `data/db/`.
-- Qdrant verwendet standardmäßig den Server `http://127.0.0.1:6333`; `RATSI_QDRANT_URL` wählt einen anderen Server. Nur mit `RATSI_QDRANT_MODE=local` und ohne URL wird der lokale Pfad `data/db/qdrant/` verwendet. Server-Freigabemarker liegen URL-bezogen unter `data/db/qdrant_server_state/` oder `RATSI_QDRANT_STATE_DIR`; lokale Marker werden nicht auf Server übertragen. Tests verwenden ausschließlich temporäre Stores oder kontrollierte Testserver.
-- Landkreis-Veröffentlichungen nutzen eine getrennte Datenbank `data/db/landkreis_publications.sqlite` und eine eigene Rohdatenwurzel. Standard ist `data/raw/landkreis/`; fuer grosse lokale Datenbestaende kann `RATSI_LANDKREIS_DATA_DIR` oder `--data-dir` auf einen externen Speicherort zeigen. Gespeichert werden relative Pfade innerhalb dieser Wurzel.
-- Analyse-Eingaben liegen unter `data/analysis_requests/`, Analyse-Ausgaben unter `data/analysis_outputs/`.
-- Wiederherstellbare lokale Sicherungen liegen unter `archive/` im Repository-Stamm. Dieser Ordner wird ignoriert und nicht eingecheckt; er muss auf jeder Installation gesondert gesichert werden.
-- Sensible Inhalte (personenbezogene Daten, API-Schlüssel) werden nicht eingecheckt. Für Beispiele wird auf `*.template`-Dateien zurückgegriffen.
-- Lokale Dokumentreferenzen aus SQLite, Exporten oder Suchindizes dürfen nur auf Dateien unter einer zulaessigen `data/raw/`-Wurzel zeigen; absolute Fremdpfade gelten als ungueltig.
-- Unterordner unter `data/raw/.../agenda/` bestehen ausschließlich aus der TOP-Nummer und dem offiziellen Titel; Zusätze wie „Berichterstatter …“ werden beim Sluggen entfernt, damit identische Punkte unabhängig vom Reporter gleich heißen.
-- Jede Sitzung erzeugt zusätzlich zur Dokumenten-`manifest.json` eine `agenda_summary.json`, die Nummer, Titel, Reporter:in, Status, abgeleiteten Beschluss (`accepted`/`rejected`/`null`) sowie ein Flag für vorhandene Dokumente enthält. `session_detail.html` bleibt die kanonische Quelle für TOPs und Dokumentlinks; der lokale Index-Build übernimmt aktuellere Werte direkt in SQLite, ohne Summary, Manifest oder andere Rohdaten zu verändern. Neue Fetches referenzieren den HTML-Inhalt in beiden Ableitungen über `source_html_sha1`.
-- Eintraege in `manifest.json` bleiben relativ zum Sitzungsverzeichnis; Pfadangaben ausserhalb des Sitzungspakets werden aus Sicherheitsgruenden ignoriert.
-
-## Zielsystem-Hinweise
-
-- Das Projekt arbeitet gegen eine öffentliche SessionNet-Installation der Stadt Melle.
-- Abrufe müssen robots.txt, öffentliche Nutzungsbedingungen und Datenschutzanforderungen respektieren.
-- Abruflogik soll immer mit Rate-Limits, Retries und Caching umgesetzt werden, um die Zielinfrastruktur nicht unnötig zu belasten.
-- Dokumentdownloads und lokale Extraktionspfade arbeiten mit getrennten defensiven Dateigroessenlimits: SessionNet warnt oberhalb von 25 MiB und bricht oberhalb von 100 MiB ab; Landkreis-Downloads und die lokale Extraktionspipeline brechen oberhalb von 25 MiB ab. Details stehen in `docs/data_processing_concept.md`.
-- Fachliche und technische Details zum Zielsystem und zur Datenverarbeitung stehen in `docs/data_processing_concept.md`; ältere Vorprüfungen liegen im Archiv unter `docs/archive/`.
-
-## Workflow-Erwartungen
-
-1. Issues oder Tasks im README/todo.md verlinken.
-2. Umsetzung in einem Feature-Branch mit klaren Commits.
-3. Code-Review einplanen und Ergebnisse dokumentieren.
-4. Deployment- oder Betriebsskripte unter `scripts/` ablegen.
-
-Diese Regeln bilden das Fundament für den weiteren Projektverlauf und können bei Bedarf erweitert werden.
-
-## CLI-Indexdatenbanken
-
-- `scripts/build_local_index.py` erzeugt einen lokalen Index aus bereits heruntergeladenen SessionNet-Rohdaten direkt unter `data/raw/YYYY/MM/` und schreibt standardmäßig nach `data/db/local_index.sqlite`. Eine abweichende `session_detail.html` wird vor dem Import geparst und nur im SQLite-Index mit den JSON-Metadaten abgeglichen; lokale Dateien werden über den URL-Hash wieder zugeordnet. Dateien unter `data/raw/` bleiben unverändert. Nur die getrennte Landkreis-Datenwurzel direkt unter dem konfigurierten Datenwurzelpfad wird ausgeschlossen.
-- `scripts/build_online_index_db.py` erzeugt einen Online-Index ohne Dokumentdownloads und ohne Änderungen unter `data/raw/`; Ziel ist standardmäßig `data/db/online_session_index.sqlite`. Auch angekündigte Termine ohne Detaillink werden anhand ihrer Kalender-ID mit Datum, Uhrzeit und Ort erfasst; sobald ein Detaillink erscheint, werden ihre Details beim nächsten Build automatisch ergänzt. Mit `--refresh-existing` werden vorhandene Sitzungen neu eingelesen; `--only-refresh` aktualisiert ausschließlich bestehende Sitzungen.
-- `scripts/fetch_landkreis_publications.py` erfasst Landkreis-Bekanntmachungen und Amtsblätter als Rohdaten. `scripts/build_landkreis_publications_db.py` baut daraus die getrennte SQLite-DB. `scripts/search_landkreis_publications.py` durchsucht diese DB per SQLite-FTS, z. B. nach `Melle Genehmigung`.
-- Die beiden SessionNet-Indexe enthalten in `documents` ein normalisiertes Feld `document_type` (`vorlage`, `beschlussvorlage`, `protokoll`, `bekanntmachung`, `sonstiges`) sowie Metadatenfelder `sha1` und `retrieved_at`.
-- Die früher versionierten Dateien aus `old/` wurden bytegleich nach `archive/old/` verschoben. Dieses lokale Archiv wird nicht eingecheckt; historische Versionen sind über Git zugänglich.
-- Der Ratsinfo-Vektorbuild erzeugt `ratsi_passages` aus allen PDF-Seiten mit maximal 768 Tokens je Abschnitt. `ratsi_documents` bleibt als Legacy-Index erhalten. Die eigene Suchextraktion erlaubt 128 MiB pro Datei; der aeltere Extraktionspfad bleibt bei 25 MiB. Migration und der belegte Recherche-Benchmark stehen in `docs/search_quality.md`.
-
-## Testauswahl und Regression
-
-- Fuer die normale Entwicklung den schnellen Kern ausfuehren und bei Aenderungen an komponentenuebergreifenden Ablaeufen die betroffenen Integrationstests hinzunehmen.
-- Vor PRs die gesamte regulaere Suite mit `python -m pytest` ausfuehren. Die bestehende Konfiguration schliesst `live` dabei aus; diese Tests benoetigen echte Anbieter oder separat bereitgestellte Rohdaten.
-- `integration` und `live` koennen sich ueberschneiden. Tests ohne diese Marker pruefen vor allem einzelne Funktionen und Komponenten; temporaere Dateien oder Beispiel-URLs allein begruenden keinen Marker.
-- Marker zentral in `pyproject.toml` registrieren und nach dem tatsaechlichen Verhalten vergeben. Bei geaenderten Abhaengigkeiten die Zuordnung mitpruefen.
-- Konkrete Befehle und Voraussetzungen stehen in der [Testanleitung im README](../README.md#tests-gezielt-ausfuehren).
-
-## WSL-Setup (kurz)
-
-- Wenn `python` fehlt, `python3` verwenden.
-- Unter WSL die virtuelle Umgebung `.venv-wsl` verwenden.
-- Unter Windows die virtuelle Umgebung `.venv` verwenden.
-- Empfehlung unter WSL: `python3.14 -m venv .venv-wsl` und `source .venv-wsl/bin/activate`.
-- Abhängigkeiten mit `python -m pip install -r requirements.txt` installieren.
-- Tests unter WSL entweder nach Aktivierung mit `python -m pytest` oder direkt mit `.venv-wsl/bin/python -m pytest` starten.
-
-## Repository-Hooks
-
-- Versionierte Git-Hooks liegen unter `.githooks/` und nutzen `scripts/hooks/repo_policy.py`.
-- Lokale Aktivierung: `git config core.hooksPath .githooks`.
-- Der Pre-Commit-Hook blockiert Commits auf `main` und das Entfernen von Python-Dateien ohne bytegleiche Kopie unter `archive/` mit gleicher relativer Pfadstruktur. Nur für byteidentische Python-Umbenennungen innerhalb des versionierten Codes ist keine Archivkopie nötig; bei gleichzeitigem Editieren muss der ursprüngliche Inhalt unter `archive/` gesichert sein.
-- Konkrete Aufgaben in Abschnitt 3 von `docs/project_tasks.md` stehen unter `#### Konkrete Aufgaben`; allgemeine Beschreibungen stehen separat unter einem Kontextabschnitt. Schwierigkeit, empfohlenes GPT-Modell und Reasoning-Aufwand im Format `[Mittel · GPT-6 Sol / Medium]` sind optionale Orientierung für Diane, keine Vorgabe für Agenten. Der Pre-Commit-Hook gibt bei neu hinzugefügten Aufgaben ohne diese Angaben einen nicht-blockierenden Hinweis. Die Modellübersicht am Anfang der Aufgabenliste wird einmal monatlich anhand der offiziellen OpenAI-Empfehlungen aktualisiert.
-- Der Pre-Push-Hook blockiert Pushes von `main`.
-- Versionierte Codex-Hooks liegen unter `.codex/hooks.json` und geben dem Agenten fruehe Hinweise zu Branch-Regeln, destruktiven Befehlen und Python-Archivierung unter `archive/`. Neue oder geaenderte Codex-Hooks muessen in Codex ueber `/hooks` geprueft und vertraut werden.
-
-## Versionspflege
-
-- Das Projekt verwendet `Major.Minor.Patch`; die kanonische Versionsnummer liegt in `VERSION`.
-- Solange das Projekt noch vor `1.0.0` liegt, gelten pragmatisch:
-  - `0.x.0` fuer groessere Entwicklungsschritte oder inkompatiblere Meilensteine
-  - `0.x.y` fuer Bugfixes, kleinere Erweiterungen und inkrementelle Verbesserungen
-- Sichtbare funktionale Aenderungen, Meilensteine und Releases sollen bewusst eine Pruefung von `VERSION` ausloesen.
-
-## .gitignore & lokale Daten
-
-- Lokale venvs, Agent-Konfigurationen, Caches und Logs werden ueber `.gitignore` ausgeschlossen.
-- Rohdaten verbleiben unter `data/raw/`; DBs, Analyse-Requests, Analyse-Outputs und lokale Sicherungen liegen unter `data/db/`, `data/analysis_requests/`, `data/analysis_outputs/` und `archive/` und werden nicht committet.
+- Der öffentliche SessionNet-Client begrenzt Anfragerate, Wiederholungen und Downloads. Dokumente über 100 MiB werden abgebrochen; ab 25 MiB wird gewarnt. Landkreis-Downloads brechen über 25 MiB ab.
+- Öffentliche und künftige interne RI-Daten müssen über den gesamten Weg getrennt bleiben: Download, Rohdaten, SQLite, Suchindex, Dateiauslieferung und Jobs. Der RI-Plan beschreibt die noch ausstehende Umsetzung.

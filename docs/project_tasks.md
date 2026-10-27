@@ -1,171 +1,18 @@
-# Architektur und Projektaufgaben
+# Aktuelle Projektaufgabe
 
-Diese Datei beschreibt die wesentlichen Systemschichten, ihre Beziehungen und die offenen Arbeiten. Die Aufgaben sind nach den Architekturkomponenten geordnet, damit sichtbar wird, wo Änderungen an Schnittstellen oder Zuständigkeiten nötig werden könnten.
+Stand: 27.10.2026. Die einzige aktuell geplante Erweiterung ist der geschützte Ratsbereich für SessionNet `/ri/`. Der [detaillierte Umsetzungsplan](ri_ratsbereich_plan.md) enthält Schutzgrenzen, Abnahmen und die vorgesehene Aufteilung in Teilbranches. Der vorhandene Funktionsumfang steht im [Ist-Stand](ist_stand.md).
 
-## Aktuelle GPT-Modellreihe
+## Kontext
 
-Stand: **23.09.2026**. Diese Übersicht wird einmal im Monat anhand der [offiziellen OpenAI-Modellübersicht](https://developers.openai.com/api/docs/models) und der [Modellauswahl-Empfehlungen](https://developers.openai.com/api/docs/guides/model-selection) geprüft. Nächste Prüfung: **bis 23.10.2026**.
+Zugangsdaten für `/ri/` liegen noch nicht vor. Gleichheit der RI-Seitenstruktur mit dem öffentlichen `/bi/`-Bereich ist eine Annahme, die erst nach Anmeldung geprüft werden kann. Öffentliche Daten bleiben weiterhin im bisherigen Ablauf verfügbar. RI-Daten werden zunächst vollständig als intern behandelt.
 
-| Modell | Orientierung für Aufgaben in dieser Liste | Typischer Reasoning-Aufwand |
-| --- | --- | --- |
-| GPT-6 Luna (`gpt-6-luna`) | Kleine, klar abgegrenzte Änderungen und einfache Wartungsaufgaben | Medium |
-| GPT-6 Sol (`gpt-6-sol`) | Alltägliche Coding-Aufgaben mit Abwägungen und normalem Integrationsumfang | Low–Medium |
-| GPT-6 Astra (`gpt-6-astra`) | Komplexe, mehrschichtige Änderungen und anspruchsvolle Analyse | Medium–High |
-
-Die Modellverfügbarkeit und Nutzungslimits können sich je nach Codex-/ChatGPT-Produkt unterscheiden. Die Zuordnung ist eine Orientierung, keine Garantie für Ergebnisqualität oder Verbrauch.
-
-## 1. Architekturüberblick
-
-Der Datenfluss verläuft von externen Quellen bis zu den Analyseergebnissen und ihrer Darstellung:
-
-```text
-SessionNet / Landkreis-Angebote
-        │
-        ▼
-Fetch-Clients ──► unveränderte Rohdaten unter data/raw/
-        │
-        ▼
-Build-Skripte ──► lokale SQLite-Datenbanken und Metadaten
-        │
-        ├──► Extraktion und OCR ──► Vektorindizes und Suche
-        │
-        └──► Analyse-Service ──► versionierte Analyseartefakte
-                                      │
-                                      ▼
-                              Django-Oberfläche
-```
-
-| Schicht | Verantwortlichkeit | Zentrale Bereiche |
-| --- | --- | --- |
-| Datenzufuhr | Externe Angebote abrufen und Rohdaten lokal ablegen | `src/fetching/`, `scripts/fetch_*.py`, `data/raw/` |
-| Datenhaltung | Rohdaten in lokale Datenbanken überführen und Metadaten konsistent halten | `scripts/build_*db.py`, `data/db/` |
-| Extraktion und Suche | PDF-Text und OCR gewinnen, Dokumente aufteilen und durchsuchbar machen | `src/analysis/extraction_pipeline.py`, `src/indexing/`, Qdrant |
-| Analyse | Dokumente, TOPs und Sitzungen analysieren und Ergebnisse nachvollziehbar speichern | `src/analysis/`, `data/analysis_outputs/` |
-| Oberfläche | Analyse-, Such- und Datenpflege-Workflows bereitstellen | `web/` |
-| Betrieb und Qualität | Laufzeit, Fehler, Verhalten und Datenqualität über alle Schichten nachvollziehbar halten | Logging, Tests, Jobs und Dokumentation |
-
-SQLite-Datenbanken und Qdrant-Indizes sind abgeleitete lokale Daten. `data/raw/` bleibt die Quelle für reproduzierbare Builds und wird von den Build-Schritten nicht verändert.
-
-## 2. Architekturfragen bei Änderungen
-
-Vor größeren Umbauten sollte für die betroffene Schicht geklärt werden:
-
-- Bleiben Rohdaten, lokale Datenbank und Suchindex klar getrennte Zuständigkeiten?
-- Ist das Datenformat an einer dokumentierten Schnittstelle versioniert, und können abgeleitete Daten reproduzierbar neu aufgebaut werden?
-- Ändert sich ein Vertrag zwischen Fetching, Speicherung, Extraktion, Analyse oder Oberfläche?
-- Können Fehler und Fortschritt auf der betroffenen Schicht erkannt werden, ohne Geheimnisse oder unnötige Dokumentinhalte zu protokollieren?
-- Sind Auswirkungen auf lokale Daten, Indizes, bestehende Analyseartefakte und Nutzerabläufe dokumentiert?
-
-## 3. Offene Aufgaben nach Architekturschicht
-
-Jeder offene Punkt kann eine grobe Aufwandseinstufung und eine Modell-Empfehlung enthalten. `Low`, `Medium` oder `High` bezeichnet den Reasoning-Aufwand. Die Empfehlungen sind eine Orientierung für Diane und keine Vorgabe für den Agenten. Die Modellübersicht am Anfang dieser Datei wird monatlich aktualisiert; zwischen den Prüfungen muss nicht für jede einzelne Aufgabe erneut recherchiert werden. Der Pre-Commit-Hook erinnert bei neu ergänzten Aufgaben ohne Einstufung lediglich daran; ein Commit wird dadurch nicht verhindert.
-
-### 3.1 Datenzufuhr
+## RI-Vorhaben
 
 #### Konkrete Aufgaben
 
-- [x] **Höchste Priorität (P0), erledigt in 0.5.61:** Vorhandene SessionNet-Dateien abgeschlossener Sitzungen ohne erneuten HEAD-/PDF-Abruf wiederverwenden: Sitzungsdatum liegt zurück und Protokoll oder Beschlussübersicht ist veröffentlicht. Neue und fehlende Dateien weiterhin laden, Dokumente über URL/ID statt allein über Namen zuordnen und einen ausdrücklichen Aktualisierungsmodus anbieten. `[Mittel · GPT-6 Sol / Medium]`
-- [x] **Höchste Priorität (P0), erledigt in 0.5.61:** TOP-Beschlusserkennung korrigieren: Beschlusstext aus dem Titelbereich oder einer expliziten Statusspalte lesen, niemals die Vorlagennummer als Status übernehmen; reale HTML-Struktur und bisherige Varianten durch Regressionstests absichern. `[Mittel · GPT-6 Sol / Medium]`
-- [x] **P0-Nachbesserung, erledigt in 0.5.62:** Vorhandene Dateien erst nach einem bestätigten Abschlussabgleich dauerhaft wiederverwenden; `downloaded_at` pro Datei separat speichern und manuelle Nachträge erhalten, `verified_at` und `completion_detected_at` automatisch verwalten, fehlgeschlagene Prüfungen wiederholen und Altbestände einmal abgleichen. `[Mittel · GPT-6 Sol / Medium]`
-- Fetch-Workflows bei Änderungen an SessionNet robust halten und anpassen `[Mittel · GPT-6 Sol / Medium]`
-- Inkrementelle Downloads geänderter oder fehlender Dokumente weiter verbessern `[Mittel · GPT-6 Sol / Medium]`
-- Landkreis-PDFs, Detailseiten und Manifeste atomar schreiben und vorhandene Dateien auf Vollständigkeit prüfen, damit abgebrochene Downloads nicht als erfolgreich gelten `[Mittel · GPT-6 Sol / Medium]`
-
-#### Prüfstand der P0-Umsetzung in 0.5.61
-
-Die 49 gezielten Parser-, Download- und CLI-Tests bestehen. Eine lesende Prüfung
-von 478 gespeicherten Sitzungsseiten erkennt 1.750 TOP-Statusangaben und keine
-Vorlagennummer als Status; 429 Sitzungen erfüllen die Regel für veröffentlichte
-Ergebnisse. Die reguläre Windows-Gesamtsuite unter Python 3.14.8 ergibt
-1.181 bestandene, sieben übersprungene und acht ausgeschlossene Live-Tests.
-Vier Fehler außerhalb der Änderung bleiben: zwei POSIX-Pfaderwartungen in
-`tests/test_embeddings.py`, eine abweichende Fehlerklassifikation bei
-`~missing-user/logs` in `tests/test_embedding_model_preparation.py` und fehlende
-Windows-Symlinkrechte in `tests/test_web_legacy_inspection.py`. Die ersten drei
-sind am unveränderten Stand vor der Umsetzung reproduziert. Produktive Rohdaten
-und Indizes wurden für diese Prüfung nicht verändert.
-
-#### Prüfstand der Nachbesserung in 0.5.62
-
-Die reguläre Windows-Gesamtsuite ergibt 1.192 bestandene Tests bei denselben
-vier oben dokumentierten Fehlern, sieben übersprungenen Tests und acht
-ausgeschlossenen Live-Tests. Abschlussübergang, manuelle Downloadzeitpunkte,
-unbekannte Altwerte, Fehlerwiederholung und Cache-Gültigkeit sind durch
-Regressionstests abgedeckt. Produktive PDFs und Manifeste bleiben unverändert.
-
-### 3.2 Datenhaltung und Builds
-
-#### Konkrete Aufgaben
-
-- Qdrant-Zugangsdaten aus der Verbindungs-URL in einen getrennten Secret-Wert überführen (z. B. API-Key über `src/config/secrets.py`); dabei CLI-Ausgaben, Job-Logs, Fehlerketten und Bibliotheks-Logging auf Offenlegung prüfen. `[Mittel · GPT-6 Sol / Medium]`
-- Datenqualität und Metadatenkonsistenz mit Regressionstests absichern `[Mittel · GPT-6 Sol / Low]`
-- Build-Workflows robust halten und Änderungen am Quellformat kontrolliert übernehmen `[Mittel · GPT-6 Sol / Medium]`
-- Vorschau-Modus für Build-Skripte ergänzen, der geplante Änderungen, fehlende Quelldateien und mögliche Bereinigungen vor dem Schreiben ausgibt `[Mittel · GPT-6 Sol / Medium]`
-
-### 3.3 Extraktion, OCR und Suche
-
-#### Konkrete Aufgaben
-
-- Volltext-, PDF- und OCR-Randfälle im Analyse- und Suchpfad robuster behandeln `[Schwer · GPT-6 Astra / Medium]`
-- Landkreis-Collection `landkreis_publications` nach Abschluss der Indexkompatibilitaets-Aenderungen aus den vorhandenen Quelldaten getrennt neu aufbauen; zuvor gewaehltes `--max-text-chars` festlegen und dieselbe Grenze fuer spaetere inkrementelle Laeufe beibehalten. Den Melle-Index (`ratsi_passages`/`ratsi_documents`) dabei nicht neu aufbauen oder loeschen. `[Mittel · GPT-6 Sol / Medium]`
-- OCR-Erkennungsqualität separat anhand echter Ratsunterlagen vergleichen und verbessern (deutsche Texte, Zahlen, Tabellen sowie Laufzeit und Offline-Betrieb). Kandidaten und Rechercheeinstieg: [Python-OCR-Vergleich von CodeSOTA](https://www.codesota.com/ocr/best-for-python); Ergebnisse mit eigenen Beispieldokumenten prüfen. `[Schwer · GPT-6 Astra / Medium]`
-- Optionale OCR-Werkzeuge und das Verhalten bei großen Dateien betrieblich absichern `[Mittel · GPT-6 Sol / Low]`
-- Standardlauf von `scripts/build_vector_index.py` auf 100 Dokumente begrenzen; einen vollständigen Durchlauf nur mit einem ausdrücklichen Parameter wie `--all` starten `[Leicht · GPT-6 Luna / Medium]`
-- Fortschrittsanzeige für `scripts/build_vector_index.py` ergänzen: Gesamtzahl, bereits indexierte und noch ausstehende Dokumente sowie laufender Fortschritt `[Mittel · GPT-6 Sol / Low]`
-- Dauerhaften Zwischenstand für lange Indexläufe speichern, einschließlich erledigter, offener und fehlgeschlagener Dokumente, damit Abbrüche nachvollziehbar sind und Läufe gezielt fortgesetzt werden können `[Schwer · GPT-6 Astra / Medium]`
-- Recherchekatalog über weitere Zeiträume, Protokolle und echte Nutzerfragen erweitern; Abschnitts- und Legacy-Index mit `scripts/evaluate_search.py` vergleichen `[Mittel · GPT-6 Sol / Medium]`
-
-#### Abgeschlossene Modellverwaltung
-
-Die lokale Embedding-Modellverwaltung ist einschließlich Phase 7 abgeschlossen
-(`0.5.49`). Die reguläre Suite besteht mit 1105 Tests; die praktische native
-Windows-Abnahme bestätigt Prozesssperren und einen vollständigen separaten
-Offline-Build samt Suchservice und Evaluation mit echten Modellen. Ergebnisse,
-Fehlerkorrekturen und Betriebsgrenzen stehen im
-[Abschlussprotokoll](embedding_model_management.md#abschlusspruefung-phase-7-2026-10-04).
-Produktive Melle-Legacy-Übernahmen und der Landkreis-Neuaufbau bleiben separate
-Betriebsaktionen; diese Abnahme hat keine produktive Collection verändert.
-
-### 3.4 Analyse und Artefakte
-
-#### Konkrete Aufgaben
-
-- Analyseziele, Ausgabeformate und Qualitätskriterien verbindlich festlegen `[Mittel · GPT-6 Sol / Medium]`
-- Dokumentzentrierten Analyseablauf in der Weboberfläche als End-to-End-Pfad ergänzen; lokale PDFs können bereits in der Vorschau geöffnet werden `[Schwer · GPT-6 Astra / Medium]`
-- Quellenbezug, Unsicherheit, Review und Reproduzierbarkeit in Analyseartefakten und Oberfläche sichtbar machen `[Schwer · GPT-6 Astra / Medium]`
-- Gemeinsames Antwortschema weiter validieren und bei neuen Analysezwecken versionieren `[Mittel · GPT-6 Sol / Medium]`
-- Providerfehler und Kontextgrenzen robuster behandeln `[Mittel · GPT-6 Sol / Medium]`
-
-#### Kontext und Zielbild
-
-Das fachliche Zielbild umfasst Analysen auf drei Ebenen:
-
-- **Dokument:** Kernaussagen, Beschluss- und Finanzierungsbezug sowie Extraktionsqualität
-- **Tagesordnungspunkt:** zugeordnete Dokumente zusammenführen, Aussagen belegen und offene Fragen kenntlich machen
-- **Sitzung:** Ergebnisse einzelner TOPs zu einer nachvollziehbaren Sitzungsübersicht verdichten
-
-Analyseartefakte sollen Eingabekontext, verwendete Dokumente und Hashes, Prompt-Version, Provider und Modell sowie Parameter und Zeitstempel festhalten. Markdown und strukturiertes JSON sollen Quellenangaben und sichtbare Unsicherheit unterstützen. Draft- und Review-Status sollen unterscheidbar bleiben.
-
-### 3.5 Oberfläche und Anwendungsworkflows
-
-#### Konkrete Aufgaben
-
-- Django-Anwendungen unter `web/` entlang fachlicher Zuständigkeiten modular weiterentwickeln `[Schwer · GPT-6 Astra / Medium]`
-- Dokumentauswahl, Analyse, Quellenprüfung und Review als zusammenhängenden Arbeitsablauf gestalten `[Schwer · GPT-6 Astra / Medium]`
-- Bestehende Fetch-, Build-, Such- und Analysefunktionen über stabile Service-Schnittstellen einbinden `[Schwer · GPT-6 Astra / Medium]`
-
-### 3.6 Betrieb und Qualität (schichtübergreifend)
-
-#### Konkrete Aufgaben
-
-- Parallele Builds derselben lokalen Qdrant-Collection erkennen und mit einer verständlichen Meldung verhindern `[Mittel · GPT-6 Sol / Medium]`
-- Testabdeckung für Datenpipeline, Analyseflüsse und Suchpfade erweitern `[Mittel · GPT-6 Sol / Low]`
-- Dokumentation regelmäßig gegen Implementierung, Datenformate und tatsächliche Abläufe prüfen `[Leicht · GPT-6 Luna / Medium]`
-
-## 4. Abhängigkeiten und sinnvolle Reihenfolge
-
-1. Datenverträge und Metadaten zwischen Fetching, SQLite-Builds und Extraktion stabilisieren.
-2. Extraktion, OCR und Suchindex mit Fortschritt, Fehlerdiagnose und Regressionstests absichern.
-3. Analyseartefakte und Quellenverweise konsistent versionieren.
-4. Dokumentzentrierten Analyse- und Review-Ablauf darauf aufbauend in der Oberfläche vervollständigen.
-5. Recherchequalität mit erweitertem Katalog messen und die Dokumentation nachführen.
+- [ ] Daten- und Zugriffskontrakt für den lokalen Ratsbereich festlegen; Betriebsmodell, Speicherort und Suchindex-Zugriff nach Erhalt der Zugangsdaten prüfen.
+- [ ] Eigenen authentifizierten RI-Fetcher für Sitzungsübersicht, Details und Dokumente umsetzen; öffentliche Parserfunktionen nur nach Strukturprüfung wiederverwenden.
+- [ ] Getrennte RI-Rohdatenwurzel und RI-SQLite-Indizes aufbauen; Herkunft und Kennzeichnung pro Dokument speichern.
+- [ ] RI-Dokumente in einem eigenen, zugriffsgeschützten Suchindex indexieren und getrennt durchsuchen.
+- [ ] Abruf, Datenbankaufbau und Suche in einen geschützten Ratsbereich der Django-Oberfläche integrieren.
+- [ ] Trennung zwischen öffentlichem und internem Bestand mit Tests und einer kleinen lokalen RI-Stichprobe abnehmen; Betriebsdokumentation aktualisieren.
