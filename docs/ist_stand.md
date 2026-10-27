@@ -23,7 +23,7 @@ Stand: 27.10.2026. Diese Übersicht beschreibt die vorhandene Implementierung. S
 - Die aktive Oberfläche ist Django unter `web/`, gestartet mit `python scripts/run_web.py` auf `127.0.0.1:8000`.
 - Das Dashboard zeigt kommende und vergangene Termine aus den gespeicherten Indizes. Unter `/daten/` lassen sich Fetch-, SQLite- und Vektorjobs starten und deren Status prüfen. `/service/` bündelt Wartung und Einstellungen.
 - Unter `/analyse/` gibt es Sitzungsansichten, Vorlagen für Prompts, vorbereitete Analysejobs, die Provider-Ausführung und eine Antwort-Leseansicht. Workflow-Zustand liegt in `data/db/analysis_workflow.sqlite`, Ausgabedateien in `data/analysis_outputs/`, private Prompt-Dateien in `data/private/`. Der vorhandene Analysepfad wird im RI-Vorhaben zunächst nicht erweitert.
-- `/veroeffentlichung/` enthält den vorhandenen Entwurfsbereich; die Anwendung veröffentlicht keine Inhalte automatisch auf externen Seiten.
+- `/veroeffentlichung/` zeigt derzeit einen Platzhalter „Noch nicht umgesetzt“; die Anwendung veröffentlicht keine Inhalte automatisch auf externen Seiten.
 - Die aktuelle Django-Konfiguration ist eine lokale Entwicklungsoberfläche mit `DEBUG=True`, festem Entwicklungsschlüssel und ohne Benutzeranmeldung. Sie ist noch keine Zugangskontrolle für interne Ratsunterlagen.
 
 ## Betrieb und Datenpflege

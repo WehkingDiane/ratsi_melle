@@ -1,27 +1,49 @@
 @startwbs
-' Stand: 27.10.2026. Quelle: web/core/templates/base.html.
-' Hauptnavigation und ihre tatsächlich sichtbaren Untermenüs.
-* Ratsi Melle – aktuelle Navigation
-** Dashboard
-*** Dashboard öffnen
-** Analyse
-*** Analyse-Übersicht
-*** Prompt-Vorlagen
-*** KI-Analyse starten
-*** Antworten lesen
-*** Sitzungen
-*** Analysejobs
-** Daten
-*** Fetch: Daten holen
-*** Build: Datenbank-Tools
-*** Build: Vektorindex
-*** Datenstatus nach Jahr
-** Veröffentlichung
-*** Veröffentlichung öffnen
-** Suche
-*** Suche öffnen
-** Service
-*** Service-Übersicht
-*** Wartung
-*** Einstellungen öffnen
+' Stand: 27.10.2026. Quellen: base.html und die jeweiligen Seitentemplates.
+' Blau = Seite; Grün = Container / Eintrag; Grau = Menügruppe; Gelb = Link.
+' Seitencontainer exemplarisch bei Dashboard, Sitzungsdetails, Suche und Veröffentlichung.
+' Detailseiten sind über Inhaltslinks erreichbar, nicht als eigene Hauptmenüpunkte.
+* Ratsi Melle – aktuelle Navigation und Seitenaufbau
+**[#E5E7E9] [Menügruppe] Dashboard
+***[#D6EAF8] [Seite] Dashboard öffnen
+****[#D5F5E3] [Container] Kommende Sitzungen – nächste fünf Termine
+*****[#D5F5E3] [Eintrag] Sitzung als Tabellenzeile
+******[#FCF3CF] [Link] Unterlagen öffnen – wenn lokal vorhanden
+******[#FCF3CF] [Alternativer Link] Im Ratsinfo ansehen – öffentliche Quelle
+****[#D5F5E3] [Container] Vergangene Sitzungen – jüngste fünf Termine
+*****[#D5F5E3] [Eintrag] Sitzung als Tabellenzeile
+******[#FCF3CF] [Link] Unterlagen öffnen – wenn lokal vorhanden
+******[#FCF3CF] [Alternativer Link] Im Ratsinfo ansehen – öffentliche Quelle
+****[#D5F5E3] [Container] Datenstatus
+*****[#FCF3CF] [Link] Bestand und Details ansehen
+*****[#FCF3CF] [Link] Daten → Build
+**[#E5E7E9] [Menügruppe] Analyse
+***[#D6EAF8] [Seite] Analyse-Übersicht
+***[#D6EAF8] [Seite] Prompt-Vorlagen
+***[#D6EAF8] [Seite] KI-Analyse starten
+***[#D6EAF8] [Seite] Antworten lesen
+***[#D6EAF8] [Seite] Sitzungen
+****[#FCF3CF] [Link] Sitzungsdetails
+*****[#D6EAF8] [Seite] Sitzungsdetails
+******[#D5F5E3] [Container] Quellenstatus
+******[#D5F5E3] [Container] Tagesordnungspunkte
+******[#D5F5E3] [Container] Alle Dokumente
+***[#D6EAF8] [Seite] Analysejobs
+**[#E5E7E9] [Menügruppe] Daten
+***[#D6EAF8] [Seite] Datenübersicht – über Hauptmenülabel
+***[#D6EAF8] [Seite] Fetch: Daten holen
+***[#D6EAF8] [Seite] Build: Datenbank-Tools
+***[#D6EAF8] [Seite] Build: Vektorindex
+***[#D6EAF8] [Seite] Datenstatus nach Jahr
+**[#E5E7E9] [Menügruppe] Veröffentlichung
+***[#D6EAF8] [Seite] Veröffentlichung öffnen
+****[#D5F5E3] [Container] Noch nicht umgesetzt – Platzhalter
+**[#E5E7E9] [Menügruppe] Suche
+***[#D6EAF8] [Seite] Suche öffnen
+****[#D5F5E3] [Container] Suchfeld, Quelle und Filter
+****[#D5F5E3] [Container] Vektortreffer
+**[#E5E7E9] [Menügruppe] Service
+***[#D6EAF8] [Seite] Service-Übersicht
+***[#D6EAF8] [Seite] Wartung
+***[#D6EAF8] [Seite] Einstellungen öffnen
 @endwbs

@@ -2,7 +2,7 @@
 
 Stand: 27.10.2026. Die Diagramme beschreiben die aktuelle Navigation und einen Entwurf einschließlich des [RI-Vorhabens](ri_ratsbereich_plan.md). Die App-Navigation ist damit noch nicht geändert.
 
-- [Aktuelle Navigation als PlantUML](navigation_ist.puml): Hauptpunkte und sichtbare Untermenüs aus `web/core/templates/base.html`.
+- [Aktuelle Navigation als PlantUML](navigation_ist.puml): Hauptpunkte und sichtbare Untermenüs aus `web/core/templates/base.html`, ergänzt um ausgewählte Seitencontainer und Inhaltslinks aus den Templates. Dieselben Farben und Textpräfixe wie im Zielbild kennzeichnen Seiten, Container, Einträge und Links. Im aktuellen Dashboard führt „Unterlagen öffnen“ zu lokalen Unterlagen; nur wenn diese fehlen, erscheint gegebenenfalls „Im Ratsinfo ansehen“ als Link zur öffentlichen Quelle. Fehlen beide Möglichkeiten, erscheint ein Texthinweis statt eines Links.
 - [Vorgeschlagene Navigation als PlantUML](navigation_ziel.puml): Seiten und Menügruppen sowie ausgewählte Container, Einträge und Links innerhalb der Seiten. Blau kennzeichnet Seiten, Grün Container und Sitzungseinträge, Grau Menügruppen und Gelb Links. Die Textpräfixe erklären die Bedeutung zusätzlich zur Farbe. `[RI]` kennzeichnet geschützte Inhalte. Menügruppen verlangen keine mehrstufigen Dropdown-Menüs; Sitzungsdetailseiten werden über Links erreicht.
 
 ## Vorgeschlagene Änderungen
