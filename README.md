@@ -2,7 +2,7 @@
 
 Die Anwendung sammelt **öffentliche** Sitzungs- und Dokumentdaten aus dem Bürgerinformationssystem der Stadt Melle (`/bi/`) und Veröffentlichungen des Landkreises Osnabrück. Sie erstellt lokale SQLite-Indizes, bietet semantische Suche und eine Django-Oberfläche für Datenpflege und Analyse. Der geschützte Ratsbereich (`/ri/`) ist derzeit geplant und noch nicht implementiert.
 
-Der [Ist-Stand](docs/ist_stand.md) beschreibt Quellen, Datenhaltung, Suche und Oberfläche. Der [RI-Plan](docs/ri_ratsbereich_plan.md) ist das einzige aktuelle Ausbauvorhaben.
+Der [Ist-Stand](docs/ist_stand.md) beschreibt Quellen, Datenhaltung, Suche und Oberfläche. Der [RI-Plan](docs/plans/ri_ratsbereich_plan.md) ist das einzige aktuelle Ausbauvorhaben.
 
 ## Voraussetzungen und Start
 
@@ -56,7 +56,7 @@ python -m pytest
 ## Dokumentation
 
 - [Ist-Stand](docs/ist_stand.md): vorhandene Datenflüsse, Speicherorte, Suche und Oberfläche
-- [RI-Plan](docs/ri_ratsbereich_plan.md): einziges aktuelles Ausbauvorhaben
-- [Aktuelle Aufgaben](docs/project_tasks.md): Arbeitspakete des RI-Vorhabens
+- [RI-Plan](docs/plans/ri_ratsbereich_plan.md): einziges aktuelles Ausbauvorhaben
+- [Aktuelle Aufgaben](docs/plans/project_tasks.md): Arbeitspakete des RI-Vorhabens
 - [Repository-Regeln](docs/repository_guidelines.md) und [Agentenregeln](AGENTS.md)
 - [UI-Regeln](docs/ui_guidelines.md) und [Analyseausgaben](docs/analysis_outputs.md)

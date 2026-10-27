@@ -1,11 +1,11 @@
 # Repository-Grundlagen
 
-Stand: 27.10.2026. Die verbindlichen Agenten- und Branchregeln stehen in [AGENTS.md](../AGENTS.md). Der [Ist-Stand](ist_stand.md) beschreibt den laufenden Datenfluss; der [RI-Plan](ri_ratsbereich_plan.md) ist das einzige aktuelle Ausbauvorhaben.
+Stand: 27.10.2026. Die verbindlichen Agenten- und Branchregeln stehen in [AGENTS.md](../AGENTS.md). Der [Ist-Stand](ist_stand.md) beschreibt den laufenden Datenfluss; der [RI-Plan](plans/ri_ratsbereich_plan.md) ist das einzige aktuelle Ausbauvorhaben.
 
 ## Struktur und Ablage
 
 - `src/` enthält Fetching, Parsing, Analyse, Indexierung und gemeinsam genutzte Dienste. `scripts/` enthält CLI-Einstiege. `web/` enthält die aktive Django-Oberfläche. `tests/` enthält pytest-Tests und Fixtures.
-- `docs/` enthält aktive Projektdokumente und versionierte Beispiele. `docs/project_tasks.md` enthält nur aktuelle Aufgaben. Historische Fassungen liegen in Git; lokal archivierte Kopien entfernter Dateien liegen unter `archive/`.
+- `docs/` enthält den Ist-Stand, Betriebsdokumentation und Regeln. Pläne, Ideen und Aufgaben liegen unter `docs/plans/`; versionierte Beispiele liegen unter `docs/examples/`. `docs/plans/project_tasks.md` enthält nur aktuelle Aufgaben. Historische Fassungen liegen in Git; lokal archivierte Kopien entfernter Dateien liegen unter `archive/`.
 - Rohdaten liegen unter `data/raw/`, abgeleitete Dateien unter `data/processed/`, SQLite-Datenbanken unter `data/db/`. Analyse-Eingaben liegen unter `data/analysis_requests/`, Ausgaben unter `data/analysis_outputs/`, private Prompt-Dateien unter `data/private/`.
 - Laufzeitdaten, Modelle, Logs, Geheimnisse und das lokale Archiv werden nicht eingecheckt. Echte Zugangsdaten gehören in einen geeigneten Secret-Speicher. Dokumente und Suchtreffer dürfen nur auf erlaubte Datenwurzeln verweisen.
 - Python-Module heißen `snake_case.py`. Sitzungsordner folgen dem vorhandenen Schema unter `data/raw/YYYY/MM/`; SessionNet-Dokumente und Manifeste behalten ihre ursprünglichen Rohdaten.

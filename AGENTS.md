@@ -46,8 +46,8 @@
 - Keine Secrets, API-Keys oder grosse Download-Daten einchecken; stattdessen `*.template`-Beispiele.
 - Rohdaten bleiben unveraendert unter `data/raw/`, abgeleitete Daten unter `data/processed/`.
 - Aktualisiere `docs/`, wenn sich Datenformate oder Crawl-Verhalten aendern.
-- Nach Aenderungen an GUI, Workflows, Exporten, Datenformaten oder Nutzerfuehrung muessen die betroffenen Dokumente geprueft und bei Bedarf aktualisiert werden, insbesondere `README.md`, `docs/ist_stand.md`, die aktiven Spezialdokumente unter `docs/` und `docs/project_tasks.md` bei geaenderten Aufgaben.
-- Konkrete Aufgaben in `docs/project_tasks.md` stehen unter `#### Konkrete Aufgaben`; allgemeine Beschreibungen kommen in einen getrennten Kontextabschnitt. Die Aufgabenliste enthaelt nur das aktuelle RI-Vorhaben; abgeschlossene Arbeiten und andere Zukunftsideen gehoeren nicht hinein.
+- Nach Aenderungen an GUI, Workflows, Exporten, Datenformaten oder Nutzerfuehrung muessen die betroffenen Dokumente geprueft und bei Bedarf aktualisiert werden, insbesondere `README.md`, `docs/ist_stand.md`, die aktiven Spezialdokumente unter `docs/` und `docs/plans/project_tasks.md` bei geaenderten Aufgaben.
+- Konkrete Aufgaben in `docs/plans/project_tasks.md` stehen unter `#### Konkrete Aufgaben`; allgemeine Beschreibungen kommen in einen getrennten Kontextabschnitt. Die Aufgabenliste enthaelt nur das aktuelle RI-Vorhaben; abgeschlossene Arbeiten und andere Zukunftsideen gehoeren nicht hinein.
 - Zeilenenden werden ueber `.gitattributes` und `.editorconfig` vereinheitlicht:
   - Quell- und Konfigurationsdateien (u. a. `*.py`, `*.json`, `*.yml`) werden im Repository mit `LF` gefuehrt.
   - Windows-Skripte (`*.bat`, `*.cmd`, `*.ps1`) werden mit `CRLF` gefuehrt.

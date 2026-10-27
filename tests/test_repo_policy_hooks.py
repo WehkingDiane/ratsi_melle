@@ -266,8 +266,8 @@ def test_git_pre_push_allows_non_main_remote_ref_from_stdin(tmp_path: Path) -> N
 
 def test_git_pre_commit_ignores_explanatory_lists_in_project_tasks(tmp_path: Path) -> None:
     repo = init_repo(tmp_path)
-    project_tasks = repo / "docs" / "project_tasks.md"
-    project_tasks.parent.mkdir()
+    project_tasks = repo / "docs" / "plans" / "project_tasks.md"
+    project_tasks.parent.mkdir(parents=True)
     project_tasks.write_text(
         "## 3. Offene Aufgaben nach Architekturschicht\n\n"
         "### 3.4 Analyse und Artefakte\n"
@@ -280,13 +280,13 @@ def test_git_pre_commit_ignores_explanatory_lists_in_project_tasks(tmp_path: Pat
         "## 4. Abhängigkeiten und sinnvolle Reihenfolge\n",
         encoding="utf-8",
     )
-    git(repo, "add", "docs/project_tasks.md")
+    git(repo, "add", "docs/plans/project_tasks.md")
     git(repo, "commit", "-m", "Add project task guidance")
     updated = project_tasks.read_text(encoding="utf-8").replace(
         "- **Dokument:** Kernaussagen", "- **Dokument:** Kernaussagen und Beschlussbezug"
     )
     project_tasks.write_text(updated, encoding="utf-8")
-    git(repo, "add", "docs/project_tasks.md")
+    git(repo, "add", "docs/plans/project_tasks.md")
 
     result = run_policy("git-pre-commit", cwd=repo)
 
@@ -296,8 +296,8 @@ def test_git_pre_commit_ignores_explanatory_lists_in_project_tasks(tmp_path: Pat
 
 def test_git_pre_commit_only_warns_about_missing_task_recommendations(tmp_path: Path) -> None:
     repo = init_repo(tmp_path)
-    project_tasks = repo / "docs" / "project_tasks.md"
-    project_tasks.parent.mkdir()
+    project_tasks = repo / "docs" / "plans" / "project_tasks.md"
+    project_tasks.parent.mkdir(parents=True)
     project_tasks.write_text(
         "## 3. Offene Aufgaben nach Architekturschicht\n\n"
         "### 3.1 Datenzufuhr\n"
@@ -306,7 +306,7 @@ def test_git_pre_commit_only_warns_about_missing_task_recommendations(tmp_path: 
         "## 4. Abhängigkeiten und sinnvolle Reihenfolge\n",
         encoding="utf-8",
     )
-    git(repo, "add", "docs/project_tasks.md")
+    git(repo, "add", "docs/plans/project_tasks.md")
     git(repo, "commit", "-m", "Add initial task list")
     updated = project_tasks.read_text(encoding="utf-8").replace(
         "## 4. Abhängigkeiten und sinnvolle Reihenfolge\n",
@@ -314,7 +314,7 @@ def test_git_pre_commit_only_warns_about_missing_task_recommendations(tmp_path: 
         "## 4. Abhängigkeiten und sinnvolle Reihenfolge\n",
     )
     project_tasks.write_text(updated, encoding="utf-8")
-    git(repo, "add", "docs/project_tasks.md")
+    git(repo, "add", "docs/plans/project_tasks.md")
 
     result = run_policy("git-pre-commit", cwd=repo)
 
@@ -325,8 +325,8 @@ def test_git_pre_commit_only_warns_about_missing_task_recommendations(tmp_path: 
 
 def test_git_pre_commit_keeps_checking_after_description_paragraph(tmp_path: Path) -> None:
     repo = init_repo(tmp_path)
-    project_tasks = repo / "docs" / "project_tasks.md"
-    project_tasks.parent.mkdir()
+    project_tasks = repo / "docs" / "plans" / "project_tasks.md"
+    project_tasks.parent.mkdir(parents=True)
     project_tasks.write_text(
         "## 3. Offene Aufgaben nach Architekturschicht\n\n"
         "### 3.1 Datenzufuhr\n"
@@ -337,7 +337,7 @@ def test_git_pre_commit_keeps_checking_after_description_paragraph(tmp_path: Pat
         "## 4. Abhängigkeiten und sinnvolle Reihenfolge\n",
         encoding="utf-8",
     )
-    git(repo, "add", "docs/project_tasks.md")
+    git(repo, "add", "docs/plans/project_tasks.md")
     git(repo, "commit", "-m", "Add described project task")
     updated = project_tasks.read_text(encoding="utf-8").replace(
         "## 4. Abhängigkeiten und sinnvolle Reihenfolge\n",
@@ -345,7 +345,7 @@ def test_git_pre_commit_keeps_checking_after_description_paragraph(tmp_path: Pat
         "## 4. Abhängigkeiten und sinnvolle Reihenfolge\n",
     )
     project_tasks.write_text(updated, encoding="utf-8")
-    git(repo, "add", "docs/project_tasks.md")
+    git(repo, "add", "docs/plans/project_tasks.md")
 
     result = run_policy("git-pre-commit", cwd=repo)
 

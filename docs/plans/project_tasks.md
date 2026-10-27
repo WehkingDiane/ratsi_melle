@@ -1,6 +1,6 @@
 # Aktuelle Projektaufgabe
 
-Stand: 27.10.2026. Die einzige aktuell geplante Erweiterung ist der geschützte Ratsbereich für SessionNet `/ri/`. Der [detaillierte Umsetzungsplan](ri_ratsbereich_plan.md) enthält Schutzgrenzen, Abnahmen und die vorgesehene Aufteilung in Teilbranches. Der vorhandene Funktionsumfang steht im [Ist-Stand](ist_stand.md).
+Stand: 27.10.2026. Die einzige aktuell geplante Erweiterung ist der geschützte Ratsbereich für SessionNet `/ri/`. Der [detaillierte Umsetzungsplan](ri_ratsbereich_plan.md) enthält Schutzgrenzen, Abnahmen und die vorgesehene Aufteilung in Teilbranches. Der vorhandene Funktionsumfang steht im [Ist-Stand](../ist_stand.md).
 
 ## Kontext
 

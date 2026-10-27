@@ -1,6 +1,6 @@
 # Ist-Stand des Projekts
 
-Stand: 27.10.2026. Diese Übersicht beschreibt die vorhandene Implementierung. Sie ist keine Liste geplanter Funktionen. Der einzige aktuelle Ausbau steht im [RI-Plan](ri_ratsbereich_plan.md).
+Stand: 27.10.2026. Diese Übersicht beschreibt die vorhandene Implementierung. Sie ist keine Liste geplanter Funktionen. Der einzige aktuelle Ausbau steht im [RI-Plan](plans/ri_ratsbereich_plan.md).
 
 ## Datenquellen und Abruf
 
