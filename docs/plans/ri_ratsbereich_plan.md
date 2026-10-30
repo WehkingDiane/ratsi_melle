@@ -55,6 +55,8 @@ Arbeitsbranch: `codex/feature/ri-navigation-vorbereitung`. Umgesetzt in Version 
 
 Der vollständige WSL-Testlauf ergab 1214 bestandene Tests, einen übersprungenen Test und acht abgewählte Live-Tests. Ein während des Laufs bereits korrigierter Test erwartete noch den alten Menütext „Service → Wartung“. Der anschließende gezielte Lauf auf dem aktuellen Stand bestand mit 23 Tests, einschließlich dieses Falls, der aktiven Navigation, der RI-Platzhalter und der Quellentrennung. Django-Systemprüfung und `git diff --check` sind ohne Befund.
 
+Nachtrag aus dem PR-Review: Zwei Wartungsfälle von `test_build_and_maintenance_posts_stay_in_their_own_area` erwarteten ebenfalls noch „Service“. Diese im bisherigen Testvermerk nicht erfasste Erwartung ist auf den aktiven Bereich und die neue Beschriftung umgestellt; die Absicherung gegen den Start bereichsfremder Jobs bleibt erhalten. Die anschließende vollständige Integrationssuite mit `python -m pytest -m "integration and not live" -q` besteht: 607 bestanden, einer übersprungen, 616 abgewählt. Weitere fehlerhafte Webtest-Erwartungen wurden dabei nicht gefunden.
+
 Im Browser wurden Datenpflege, RI-Platzhalter, Antwort-Leseansicht, Wartung und Landkreis-Suche geprüft. Bei 1440 Pixeln stehen die Hauptcontainer untereinander; bei 390 Pixeln bleiben die geprüften Seiten ohne horizontalen Überlauf. Das mobile Menü ist scrollbar, aktive Bereiche sind markiert und versteckte Laufhinweise bleiben verborgen. Es wurden keine produktiven Datenjobs gestartet.
 
 ### Grenzen und Abnahme

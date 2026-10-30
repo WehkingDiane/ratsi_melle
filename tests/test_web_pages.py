@@ -392,7 +392,10 @@ def test_build_and_maintenance_posts_stay_in_their_own_area(client, monkeypatch,
     monkeypatch.setattr(views.service_jobs, "start_service_job", lambda *args, **kwargs: pytest.fail("Wrong-area job started"))
     response = client.post(path, {"action": action})
     assert response.status_code == 200
-    assert "Service" in response.content.decode()
+    soup = BeautifulSoup(response.content, "html.parser")
+    expected_area = "Einstellungen" if path.startswith("/service/") else "Bürgerinformation"
+    assert soup.select_one(".nav-menu-label.active").get_text(strip=True) == expected_area
+    assert "Einstellungen" in soup.select_one("main").get_text()
 
 
 @pytest.mark.parametrize("path", ["/daten/jobs/maintenance-test/", "/service/jobs/maintenance-test/"])
