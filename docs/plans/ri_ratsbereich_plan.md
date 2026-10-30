@@ -30,7 +30,7 @@ Die Daten- und Zugriffskontrakte werden vor paralleler Umsetzung festgelegt. Jed
 
 ## 1. Skriptnamen nach Datenbereich ordnen
 
-Umsetzungsstand: Auf `codex/refactor/bi-ri-skriptnamen` sind die acht öffentlichen SessionNet-Skripte einschließlich Aufrufern und Dokumentation umbenannt. Die Namenszuordnung steht in der README. Der Windows-Testlauf ergab 1192 bestandene Tests, sieben übersprungene und vier Fehler durch plattformabhängige Testannahmen. Die betroffenen Tests sind angepasst; der erneute Lauf zur Abnahme steht noch aus.
+Umsetzungsstand: Schritt 1 ist auf `codex/refactor/bi-ri-skriptnamen` umgesetzt. Die acht öffentlichen SessionNet-Skripte einschließlich Aufrufern und Dokumentation sind umbenannt; die Namenszuordnung steht in der README. Das ungenutzte `setup_venv.sh` ist nach bytegleicher Archivierung entfernt. Der vollständige WSL-Testlauf mit `python -m pytest` besteht: 1202 bestanden, einer übersprungen, acht Live-Tests abgewählt. Die vier im vorherigen Windows-Lauf aufgefallenen Plattformannahmen sind in den Tests korrigiert; ein erneuter Windows-Lauf wurde noch nicht bestätigt. Die Zusammenführung in den Vorhaben-Branch erfolgt per PR.
 
 Vor der Erweiterung um RI-Funktionen die vorhandenen Skripte inventarisieren und eine einheitliche BI-/RI-Namenskonvention festlegen. Skripte, die heute allgemein benannt sind, aber ausschließlich den öffentlichen Bürgerinformationsbereich (`/bi/`) bearbeiten, sollen dies im Namen ausdrücken, zum Beispiel `fetch_bi_sessions.py`. Neue RI-Skripte erhalten entsprechend Namen wie `fetch_ri_sessions.py`.
 
