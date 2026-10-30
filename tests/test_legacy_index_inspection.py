@@ -717,7 +717,7 @@ def test_passage_inspection_reads_only_and_checks_fixed_sample(tmp_path, monkeyp
 def test_document_text_is_reconstructed_from_original_builder(
     tmp_path, monkeypatch, compatibility, collection,
 ):
-    from scripts import build_landkreis_vector_index, build_vector_index
+    from scripts import build_landkreis_vector_index, build_bi_vector_index
     from src.indexing.id_strategy import stable_document_id
     from src.indexing.payload_builder import build_document_payload
 
@@ -725,9 +725,9 @@ def test_document_text_is_reconstructed_from_original_builder(
         row = {"session_id": "1", "url": "https://example.test/one", "agenda_item": "1",
                "title": "Rat", "document_type": "protokoll", "local_path": ""}
         point_id = stable_document_id("1", row["url"], "1")
-        text = build_vector_index._get_document_text(row)
+        text = build_bi_vector_index._get_document_text(row)
         payload = build_document_payload(row, search_text=text)
-        monkeypatch.setattr(build_vector_index, "_load_documents", lambda path, *, read_only: [row] if read_only else [])
+        monkeypatch.setattr(build_bi_vector_index, "_load_documents", lambda path, *, read_only: [row] if read_only else [])
     else:
         row = {"publication_id": "one", "url": "https://example.test/one",
                "title": "Bekanntmachung", "document_title": "Anlage", "extracted_text": "Prueftext",
@@ -829,7 +829,7 @@ def test_schema_rejects_non_native_dense_settings(compatibility, dense_setting):
 
 @pytest.mark.integration
 def test_missing_source_database_is_not_created(tmp_path, monkeypatch, compatibility):
-    from scripts.build_vector_index import _stable_qdrant_id
+    from scripts.build_bi_vector_index import _stable_qdrant_id
 
     collection = "ratsi_documents"
     url = "https://example.test/one"

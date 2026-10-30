@@ -1196,7 +1196,7 @@ def test_service_post_starts_background_job(client, monkeypatch) -> None:
     monkeypatch.setattr(
         views.services,
         "build_service_command",
-        lambda _action, _data: (["python", "scripts/build_local_index.py"], []),
+        lambda _action, _data: (["python", "scripts/build_bi_local_index.py"], []),
     )
     monkeypatch.setattr(
         views.service_jobs,
@@ -1365,7 +1365,7 @@ def test_build_vector_index_form_starts_existing_service_job(client, monkeypatch
     def fake_build_service_command(action, data):
         captured["action"] = action
         captured["limit"] = data.get("limit")
-        return (["python", "scripts/build_vector_index.py", "--limit", "25"], [])
+        return (["python", "scripts/build_bi_vector_index.py", "--limit", "25"], [])
 
     def fake_start_service_job(action, command, cwd):
         captured["job_action"] = action
@@ -1386,7 +1386,7 @@ def test_build_vector_index_form_starts_existing_service_job(client, monkeypatch
     assert captured["action"] == "build_vector_index"
     assert captured["limit"] == "25"
     assert captured["job_action"] == "build_vector_index"
-    assert captured["command"] == ["python", "scripts/build_vector_index.py", "--limit", "25"]
+    assert captured["command"] == ["python", "scripts/build_bi_vector_index.py", "--limit", "25"]
 
 
 def test_landkreis_vector_index_form_starts_service_job(client, monkeypatch) -> None:
@@ -1461,7 +1461,7 @@ def test_service_post_requires_csrf_when_enforced(monkeypatch) -> None:
     monkeypatch.setattr(
         views.services,
         "build_service_command",
-        lambda _action, _data: (["python", "scripts/build_local_index.py"], []),
+        lambda _action, _data: (["python", "scripts/build_bi_local_index.py"], []),
     )
 
     response = Client(enforce_csrf_checks=True).post(
@@ -1510,7 +1510,7 @@ def test_service_job_detail_exposes_live_update_hooks(client, monkeypatch) -> No
         exit_code = None
         started_at = "01.01.2026 10:00:00"
         finished_at = ""
-        command_text = "python scripts/build_local_index.py"
+        command_text = "python scripts/build_bi_local_index.py"
         output = "Zeile 1"
         status_label = "läuft"
 

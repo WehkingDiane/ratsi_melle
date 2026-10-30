@@ -60,13 +60,13 @@ def _service_command(action: str, data: dict[str, Any]) -> list[str]:
     if action == "fetch_sessions":
         year = _validated_year(data.get("year"))
         months = _validated_months(data.get("months"))
-        return [sys.executable, "scripts/fetch_sessions.py", str(year), "--months", *months]
+        return [sys.executable, "scripts/fetch_bi_sessions.py", str(year), "--months", *months]
 
     if action == "fetch_session_from_index":
         session_id = str(data.get("session_id") or "").strip()
         if not session_id:
             raise ValueError("Bitte eine Session-ID angeben.")
-        return [sys.executable, "scripts/fetch_session_from_index.py", "--session-id", session_id]
+        return [sys.executable, "scripts/fetch_bi_session_from_index.py", "--session-id", session_id]
 
     if action == "fetch_landkreis_publications":
         command = [
@@ -97,7 +97,7 @@ def _service_command(action: str, data: dict[str, Any]) -> list[str]:
         return command
 
     if action == "build_local_index":
-        command = [sys.executable, "scripts/build_local_index.py"]
+        command = [sys.executable, "scripts/build_bi_local_index.py"]
         if data.get("refresh_existing"):
             command.append("--refresh-existing")
         if data.get("only_refresh"):
@@ -107,7 +107,7 @@ def _service_command(action: str, data: dict[str, Any]) -> list[str]:
     if action == "build_online_index":
         year = _validated_year(data.get("year"))
         months = _validated_months(data.get("months"))
-        command = [sys.executable, "scripts/build_online_index_db.py", str(year), "--months", *months]
+        command = [sys.executable, "scripts/build_bi_online_index_db.py", str(year), "--months", *months]
         if data.get("refresh_existing"):
             command.append("--refresh-existing")
         if data.get("only_refresh"):
@@ -125,7 +125,7 @@ def _service_command(action: str, data: dict[str, Any]) -> list[str]:
         return command
 
     if action == "build_vector_index":
-        command = [sys.executable, "scripts/build_vector_index.py"]
+        command = [sys.executable, "scripts/build_bi_vector_index.py"]
         parsed_limit = _optional_positive_int(data.get("limit"), "Limit")
         if parsed_limit is not None:
             command.extend(["--limit", str(parsed_limit)])

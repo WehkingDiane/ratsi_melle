@@ -46,7 +46,7 @@ def build_passage_index(documents, store, tokenizer, vectorizer_factory, *, limi
     if not 32 <= tokens <= 8192 or not 0 <= overlap < tokens or batch_size < 1:
         raise ValueError("Require 32..8192 chunk tokens, smaller nonnegative overlap and positive batch size")
     if refresh and not update_existing:
-        raise ValueError("Forced refresh belongs to scripts/update_vector_index.py")
+        raise ValueError("Forced refresh belongs to scripts/update_bi_vector_index.py")
     indexed = store.get_point_payloads() if indexed_payloads is None else indexed_payloads
     complete_ids = complete_document_ids(indexed)
     stale_by_parent = {}
@@ -165,7 +165,7 @@ def build_passage_index(documents, store, tokenizer, vectorizer_factory, *, limi
 
 def main(argv=None, *, maintenance=False):
     """Add missing documents, or explicitly run the separate update service."""
-    from scripts.build_vector_index import _load_documents, _positive_int
+    from scripts.build_bi_vector_index import _load_documents, _positive_int
     from src.analysis.vector_store import DocumentVectorStore
     from src.analysis.embeddings import HarrierEmbedder
     from src.analysis.bm25_sparse import BM25Encoder

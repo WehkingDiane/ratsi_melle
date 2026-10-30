@@ -9,7 +9,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from scripts.build_vector_index import _load_documents
+from scripts.build_bi_vector_index import _load_documents
 from src.analysis.vector_store import DocumentVectorStore
 from src.config.index_compatibility import current_index_compatibility
 from src.indexing.build_compatibility import check_build_compatibility

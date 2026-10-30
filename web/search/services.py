@@ -299,10 +299,10 @@ def _semantic_source_config(source: str) -> dict[str, str]:
         "source": "ratsinfo",
         "label": "Ratsinfo",
         "collection_name": RATSINFO_COLLECTION_NAME,
-        "build_command": "python scripts/build_vector_index.py",
+        "build_command": "python scripts/build_bi_vector_index.py",
         "missing_collection_text": (
             "Der Ratsinfo-Vektorindex fehlt. Bitte unter /daten/vektor/ den "
-            "Vektorindex bauen oder `python scripts/build_vector_index.py` ausfuehren."
+            "Vektorindex bauen oder `python scripts/build_bi_vector_index.py` ausfuehren."
         ),
     }
 
