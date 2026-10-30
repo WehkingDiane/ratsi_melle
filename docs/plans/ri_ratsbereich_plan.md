@@ -11,9 +11,9 @@ RI-Rohdaten, Datenbanken, Suchindex, Protokolle und eventuelle Exporte dürfen n
 ## Bestehende Anknüpfungspunkte
 
 - `src/fetching/sessionnet_client.py` enthält HTTP-Abruf, HTML-Parsing und Dokumentdownload; sein Standardziel ist `/bi/`. Ob RI dieselben HTML- und Dokumentstrukturen verwendet, ist eine offene Annahme.
-- `scripts/fetch_session_from_index.py` nutzt die öffentliche Online-Indexdatenbank; `scripts/build_online_index_db.py` baut diesen Index. Der RI-Abruf darf deren Standardpfade nicht verwenden.
-- `scripts/build_local_index.py` kann eine Rohdatenwurzel und einen Ausgabe-DB-Pfad erhalten. Die Eignung seiner Scanner- und Pfadlogik für einen isolierten RI-Bestand muss geprüft werden.
-- `scripts/build_vector_index.py` baut derzeit den öffentlichen Ratsinfo-Suchindex aus `local_index.sqlite`. Die Suche unter `web/search/` bietet gegenwärtig Ratsinfo und Landkreis als Quellen. Eine eigene RI-Collection und eindeutige Quellenwahl sind nötig.
+- `scripts/fetch_bi_session_from_index.py` nutzt die öffentliche Online-Indexdatenbank; `scripts/build_bi_online_index_db.py` baut diesen Index. Der RI-Abruf darf deren Standardpfade nicht verwenden.
+- `scripts/build_bi_local_index.py` kann eine Rohdatenwurzel und einen Ausgabe-DB-Pfad erhalten. Die Eignung seiner Scanner- und Pfadlogik für einen isolierten RI-Bestand muss geprüft werden.
+- `scripts/build_bi_vector_index.py` baut derzeit den öffentlichen Ratsinfo-Suchindex aus `local_index.sqlite`. Die Suche unter `web/search/` bietet gegenwärtig Ratsinfo und Landkreis als Quellen. Eine eigene RI-Collection und eindeutige Quellenwahl sind nötig.
 - Die Weboberfläche läuft laut `web/web/settings.py` lokal im Entwicklungsmodus (`DEBUG=True`, feste Entwicklungsschlüssel, keine Benutzeranmeldung). Eine sichtbare Trennung in der Navigation wäre damit noch keine Zugriffssicherung.
 
 ## Vorgesehene Aufteilung in Teilbranches
@@ -29,6 +29,8 @@ Alle Teilbranches entstehen vom Vorhaben-Branch `codex/feature/ri-ratsbereich` u
 Die Daten- und Zugriffskontrakte werden vor paralleler Umsetzung festgelegt. Jeder Teilbranch soll einen abgegrenzten, prüfbaren Stand liefern. Änderungen an gemeinsam genutzten Modulen werden auf Rückwirkungen auf `/bi/` getestet.
 
 ## 1. Skriptnamen nach Datenbereich ordnen
+
+Umsetzungsstand: Auf `codex/refactor/bi-ri-skriptnamen` sind die acht öffentlichen SessionNet-Skripte einschließlich Aufrufern und Dokumentation umbenannt. Die Namenszuordnung steht in der README. Der Windows-Testlauf ergab 1192 bestandene Tests, sieben übersprungene und vier Fehler durch plattformabhängige Testannahmen. Die betroffenen Tests sind angepasst; der erneute Lauf zur Abnahme steht noch aus.
 
 Vor der Erweiterung um RI-Funktionen die vorhandenen Skripte inventarisieren und eine einheitliche BI-/RI-Namenskonvention festlegen. Skripte, die heute allgemein benannt sind, aber ausschließlich den öffentlichen Bürgerinformationsbereich (`/bi/`) bearbeiten, sollen dies im Namen ausdrücken, zum Beispiel `fetch_bi_sessions.py`. Neue RI-Skripte erhalten entsprechend Namen wie `fetch_ri_sessions.py`.
 

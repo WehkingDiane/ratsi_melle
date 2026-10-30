@@ -10,7 +10,7 @@ Zugangsdaten für `/ri/` liegen noch nicht vor. Gleichheit der RI-Seitenstruktur
 
 #### Konkrete Aufgaben
 
-- [ ] Vor der RI-Erweiterung die Skriptnamen nach BI, RI und gemeinsamen Werkzeugen ordnen; alle Aufrufer, Tests und Dokumente bei nötigen Umbenennungen anpassen.
+- [ ] Umbenennung der BI-Skripte abnehmen: Skripte, Aufrufer und Dokumentation sind auf dem Teilbranch angepasst. Der Windows-Testlauf ergab 1192 bestandene Tests und vier Plattformfehler; nach Anpassung der betroffenen Tests steht der erneute Lauf aus.
 - [ ] Daten- und Zugriffskontrakt für den lokalen Ratsbereich festlegen; Betriebsmodell, Speicherort und Suchindex-Zugriff nach Erhalt der Zugangsdaten prüfen.
 - [ ] Eigenen authentifizierten RI-Fetcher für Sitzungsübersicht, Details und Dokumente umsetzen; öffentliche Parserfunktionen nur nach Strukturprüfung wiederverwenden.
 - [ ] Getrennte RI-Rohdatenwurzel und RI-SQLite-Indizes aufbauen; Herkunft und Kennzeichnung pro Dokument speichern.
