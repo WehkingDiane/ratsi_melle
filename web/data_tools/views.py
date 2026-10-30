@@ -140,7 +140,7 @@ def service_vector(request, source=None):
     errors: list[str] = []
     if request.method == "POST":
         if request.POST.get("action") not in {"build_vector_index", "build_landkreis_vector_index"}:
-            command, errors = None, ["Prüfungen und Modellverwaltung befinden sich unter Service → Wartung."]
+            command, errors = None, ["Prüfungen und Modellverwaltung befinden sich unter Einstellungen → Wartung."]
         else:
             command, errors = services.build_service_command(
                 request.POST.get("action", ""), request.POST,

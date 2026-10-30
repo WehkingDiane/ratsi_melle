@@ -99,7 +99,7 @@
 {% endif %}
 </section>
 
-<p class="muted">Modellverwaltung und Prüfungen: <a href="{% url 'service:maintenance' %}">Service → Wartung</a>.</p>
+<p class="muted">Modellverwaltung und Prüfungen: <a href="{% url 'service:maintenance' %}">Einstellungen → Wartung</a>.</p>
 
 {% if scoped_source != "landkreis" %}{% include "core/partials/service_status.html" %}{% endif %}
 {% endblock %}

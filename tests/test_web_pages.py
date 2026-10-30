@@ -279,6 +279,8 @@ def test_templates_are_kept_in_their_feature_apps() -> None:
     data_templates = {path.name for path in DATA_TOOLS_TEMPLATE_ROOT.glob("*.html")}
 
     assert core_templates == {
+        "core/ri_placeholder.html",
+        "core/partials/navigation.html",
         "base.html",
         "core/dashboard.html",
         "core/partials/dashboard_sessions.html",
@@ -1317,7 +1319,7 @@ def test_service_vector_page_renders_vector_status(client, monkeypatch) -> None:
     assert "Ratsinfo-Vektorstatus" in content
     assert "Fehlende Dokumente indexieren" in content
     assert "Vollständig indexierte Dokumente" in content
-    assert "Service → Wartung" in content
+    assert "Einstellungen → Wartung" in content
     assert 'id="embedding-model-status"' not in content
     assert 'id="model-job-history"' not in content
     assert 'id="legacy-inspection"' not in content

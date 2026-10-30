@@ -237,3 +237,13 @@
 .page-stack > .answer-reader {
   grid-template-columns: minmax(0, 1fr);
 }
+
+/* Long local paths and revision hashes must not widen cards or forms. */
+.panel {
+  overflow-wrap: anywhere;
+}
+
+.grid > *,
+.form-stack > * {
+  min-width: 0;
+}

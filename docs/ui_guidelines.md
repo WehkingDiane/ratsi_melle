@@ -50,7 +50,9 @@ dieselbe Regel für untergeordnete Gruppen, beispielsweise in einer Statusspalte
 verwenden denselben Bereichsabstand. Als direkte Hauptbereiche unter `page-stack`
 werden sie einspaltig dargestellt; auch die Antwortauswahl steht vor dem Lesebereich.
 Formularfelder und fachlich zusammengehörige Inhalte innerhalb eines Panels können
-weiterhin mehrere Spalten verwenden.
+weiterhin mehrere Spalten verwenden. Modellkomponenten und Jobhistorie stehen
+als eigene Informationsbereiche untereinander; lange Pfade und Revisionsnummern
+werden innerhalb der Container umbrochen.
 
 Ein `panel` besitzt 18 px Innenabstand und 14 px zwischen seinen direkten
 Inhalten. Container bestimmen die Abstände; direkte Kinder von Seiten-,
