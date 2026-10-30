@@ -1,5 +1,8 @@
 @startwbs
 ' Vorschlag, noch nicht umgesetzt.
+' Schritt 1a: Navigation und RI-Platzhalter ohne Datenanbindung vorbereiten.
+' Hauptcontainer stehen untereinander; die WBS zeigt die inhaltliche Hierarchie.
+' RI-Funktionen und Dashboard-Links folgen erst mit Daten und Zugriffsschutz.
 ' Blau = Seite; Grün = Container innerhalb einer Seite;
 ' Grau = Menügruppe; Gelb = Link/Aktion innerhalb eines Containers.
 ' [RI] kennzeichnet geschützte Inhalte. Farben ergänzen die Textkennzeichnung.

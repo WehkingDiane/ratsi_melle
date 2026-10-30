@@ -2,7 +2,7 @@
   <h2>Gespeicherte Modell- und Legacy-Jobs</h2>
   <p class="muted">Je Aktion der letzte abgeschlossene Versuch, einschließlich Fehlern. Laufende Jobs erscheinen separat. Eine historische Prüfung ersetzt nicht die aktuelle Bereitschaft.</p>
   <p data-history-feedback aria-live="polite"{% if status.model_job_history.available %} hidden{% endif %}>{{ status.model_job_history.message|default:"Prüfhistorie kann nicht gelesen werden." }}</p>
-  <div class="grid two-columns">
+  <div class="content-stack">
     {% for entry in status.model_job_history.entries %}
     <article data-history-scope="{{ entry.scope }}">
       <h3>{{ entry.label }}</h3>

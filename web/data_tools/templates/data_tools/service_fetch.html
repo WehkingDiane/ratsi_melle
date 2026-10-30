@@ -4,7 +4,7 @@
 
 {% block content %}
 <section class="page-heading">
-  <p class="eyebrow">Daten</p>
+  <p class="eyebrow">{{ area_label }}</p>
   <h1>Fetch</h1>
   <p>Sitzungen und Dokumente laden. Diese Aktionen können je nach Zeitraum länger laufen.</p>
 </section>
@@ -12,7 +12,8 @@
 {% include "core/partials/service_result.html" %}
 
 <section class="grid two-columns">
-  <article class="panel">
+  {% if not scoped_source or scoped_source == "ratsinfo" %}
+<article class="panel">
     <h2>Monate laden</h2>
     <form method="post" class="form-stack">
       {% csrf_token %}
@@ -22,8 +23,10 @@
       <button class="button primary" type="submit">Sitzungen laden</button>
     </form>
   </article>
+{% endif %}
 
-  <article class="panel">
+  {% if not scoped_source or scoped_source == "ratsinfo" %}
+<article class="panel">
     <h2>Einzelsitzung aus Online-Index laden</h2>
     <form method="post" class="form-stack">
       {% csrf_token %}
@@ -32,8 +35,10 @@
       <button class="button primary" type="submit">Einzelsitzung laden</button>
     </form>
   </article>
+{% endif %}
 
-  <article class="panel">
+  {% if not scoped_source or scoped_source == "landkreis" %}
+<article class="panel">
     <h2>Landkreis-Veröffentlichungen laden</h2>
     <form method="post" class="form-stack">
       {% csrf_token %}
@@ -56,7 +61,8 @@
       <button class="button primary" type="submit">Landkreis laden</button>
     </form>
   </article>
+{% endif %}
 </section>
 
-{% include "core/partials/service_status.html" %}
+{% if scoped_source != "landkreis" %}{% include "core/partials/service_status.html" %}{% endif %}
 {% endblock %}

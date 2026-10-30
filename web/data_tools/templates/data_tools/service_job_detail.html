@@ -5,7 +5,7 @@
 
 {% block content %}
 <section class="page-heading">
-  <p class="eyebrow">{% if active_nav == 'service' %}<a href="{% url 'service:maintenance' %}">Service → Wartung</a>{% else %}Daten{% endif %}</p>
+  <p class="eyebrow">{% if active_nav == 'service' %}<a href="{% url 'service:maintenance' %}">Einstellungen → Wartung</a>{% else %}Daten{% endif %}</p>
   <h1>{{ job_label }}</h1>
   <p>Der Job läuft im Hintergrund weiter, auch wenn du die Seite wechselst.</p>
 </section>

@@ -22,8 +22,8 @@ Stand: 27.10.2026. Diese Übersicht beschreibt die vorhandene Implementierung. S
 
 - Die aktive Oberfläche ist Django unter `web/`, gestartet mit `python scripts/run_web.py` auf `127.0.0.1:8000`.
 - Das Dashboard zeigt kommende und vergangene Termine aus den gespeicherten Indizes. Unter `/daten/` lassen sich Fetch-, SQLite- und Vektorjobs starten und deren Status prüfen. `/service/` bündelt Wartung und Einstellungen.
-- Unter `/analyse/` gibt es Sitzungsansichten, Vorlagen für Prompts, vorbereitete Analysejobs, die Provider-Ausführung und eine Antwort-Leseansicht. Workflow-Zustand liegt in `data/db/analysis_workflow.sqlite`, Ausgabedateien in `data/analysis_outputs/`, private Prompt-Dateien in `data/private/`. Der vorhandene Analysepfad wird im RI-Vorhaben zunächst nicht erweitert.
-- `/veroeffentlichung/` zeigt derzeit einen Platzhalter „Noch nicht umgesetzt“; die Anwendung veröffentlicht keine Inhalte automatisch auf externen Seiten.
+- Unter Erweiterungen (weiterhin `/analyse/`) gibt es Sitzungsansichten, Vorlagen für Prompts, vorbereitete Analysejobs, die Provider-Ausführung und eine Antwort-Leseansicht. Workflow-Zustand liegt in `data/db/analysis_workflow.sqlite`, Ausgabedateien in `data/analysis_outputs/`, private Prompt-Dateien in `data/private/`. Der vorhandene Analysepfad wird im RI-Vorhaben zunächst nicht erweitert.
+- Veröffentlichung ist aus dem Menü entfernt; die bestehende URL `/veroeffentlichung/` bleibt als Platzhalter erreichbar.
 - Die aktuelle Django-Konfiguration ist eine lokale Entwicklungsoberfläche mit `DEBUG=True`, festem Entwicklungsschlüssel und ohne Benutzeranmeldung. Sie ist noch keine Zugangskontrolle für interne Ratsunterlagen.
 
 ## Betrieb und Datenpflege
@@ -32,3 +32,12 @@ Stand: 27.10.2026. Diese Übersicht beschreibt die vorhandene Implementierung. S
 - Dokumentpfade und Manifest-Verweise werden auf erlaubte Datenwurzeln begrenzt. SessionNet-Downloads warnen oberhalb von 25 MiB und brechen oberhalb von 100 MiB ab; bei Landkreis-Downloads gilt ein Limit von 25 MiB.
 - Die reguläre Testsuite läuft mit `python -m pytest`; `live` ist standardmäßig ausgeschlossen. Für Änderungen am Code zuerst `python -m pytest -m "not integration and not live"`, bei betroffenen Workflows zusätzlich `python -m pytest -m "integration and not live"`.
 - Die kanonische Version steht in `VERSION`. Seit 0.5.63 tragen öffentliche SessionNet-Skripte `bi` im Namen; die Zuordnung alter und neuer Namen steht in der README. Datenpfade und gespeicherte Job-Aktionskennungen bleiben unverändert.
+
+## Vorbereitung der RI-Oberfläche (0.5.64)
+
+Die Hauptnavigation enthält Übersicht, Bürgerinformation, Ratsbereich, Landkreis,
+Erweiterungen und Einstellungen. `/buergerinformation/` und `/landkreis/` bieten
+quellengebundene Such- und Datenpflege-Einstiege; die bisherigen URLs bleiben
+verfügbar. Der Ratsbereich unter `/ratsbereich/` enthält informative Platzhalter.
+Sie akzeptieren nur GET/HEAD; unbekannte Sitzungsdetails liefern 404. Die echte
+RI-Anbindung und Zugriffssicherung stehen weiterhin aus.

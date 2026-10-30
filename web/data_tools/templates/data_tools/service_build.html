@@ -4,7 +4,7 @@
 
 {% block content %}
 <section class="page-heading">
-  <p class="eyebrow">Daten</p>
+  <p class="eyebrow">{{ area_label }}</p>
   <h1>Build</h1>
   <p>Lokale und online gelesene SQLite-Indexe aufbauen.</p>
 </section>
@@ -12,7 +12,8 @@
 {% include "core/partials/service_result.html" %}
 
 <section class="grid two-columns">
-  <article class="panel">
+  {% if not scoped_source or scoped_source == "ratsinfo" %}
+<article class="panel">
     <h2>Lokalen Index bauen</h2>
     <form method="post" class="form-stack">
       {% csrf_token %}
@@ -22,8 +23,10 @@
       <button class="button primary" type="submit">Lokalen Index bauen</button>
     </form>
   </article>
+{% endif %}
 
-  <article class="panel">
+  {% if not scoped_source or scoped_source == "ratsinfo" %}
+<article class="panel">
     <h2>Online-Index bauen</h2>
     <form method="post" class="form-stack">
       {% csrf_token %}
@@ -35,8 +38,10 @@
       <button class="button primary" type="submit">Online-Index bauen</button>
     </form>
   </article>
+{% endif %}
 
-  <article class="panel">
+  {% if not scoped_source or scoped_source == "landkreis" %}
+<article class="panel">
     <h2>Landkreis-Datenbank bauen</h2>
     <form method="post" class="form-stack">
       {% csrf_token %}
@@ -46,8 +51,9 @@
       <button class="button primary" type="submit">Landkreis-Datenbank bauen</button>
     </form>
   </article>
+{% endif %}
 
 </section>
 
-{% include "core/partials/service_status.html" %}
+{% if scoped_source != "landkreis" %}{% include "core/partials/service_status.html" %}{% endif %}
 {% endblock %}

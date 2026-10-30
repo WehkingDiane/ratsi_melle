@@ -1,15 +1,16 @@
 # Gemeinsame Darstellungsregeln
 
 Die Django-Oberfläche verwendet ein gemeinsames Desktop-Layout. Die Regeln
-gelten für Dashboard, Analyse, Datenpflege, Suche, Veröffentlichung und
+gelten für Übersicht, Bürgerinformation, Ratsbereich, Landkreis, Analyse und
 Einstellungen. Die fachliche Reihenfolge bleibt: Überschrift, Hauptaufgabe,
 Ergebnisse und ergänzende Informationen. Das Dashboard bleibt eine durchgehende
 Spalte mit kommenden Sitzungen, vergangenen Sitzungen und anschließendem Status.
 
 ## Arbeitsbereiche
 
-„Daten“ enthält die normalen Fetch- und Build-Abläufe mit ihrem Status.
-„Service“ bündelt Wartung und Einstellungen. Modellvorbereitung, Prüfungen und
+Bürgerinformation und Landkreis enthalten ihre jeweiligen Such- und Datenpflege-Einstiege.
+„Erweiterungen“ bündelt Analyse; „Einstellungen“ bündelt Wartung und Konfiguration.
+Der Ratsbereich enthält bis zur RI-Anbindung informative Platzhalter. Modellvorbereitung, Prüfungen und
 Modell-/Legacy-Jobhistorie stehen auf `/service/wartung/`, Einstellungen auf
 `/service/einstellungen/`. Wartungsjobs verwenden auch beim Öffnen älterer
 Datenjob-Links die Service-Navigation. Die Vektorseite zeigt nur normale Builds
@@ -46,8 +47,12 @@ Werten, nicht an einzelnen Templates.
 Templates benötigen keinen eigenen Seitencontainer. `content-stack` verwendet
 dieselbe Regel für untergeordnete Gruppen, beispielsweise in einer Statusspalte.
 `grid two-columns`, `grid three-columns`, `split-content` und `answer-reader`
-verwenden denselben Bereichsabstand; ihre fachlich erforderlichen Spalten bleiben
-erhalten.
+verwenden denselben Bereichsabstand. Als direkte Hauptbereiche unter `page-stack`
+werden sie einspaltig dargestellt; auch die Antwortauswahl steht vor dem Lesebereich.
+Formularfelder und fachlich zusammengehörige Inhalte innerhalb eines Panels können
+weiterhin mehrere Spalten verwenden. Modellkomponenten und Jobhistorie stehen
+als eigene Informationsbereiche untereinander; lange Pfade und Revisionsnummern
+werden innerhalb der Container umbrochen.
 
 Ein `panel` besitzt 18 px Innenabstand und 14 px zwischen seinen direkten
 Inhalten. Container bestimmen die Abstände; direkte Kinder von Seiten-,

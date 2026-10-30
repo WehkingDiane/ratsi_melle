@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} – Ratsbereich{% endblock %}
+{% block content %}
+<header class="page-heading"><p class="eyebrow">Ratsbereich</p><h1>{{ title }}</h1><p>{{ description }}</p></header>
+<section class="panel"><h2>Ratsbereich noch nicht eingerichtet</h2><p>Der Zugang und die geschützte Datenhaltung werden vorbereitet. Hier sind noch keine internen Unterlagen verfügbar.</p><a href="{% url 'dashboard' %}">Zur Übersicht</a></section>
+{% endblock %}

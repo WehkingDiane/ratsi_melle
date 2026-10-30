@@ -75,3 +75,13 @@ python -m pytest
 - [Aktuelle Aufgaben](docs/plans/project_tasks.md): Arbeitspakete des RI-Vorhabens
 - [Repository-Regeln](docs/repository_guidelines.md) und [Agentenregeln](AGENTS.md)
 - [UI-Regeln](docs/ui_guidelines.md) und [Analyseausgaben](docs/analysis_outputs.md)
+
+## Navigation der Weboberfläche
+
+Seit 0.5.64 gliedert sich die Oberfläche in Übersicht, Bürgerinformation, Ratsbereich,
+Landkreis, Erweiterungen und Einstellungen. Bürgerinformation und Landkreis haben
+getrennte Einstiege für Suche und Datenpflege. Bestehende URLs bleiben erreichbar.
+Analyse liegt unter Erweiterungen; Wartung und Konfiguration unter Einstellungen.
+Der Ratsbereich zeigt vorerst informative Platzhalter und verarbeitet keine
+Zugangsdaten oder internen Unterlagen. Hauptbereiche stehen wie im Dashboard
+untereinander.

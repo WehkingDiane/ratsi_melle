@@ -5,21 +5,21 @@
 {% block content %}
 <section class="page-heading">
   <p class="eyebrow">Arbeitsbereich</p>
-  <h1>Suche</h1>
+  <h1>{% if scoped_source == "landkreis" %}Landkreis – {% elif scoped_source %}Bürgerinformation – {% endif %}Suche</h1>
   <p>Dokumentinhalte semantisch über den lokalen Vektorindex durchsuchen.</p>
 </section>
 
 <section class="panel filter-panel">
-  <form class="form-stack" method="get" action="{% url 'search:index' %}">
+  <form class="form-stack" method="get" action="{{ request.path }}">
     <div class="grid two-columns tight">
       <label>Suchbegriff <input type="search" name="q" value="{{ query }}" placeholder="z. B. Windkraft Flächennutzungsplan Abwägung"></label>
-      <label>
+      {% if not scoped_source %}<label>
         Quelle
         <select name="source">
           <option value="ratsinfo"{% if selected_source == "ratsinfo" %} selected{% endif %}>Ratsinfo</option>
           <option value="landkreis"{% if selected_source == "landkreis" %} selected{% endif %}>Landkreis</option>
         </select>
-      </label>
+      </label>{% endif %}
     </div>
     {% if has_query and not search_error %}
     <div class="grid {% if selected_source == 'ratsinfo' %}four-columns{% else %}two-columns{% endif %} tight">
@@ -45,7 +45,7 @@
     {% endif %}
     <div class="actions">
       <button class="button primary" type="submit">Suchen</button>
-      {% if has_query %}<a class="button utility" href="{% url 'search:index' %}">Zurücksetzen</a>{% endif %}
+      {% if has_query %}<a class="button utility" href="{{ request.path }}">Zurücksetzen</a>{% endif %}
     </div>
   </form>
 </section>

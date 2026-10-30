@@ -1,11 +1,11 @@
-{% load static %}
+{% load static navigation %}
 <!doctype html>
 <html lang="de">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Ratsi Melle{% endblock %}</title>
-  {% with ui_version="0.5.58" %}
+  {% with ui_version="0.5.64" %}
   <link rel="stylesheet" href="{% static 'core/css/base.css' %}?v={{ ui_version }}">
   <link rel="stylesheet" href="{% static 'core/css/layout.css' %}?v={{ ui_version }}">
   <link rel="stylesheet" href="{% static 'core/css/navigation.css' %}?v={{ ui_version }}">
@@ -27,52 +27,7 @@
         <span></span>
       </button>
       <nav class="main-nav" id="main-navigation" aria-label="Hauptnavigation">
-        <div class="nav-menu">
-          <a class="nav-menu-label {% if active_nav == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}" aria-haspopup="true"{% if active_nav == 'dashboard' %} aria-current="page"{% endif %}>Dashboard</a>
-          <div class="nav-dropdown" aria-label="Dashboard-Untermenü">
-            <a href="{% url 'dashboard' %}">Dashboard öffnen</a>
-          </div>
-        </div>
-        <div class="nav-menu">
-          <a class="nav-menu-label {% if active_nav == 'analysis' %}active{% endif %}" href="{% url 'analysis:index' %}" aria-haspopup="true"{% if active_nav == 'analysis' %} aria-current="page"{% endif %}>Analyse</a>
-          <div class="nav-dropdown" aria-label="Analyse-Untermenü">
-            <a href="{% url 'analysis:index' %}">Analyse-Übersicht</a>
-            <a href="{% url 'analysis:prompt_template_list' %}">Prompt-Vorlagen</a>
-            <a href="{% url 'analysis:analysis_start' %}">KI-Analyse starten</a>
-            <a href="{% url 'analysis:answer_reader' %}">Antworten lesen</a>
-            <a href="{% url 'analysis:session_list' %}">Sitzungen</a>
-            <a href="{% url 'analysis:job_list' %}">Analysejobs</a>
-          </div>
-        </div>
-        <div class="nav-menu">
-          <a class="nav-menu-label {% if active_nav == 'data' %}active{% endif %}" href="{% url 'data_tools:index' %}" aria-haspopup="true"{% if active_nav == 'data' %} aria-current="page"{% endif %}>Daten</a>
-          <div class="nav-dropdown" aria-label="Daten-Untermenü">
-            <a href="{% url 'data_tools:service_fetch' %}">Fetch: Daten holen</a>
-            <a href="{% url 'data_tools:service_build' %}">Build: Datenbank-Tools</a>
-            <a href="{% url 'data_tools:service_vector' %}">Build: Vektorindex</a>
-            <a href="{% url 'data_tools:service_status_detail' %}">Datenstatus nach Jahr</a>
-          </div>
-        </div>
-        <div class="nav-menu">
-          <a class="nav-menu-label {% if active_nav == 'publishing' %}active{% endif %}" href="{% url 'publishing:index' %}" aria-haspopup="true"{% if active_nav == 'publishing' %} aria-current="page"{% endif %}>Veröffentlichung</a>
-          <div class="nav-dropdown" aria-label="Veröffentlichung-Untermenü">
-            <a href="{% url 'publishing:index' %}">Veröffentlichung öffnen</a>
-          </div>
-        </div>
-        <div class="nav-menu">
-          <a class="nav-menu-label {% if active_nav == 'search' %}active{% endif %}" href="{% url 'search:index' %}" aria-haspopup="true"{% if active_nav == 'search' %} aria-current="page"{% endif %}>Suche</a>
-          <div class="nav-dropdown" aria-label="Suche-Untermenü">
-            <a href="{% url 'search:index' %}">Suche öffnen</a>
-          </div>
-        </div>
-        <div class="nav-menu">
-          <a class="nav-menu-label {% if active_nav == 'service' %}active{% endif %}" href="{% url 'service:index' %}" aria-haspopup="true"{% if active_nav == 'service' %} aria-current="page"{% endif %}>Service</a>
-          <div class="nav-dropdown" aria-label="Service-Untermenü">
-            <a href="{% url 'service:index' %}">Service-Übersicht</a>
-            <a href="{% url 'service:maintenance' %}">Wartung</a>
-            <a href="{% url 'settings_ui:index' %}">Einstellungen öffnen</a>
-          </div>
-        </div>
+        {% main_navigation %}
       </nav>
       <a class="job-indicator" id="job-indicator" href="{% url 'data_tools:index' %}" hidden>
         <span class="job-spinner" aria-hidden="true"></span>
