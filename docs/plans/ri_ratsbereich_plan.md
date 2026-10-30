@@ -73,7 +73,7 @@ Fetch-Ergebnisse enthalten die Herkunft `ri` und werden ausschließlich in der R
 
 Eine eigene RI-Collection und einen expliziten RI-Vektorbuild vorsehen. Die bestehende Ratsinfo-Collection (`ratsi_passages`) und die Landkreis-Collection bleiben unberührt. Der Suchdienst muss Quelle und zugehörige Pfadwurzel serverseitig festlegen; ein URL-Parameter darf keine beliebige Collection oder Dateiwurzel wählen. Ergebnislinks für RI-Dateien benötigen dieselbe Zugriffskontrolle wie die Suchseite.
 
-Die Freigabe des RI-Index hängt von der Betriebsentscheidung aus Phase 0 ab. Bei ungeschütztem gemeinsamem Qdrant-Server wird die RI-Collection nicht dort aufgebaut; für die erste Version kann stattdessen eine lokal isolierte Suchinstanz genutzt werden. Die Oberfläche zeigt den Status „RI-Suche noch nicht eingerichtet“, bis Index und Zugriff geprüft sind.
+Die Freigabe des RI-Index hängt von der Betriebsentscheidung aus Schritt 2 ab. Bei ungeschütztem gemeinsamem Qdrant-Server wird die RI-Collection nicht dort aufgebaut; für die erste Version kann stattdessen eine lokal isolierte Suchinstanz genutzt werden. Die Oberfläche zeigt den Status „RI-Suche noch nicht eingerichtet“, bis Index und Zugriff geprüft sind.
 
 **Abnahme:** Öffentliche Suchen liefern keine RI-Treffer; RI-Suchen liefern nur RI-Treffer. Ein versehentliches Schreiben in öffentliche Collections wird durch Tests und Build-Vorprüfung verhindert. Fehlende Collections und abgelaufene Zugriffssitzungen führen zu klaren, inhaltsfreien Fehlermeldungen.
 
@@ -96,4 +96,4 @@ Die Jobliste darf keine RI-Titel, URLs, Dokumenttexte oder Zugangsdaten in öffe
 5. Mit synthetischen Fixtures und später einer kleinen, lokal gehaltenen RI-Stichprobe prüfen; vor Zusammenführung `python -m pytest -m "not integration and not live"`, betroffene Integrationstests und vor einem PR `python -m pytest` ausführen.
 6. README, `docs/ist_stand.md`, die betroffenen aktiven Spezialdokumente und `docs/plans/project_tasks.md` bei den jeweiligen funktionalen Änderungen aktualisieren. `VERSION` beim ersten sichtbaren funktionalen Schritt bewusst prüfen.
 
-Der Vorhaben-Branch ist abgeschlossen, wenn Fetch, Datenbank und Suche im geschützten Ratsbereich funktionieren, die Negativtests zur Trennung bestehen und die Betriebsanleitung den Umgang mit Zugang, Sicherung und Wiederherstellung erklärt. Offene Annahmen aus Phase 0 werden vor produktiver Nutzung entschieden, nicht stillschweigend als erfüllt betrachtet.
+Der Vorhaben-Branch ist abgeschlossen, wenn Fetch, Datenbank und Suche im geschützten Ratsbereich funktionieren, die Negativtests zur Trennung bestehen und die Betriebsanleitung den Umgang mit Zugang, Sicherung und Wiederherstellung erklärt. Offene Annahmen aus Schritt 2 werden vor produktiver Nutzung entschieden, nicht stillschweigend als erfüllt betrachtet.
