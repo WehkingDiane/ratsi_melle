@@ -42,7 +42,7 @@ Bei einer Umbenennung alle Aufrufer, Tests, Dokumentation und Automatisierungen 
 
 ## 1a. Navigation und Seitenaufbau ohne RI-Zugang vorbereiten
 
-Arbeitsbranch: `codex/feature/ri-navigation-vorbereitung`. Dieser Zwischenschritt folgt auf die zusammengeführten BI-Skriptumbenennungen und wird vor der RI-Vorprüfung umgesetzt. Die Nummern der weiteren Schritte bleiben erhalten.
+Arbeitsbranch: `codex/feature/ri-navigation-vorbereitung`. Umgesetzt in Version 0.5.64: Navigation und öffentliche Einstiege, RI-Platzhalter sowie vertikale Hauptbereiche. Navigation und Platzhalter wurden gemeinsam im ersten Implementierungscommit gesichert; Layout und Browserkorrekturen folgten in eigenen Zwischen-Commits. Dieser Zwischenschritt folgt auf die zusammengeführten BI-Skriptumbenennungen und wird vor der RI-Vorprüfung umgesetzt. Die Nummern der weiteren Schritte bleiben erhalten.
 
 ### Umfang und praktische Zwischen-Commits
 
@@ -50,6 +50,12 @@ Arbeitsbranch: `codex/feature/ri-navigation-vorbereitung`. Dieser Zwischenschrit
 2. **RI-Platzhalterseiten:** URLs, Views und Templates für die im Zielbild vorgesehenen RI-Seiten anlegen: Zugang, Sitzungen, Sitzungsdetails, Suche sowie Datenpflege für Abruf, Datenbank, Suchindex und Status/Jobs. Jede Seite erklärt ihren Zweck und zeigt „Ratsbereich noch nicht eingerichtet“. Benötigte Dateien erhalten einen konkreten Zweck und nutzbaren Platzhalterinhalt; keine vorsorglichen leeren Fetcher-, Datenbank- oder Authentifizierungsmodule anlegen. Keine Anmeldedaten entgegennehmen, RI-Jobs starten oder interne Daten einlesen. Unbekannte Sitzungen dürfen keine erfundenen Details erhalten.
 3. **Hauptcontainer untereinander:** Alle bestehenden und neuen Seiten anhand einer Template-Inventur prüfen. Eigenständige Hauptbereiche wie Formular, Ergebnisse, Status und Jobhistorie wie im Dashboard in einer durchgehenden Spalte anordnen. Zusammengehörige Formularfelder, Tabellen und Bediengruppen innerhalb eines Containers dürfen ihren passenden Aufbau behalten. Bestehende Vergleichs- oder Leseransichten gesondert prüfen und bei Anpassungen ihre Bedienbarkeit erhalten. Zentrale Layoutbausteine verwenden und Desktop sowie schmale Fenster berücksichtigen.
 4. **Abnahme und Dokumentation:** Seiten-, Navigations- und betroffene Workflowtests sowie eine visuelle Prüfung durchführen. README, Ist-Stand, UI-Regeln, Navigationsbeschreibung und Ist-Diagramm an die tatsächliche Umsetzung anpassen. Den Planstatus aktualisieren und `VERSION` beim ersten sichtbaren funktionalen Commit erhöhen. Jeder der vorherigen Zwischen-Commits enthält seine unmittelbar betroffenen Tests und Dokumentationsänderungen.
+
+### Validierung des umgesetzten Zwischenstands
+
+Der vollständige WSL-Testlauf ergab 1214 bestandene Tests, einen übersprungenen Test und acht abgewählte Live-Tests. Ein während des Laufs bereits korrigierter Test erwartete noch den alten Menütext „Service → Wartung“. Der anschließende gezielte Lauf auf dem aktuellen Stand bestand mit 23 Tests, einschließlich dieses Falls, der aktiven Navigation, der RI-Platzhalter und der Quellentrennung. Django-Systemprüfung und `git diff --check` sind ohne Befund.
+
+Im Browser wurden Datenpflege, RI-Platzhalter, Antwort-Leseansicht, Wartung und Landkreis-Suche geprüft. Bei 1440 Pixeln stehen die Hauptcontainer untereinander; bei 390 Pixeln bleiben die geprüften Seiten ohne horizontalen Überlauf. Das mobile Menü ist scrollbar, aktive Bereiche sind markiert und versteckte Laufhinweise bleiben verborgen. Es wurden keine produktiven Datenjobs gestartet.
 
 ### Grenzen und Abnahme
 
