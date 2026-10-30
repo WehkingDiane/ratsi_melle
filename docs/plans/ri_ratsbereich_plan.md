@@ -1,6 +1,6 @@
 # Plan: Geschützter Ratsbereich für SessionNet `/ri/`
 
-Stand: 27.10.2026. Dieser Plan ist die Grundlage für spätere Teilbranches. Er beschreibt noch keine freigeschaltete RI-Anbindung; Zugangsdaten und ein Beispiel der angemeldeten Seiten liegen derzeit nicht vor.
+Stand: 30.10.2026. Dieser Plan ist die Grundlage für spätere Teilbranches. Er beschreibt noch keine freigeschaltete RI-Anbindung; Zugangsdaten und ein Beispiel der angemeldeten Seiten liegen derzeit nicht vor.
 
 ## Ziel und Grenzen
 
@@ -20,6 +20,8 @@ RI-Rohdaten, Datenbanken, Suchindex, Protokolle und eventuelle Exporte dürfen n
 
 Alle Teilbranches entstehen vom Vorhaben-Branch `codex/feature/ri-ratsbereich` und werden nach Review in diesen zurückgeführt. Konkrete Namen können bei Arbeitsbeginn angepasst werden:
 
+Vor den folgenden RI-Teilbranches wird auf `codex/feature/ri-navigation-vorbereitung` die Navigation mit Platzhalterseiten und durchgehend untereinander angeordneten Hauptcontainern vorbereitet (Schritt 1a). Dieses Arbeitspaket benötigt keinen RI-Zugang.
+
 1. `codex/feature/ri-ratsbereich-datenhaltung` – getrennte Pfade, Datenvertrag und Build aus RI-Rohdaten.
 2. `codex/feature/ri-ratsbereich-fetch` – authentifizierter Abruf mit wiederverwendetem Parsing und Download.
 3. `codex/feature/ri-ratsbereich-suche` – eigene Vektor-Collection, Build und Suchservice.
@@ -37,6 +39,23 @@ Vor der Erweiterung um RI-Funktionen die vorhandenen Skripte inventarisieren und
 Bei einer Umbenennung alle Aufrufer, Tests, Dokumentation und Automatisierungen mit anpassen. Die bestehenden Abläufe müssen danach weiterhin funktionieren. Gemeinsame oder bereichsübergreifende Werkzeuge behalten einen neutralen Namen; die Konvention soll keine künstliche Trennung gemeinsamer Komponenten erzwingen.
 
 **Abnahme:** Für jedes Skript ist erkennbar, ob es BI, RI oder einen gemeinsamen Zweck hat. Alte Namen haben keine unbeabsichtigt verbliebenen Aufrufer; dokumentierte Kommandos und betroffene Tests sind angepasst.
+
+## 1a. Navigation und Seitenaufbau ohne RI-Zugang vorbereiten
+
+Arbeitsbranch: `codex/feature/ri-navigation-vorbereitung`. Dieser Zwischenschritt folgt auf die zusammengeführten BI-Skriptumbenennungen und wird vor der RI-Vorprüfung umgesetzt. Die Nummern der weiteren Schritte bleiben erhalten.
+
+### Umfang und praktische Zwischen-Commits
+
+1. **Navigation und öffentliche Einstiege:** Die Hauptnavigation gemäß [Navigationsentwurf](navigation.md) auf Übersicht, Bürgerinformation, Ratsbereich, Landkreis, Erweiterungen und Einstellungen umstellen. Analyse unter Erweiterungen bündeln, Veröffentlichung aus dem Menü entfernen. Vorhandene öffentliche Sitzungs-, Such- und Datenpflegefunktionen den passenden Bereichen zuordnen. Bei gemeinsam genutzten Seiten muss der gewählte Bereich eindeutig bleiben; BI- und Landkreis-Links dürfen nicht nur unterschiedlich heißen und dann unbemerkt denselben ungefilterten Bestand anzeigen. Bestehende URLs und gespeicherte Joblinks berücksichtigen.
+2. **RI-Platzhalterseiten:** URLs, Views und Templates für die im Zielbild vorgesehenen RI-Seiten anlegen: Zugang, Sitzungen, Sitzungsdetails, Suche sowie Datenpflege für Abruf, Datenbank, Suchindex und Status/Jobs. Jede Seite erklärt ihren Zweck und zeigt „Ratsbereich noch nicht eingerichtet“. Benötigte Dateien erhalten einen konkreten Zweck und nutzbaren Platzhalterinhalt; keine vorsorglichen leeren Fetcher-, Datenbank- oder Authentifizierungsmodule anlegen. Keine Anmeldedaten entgegennehmen, RI-Jobs starten oder interne Daten einlesen. Unbekannte Sitzungen dürfen keine erfundenen Details erhalten.
+3. **Hauptcontainer untereinander:** Alle bestehenden und neuen Seiten anhand einer Template-Inventur prüfen. Eigenständige Hauptbereiche wie Formular, Ergebnisse, Status und Jobhistorie wie im Dashboard in einer durchgehenden Spalte anordnen. Zusammengehörige Formularfelder, Tabellen und Bediengruppen innerhalb eines Containers dürfen ihren passenden Aufbau behalten. Bestehende Vergleichs- oder Leseransichten gesondert prüfen und bei Anpassungen ihre Bedienbarkeit erhalten. Zentrale Layoutbausteine verwenden und Desktop sowie schmale Fenster berücksichtigen.
+4. **Abnahme und Dokumentation:** Seiten-, Navigations- und betroffene Workflowtests sowie eine visuelle Prüfung durchführen. README, Ist-Stand, UI-Regeln, Navigationsbeschreibung und Ist-Diagramm an die tatsächliche Umsetzung anpassen. Den Planstatus aktualisieren und `VERSION` beim ersten sichtbaren funktionalen Commit erhöhen. Jeder der vorherigen Zwischen-Commits enthält seine unmittelbar betroffenen Tests und Dokumentationsänderungen.
+
+### Grenzen und Abnahme
+
+Die Platzhalter bereiten ausschließlich die Bedienoberfläche vor. Die echte RI-Anbindung und ihr Zugriffsschutz folgen nach Schritt 2 und den weiteren Umsetzungsschritten. Im Dashboard werden bis dahin nur vorhandene öffentliche Termine und Unterlagen angezeigt; RI-Links erscheinen erst bei tatsächlich verfügbaren und berechtigten Inhalten. Das Entfernen von Veröffentlichung aus dem Menü löscht keine Backend-Funktion oder vorhandenen Artefakte.
+
+**Abnahme:** Die neue Navigation ist auf allen Seiten einschließlich aktiver Menükennzeichnung konsistent; Links sind erreichbar und alte öffentliche Recherche- und Datenjobs funktionieren weiter. Alle RI-Platzhalter sind als noch nicht eingerichtet erkennbar und lösen keine Datenoperation aus. Eigenständige Hauptcontainer stehen untereinander, ohne versteckte Statusmeldungen einzublenden oder bestehende Formulare und JavaScript-Anbindungen zu beschädigen. Die Abnahme ist ohne RI-Zugang und ohne produktive Downloads, Builds oder KI-Aufträge möglich.
 
 ## 2. Vorprüfung und verbindliche Entscheidungen
 
@@ -81,7 +100,7 @@ Die Freigabe des RI-Index hängt von der Betriebsentscheidung aus Schritt 2 ab. 
 
 ## 6. Einbindung in die Oberfläche
 
-Die [Navigationsübersicht mit Ist- und Ziel-Diagramm](navigation.md) konkretisiert diese Phase: ein gemeinsamer Sitzungskalender mit verfügbaren BI-/RI-Einstiegen; Bürgerinformation und geschützter Ratsbereich mit jeweils Sitzungen, Suche und Datenpflege; Analyse unter „Erweiterungen“; Veröffentlichung entfällt aus der Navigation. Interne Termine, Links und Metadaten im gemeinsamen Kalender benötigen die entsprechende Berechtigung.
+Die [Navigationsübersicht mit Ist- und Ziel-Diagramm](navigation.md) konkretisiert diese Phase. Schritt 1a zieht die Menüstruktur, RI-Platzhalter und das vertikale Seitenlayout vor. Hier werden die Platzhalter durch geschützte Funktionen ersetzt: ein gemeinsamer Sitzungskalender mit verfügbaren BI-/RI-Einstiegen; Bürgerinformation und geschützter Ratsbereich mit jeweils Sitzungen, Suche und Datenpflege. Interne Termine, Links und Metadaten im gemeinsamen Kalender benötigen die entsprechende Berechtigung.
 
 Einen deutlich gekennzeichneten Ratsbereich für „Sitzungen abrufen“, „Datenbank bauen“ und „Suchen“ schaffen. Quelle und Schutzstatus bleiben auf jeder RI-Seite sichtbar. Start von RI-Jobs und Zugriff auf RI-Dateien werden serverseitig geschützt; ein bloßer Navigationsschalter oder eine lokale Browseransicht genügen nicht. Die bestehende Django-Konfiguration muss vor einer Nutzung mit RI-Daten hinsichtlich Debug-Modus, Secret-Key, Benutzeranmeldung, Sitzungen und Dateiauslieferung angepasst werden.
 
@@ -92,6 +111,7 @@ Die Jobliste darf keine RI-Titel, URLs, Dokumenttexte oder Zugangsdaten in öffe
 ## Reihenfolge, Dokumentation und Abschluss
 
 1. BI-/RI-Skriptnamen ordnen und alle betroffenen Aufrufer, Tests und Dokumente anpassen.
+   Anschließend Schritt 1a ohne RI-Zugang umsetzen: Navigation und öffentliche Einstiege, RI-Platzhalter, vertikales Seitenlayout und Abnahme in eigenen Zwischen-Commits.
 2. Plan und Schutzgrenzen abstimmen; Vorprüfung und verbindliche Entscheidungen aus Schritt 2 mit realem Zugang abschließen.
 3. Datenvertrag und isolierten Build umsetzen. Danach den Fetcher und seine Authentifizierung anschließen.
 4. Suche mit passender Zugriffssicherung bauen. Anschließend die Weboberfläche anbinden.
