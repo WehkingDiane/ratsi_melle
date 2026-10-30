@@ -1808,3 +1808,19 @@ def test_source_search_cannot_switch_source_via_query(client, monkeypatch, prefi
     assert response.status_code == 200
     assert captured == [source]
     assert not BeautifulSoup(response.content, "html.parser").select('select[name="source"]')
+
+
+@pytest.mark.parametrize("selected", ["Ortsrat Melle-Mitte", "Ortsrat Melle Mitte", "Ortsrat Melle–Mitte"])
+def test_session_committee_spelling_variants_share_filter(client, monkeypatch, selected):
+    from analysis import views
+    sessions = [{"session_id": str(index), "date": "2026-03-11", "committee": name,
+                 "meeting_name": f"Termin {index}"}
+                for index, name in enumerate(["Ortsrat Melle-Mitte", "Ortsrat Melle Mitte", "Rat"])]
+    monkeypatch.setattr(views.services, "list_sessions", lambda: sessions)
+    response = client.get("/analyse/sitzungen/", {"committee": selected})
+    soup = BeautifulSoup(response.content, "html.parser")
+    options = soup.select('select[name="committee"] option')
+    assert [option.get("value") for option in options if option.get("value")] == ["Ortsrat Melle-Mitte", "Rat"]
+    assert "2 Sitzungen gefunden" in soup.get_text()
+    assert soup.select_one('select[name="committee"] option[selected]')["value"] == "Ortsrat Melle-Mitte"
+    assert sessions[1]["committee"] == "Ortsrat Melle Mitte"

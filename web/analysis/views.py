@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from django.core.paginator import Paginator
 from django.http import FileResponse
 from django.http import Http404
@@ -35,8 +37,16 @@ def analysis_home(request):
 
 def session_list(request):
     all_sessions = services.list_sessions()
+    names = sorted({str(item.get("committee") or "").strip() for item in all_sessions} - {""},
+                   key=lambda name: (not any(char in name for char in "-‐‑‒–—−"), name.casefold(), name))
+    labels = {}
+    for name in names:
+        labels.setdefault(_committee_key(name), name)
+    all_sessions = [{**item, "committee": labels.get(_committee_key(str(item.get("committee") or "")), "")}
+                    for item in all_sessions]
     query = request.GET.get("q", "").strip()
     committee = request.GET.get("committee", "").strip()
+    committee = labels.get(_committee_key(committee), committee)
     year = request.GET.get("year", "").strip()
     sessions = [
         session for session in all_sessions
@@ -334,6 +344,11 @@ def _job_markdown_preview(job: dict | None) -> tuple[str, bool]:
     if analysis.strip():
         return analysis.strip(), True
     return markdown, False
+
+
+def _committee_key(value: str) -> str:
+    """Match committee spelling variants without changing stored source data."""
+    return re.sub(r"[\s_\-‐‑‒–—−]+", " ", value).strip().casefold()
 
 
 def _matches_session_filters(session: dict, *, query: str, committee: str, year: str) -> bool:
