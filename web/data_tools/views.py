@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from django.http import HttpResponseBadRequest
 from django.http import HttpResponseNotFound
 from django.http import JsonResponse
 from django.shortcuts import redirect
@@ -14,6 +15,11 @@ from core import service_jobs
 
 from . import services
 
+
+SOURCE_ACTIONS = {
+    "ratsinfo": {"fetch_sessions", "fetch_session_from_index", "build_local_index", "build_online_index", "build_vector_index"},
+    "landkreis": {"fetch_landkreis_publications", "build_landkreis_publications_db", "build_landkreis_vector_index"},
+}
 
 MAINTENANCE_ACTIONS = frozenset({
     "check_embedding_models", "prepare_embedding_models", "inspect_legacy_index", "apply_legacy_index",
@@ -36,15 +42,20 @@ def _start_job(request, command):
     return service_jobs.start_service_job(action, command, services.REPO_ROOT)
 
 
-def service_home(request):
+def service_home(request, source=None):
+    if source and request.method == "POST":
+        allowed = SOURCE_ACTIONS[source]
+        if request.POST.get("action") not in allowed:
+            return HttpResponseBadRequest("Diese Aktion gehört nicht zum gewählten Bereich.")
     return render(
         request,
         "data_tools/index.html",
         {
-            "active_nav": "data",
+            "active_nav": "data", "scoped_source": source,
+            "area_label": "Landkreis" if source == "landkreis" else "Bürgerinformation" if source else "Daten",
             "status": services.service_status(),
             "jobs": [job for job in service_jobs.list_service_jobs(limit=service_jobs.MAX_RETAINED_JOBS)
-                     if job.action not in MAINTENANCE_ACTIONS][:20],
+                     if job.action not in MAINTENANCE_ACTIONS and (not source or job.action in SOURCE_ACTIONS[source])][:20],
         },
     )
 
@@ -57,7 +68,11 @@ def service_status_detail(request):
     })
 
 
-def service_fetch(request):
+def service_fetch(request, source=None):
+    if source and request.method == "POST":
+        allowed = SOURCE_ACTIONS[source]
+        if request.POST.get("action") not in allowed:
+            return HttpResponseBadRequest("Diese Aktion gehört nicht zum gewählten Bereich.")
     errors: list[str] = []
     current_year = timezone.now().year
     if request.method == "POST":
@@ -76,7 +91,8 @@ def service_fetch(request):
         request,
         "data_tools/service_fetch.html",
         {
-            "active_nav": "data",
+            "active_nav": "data", "scoped_source": source,
+            "area_label": "Landkreis" if source == "landkreis" else "Bürgerinformation" if source else "Daten",
             "status": services.service_status(),
             "errors": errors,
             "current_year": current_year,
@@ -84,7 +100,11 @@ def service_fetch(request):
     )
 
 
-def service_build(request):
+def service_build(request, source=None):
+    if source and request.method == "POST":
+        allowed = SOURCE_ACTIONS[source]
+        if request.POST.get("action") not in allowed:
+            return HttpResponseBadRequest("Diese Aktion gehört nicht zum gewählten Bereich.")
     errors: list[str] = []
     current_year = timezone.now().year
     if request.method == "POST":
@@ -103,7 +123,8 @@ def service_build(request):
         request,
         "data_tools/service_build.html",
         {
-            "active_nav": "data",
+            "active_nav": "data", "scoped_source": source,
+            "area_label": "Landkreis" if source == "landkreis" else "Bürgerinformation" if source else "Daten",
             "status": services.service_status(),
             "errors": errors,
             "current_year": current_year,
@@ -111,7 +132,11 @@ def service_build(request):
     )
 
 
-def service_vector(request):
+def service_vector(request, source=None):
+    if source and request.method == "POST":
+        allowed = SOURCE_ACTIONS[source]
+        if request.POST.get("action") not in allowed:
+            return HttpResponseBadRequest("Diese Aktion gehört nicht zum gewählten Bereich.")
     errors: list[str] = []
     if request.method == "POST":
         if request.POST.get("action") not in {"build_vector_index", "build_landkreis_vector_index"}:
@@ -128,7 +153,8 @@ def service_vector(request):
             else:
                 return redirect("data_tools:service_job_detail", job_id=job.job_id)
     return render(request, "data_tools/service_vector.html", {
-        "active_nav": "data", "status": services.service_status(),
+        "active_nav": "data", "scoped_source": source,
+            "area_label": "Landkreis" if source == "landkreis" else "Bürgerinformation" if source else "Daten", "status": services.service_status(),
         "vector_status": services.vector_index_status(),
         "landkreis_vector_status": services.landkreis_vector_index_status(), "errors": errors,
     })

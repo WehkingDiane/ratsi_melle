@@ -1,0 +1,8 @@
+{% for group in groups %}
+<div class="nav-menu">
+  <a class="nav-menu-label{% if group.active %} active{% endif %}" href="{{ group.links.0.0 }}" aria-haspopup="true"{% if group.active %} aria-current="page"{% endif %}>{{ group.label }}</a>
+  <div class="nav-dropdown" aria-label="{{ group.label }}-Untermenü">
+    {% for href, label in group.links %}<a href="{{ href }}">{{ label }}</a>{% endfor %}
+  </div>
+</div>
+{% endfor %}

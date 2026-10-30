@@ -32,3 +32,12 @@ Stand: 27.10.2026. Diese Übersicht beschreibt die vorhandene Implementierung. S
 - Dokumentpfade und Manifest-Verweise werden auf erlaubte Datenwurzeln begrenzt. SessionNet-Downloads warnen oberhalb von 25 MiB und brechen oberhalb von 100 MiB ab; bei Landkreis-Downloads gilt ein Limit von 25 MiB.
 - Die reguläre Testsuite läuft mit `python -m pytest`; `live` ist standardmäßig ausgeschlossen. Für Änderungen am Code zuerst `python -m pytest -m "not integration and not live"`, bei betroffenen Workflows zusätzlich `python -m pytest -m "integration and not live"`.
 - Die kanonische Version steht in `VERSION`. Seit 0.5.63 tragen öffentliche SessionNet-Skripte `bi` im Namen; die Zuordnung alter und neuer Namen steht in der README. Datenpfade und gespeicherte Job-Aktionskennungen bleiben unverändert.
+
+## Vorbereitung der RI-Oberfläche (0.5.64)
+
+Die Hauptnavigation enthält Übersicht, Bürgerinformation, Ratsbereich, Landkreis,
+Erweiterungen und Einstellungen. `/buergerinformation/` und `/landkreis/` bieten
+quellengebundene Such- und Datenpflege-Einstiege; die bisherigen URLs bleiben
+verfügbar. Der Ratsbereich unter `/ratsbereich/` enthält informative Platzhalter.
+Sie akzeptieren nur GET/HEAD; unbekannte Sitzungsdetails liefern 404. Die echte
+RI-Anbindung und Zugriffssicherung stehen weiterhin aus.

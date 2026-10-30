@@ -5,7 +5,7 @@
 {% block content %}
 <section class="page-heading">
   <p class="eyebrow">Arbeitsbereich</p>
-  <h1>Daten</h1>
+  <h1>{{ area_label }} – Datenpflege</h1>
   <p>Fetch- und Build-Funktionen für lokale Daten, Indexe und Suche.</p>
 </section>
 
@@ -13,17 +13,17 @@
   <div class="content-stack">
     <article class="panel">
       <h2>Daten holen</h2>
-      <p class="muted">Sitzungen und Dokumente aus SessionNet laden.</p>
+      <p class="muted">{% if scoped_source == "landkreis" %}Bekanntmachungen und Amtsblätter des Landkreises laden.{% else %}Sitzungen und Dokumente aus SessionNet laden.{% endif %}</p>
       <div class="actions">
-        <a class="button secondary" href="{% url 'data_tools:service_fetch' %}">Fetch-Seite öffnen</a>
+        <a class="button secondary" href="{% if scoped_source %}{{ request.path }}fetch/{% else %}{% url 'data_tools:service_fetch' %}{% endif %}">Fetch-Seite öffnen</a>
       </div>
     </article>
 
     <article class="panel">
       <h2>Datenbanken bauen</h2>
-      <p class="muted">Lokalen SQLite-Index und Online-Index aufbauen.</p>
+      <p class="muted">{% if scoped_source == "landkreis" %}SQLite-Index der Landkreis-Veröffentlichungen aufbauen.{% else %}Lokalen SQLite-Index und Online-Index aufbauen.{% endif %}</p>
       <div class="actions">
-        <a class="button secondary" href="{% url 'data_tools:service_build' %}">Build-Seite öffnen</a>
+        <a class="button secondary" href="{% if scoped_source %}{{ request.path }}build/{% else %}{% url 'data_tools:service_build' %}{% endif %}">Build-Seite öffnen</a>
       </div>
     </article>
 
@@ -31,13 +31,13 @@
       <h2>Vektorindex bauen</h2>
       <p class="muted">Semantischen Suchindex aus lokal indexierten Dokumenten erzeugen.</p>
       <div class="actions">
-        <a class="button secondary" href="{% url 'data_tools:service_vector' %}">Vektor-Seite öffnen</a>
+        <a class="button secondary" href="{% if scoped_source %}{{ request.path }}vektor/{% else %}{% url 'data_tools:service_vector' %}{% endif %}">Vektor-Seite öffnen</a>
       </div>
     </article>
   </div>
 
   <aside class="content-stack">
-    {% include "core/partials/service_status.html" %}
+    {% if scoped_source != "landkreis" %}{% include "core/partials/service_status.html" %}{% else %}<section class="panel"><h2>Landkreis-Datenstatus</h2><p><a href="{{ request.path }}vektor/">Suchindex und Datenbestand prüfen</a></p></section>{% endif %}
 
     {% if jobs %}
     <section class="panel service-status">

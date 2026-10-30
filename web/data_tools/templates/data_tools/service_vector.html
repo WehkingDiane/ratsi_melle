@@ -5,7 +5,7 @@
 
 {% block content %}
 <section class="page-heading">
-  <p class="eyebrow">Daten</p>
+  <p class="eyebrow">{{ area_label }}</p>
   <h1>Vektorindex</h1>
   <p>Fehlende Dokumente zum semantischen Suchindex ergänzen.</p>
   <p>Der normale Ratsinfo-Build ergänzt nur fehlende oder unvollständige Dokumente. Vollständig indexierte Dokumente bleiben unverändert. Prüfung und Aktualisierung sind getrennte Service-Aufgaben.</p>
@@ -14,7 +14,8 @@
 {% include "core/partials/service_result.html" %}
 
 <section class="grid two-columns">
-  <article class="panel">
+  {% if not scoped_source or scoped_source == "ratsinfo" %}
+<article class="panel">
     <h2>Ratsinfo-Vektorindex bauen</h2>
     <p>Nur fehlende Dokumente indexieren. Ein Limit begrenzt die Anzahl der neu verarbeiteten Dokumente.</p>
     <form method="post" class="form-stack">
@@ -24,8 +25,10 @@
       <button class="button primary" type="submit">Fehlende Dokumente indexieren</button>
     </form>
   </article>
+{% endif %}
 
-  <article class="panel">
+  {% if not scoped_source or scoped_source == "landkreis" %}
+<article class="panel">
     <h2>Landkreis-Vektorindex bauen</h2>
     <form method="post" class="form-stack">
       {% csrf_token %}
@@ -36,10 +39,12 @@
       <button class="button primary" type="submit">Landkreis-Vektorindex bauen</button>
     </form>
   </article>
+{% endif %}
 </section>
 
 <section class="grid two-columns">
-  <article class="panel">
+  {% if not scoped_source or scoped_source == "ratsinfo" %}
+<article class="panel">
     <h2>Ratsinfo-Vektorstatus</h2>
     <p>Aufbaufortschritt in <code>ratsi_passages</code>. Die Zahlen bleiben auch bei unterbrochenem Build auf diesen Index bezogen.</p>
     {% if vector_status %}
@@ -65,8 +70,10 @@
       {% endif %}
     {% endif %}
   </article>
+{% endif %}
 
-  <article class="panel">
+  {% if not scoped_source or scoped_source == "landkreis" %}
+<article class="panel">
     <h2>Landkreis-Vektorstatus</h2>
     {% if landkreis_vector_status %}
       <dl class="facts">
@@ -89,9 +96,10 @@
       {% endif %}
     {% endif %}
   </article>
+{% endif %}
 </section>
 
 <p class="muted">Modellverwaltung und Prüfungen: <a href="{% url 'service:maintenance' %}">Service → Wartung</a>.</p>
 
-{% include "core/partials/service_status.html" %}
+{% if scoped_source != "landkreis" %}{% include "core/partials/service_status.html" %}{% endif %}
 {% endblock %}
