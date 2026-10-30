@@ -28,7 +28,15 @@ Alle Teilbranches entstehen vom Vorhaben-Branch `codex/feature/ri-ratsbereich` u
 
 Die Daten- und Zugriffskontrakte werden vor paralleler Umsetzung festgelegt. Jeder Teilbranch soll einen abgegrenzten, prüfbaren Stand liefern. Änderungen an gemeinsam genutzten Modulen werden auf Rückwirkungen auf `/bi/` getestet.
 
-## 0. Vorprüfung und verbindliche Entscheidungen
+## 1. Skriptnamen nach Datenbereich ordnen
+
+Vor der Erweiterung um RI-Funktionen die vorhandenen Skripte inventarisieren und eine einheitliche BI-/RI-Namenskonvention festlegen. Skripte, die heute allgemein benannt sind, aber ausschließlich den öffentlichen Bürgerinformationsbereich (`/bi/`) bearbeiten, sollen dies im Namen ausdrücken, zum Beispiel `fetch_bi_sessions.py`. Neue RI-Skripte erhalten entsprechend Namen wie `fetch_ri_sessions.py`.
+
+Bei einer Umbenennung alle Aufrufer, Tests, Dokumentation und Automatisierungen mit anpassen. Die bestehenden Abläufe müssen danach weiterhin funktionieren. Gemeinsame oder bereichsübergreifende Werkzeuge behalten einen neutralen Namen; die Konvention soll keine künstliche Trennung gemeinsamer Komponenten erzwingen.
+
+**Abnahme:** Für jedes Skript ist erkennbar, ob es BI, RI oder einen gemeinsamen Zweck hat. Alte Namen haben keine unbeabsichtigt verbliebenen Aufrufer; dokumentierte Kommandos und betroffene Tests sind angepasst.
+
+## 2. Vorprüfung und verbindliche Entscheidungen
 
 **Ohne RI-Zugang möglich:** Aufrufketten und Pfadannahmen erfassen; Daten- und Sicherheitsgrenzen festlegen; Tests mit synthetischen Seiten vorbereiten. Keine echten Zugangsdaten, Cookies oder vertraulichen Beispieldokumente ins Repository übernehmen.
 
@@ -41,7 +49,7 @@ Vor Implementierung verbindlich festlegen und dokumentieren:
 - Ob ein lokaler Qdrant-Server die RI-Collection zuverlässig nur für berechtigte Nutzer zugänglich macht. Falls nicht, RI-Suche erst mit einer passenden isolierten Instanz oder Zugriffssicherung aktivieren.
 - Verfahren für Kennzeichnungen: „Ö“, „N“, „unklar“ und widersprüchliche Angaben; bis zur geprüften Einstufung bleibt jedes RI-Dokument intern.
 
-## 1. Getrennte Datenhaltung und Build
+## 3. Getrennte Datenhaltung und Build
 
 Eine eigene, nicht versionierte RI-Rohdatenwurzel und eigene SQLite-Dateien für Sitzungsübersicht und lokalen Dokumentindex definieren. Vorgeschlagene Namen sind `data/raw/ri/`, `data/db/ri_online_index.sqlite` und `data/db/ri_local_index.sqlite`; bei Bedarf liegen sie außerhalb des Repositorys an einem zugriffsgeschützten Ort. Die endgültigen Pfade werden zentral konfiguriert. Der öffentliche Builder darf die RI-Wurzel nicht mitscannen, auch wenn sie innerhalb von `data/raw/` liegt.
 
@@ -51,7 +59,7 @@ Für die Herkunft jedes Datensatzes eine feste Quellenkennung (`bi` oder `ri`) v
 
 **Abnahme:** Ein RI-Build mit Testdaten schreibt ausschließlich in RI-Zielpfade. Ein öffentlicher Neuaufbau nimmt keine RI-Sitzung, PDF oder Textpassage auf. Wiederholte Builds erzeugen keine Duplikate und verändern keine Rohdaten.
 
-## 2. RI-Fetcher mit Anmeldung
+## 4. RI-Fetcher mit Anmeldung
 
 Ein eigenes CLI-Skript für RI-Sitzungsübersicht und gezielte Sitzungsdownloads vorsehen. Wiederverwendbare Komponenten aus `SessionNetClient` nutzen, sobald HTML- und URL-Parität bestätigt ist. Der authentifizierte Client braucht eine klar abgegrenzte Anmeldung, eine zeitlich begrenzte HTTP-Sitzung und einen eindeutigen Fehler bei abgelaufener Anmeldung. Eine Login-Seite darf nie als Sitzungsdetail oder PDF gespeichert werden.
 
@@ -61,7 +69,7 @@ Fetch-Ergebnisse enthalten die Herkunft `ri` und werden ausschließlich in der R
 
 **Abnahme:** Synthetische Tests prüfen erfolgreiche Anmeldung, Ablauf/Fehler, unerwartete Weiterleitung, fremden Dokumenthost, doppelte Abrufe und fehlende Dokumente. Der echte Ablauf wird erst mit Zugang und einer kleinen lokalen Probe verifiziert. Es gibt keine Netzwerktests mit produktiven Geheimnissen in der regulären Testsuite.
 
-## 3. Separate Suche
+## 5. Separate Suche
 
 Eine eigene RI-Collection und einen expliziten RI-Vektorbuild vorsehen. Die bestehende Ratsinfo-Collection (`ratsi_passages`) und die Landkreis-Collection bleiben unberührt. Der Suchdienst muss Quelle und zugehörige Pfadwurzel serverseitig festlegen; ein URL-Parameter darf keine beliebige Collection oder Dateiwurzel wählen. Ergebnislinks für RI-Dateien benötigen dieselbe Zugriffskontrolle wie die Suchseite.
 
@@ -69,7 +77,7 @@ Die Freigabe des RI-Index hängt von der Betriebsentscheidung aus Phase 0 ab. Be
 
 **Abnahme:** Öffentliche Suchen liefern keine RI-Treffer; RI-Suchen liefern nur RI-Treffer. Ein versehentliches Schreiben in öffentliche Collections wird durch Tests und Build-Vorprüfung verhindert. Fehlende Collections und abgelaufene Zugriffssitzungen führen zu klaren, inhaltsfreien Fehlermeldungen.
 
-## 4. Einbindung in die Oberfläche
+## 6. Einbindung in die Oberfläche
 
 Die [Navigationsübersicht mit Ist- und Ziel-Diagramm](navigation.md) konkretisiert diese Phase: ein gemeinsamer Sitzungskalender mit verfügbaren BI-/RI-Einstiegen; Bürgerinformation und geschützter Ratsbereich mit jeweils Sitzungen, Suche und Datenpflege; Analyse unter „Erweiterungen“; Veröffentlichung entfällt aus der Navigation. Interne Termine, Links und Metadaten im gemeinsamen Kalender benötigen die entsprechende Berechtigung.
 
@@ -81,10 +89,11 @@ Die Jobliste darf keine RI-Titel, URLs, Dokumenttexte oder Zugangsdaten in öffe
 
 ## Reihenfolge, Dokumentation und Abschluss
 
-1. Plan und Schutzgrenzen abstimmen; Phase 0 mit realem Zugang abschließen.
-2. Datenvertrag und isolierten Build umsetzen. Danach den Fetcher und seine Authentifizierung anschließen.
-3. Suche mit passender Zugriffssicherung bauen. Anschließend die Weboberfläche anbinden.
-4. Mit synthetischen Fixtures und später einer kleinen, lokal gehaltenen RI-Stichprobe prüfen; vor Zusammenführung `python -m pytest -m "not integration and not live"`, betroffene Integrationstests und vor einem PR `python -m pytest` ausführen.
-5. README, `docs/ist_stand.md`, die betroffenen aktiven Spezialdokumente und `docs/plans/project_tasks.md` bei den jeweiligen funktionalen Änderungen aktualisieren. `VERSION` beim ersten sichtbaren funktionalen Schritt bewusst prüfen.
+1. BI-/RI-Skriptnamen ordnen und alle betroffenen Aufrufer, Tests und Dokumente anpassen.
+2. Plan und Schutzgrenzen abstimmen; Vorprüfung und verbindliche Entscheidungen aus Schritt 2 mit realem Zugang abschließen.
+3. Datenvertrag und isolierten Build umsetzen. Danach den Fetcher und seine Authentifizierung anschließen.
+4. Suche mit passender Zugriffssicherung bauen. Anschließend die Weboberfläche anbinden.
+5. Mit synthetischen Fixtures und später einer kleinen, lokal gehaltenen RI-Stichprobe prüfen; vor Zusammenführung `python -m pytest -m "not integration and not live"`, betroffene Integrationstests und vor einem PR `python -m pytest` ausführen.
+6. README, `docs/ist_stand.md`, die betroffenen aktiven Spezialdokumente und `docs/plans/project_tasks.md` bei den jeweiligen funktionalen Änderungen aktualisieren. `VERSION` beim ersten sichtbaren funktionalen Schritt bewusst prüfen.
 
 Der Vorhaben-Branch ist abgeschlossen, wenn Fetch, Datenbank und Suche im geschützten Ratsbereich funktionieren, die Negativtests zur Trennung bestehen und die Betriebsanleitung den Umgang mit Zugang, Sicherung und Wiederherstellung erklärt. Offene Annahmen aus Phase 0 werden vor produktiver Nutzung entschieden, nicht stillschweigend als erfüllt betrachtet.
