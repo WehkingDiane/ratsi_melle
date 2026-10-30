@@ -9,7 +9,7 @@ from types import ModuleType, SimpleNamespace
 import pytest
 
 from scripts import build_landkreis_vector_index
-from scripts import build_vector_index
+from scripts import build_bi_vector_index
 from src.indexing.id_strategy import stable_document_id
 from src.indexing.payload_builder import build_document_payload, resolve_local_path
 from src.indexing.reconciliation import find_orphaned_ids
@@ -37,7 +37,7 @@ def compatibility() -> IndexCompatibility:
 @pytest.fixture(autouse=True)
 def prepared_build_contract(monkeypatch, compatibility):
     """Build workflow tests use a fixed local contract without model downloads."""
-    monkeypatch.setattr(build_vector_index, "current_index_compatibility", lambda: compatibility)
+    monkeypatch.setattr(build_bi_vector_index, "current_index_compatibility", lambda: compatibility)
     monkeypatch.setattr(build_landkreis_vector_index, "current_index_compatibility", lambda: compatibility)
 
 
@@ -132,10 +132,10 @@ def _doc(session_id: str, url: str, agenda_item: str = "") -> dict:
 def test_stable_qdrant_id_distinguishes_duplicate_urls_by_agenda_item() -> None:
     url = "https://example.org/shared.pdf"
 
-    top_1 = build_vector_index._stable_qdrant_id("1", url, "Ö 1")
-    top_2 = build_vector_index._stable_qdrant_id("1", url, "Ö 2")
-    session_doc = build_vector_index._stable_qdrant_id("1", url, "")
-    session_doc_none = build_vector_index._stable_qdrant_id("1", url, "")
+    top_1 = build_bi_vector_index._stable_qdrant_id("1", url, "Ö 1")
+    top_2 = build_bi_vector_index._stable_qdrant_id("1", url, "Ö 2")
+    session_doc = build_bi_vector_index._stable_qdrant_id("1", url, "")
+    session_doc_none = build_bi_vector_index._stable_qdrant_id("1", url, "")
 
     assert top_1 != top_2
     assert top_1 != session_doc
@@ -493,9 +493,9 @@ def test_get_document_text_resolves_legacy_session_paths(tmp_path: Path, monkeyp
     pdf_path.parent.mkdir(parents=True, exist_ok=True)
     pdf_path.write_bytes(b"pdf")
 
-    monkeypatch.setattr(build_vector_index, "_extract_text_pypdf", lambda path: f"TEXT:{path.name}")
+    monkeypatch.setattr(build_bi_vector_index, "_extract_text_pypdf", lambda path: f"TEXT:{path.name}")
 
-    text = build_vector_index._get_document_text(
+    text = build_bi_vector_index._get_document_text(
         {
             "session_path": str(tmp_path / "data" / "raw" / "2025" / "2025-09-18_Rat_901"),
             "local_path": r"session-documents\protokoll.pdf",
@@ -513,7 +513,7 @@ def test_resolved_payload_local_path_uses_storage_helper(tmp_path: Path) -> None
     pdf_path.parent.mkdir(parents=True, exist_ok=True)
     pdf_path.write_bytes(b"pdf")
 
-    resolved = build_vector_index._resolved_payload_local_path(
+    resolved = build_bi_vector_index._resolved_payload_local_path(
         {
             "session_path": str(tmp_path / "data" / "raw" / "2025" / "2025-09-18_Rat_901"),
             "local_path": r"session-documents\protokoll.pdf",
@@ -635,7 +635,7 @@ def test_validate_runtime_dependencies_fails_fast_for_missing_third_party_module
     monkeypatch.setattr(importlib, "import_module", fake_import_module)
 
     with pytest.raises(SystemExit) as excinfo:
-        build_vector_index._validate_runtime_dependencies()
+        build_bi_vector_index._validate_runtime_dependencies()
 
     assert excinfo.value.code == 1
     error_output = capsys.readouterr().err
@@ -650,7 +650,7 @@ def test_main_rejects_non_positive_limit(value: str, tmp_path: Path, capsys) -> 
     db_path.write_text("", encoding="utf-8")
 
     with pytest.raises(SystemExit) as excinfo:
-        build_vector_index.legacy_main(
+        build_bi_vector_index.legacy_main(
             [
                 "--db",
                 str(db_path),
@@ -673,14 +673,14 @@ def test_main_reconciles_orphaned_vectors_even_when_nothing_is_new(
 ) -> None:
     monkeypatch.setattr("huggingface_hub.snapshot_download", lambda **kwargs: (_ for _ in ()).throw(AssertionError("Unexpected Hub call")))
     current_doc = _doc("1", "https://example.org/doc-1.pdf")
-    current_id = build_vector_index._stable_qdrant_id(
+    current_id = build_bi_vector_index._stable_qdrant_id(
         current_doc["session_id"], current_doc["url"], current_doc["agenda_item"]
     )
     orphan_id = 999999
     vector_store = _FakeVectorStore(indexed_ids={current_id, orphan_id}, count=2)
     _install_fake_modules(monkeypatch, vector_store)
     monkeypatch.setattr(
-        build_vector_index,
+        build_bi_vector_index,
         "_validate_runtime_dependencies",
         lambda: (
             sys.modules["src.analysis.embeddings"].HarrierEmbedder,
@@ -688,7 +688,7 @@ def test_main_reconciles_orphaned_vectors_even_when_nothing_is_new(
         ),
     )
     monkeypatch.setattr(
-        build_vector_index,
+        build_bi_vector_index,
         "_load_documents",
         lambda _db_path, limit=None: [current_doc],
     )
@@ -696,7 +696,7 @@ def test_main_reconciles_orphaned_vectors_even_when_nothing_is_new(
     db_path = tmp_path / "local_index.sqlite"
     db_path.write_text("", encoding="utf-8")
 
-    build_vector_index.legacy_main(["--db", str(db_path), "--qdrant-dir", str(tmp_path / "qdrant")])
+    build_bi_vector_index.legacy_main(["--db", str(db_path), "--qdrant-dir", str(tmp_path / "qdrant")])
 
     assert vector_store.deleted_ids == [{orphan_id}]
     assert vector_store.upserted_batches == []
@@ -712,14 +712,14 @@ def test_main_refreshes_snippet_payload_for_existing_vectors(
     capsys,
 ) -> None:
     current_doc = _doc("1", "https://example.org/doc-1.pdf")
-    current_id = build_vector_index._stable_qdrant_id(
+    current_id = build_bi_vector_index._stable_qdrant_id(
         current_doc["session_id"], current_doc["url"], current_doc["agenda_item"]
     )
     vector_store = _FakeVectorStore(indexed_ids={current_id}, count=1)
     vector_store.payload_ids.clear()
     _install_fake_modules(monkeypatch, vector_store)
     monkeypatch.setattr(
-        build_vector_index,
+        build_bi_vector_index,
         "_validate_runtime_dependencies",
         lambda: (
             sys.modules["src.analysis.embeddings"].HarrierEmbedder,
@@ -727,14 +727,14 @@ def test_main_refreshes_snippet_payload_for_existing_vectors(
         ),
     )
     monkeypatch.setattr(
-        build_vector_index,
+        build_bi_vector_index,
         "_load_documents",
         lambda _db_path, limit=None: [current_doc],
     )
     db_path = tmp_path / "local_index.sqlite"
     db_path.write_text("", encoding="utf-8")
 
-    build_vector_index.legacy_main(["--db", str(db_path), "--qdrant-dir", str(tmp_path / "qdrant")])
+    build_bi_vector_index.legacy_main(["--db", str(db_path), "--qdrant-dir", str(tmp_path / "qdrant")])
 
     assert len(vector_store.updated_payloads) == 1
     assert vector_store.updated_payloads[0][0]["id"] == current_id
@@ -751,14 +751,14 @@ def test_main_skips_orphan_cleanup_for_limit_runs(
     capsys,
 ) -> None:
     current_doc = _doc("1", "https://example.org/doc-1.pdf")
-    current_id = build_vector_index._stable_qdrant_id(
+    current_id = build_bi_vector_index._stable_qdrant_id(
         current_doc["session_id"], current_doc["url"], current_doc["agenda_item"]
     )
     extra_indexed_id = 123456
     vector_store = _FakeVectorStore(indexed_ids={current_id, extra_indexed_id}, count=2)
     _install_fake_modules(monkeypatch, vector_store)
     monkeypatch.setattr(
-        build_vector_index,
+        build_bi_vector_index,
         "_validate_runtime_dependencies",
         lambda: (
             sys.modules["src.analysis.embeddings"].HarrierEmbedder,
@@ -766,7 +766,7 @@ def test_main_skips_orphan_cleanup_for_limit_runs(
         ),
     )
     monkeypatch.setattr(
-        build_vector_index,
+        build_bi_vector_index,
         "_load_documents",
         lambda _db_path, limit=None: [current_doc],
     )
@@ -774,7 +774,7 @@ def test_main_skips_orphan_cleanup_for_limit_runs(
     db_path = tmp_path / "local_index.sqlite"
     db_path.write_text("", encoding="utf-8")
 
-    build_vector_index.legacy_main(
+    build_bi_vector_index.legacy_main(
         [
             "--db",
             str(db_path),
@@ -802,13 +802,13 @@ def test_limit_applies_to_missing_documents_not_first_sqlite_rows(
     first_doc = _doc("1", "https://example.org/doc-1.pdf")
     second_doc = _doc("2", "https://example.org/doc-2.pdf")
     third_doc = _doc("3", "https://example.org/doc-3.pdf")
-    first_id = build_vector_index._stable_qdrant_id(
+    first_id = build_bi_vector_index._stable_qdrant_id(
         first_doc["session_id"], first_doc["url"], first_doc["agenda_item"]
     )
-    second_id = build_vector_index._stable_qdrant_id(
+    second_id = build_bi_vector_index._stable_qdrant_id(
         second_doc["session_id"], second_doc["url"], second_doc["agenda_item"]
     )
-    third_id = build_vector_index._stable_qdrant_id(
+    third_id = build_bi_vector_index._stable_qdrant_id(
         third_doc["session_id"], third_doc["url"], third_doc["agenda_item"]
     )
     vector_store = _FakeVectorStore(indexed_ids={first_id}, count=1)
@@ -849,14 +849,14 @@ def test_limit_applies_to_missing_documents_not_first_sqlite_rows(
     monkeypatch.setitem(sys.modules, "src.analysis.vector_store", vector_store_module)
     monkeypatch.setitem(sys.modules, "src.analysis.bm25_sparse", bm25_module)
     monkeypatch.setattr(
-        build_vector_index,
+        build_bi_vector_index,
         "_validate_runtime_dependencies",
         lambda: (_FakeHarrierEmbedder, vector_store_module.DocumentVectorStore),
     )
-    monkeypatch.setattr(build_vector_index, "HybridVectorizer", _FakeHybridVectorizer)
-    monkeypatch.setattr(build_vector_index, "current_index_compatibility", lambda: compatibility)
+    monkeypatch.setattr(build_bi_vector_index, "HybridVectorizer", _FakeHybridVectorizer)
+    monkeypatch.setattr(build_bi_vector_index, "current_index_compatibility", lambda: compatibility)
     monkeypatch.setattr(
-        build_vector_index,
+        build_bi_vector_index,
         "_load_documents",
         lambda _db_path, limit=None: [first_doc, second_doc, third_doc],
     )
@@ -864,7 +864,7 @@ def test_limit_applies_to_missing_documents_not_first_sqlite_rows(
     db_path = tmp_path / "local_index.sqlite"
     db_path.write_text("", encoding="utf-8")
 
-    build_vector_index.legacy_main(
+    build_bi_vector_index.legacy_main(
         [
             "--db",
             str(db_path),

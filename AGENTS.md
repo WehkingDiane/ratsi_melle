@@ -11,7 +11,7 @@
 ## Build-, Test- und Entwicklungsbefehle
 
 - `pip install -r requirements.txt` installiert die Abhaengigkeiten.
-- `python scripts/build_local_index.py` baut eine SQLite-DB unter `data/db/local_index.sqlite` aus `data/raw/`.
+- `python scripts/build_bi_local_index.py` baut eine SQLite-DB unter `data/db/local_index.sqlite` aus `data/raw/`.
 - `python -m pytest` fuehrt die regulaere Testsuite in `tests/` aus; `live` bleibt standardmaessig ausgeschlossen.
 - Weitere workflow-spezifische Kommandos stehen in `README.md` und den passenden Dateien unter `docs/`.
 

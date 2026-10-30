@@ -2,11 +2,11 @@
 
 Usage
 -----
-    python scripts/build_vector_index.py [--db PATH] [--qdrant-dir PATH] [--limit N]
+    python scripts/build_bi_vector_index.py [--db PATH] [--qdrant-dir PATH] [--limit N]
 
 The default adds only missing/incomplete documents to ``ratsi_passages``.
 Content updates and full inspection are separate service scripts:
-``update_vector_index.py`` and ``check_vector_index.py``.
+``update_bi_vector_index.py`` and ``check_bi_vector_index.py``.
 ``--legacy-document-index`` explicitly selects the former ten-page,
 one-vector-per-document builder for baseline comparisons.
 """

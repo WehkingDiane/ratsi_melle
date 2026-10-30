@@ -44,7 +44,7 @@ def validate_sources(queries, documents):
 
 def main(argv=None):
     """Run source validation or a timed local retrieval benchmark."""
-    from scripts.build_vector_index import _load_documents, _positive_int
+    from scripts.build_bi_vector_index import _load_documents, _positive_int
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--benchmark", type=Path, default=ROOT / "docs/examples/search_benchmark.json")

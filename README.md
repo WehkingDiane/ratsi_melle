@@ -17,17 +17,32 @@ Die lokale Django-Oberfläche ist danach unter `http://127.0.0.1:8000/` erreichb
 
 ## Daten aufbauen
 
+Die SessionNet-Skripte für den öffentlichen Bürgerinformationsbereich tragen `bi` im Namen. Eigene RI-Skripte sind noch nicht vorhanden. Seit Version 0.5.63 gelten folgende Umbenennungen; eigene Automatisierungen müssen die neuen Namen verwenden:
+
+| Bisher | Neu |
+| --- | --- |
+| `fetch_sessions.py` | `fetch_bi_sessions.py` |
+| `fetch_session_from_index.py` | `fetch_bi_session_from_index.py` |
+| `build_online_index_db.py` | `build_bi_online_index_db.py` |
+| `build_local_index.py` | `build_bi_local_index.py` |
+| `build_vector_index.py` | `build_bi_vector_index.py` |
+| `check_vector_index.py` | `check_bi_vector_index.py` |
+| `update_vector_index.py` | `update_bi_vector_index.py` |
+| `evaluate_search.py` | `evaluate_bi_search.py` |
+
+Landkreis-Skripte behalten ihre eindeutigen Namen. Gemeinsame Werkzeuge wie `prepare_embedding_models.py`, `migrate_legacy_index.py` und `run_web.py` bleiben neutral benannt. Die Weboberfläche verwendet die neuen Skriptpfade; bestehende Job-Aktionskennungen bleiben erhalten.
+
 ```bash
 # Öffentliche SessionNet-Daten und Indizes
-python scripts/fetch_sessions.py 2024 --months 5 6
-python scripts/build_online_index_db.py 2024 --months 5 6
-python scripts/fetch_session_from_index.py --list --from-date 2026-04-01 --to-date 2026-04-30
-python scripts/fetch_session_from_index.py --session-id 7128
-python scripts/build_local_index.py
+python scripts/fetch_bi_sessions.py 2024 --months 5 6
+python scripts/build_bi_online_index_db.py 2024 --months 5 6
+python scripts/fetch_bi_session_from_index.py --list --from-date 2026-04-01 --to-date 2026-04-30
+python scripts/fetch_bi_session_from_index.py --session-id 7128
+python scripts/build_bi_local_index.py
 
 # Lokale Suchmodelle und Ratsinfo-Vektorindex
 python scripts/prepare_embedding_models.py --download
-python scripts/build_vector_index.py
+python scripts/build_bi_vector_index.py
 
 # Landkreis-Veröffentlichungen
 python scripts/fetch_landkreis_publications.py --source all

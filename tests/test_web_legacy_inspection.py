@@ -190,7 +190,12 @@ def test_foreign_or_invalid_report_is_not_displayed(setup, monkeypatch, change):
     if change == "symlink":
         other = setup / "report.json"
         path.rename(other)
-        path.symlink_to(other)
+        try:
+            path.symlink_to(other)
+        except OSError as exc:
+            if getattr(exc, "winerror", None) == 1314:
+                pytest.skip("Windows does not grant symlink creation privileges")
+            raise
     elif change == "oversize":
         path.write_text(" " * (1024 * 1024 + 1))
     else:

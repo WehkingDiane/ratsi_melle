@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts import build_local_index, build_online_index_db
+from scripts import build_bi_local_index, build_bi_online_index_db
 from src.fetching.models import AgendaItem, DocumentReference, SessionDetail, SessionReference
 
 pytestmark = pytest.mark.integration
@@ -113,7 +113,7 @@ def _build_local_db(tmp_path: Path) -> Path:
     data_root = tmp_path / "data" / "raw"
     _write_local_fixture(data_root)
     output_path = tmp_path / "data" / "db" / "local_index.sqlite"
-    build_local_index.build_index(data_root, output_path, refresh_existing=False, only_refresh=False)
+    build_bi_local_index.build_index(data_root, output_path, refresh_existing=False, only_refresh=False)
     return output_path
 
 
@@ -156,7 +156,7 @@ def _build_online_db(tmp_path: Path) -> Path:
     )
     client = _StubClient(references=[reference], detail=detail)
     output_path = tmp_path / "data" / "db" / "online_session_index.sqlite"
-    build_online_index_db.build_session_db(
+    build_bi_online_index_db.build_session_db(
         client, 2025, [6], output_path, refresh_existing=False, only_refresh=False, migrate_from=Path("missing")
     )
     return output_path
@@ -178,7 +178,7 @@ def test_local_build_indexes_newer_html_without_changing_raw_metadata(tmp_path: 
     session_dir = data_root / "2025" / "06" / "2025-06-05_Rat_123"
     session_dir.mkdir(parents=True)
     detail_html = Path("tests/fixtures/si0057_sample.html").read_text(encoding="utf-8")
-    source_html_sha1 = build_local_index.SessionNetClient.source_html_sha1(detail_html)
+    source_html_sha1 = build_bi_local_index.SessionNetClient.source_html_sha1(detail_html)
     summary_path = session_dir / "agenda_summary.json"
     summary_path.write_text(
         json.dumps(
@@ -224,7 +224,7 @@ def test_local_build_indexes_newer_html_without_changing_raw_metadata(tmp_path: 
     os.utime(manifest_path, (1_700_000_100, 1_700_000_100))
 
     output_path = tmp_path / "data" / "db" / "local_index.sqlite"
-    build_local_index.build_index(data_root, output_path, refresh_existing=False, only_refresh=False)
+    build_bi_local_index.build_index(data_root, output_path, refresh_existing=False, only_refresh=False)
     with sqlite3.connect(output_path) as conn:
         assert conn.execute(
             "SELECT title FROM agenda_items WHERE session_id = '123'"
@@ -235,7 +235,7 @@ def test_local_build_indexes_newer_html_without_changing_raw_metadata(tmp_path: 
     summary_mtime_before = summary_path.stat().st_mtime_ns
     manifest_mtime_before = manifest_path.stat().st_mtime_ns
     os.utime(detail_path, (1_700_000_200, 1_700_000_200))
-    build_local_index.build_index(data_root, output_path, refresh_existing=False, only_refresh=False)
+    build_bi_local_index.build_index(data_root, output_path, refresh_existing=False, only_refresh=False)
 
     with sqlite3.connect(output_path) as conn:
         agenda_items = conn.execute(
@@ -262,7 +262,7 @@ def test_local_session_discovery_excludes_separate_landkreis_raw_data(tmp_path: 
     landkreis_dir.mkdir(parents=True)
     (landkreis_dir / "manifest.json").write_text("{}", encoding="utf-8")
 
-    sessions = list(build_local_index.iter_session_folders(data_root))
+    sessions = list(build_bi_local_index.iter_session_folders(data_root))
 
     assert [(session.session_id, session.path) for session in sessions] == [("8209", session_dir)]
 
@@ -278,7 +278,7 @@ def test_local_build_removes_historical_landkreis_rows(tmp_path: Path) -> None:
         conn.execute("INSERT INTO agenda_items (session_id, number) VALUES (?, ?)", ("2026", "Ö 1"))
         conn.execute("INSERT INTO documents (session_id, title) VALUES (?, ?)", ("2026", "Amtsblatt"))
 
-    build_local_index.build_index(
+    build_bi_local_index.build_index(
         tmp_path / "data" / "raw",
         output_path,
         refresh_existing=False,
@@ -296,8 +296,8 @@ def test_local_build_keeps_sessions_when_data_root_parent_is_named_landkreis(tmp
     _write_local_fixture(data_root)
     output_path = tmp_path / "data" / "db" / "local_index.sqlite"
 
-    build_local_index.build_index(data_root, output_path, refresh_existing=False, only_refresh=False)
-    build_local_index.build_index(data_root, output_path, refresh_existing=False, only_refresh=True)
+    build_bi_local_index.build_index(data_root, output_path, refresh_existing=False, only_refresh=False)
+    build_bi_local_index.build_index(data_root, output_path, refresh_existing=False, only_refresh=True)
 
     with sqlite3.connect(output_path) as conn:
         assert conn.execute("SELECT session_id FROM sessions").fetchall() == [("123",)]

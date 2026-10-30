@@ -2476,7 +2476,7 @@ def test_service_action_builds_local_index_command() -> None:
 
     assert errors == []
     assert command is not None
-    assert command[1:] == ["scripts/build_local_index.py", "--refresh-existing"]
+    assert command[1:] == ["scripts/build_bi_local_index.py", "--refresh-existing"]
 
 
 def test_service_action_builds_landkreis_fetch_command() -> None:
@@ -2705,7 +2705,7 @@ def test_service_jobs_survive_memory_reload(monkeypatch, workspace_tmp: Path) ->
         service_jobs._jobs["persisted"] = service_jobs.ServiceJob(
             job_id="persisted",
             action="build_local_index",
-            command=["python", "scripts/build_local_index.py"],
+            command=["python", "scripts/build_bi_local_index.py"],
             status="ok",
             exit_code=0,
             output="Index erstellt",
@@ -2721,7 +2721,7 @@ def test_service_jobs_survive_memory_reload(monkeypatch, workspace_tmp: Path) ->
     assert reloaded is not None
     assert reloaded.status == "ok"
     assert reloaded.output == "Index erstellt"
-    assert reloaded.command == ["python", "scripts/build_local_index.py"]
+    assert reloaded.command == ["python", "scripts/build_bi_local_index.py"]
 
 
 @pytest.mark.integration
@@ -2735,7 +2735,7 @@ def test_running_service_job_is_marked_interrupted_after_reload(monkeypatch, wor
         service_jobs._jobs["interrupted"] = service_jobs.ServiceJob(
             job_id="interrupted",
             action="fetch_sessions",
-            command=["python", "scripts/fetch_sessions.py"],
+            command=["python", "scripts/fetch_bi_sessions.py"],
             status="running",
             created_at="2026-08-21T09:59:00Z",
         )

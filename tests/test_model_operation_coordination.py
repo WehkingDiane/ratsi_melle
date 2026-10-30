@@ -183,7 +183,7 @@ else:
     if action == 'landkreis':
         from scripts import build_landkreis_vector_index as cli
     else:
-        from scripts import build_vector_index as cli
+        from scripts import build_bi_vector_index as cli
     cli._validate_runtime_dependencies = lambda: (object, DocumentVectorStore)
     cli.current_index_compatibility = stop
     from src.indexing import passage_builder

@@ -157,7 +157,7 @@ def test_dashboard_handles_year_boundary_and_sorts_by_time(inventory_workspace):
 def test_online_build_keeps_calendar_only_meeting_and_later_imports_agenda(inventory_workspace, monkeypatch):
     from dataclasses import replace
     from datetime import datetime, timezone
-    from scripts.build_online_index_db import build_session_db
+    from scripts.build_bi_online_index_db import build_session_db
     from src.fetching import SessionNetClient
     from src.fetching.models import AgendaItem, SessionDetail
 

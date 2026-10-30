@@ -590,7 +590,7 @@ def test_stale_marker_does_not_authorize_recreated_collection_schema(
 def test_build_cli_reports_incompatible_continuation_without_traceback_or_writes(
     tmp_path, monkeypatch, capsys, compatibility, builder, collection, marker_state,
 ):
-    from scripts import build_landkreis_vector_index, build_vector_index
+    from scripts import build_landkreis_vector_index, build_bi_vector_index
     from src.indexing import passage_builder
     from src.qdrant_connection import QdrantConnection
 
@@ -614,7 +614,7 @@ def test_build_cli_reports_incompatible_continuation_without_traceback_or_writes
         module = build_landkreis_vector_index
         monkeypatch.setattr(module, "_validate_runtime_dependencies", lambda: (object, DocumentVectorStore))
     else:
-        module = build_vector_index
+        module = build_bi_vector_index
         if builder == "legacy":
             args.append("--legacy-document-index")
             monkeypatch.setattr(module, "_validate_runtime_dependencies", lambda: (object, DocumentVectorStore))

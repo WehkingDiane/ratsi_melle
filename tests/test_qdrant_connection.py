@@ -82,7 +82,7 @@ def test_failed_server_does_not_fall_back(tmp_path, monkeypatch):
 
 
 def test_passage_build_exits_cleanly_before_revoking_readiness(tmp_path, monkeypatch, capsys):
-    from scripts import build_vector_index
+    from scripts import build_bi_vector_index
 
     state_dir = tmp_path / "state"
     monkeypatch.setenv("RATSI_QDRANT_URL", "http://test.invalid:6333")
@@ -99,7 +99,7 @@ def test_passage_build_exits_cleanly_before_revoking_readiness(tmp_path, monkeyp
     db.touch()
 
     with pytest.raises(SystemExit) as error:
-        build_vector_index.main(["--db", str(db)])
+        build_bi_vector_index.main(["--db", str(db)])
 
     assert error.value.code == 1
     assert capsys.readouterr().err == "ERROR: Qdrant-Server nicht erreichbar.\n"
@@ -108,9 +108,9 @@ def test_passage_build_exits_cleanly_before_revoking_readiness(tmp_path, monkeyp
 
 @pytest.mark.parametrize("builder", ["legacy", "landkreis"])
 def test_legacy_builds_check_qdrant_before_loading_documents(tmp_path, monkeypatch, builder, capsys):
-    from scripts import build_landkreis_vector_index, build_vector_index
+    from scripts import build_landkreis_vector_index, build_bi_vector_index
 
-    module = build_vector_index if builder == "legacy" else build_landkreis_vector_index
+    module = build_bi_vector_index if builder == "legacy" else build_landkreis_vector_index
     monkeypatch.setenv("RATSI_QDRANT_URL", "http://test.invalid:6333")
     monkeypatch.setattr(
         QdrantConnection,
@@ -301,7 +301,7 @@ def test_invalid_qdrant_configuration_is_unavailable_in_vector_status(tmp_path, 
 @pytest.mark.integration
 def test_default_vector_build_targets_server(tmp_path, monkeypatch, compatibility):
     from qdrant_client import QdrantClient
-    from scripts import build_vector_index
+    from scripts import build_bi_vector_index
     monkeypatch.setattr('src.indexing.passage_builder.prepared_model_path', lambda component: tmp_path / 'tokenizer')
     monkeypatch.setattr('src.indexing.passage_builder.current_index_compatibility', lambda: compatibility)
 
@@ -315,12 +315,12 @@ def test_default_vector_build_targets_server(tmp_path, monkeypatch, compatibilit
         return client
 
     monkeypatch.setattr(QdrantConnection, "create_client", test_client)
-    monkeypatch.setattr(build_vector_index, "_load_documents", lambda db: [])
+    monkeypatch.setattr(build_bi_vector_index, "_load_documents", lambda db: [])
     monkeypatch.setitem(__import__("sys").modules, "transformers", SimpleNamespace(
         AutoTokenizer=SimpleNamespace(from_pretrained=lambda model, **kwargs: Mock())))
     db = tmp_path / "documents.sqlite"
     db.touch()
-    build_vector_index.main(["--db", str(db), "--qdrant-dir", str(tmp_path / "unused")])
+    build_bi_vector_index.main(["--db", str(db), "--qdrant-dir", str(tmp_path / "unused")])
     assert targets == ["http://127.0.0.1:6333"]
     assert not (tmp_path / "unused").exists()
 
@@ -404,7 +404,7 @@ def test_build_progress_uses_passages_even_before_search_release(tmp_path, remot
 @pytest.mark.integration
 @pytest.mark.parametrize("target_kind", ["missing", "file"])
 def test_service_check_rejects_missing_local_target_without_creating_storage(tmp_path, monkeypatch, capsys, target_kind):
-    from scripts import check_vector_index
+    from scripts import check_bi_vector_index
     db = tmp_path / "input.sqlite"
     db.touch()
     target = tmp_path / "missing-parent" / "qdrant"
@@ -414,10 +414,10 @@ def test_service_check_rejects_missing_local_target_without_creating_storage(tmp
     monkeypatch.setenv("RATSI_QDRANT_MODE", "local")
     monkeypatch.delenv("RATSI_QDRANT_URL", raising=False)
     monkeypatch.setattr(QdrantConnection, "create_client", lambda self: pytest.fail("Missing target opened a client"))
-    monkeypatch.setattr(check_vector_index, "current_index_compatibility", lambda **kwargs: pytest.fail("Missing target loaded models"))
+    monkeypatch.setattr(check_bi_vector_index, "current_index_compatibility", lambda **kwargs: pytest.fail("Missing target loaded models"))
     before = {path.relative_to(tmp_path) for path in tmp_path.rglob("*")}
     with pytest.raises(SystemExit) as error:
-        check_vector_index.main(["--db", str(db), "--qdrant-dir", str(target)])
+        check_bi_vector_index.main(["--db", str(db), "--qdrant-dir", str(target)])
     assert error.value.code == 1
     output = capsys.readouterr()
     assert output.out == ""
@@ -430,7 +430,7 @@ def test_service_check_rejects_missing_local_target_without_creating_storage(tmp
 
 @pytest.mark.integration
 def test_service_check_reads_vectors_without_modifying_index_or_marker(tmp_path, monkeypatch, remote, compatibility, capsys):
-    from scripts import check_vector_index
+    from scripts import check_bi_vector_index
     from test_passage_index import document
     store = DocumentVectorStore(tmp_path / "unused", "ratsi_passages")
     store.ensure_collection()
@@ -442,10 +442,10 @@ def test_service_check_reads_vectors_without_modifying_index_or_marker(tmp_path,
     db = tmp_path / "input.sqlite"
     db.touch()
     doc, _ = document(tmp_path)
-    monkeypatch.setattr(check_vector_index, "_load_documents", lambda db, **kw: [doc])
-    monkeypatch.setattr(check_vector_index, "current_index_compatibility", lambda **kw: compatibility)
+    monkeypatch.setattr(check_bi_vector_index, "_load_documents", lambda db, **kw: [doc])
+    monkeypatch.setattr(check_bi_vector_index, "current_index_compatibility", lambda **kw: compatibility)
     assert not (tmp_path / "unused").exists()
-    check_vector_index.main(["--db", str(db), "--qdrant-dir", str(tmp_path / "unused")])
+    check_bi_vector_index.main(["--db", str(db), "--qdrant-dir", str(tmp_path / "unused")])
     result = json.loads(capsys.readouterr().out)
     assert result["read_only"] is True
     assert result["points"] == 1
@@ -460,7 +460,7 @@ def test_service_check_reads_vectors_without_modifying_index_or_marker(tmp_path,
 def test_status_and_service_check_count_incomplete_orphan_documents(
     tmp_path, monkeypatch, remote, compatibility, capsys, committed,
 ):
-    from scripts import check_vector_index
+    from scripts import check_bi_vector_index
     from src.indexing.id_strategy import stable_document_id
     from src.indexing.vector_status import vector_index_status
     from test_vector_status import _write_local_index
@@ -476,7 +476,7 @@ def test_status_and_service_check_count_incomplete_orphan_documents(
     store.upsert_batch([present, orphan])
     before = remote.retrieve("ratsi_passages", [1, 2], with_vectors=True)
     marker = store.connection.ready_path.read_bytes()
-    monkeypatch.setattr(check_vector_index, "current_index_compatibility", lambda **kwargs: compatibility)
+    monkeypatch.setattr(check_bi_vector_index, "current_index_compatibility", lambda **kwargs: compatibility)
     try:
         status = vector_index_status(db, directory)
         assert status["build_complete_document_count"] == 1
@@ -484,7 +484,7 @@ def test_status_and_service_check_count_incomplete_orphan_documents(
         assert status["build_orphaned_document_count"] == 1
         assert status["build_coverage_percent"] == 50.0
         assert "_build_all_ids" not in status
-        check_vector_index.main(["--db", str(db), "--qdrant-dir", str(directory)])
+        check_bi_vector_index.main(["--db", str(db), "--qdrant-dir", str(directory)])
         result = json.loads(capsys.readouterr().out)
         assert result["orphaned_documents"] == 1
         assert result["complete_documents"] == 1
@@ -564,7 +564,7 @@ def test_tiny_migration_and_return_to_local(tmp_path, monkeypatch, remote):
 
 @pytest.mark.integration
 @pytest.mark.parametrize('module_name,collection', [
-    ('scripts.build_vector_index', 'ratsi_documents'),
+    ('scripts.build_bi_vector_index', 'ratsi_documents'),
     ('scripts.build_landkreis_vector_index', 'landkreis_publications'),
 ])
 def test_legacy_and_county_builds_use_configured_server(tmp_path, monkeypatch, remote, compatibility, module_name, collection):
@@ -589,13 +589,13 @@ def test_passage_build_only_marks_complete_current_documents(tmp_path, monkeypat
     from src.indexing import passage_builder
     monkeypatch.setattr(passage_builder, 'prepared_model_path', lambda component: tmp_path / 'tokenizer')
     monkeypatch.setattr(passage_builder, 'current_index_compatibility', lambda: compatibility)
-    from scripts import build_vector_index
+    from scripts import build_bi_vector_index
     from test_passage_index import Tokenizer, Vectorizer, document
     db = tmp_path / 'input.sqlite'
     db.touch()
     doc, source = document(tmp_path)
     docs = [doc, {**doc, 'id': 2, 'url': 'https://example.org/second'}]
-    monkeypatch.setattr(build_vector_index, '_load_documents', lambda db: docs)
+    monkeypatch.setattr(build_bi_vector_index, '_load_documents', lambda db: docs)
     monkeypatch.setitem(sys.modules, 'transformers', SimpleNamespace(
         AutoTokenizer=SimpleNamespace(from_pretrained=lambda model, **kwargs: Tokenizer())))
     monkeypatch.setattr(passage_builder, 'HybridVectorizer', lambda *args: Vectorizer())
@@ -632,13 +632,13 @@ def test_passage_build_only_marks_complete_current_documents(tmp_path, monkeypat
 def test_normal_cli_recovers_interrupted_refresh_without_reencoding(
     tmp_path, monkeypatch, remote, compatibility, capsys, cleanup_fails,
 ):
-    from scripts import build_vector_index
+    from scripts import build_bi_vector_index
     from src.indexing import passage_builder
     from test_passage_index import Tokenizer, Vectorizer, document
     db = tmp_path / "input.sqlite"
     db.touch()
     doc, _ = document(tmp_path)
-    monkeypatch.setattr(build_vector_index, "_load_documents", lambda db: [doc])
+    monkeypatch.setattr(build_bi_vector_index, "_load_documents", lambda db: [doc])
     monkeypatch.setattr(passage_builder, "current_index_compatibility", lambda: compatibility)
     monkeypatch.setattr(passage_builder, "_load_tokenizer", Tokenizer)
     monkeypatch.setattr(passage_builder, "HybridVectorizer", lambda *args: Vectorizer())
@@ -701,7 +701,7 @@ def test_empty_collection_is_incomplete(tmp_path, remote):
 @pytest.mark.integration
 def test_evaluation_cli_uses_server_without_local_storage(tmp_path, monkeypatch, remote, compatibility):
     monkeypatch.setattr("huggingface_hub.snapshot_download", Mock(side_effect=AssertionError("Unexpected Hub call")))
-    from scripts import evaluate_search, build_vector_index
+    from scripts import evaluate_bi_search, build_bi_vector_index
     store = DocumentVectorStore(tmp_path / 'absent', 'ratsi_passages')
     store.ensure_collection()
     store.upsert_batch([point(compatibility=compatibility)])
@@ -714,14 +714,14 @@ def test_evaluation_cli_uses_server_without_local_storage(tmp_path, monkeypatch,
     benchmark = tmp_path / 'benchmark.json'
     benchmark.write_text(json.dumps({'queries': [{'id': 'q', 'query': 'Test',
         'relevant': [{'url': '', 'page': None, 'evidence': 'Test'}]}]}))
-    monkeypatch.setattr(build_vector_index, '_load_documents', lambda db: [])
-    monkeypatch.setattr(evaluate_search, 'validate_sources', lambda *args: [])
+    monkeypatch.setattr(build_bi_vector_index, '_load_documents', lambda db: [])
+    monkeypatch.setattr(evaluate_bi_search, 'validate_sources', lambda *args: [])
     monkeypatch.setattr('src.analysis.embeddings.HarrierEmbedder', lambda: SimpleNamespace(
         embed_query=lambda text: point()['dense_vector']))
     monkeypatch.setattr('src.analysis.bm25_sparse.BM25Encoder', lambda: SimpleNamespace(
         encode_query=lambda text: point()['sparse_vector']))
     output = tmp_path / 'report.json'
-    evaluate_search.main(['--db', str(db), '--benchmark', str(benchmark),
+    evaluate_bi_search.main(['--db', str(db), '--benchmark', str(benchmark),
                           '--qdrant-dir', str(tmp_path / 'absent'), '--output', str(output)])
     report = json.loads(output.read_text())
     assert report['indexed_points'] == 1
@@ -735,7 +735,7 @@ def test_evaluation_rejects_incompatible_index_before_loading_encoders(
     tmp_path, monkeypatch, remote, compatibility, marker_state,
 ):
     from dataclasses import replace
-    from scripts import evaluate_search, build_vector_index
+    from scripts import evaluate_bi_search, build_bi_vector_index
 
     store = DocumentVectorStore(tmp_path / 'absent', 'ratsi_passages')
     store.ensure_collection()
@@ -749,8 +749,8 @@ def test_evaluation_rejects_incompatible_index_before_loading_encoders(
         )
     monkeypatch.setattr('src.config.index_compatibility.current_index_compatibility',
                         lambda: compatibility)
-    monkeypatch.setattr(build_vector_index, '_load_documents', lambda db: [])
-    monkeypatch.setattr(evaluate_search, 'validate_sources', lambda *_args: [])
+    monkeypatch.setattr(build_bi_vector_index, '_load_documents', lambda db: [])
+    monkeypatch.setattr(evaluate_bi_search, 'validate_sources', lambda *_args: [])
     monkeypatch.setattr('src.analysis.embeddings.HarrierEmbedder',
                         lambda: pytest.fail("Dense encoder loaded before compatibility check"))
     monkeypatch.setattr('src.analysis.bm25_sparse.BM25Encoder',
@@ -763,6 +763,6 @@ def test_evaluation_rejects_incompatible_index_before_loading_encoders(
     output = tmp_path / 'report.json'
 
     with pytest.raises(RuntimeError, match="inkompatibel"):
-        evaluate_search.main(['--db', str(db), '--benchmark', str(benchmark),
+        evaluate_bi_search.main(['--db', str(db), '--benchmark', str(benchmark),
                               '--output', str(output)])
     assert not output.exists()
