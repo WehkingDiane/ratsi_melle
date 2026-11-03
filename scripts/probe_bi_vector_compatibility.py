@@ -15,7 +15,9 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from src.config.index_compatibility import current_index_compatibility
-from src.config.embedding_model_status import load_and_validate_model_inventory
+from src.config.embedding_model_status import (
+    load_and_validate_model_inventory, check_embedding_model_status, PreparedModelUnavailableError,
+)
 from src.indexing.legacy_index_migration import _migration_lock
 from src.indexing.vector_compatibility_probe import COLLECTION, probe
 from src.model_operations import model_operation_lock
@@ -97,6 +99,10 @@ def main(argv=None):
             exit_code = 0 if result["result"] == "sample_matches" else 1
     except Exception as exc:
         report.update(result="aborted", error_type=type(exc).__name__, error=str(exc))
+        if isinstance(exc, PreparedModelUnavailableError):
+            status = check_embedding_model_status(candidate_dir)
+            report["candidate_status"] = status.as_dict()
+            report["error"] = f"{status.message} Kandidatenverzeichnis: {candidate_dir}"
     finally:
         if previous_models is None:
             os.environ.pop("RATSI_MODELS_DIR", None)

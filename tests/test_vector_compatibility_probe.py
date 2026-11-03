@@ -136,3 +136,14 @@ def test_cli_aborted_model_check_writes_report_and_restores_environment(tmp_path
     with pytest.raises(SystemExit):
         cli.main(args)
     assert report.read_bytes() == before
+
+
+@pytest.mark.integration
+def test_missing_candidate_manifest_is_reported_specifically(tmp_path, monkeypatch):
+    from scripts import probe_bi_vector_compatibility as cli
+    monkeypatch.setattr(cli, "model_operation_lock", nullcontext)
+    report = tmp_path / "missing.json"
+    assert cli.main(["--models-dir", str(tmp_path / "missing"), "--report", str(report)]) == 2
+    payload = json.loads(report.read_text())
+    assert payload["candidate_status"]["status"] == "fehlt"
+    assert "Modellmanifest fehlt" in payload["error"]
