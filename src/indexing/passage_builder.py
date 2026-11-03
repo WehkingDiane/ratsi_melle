@@ -14,6 +14,7 @@ from src.fetching.storage_layout import resolve_local_file_path
 from src.indexing.id_strategy import stable_document_id
 from src.indexing.payload_builder import build_document_payload
 from src.indexing.passage_inventory import complete_document_ids, stale_partial_point_ids
+from src.indexing.passage_coverage import database_stamp, write_coverage
 from src.indexing.passages import COLLECTION, MODEL, PIPELINE_VERSION, chunk_pages, extract_pages, file_digest
 from src.indexing.vectorizer import HybridVectorizer
 from src.paths import LOCAL_INDEX_DB, QDRANT_DIR
@@ -200,6 +201,7 @@ def main(argv=None, *, maintenance=False):
         compatibility = current_index_compatibility()
         check_build_compatibility(store.connection, store._get_client(), COLLECTION,
                                   compatibility, validate_vectors=False)
+        source_stamp = database_stamp(args.db)
         documents = _load_documents(args.db)
         expected = {stable_document_id(str(d.get("session_id") or ""), str(d.get("url") or ""),
                                        str(d.get("agenda_item") or "")) for d in documents}
@@ -234,6 +236,10 @@ def main(argv=None, *, maintenance=False):
                 and all(p.get("committed") is True for p in final_inventory.values())):
             store.finish_build(compatibility)
         result["ready"] = store.connection.passages_ready(store._get_client())
+        try:
+            write_coverage(store.connection, args.db, source_stamp, expected, final_inventory)
+        except OSError:
+            LOGGER.warning("event=coverage_cache_write_failed", exc_info=True)
         print(json.dumps(result, ensure_ascii=False))
         if result["failures"]:
             raise SystemExit(1)

@@ -286,8 +286,11 @@ def collection_state(connection: QdrantConnection, client, collection: str = "ra
     """Resolve the searchable collection using the same readiness rule everywhere."""
     names = {item.name for item in client.get_collections().collections}
     incomplete = False
+    passage_count = None
+    incomplete_message = "Noch nicht vollständig."
     if prefer_passages and collection == "ratsi_documents" and "ratsi_passages" in names:
-        if connection.passages_ready(client) and client.get_collection("ratsi_passages").points_count:
+        passage_count = client.get_collection("ratsi_passages").points_count
+        if connection.passages_ready(client) and passage_count:
             collection = "ratsi_passages"
         else:
             incomplete = True
@@ -297,8 +300,9 @@ def collection_state(connection: QdrantConnection, client, collection: str = "ra
         incomplete = True
     state = "incomplete" if incomplete else "ready" if exists else "missing_collection"
     return {"state": state, "collection_name": collection, "collection_exists": exists,
+            "passage_points": passage_count,
             "searchable": searchable,
-            "message": {"incomplete": "Index unvollständig: Collection leer oder Abschnittsindex noch nicht freigegeben.",
+            "message": {"incomplete": incomplete_message,
                         "ready": "bereit", "missing_collection": f"Collection fehlt: {collection}"}[state]}
 
 

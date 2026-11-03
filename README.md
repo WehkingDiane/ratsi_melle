@@ -56,6 +56,8 @@ Standardmäßig verwendet die Suche Qdrant unter `http://127.0.0.1:6333`. Ein an
 
 Die [Index-Kompatibilität](docs/index_compatibility.md) beschreibt die Weiterverwendung des bestehenden Ratsinfo-Index mit den am 03.11.2026 akzeptierten Windows-Modellbibliotheken. Der normale Aufbau ergänzt weiterhin nur fehlende oder unvollständige Dokumente.
 
+Die Vektorstatusanzeige zeigt die Dokumentabdeckung aus dem letzten Build. Einmalig nach einem bestehenden Aufbau können die Zahlen mit `python scripts/check_bi_vector_index.py --update-status` gespeichert werden; der Vektorindex bleibt dabei unverändert.
+
 ## Lokale Daten
 
 Öffentliche SessionNet-Rohdaten liegen unter `data/raw/YYYY/MM/`, Landkreis-Rohdaten unter `data/raw/landkreis/`. SQLite-Dateien liegen unter `data/db/`, private Prompt-Dateien unter `data/private/`, Analyseausgaben unter `data/analysis_outputs/`. Diese Laufzeitdaten und Geheimnisse werden nicht versioniert. Die Struktur der Analyseartefakte steht in [Analyseausgaben](docs/analysis_outputs.md).
