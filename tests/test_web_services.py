@@ -2876,6 +2876,44 @@ def test_dashboard_reports_server_collection_state(tmp_path, monkeypatch):
     assert status_service.service_status()["qdrant_summary"] == "bereit"
 
 
+@pytest.mark.integration
+def test_dashboard_reads_saved_document_counts_without_passage_scan(tmp_path, monkeypatch):
+    from core.services import status as status_service
+    from src.qdrant_connection import QdrantConnection
+    from src.indexing.passage_coverage import database_stamp, write_coverage
+
+    monkeypatch.setenv("RATSI_QDRANT_MODE", "server")
+    monkeypatch.setenv("RATSI_QDRANT_URL", "http://test.invalid:6333")
+    monkeypatch.setenv("RATSI_QDRANT_STATE_DIR", str(tmp_path / "state"))
+    db = tmp_path / "local.sqlite"
+    source = sqlite3.connect(db)
+    try:
+        source.execute("PRAGMA journal_mode=WAL")
+        source.execute("CREATE TABLE documents (id INTEGER)")
+        source.execute("CREATE TABLE sessions (id INTEGER)")
+        source.execute("INSERT INTO documents VALUES (1)")
+        source.execute("INSERT INTO sessions VALUES (1)")
+        source.commit()
+    finally:
+        source.close()
+    monkeypatch.setattr(status_service.paths, "LOCAL_INDEX_DB", db)
+    monkeypatch.setattr(status_service.paths, "RAW_DATA_DIR", tmp_path / "raw")
+    connection = QdrantConnection.from_env()
+    connection.ready_path.parent.mkdir(parents=True)
+    connection.ready_path.write_text('{"ready": false}')
+    inventory = {1: {"document_id": 1, "committed": True, "chunk_count": 1, "chunk_index": 0}}
+    write_coverage(connection, db, database_stamp(db), {1, 2}, inventory)
+    monkeypatch.setattr(status_service, "probe_qdrant", lambda _: {
+        "passage_points": 1, "state": "incomplete", "message": "Noch nicht vollständig.", "available": False})
+    monkeypatch.setattr(QdrantConnection, "create_client", lambda _: pytest.fail("Coverage scanned Qdrant"))
+    status = status_service.service_status()
+    assert status["qdrant_summary"] == "1 von 2 Dokumenten / 1 fehlt"
+    assert status["local_document_count"] == 1
+    assert not db.with_name(db.name + "-wal").exists()
+    db.write_bytes(b"changed")
+    assert "Dokumentzahlen noch nicht aktualisiert" in status_service.service_status()["qdrant_summary"]
+
+
 @pytest.mark.parametrize("name,value", [
     ("RATSI_QDRANT_MODE", "invalid"),
     ("RATSI_QDRANT_URL", "http://example.test:invalid"),

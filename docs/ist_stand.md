@@ -20,6 +20,8 @@ Stand: 27.10.2026. Diese Übersicht beschreibt die vorhandene Implementierung. S
 
 - Seit 0.5.67 akzeptieren Aufbau und Suche für `ratsi_passages` die beiden konkret geprüften Manifeststände gemäß [Index-Kompatibilität](index_compatibility.md). Alte Vektoren und ihre Herkunft bleiben erhalten; neue Punkte dürfen den akzeptierten Windows-Bibliotheksstand verwenden. Der normale Build ergänzt weiterhin nur fehlende oder unvollständige Dokumente. Die temporären Diagnosewerkzeuge wurden entfernt; eine neue gezielte Aktualisierung alter Dokumente ist nicht Teil dieser Änderung.
 
+Die Vektorstatusanzeige nennt vollständig indexierte und erwartete Dokumente sowie die fehlende Anzahl, zum Beispiel „7824 von 7888 Dokumenten / 64 fehlen“. Der Build speichert diese Zahlen nach jedem Lauf; die Oberfläche liest nur diesen Stand, ohne alle Textabschnitte erneut zu scannen. Nach Änderungen am lokalen Index, am Freigabemarker oder an der Punktzahl wird der alte Stand nicht angezeigt. Eine leere, nur durch Lesezugriffe angelegte SQLite-WAL-Datei gilt dabei wie eine fehlende WAL-Datei; ein WAL mit Inhalt wird weiterhin auf Änderungen geprüft. Statusabfragen schließen ihre Datenbankverbindungen nach dem Lesen. Ohne aktuellen Stand erscheint ein Hinweis; `python scripts/check_bi_vector_index.py --update-status` berechnet ihn einmalig neu und speichert nur die Statuszahlen. Indexpunkte und Suchfreigabe bleiben dabei unverändert.
+
 ## Oberfläche und Analyse
 
 - Die aktive Oberfläche ist Django unter `web/`, gestartet mit `python scripts/run_web.py` auf `127.0.0.1:8000`.

@@ -335,7 +335,9 @@ def test_marker_is_scoped_to_server_and_committed_data(tmp_path, monkeypatch, re
     store.upsert_batch([point()])
     config = store.connection
     assert not config.passages_ready(remote)
-    assert collection_state(config, remote)["state"] == "incomplete"
+    status = collection_state(config, remote)
+    assert status["state"] == "incomplete"
+    assert status["message"] == "Noch nicht vollständig."
     config.write_readiness(remote, {"model": "test"})
     assert config.passages_ready(remote)
     assert collection_state(config, remote)["collection_name"] == "ratsi_passages"
@@ -453,6 +455,12 @@ def test_service_check_reads_vectors_without_modifying_index_or_marker(tmp_path,
     assert store.connection.ready_path.read_bytes() == marker
     assert remote.retrieve("ratsi_passages", [1], with_vectors=True) == before
     assert not (tmp_path / "unused").exists()
+    coverage_path = store.connection.ready_path.with_suffix(".coverage.json")
+    assert not coverage_path.exists()
+    check_bi_vector_index.main(["--db", str(db), "--qdrant-dir", str(tmp_path / "unused"), "--update-status"])
+    assert coverage_path.exists()
+    assert store.connection.ready_path.read_bytes() == marker
+    assert remote.retrieve("ratsi_passages", [1], with_vectors=True) == before
 
 
 @pytest.mark.integration
@@ -585,6 +593,7 @@ def test_legacy_and_county_builds_use_configured_server(tmp_path, monkeypatch, r
 
 @pytest.mark.integration
 def test_passage_build_only_marks_complete_current_documents(tmp_path, monkeypatch, remote, compatibility):
+    from src.indexing.passage_coverage import read_coverage
     import sys
     from src.indexing import passage_builder
     monkeypatch.setattr(passage_builder, 'prepared_model_path', lambda component: tmp_path / 'tokenizer')
@@ -604,6 +613,7 @@ def test_passage_build_only_marks_complete_current_documents(tmp_path, monkeypat
     config = QdrantConnection.from_env(tmp_path / 'absent')
     assert config.passages_ready(remote)
     assert config.read_index_compatibility('ratsi_passages') == compatibility
+    assert read_coverage(config, db, remote.count('ratsi_passages', exact=True).count)["complete_documents"] == 2
     points, _ = remote.scroll('ratsi_passages', with_payload=True, limit=100)
     assert points and all(point.payload['index_compatibility'] == compatibility.as_dict()
                           for point in points)
@@ -622,6 +632,10 @@ def test_passage_build_only_marks_complete_current_documents(tmp_path, monkeypat
     assert config.ready_path.exists()
     assert not config.passages_ready(remote)
     assert config.read_index_compatibility('ratsi_passages') == compatibility
+    cached = read_coverage(config, db, remote.count('ratsi_passages', exact=True).count)
+    assert cached["complete_documents"] == 3
+    assert cached["total_documents"] == 4
+    assert cached["missing_documents"] == 1
     passage_builder.main(args + ['--limit', '1'])
     assert config.passages_ready(remote)
     assert not (tmp_path / 'absent').exists()
@@ -693,9 +707,11 @@ def test_runtime_read_failures_are_not_reported_as_empty_index(tmp_path):
 def test_empty_collection_is_incomplete(tmp_path, remote):
     store = DocumentVectorStore(tmp_path / 'absent')
     store.ensure_collection()
-    with pytest.raises(RuntimeError, match='Index unvollständig'):
+    with pytest.raises(RuntimeError, match='Noch nicht vollständig'):
         store.require_available(prefer_passages=True)
-    assert probe_qdrant(store.connection)['state'] == 'incomplete'
+    status = probe_qdrant(store.connection)
+    assert status['state'] == 'incomplete'
+    assert status['message'] == "Noch nicht vollständig."
 
 
 @pytest.mark.integration

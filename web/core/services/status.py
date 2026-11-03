@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +37,20 @@ def service_status() -> dict[str, Any]:
     else:
         qdrant = probe_qdrant(connection)
         qdrant_target = connection.target
+        if qdrant.get("passage_points") is not None:
+            from src.indexing.passage_coverage import read_coverage
+
+            coverage = read_coverage(connection, paths.LOCAL_INDEX_DB, qdrant["passage_points"])
+            if coverage is not None:
+                missing_label = "fehlt" if coverage["missing_documents"] == 1 else "fehlen"
+                qdrant["message"] = (
+                    f"{coverage['complete_documents']} von {coverage['total_documents']} Dokumenten "
+                    f"/ {coverage['missing_documents']} {missing_label}"
+                )
+                if not coverage["missing_documents"] and qdrant["state"] != "ready":
+                    qdrant["message"] += " / noch nicht suchbereit"
+            else:
+                qdrant["message"] += " / Dokumentzahlen noch nicht aktualisiert"
 
     from .model_job_history import model_job_history
     models = embedding_model_inventory_status()
@@ -86,7 +101,7 @@ def _table_count(db_path, table_name: str) -> int | None:
     if not db_path.exists() or db_path.stat().st_size <= 0:
         return None
     try:
-        with sqlite3.connect(db_path) as conn:
+        with closing(sqlite3.connect(db_path)) as conn:
             table_exists = conn.execute(
                 "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
                 (table_name,),
