@@ -18,6 +18,8 @@ Stand: 27.10.2026. Diese Übersicht beschreibt die vorhandene Implementierung. S
 - Standardmäßig wird Qdrant unter `http://127.0.0.1:6333` angesprochen. `RATSI_QDRANT_URL` wählt einen anderen Server; `RATSI_QDRANT_MODE=local` nutzt lokalen Speicher unter `data/db/qdrant/`, sofern keine URL gesetzt ist. Datenbank, Modelle und Suchindex müssen zur gleichen lokalen Umgebung gehören.
 - `/suche/` bietet semantische Suche in Ratsinfo- und Landkreis-Unterlagen mit Datumsfiltern und, für Ratsinfo, Gremium und Dokumenttyp. Der Landkreisbestand kann zusätzlich per `scripts/search_landkreis_publications.py` in SQLite durchsucht werden.
 
+- `scripts/probe_bi_vector_compatibility.py` prüft Bibliothekswechsel anhand einer deterministischen Passagenstichprobe und lokaler Suchvergleiche. Der [Windows-Ablauf](vector_compatibility_probe.md) verwendet einen separaten Modellbestand und verändert weder Indexpunkte noch Freigabemarker. Eine automatische Freigabe oder schrittweise Migration ist damit noch nicht implementiert.
+
 ## Oberfläche und Analyse
 
 - Die aktive Oberfläche ist Django unter `web/`, gestartet mit `python scripts/run_web.py` auf `127.0.0.1:8000`.

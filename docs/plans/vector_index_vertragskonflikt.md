@@ -37,6 +37,10 @@ Die Fehlermeldung entsteht in `src/indexing/build_compatibility.py` beim Verglei
 
 Nächster Diagnoseschritt: Im tatsächlich betroffenen Windows-Prozess Interpreterpfad, aktiven Modellpfad und beide Verträge mit Feldabweichungen erfassen. Vor einer erneuten Modellvorbereitung zunächst den bestehenden Modellbestand und Freigabemarker sichern und entscheiden, ob die ursprüngliche Bibliotheksumgebung wiederhergestellt oder ein neuer Index aufgebaut werden soll.
 
+### Diagnosewerkzeug
+
+Seit Version 0.5.66 steht `scripts/probe_bi_vector_compatibility.py` für eine Prüfung mit separat vorbereiteten Modellen bereit. Der [Windows-Ablauf](../vector_compatibility_probe.md) beschreibt Vorbereitung, Stichprobenvergleich und Bericht. Ein echter Windows-Modelllauf und die Bewertung des Ergebnisses stehen noch aus.
+
 ### Aufgaben
 
 - [ ] Gespeicherten und aktuellen Vertrag vergleichen und abweichende Felder sowie Ursache dokumentieren: Modell- und Tokenizer-IDs, Revisionen, Manifest-SHA-256, Vektordimension und Pipeline-Version.
