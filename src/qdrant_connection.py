@@ -13,7 +13,7 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 from src import paths
-from src.config.index_compatibility import IndexCompatibility
+from src.config.index_compatibility import IndexCompatibility, index_contracts_compatible
 from src.config.settings import load_qdrant_settings
 
 
@@ -98,9 +98,10 @@ class QdrantConnection:
                         return None
                     seen.add(record.id)
                     if check_contract:
-                        if not isinstance(record.payload, dict) or IndexCompatibility.from_dict(
-                            record.payload.get("index_compatibility")
-                        ) != compatibility:
+                        if not isinstance(record.payload, dict) or not index_contracts_compatible(
+                            IndexCompatibility.from_dict(record.payload.get("index_compatibility")),
+                            compatibility, collection,
+                        ):
                             return None
                     point = record.model_dump(mode="json", include={"id", "vector" if with_vectors else "payload"})
                     digest.update(json.dumps(point, sort_keys=True, separators=(",", ":")).encode())
@@ -139,7 +140,7 @@ class QdrantConnection:
         from src.config.index_compatibility import current_index_compatibility
 
         active = current_index_compatibility()
-        if self.read_index_compatibility(collection, require_ready=True) != active:
+        if not index_contracts_compatible(self.read_index_compatibility(collection, require_ready=True), active, collection):
             raise RuntimeError(
                 f"Index {collection} inkompatibel oder nicht freigegeben: "
                 "Modell- oder Pipelinevertrag fehlt, weicht ab oder ist noch im Aufbau. "
@@ -158,7 +159,7 @@ class QdrantConnection:
                     and marker.get("ready") is True
                     and marker.get("collection") == collection
                     and (not self.url or marker.get("url_sha256") == sha256(self.url.encode()).hexdigest())
-                    and IndexCompatibility.from_dict(marker.get("compatibility")) == active
+                    and index_contracts_compatible(IndexCompatibility.from_dict(marker.get("compatibility")), active, collection)
                 )
             except (UnicodeError, ValueError, TypeError):
                 released = False

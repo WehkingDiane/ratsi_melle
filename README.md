@@ -54,7 +54,7 @@ Die Befehle sind Beispiele. Fetch-Jahr, Monate und Sitzungs-ID müssen zum gewü
 
 Standardmäßig verwendet die Suche Qdrant unter `http://127.0.0.1:6333`. Ein anderer Server kann mit `RATSI_QDRANT_URL` gewählt werden. Für lokalen Speicher ohne Server `RATSI_QDRANT_MODE=local` setzen und `RATSI_QDRANT_URL` frei lassen. Vor dem Vektorbuild müssen die lokalen Modelle vorbereitet sein.
 
-Der [Windows-Kompatibilitätstest](docs/vector_compatibility_probe.md) vergleicht gespeicherte Suchvektoren mit neueren Modellbibliotheken, ohne den bestehenden Index zu verändern.
+Die [Index-Kompatibilität](docs/index_compatibility.md) beschreibt die Weiterverwendung des bestehenden Ratsinfo-Index mit den am 03.11.2026 akzeptierten Windows-Modellbibliotheken. Der normale Aufbau ergänzt weiterhin nur fehlende oder unvollständige Dokumente.
 
 ## Lokale Daten
 

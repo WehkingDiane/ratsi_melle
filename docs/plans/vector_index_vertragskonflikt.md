@@ -1,54 +1,19 @@
-# Wichtig: Vertragskonflikt beim Aufbau des Vektorindex
+# Vertragskonflikt beim Aufbau des Vektorindex
 
-Stand: 30.10.2026. Priorität: **Wichtig**. Status: **Offen**.
+Stand: 03.11.2026. Priorität: **Wichtig**. Status: **Weiterverwendung beschlossen und implementiert; Windows-Betriebsprüfung ausstehend**.
 
-## Problem
+## Problem und Entscheidung
 
-Der Aufruf `python .\scripts\build_bi_vector_index.py --limit 10` bricht beim vorhandenen Index `ratsi_passages` ab:
+Am 30.10.2026 brach `python scripts/build_bi_vector_index.py --limit 10` mit einem abweichenden Modell- oder Pipelinevertrag für `ratsi_passages` ab (Run-ID `ed7b2bfdbc43`). Zusätzlich waren die installierten Modellbibliotheken neuer als die im ursprünglichen Modellmanifest verzeichneten Versionen. Welcher Vertragswert im historischen Lauf abwich, ist aus dessen Log nicht rekonstruierbar.
 
-```text
-ERROR: Index ratsi_passages inkompatibel: Bestehende Collection hat einen anderen Modell- oder Pipelinevertrag. Vollstaendiger Neuaufbau oder getrennte Aufbau-Collection erforderlich.
-```
+Der Windows/XPU-Vergleich vom 03.11.2026 ist im lokalen Bericht `data/processed/vector_compatibility_windows_03.json` festgehalten: 128 Passagen, minimale Dense-Kosinusähnlichkeit 0,9998963656, identische BM25-Token-IDs und bei drei Anfragen identische Top-10-Treffermengen. Bei einer Anfrage tauschten die Plätze 7 und 8. 124 Vektoren überschritten die strenge numerische Toleranz, ohne einen grundlegenden Wechsel des Vektorraums zu belegen.
 
-Beobachtet am 30.10.2026 um 16:51:41 UTC, Run-ID `ed7b2bfdbc43`, Exit-Code 1. Logdatei: `logs/build_bi_vector_index.log`.
+Der Nutzer hat entschieden, diesen Bestand mit den neueren Windows-Bibliotheken weiterzuverwenden. Ein mehrtägiger vollständiger Neuaufbau steht für die unterstützende Suchfunktion nicht im Verhältnis zum Nutzen. Weitere Stichprobentests wurden nicht gewünscht.
 
-Der gespeicherte Kompatibilitätsvertrag stimmt nicht mit dem aktuell ermittelten Vertrag überein. Welche Felder abweichen und wodurch die Abweichung entstanden ist, muss noch ermittelt werden. Die Schutzprüfung verhindert das Vermischen inkompatibler Vektoren. `--limit` begrenzt nur die Anzahl der zu indexierenden Dokumente; auch ein Aufruf ohne Limit löst den Vertragskonflikt nicht.
+## Umsetzung
 
-## Offene Klärung und Behebung
+Seit 0.5.67 akzeptieren Aufbau und Suche für `ratsi_passages` die beiden vollständigen, konkret verglichenen Modellverträge. Unbekannte Verträge und andere Modelle bleiben gesperrt. Alte Punkte behalten ihren ursprünglichen Herkunftsvertrag. Neue Punkte dürfen mit dem akzeptierten neueren Bibliotheksstand erstellt werden. Der normale Build-Ablauf bleibt erhalten; eine neue Funktion zur gezielten Aktualisierung alter Dokumente wurde nicht ergänzt.
 
-### Diagnose vom 03.11.2026
+Der [Betriebsablauf und die Grenzen der Freigabe](../index_compatibility.md) enthalten die Manifeststände und Windows-Befehle. Die temporären Diagnosewerkzeuge wurden auf Nutzerwunsch entfernt; bytegleiche lokale Archivkopien und der lokale Ergebnisbericht bleiben erhalten.
 
-Untersuchungsbranch: `codex/fix/vector-index-vertragskonflikt`. Die Untersuchung hat keine Indexdaten, Modellbestände oder Bibliotheken verändert.
-
-**Nachgewiesener aktueller Blocker:** Die installierten Modellbibliotheken entsprechen nicht dem vorbereiteten Bestand. `check_embedding_model_status(Path("data/models"))` liefert unter `.venv-wsl` den Status `inkompatibel` mit der Meldung „Die installierten Modellbibliotheken entsprechen nicht dem vorbereiteten Bestand.“ Die Versionsmetadaten in `.venv/Lib/site-packages` zeigen auch für Windows Abweichungen:
-
-| Bibliothek | Modellmanifest | WSL `.venv-wsl` | Windows `.venv` |
-| --- | --- | --- | --- |
-| fastembed | 0.8.0 | 0.9.1 | 0.9.0 |
-| huggingface_hub | 1.10.1 | 1.33.0 | 1.33.0 |
-| sentence_transformers | 5.4.0 | 5.7.0 | 5.7.0 |
-| transformers | 5.5.3 | 5.22.1 | 5.20.2 |
-
-Die Prüfung in `src/config/embedding_model_status.py` verlangt exakte Versionsgleichheit. Der Manifesthash umfasst auch Bibliotheksversionen und relative Bestandspfade; nur Erstellzeitpunkt und das Hashfeld selbst werden aus der Hashberechnung ausgeschlossen. Eine erneute Modellvorbereitung mit anderen Bibliotheksversionen kann deshalb einen neuen Indexvertrag erzeugen, auch bei gleichen Modellrevisionen.
-
-**Ursprüngliche Vertragsabweichung noch nicht rekonstruiert:** Der vorhandene Marker `data/db/qdrant_server_state/bf6ad011a2118addbb320eb8bafcb902d99f757cd7fb8ccec8b6b0a77d0f4e5e/ratsi_passages.ready.json` und das heutige Standardmanifest `data/models/manifest.json` enthalten denselben Manifesthash `478077ff73fbf75e6e4e1660de2c9c6d8cbbbab6d9864c7ffe06ee87d34314c9`. Auch alle acht übrigen Vertragsfelder stimmen mit den aktuellen Modellkonstanten überein. Das ist ein statischer Feldvergleich, keine erfolgreiche Laufzeitfreigabe oder Prüfung der Qdrant-Punkte.
-
-Die Fehlermeldung entsteht in `src/indexing/build_compatibility.py` beim Vergleich des gelesenen Vertrags mit `current_index_compatibility()`. Das Log des ursprünglichen Laufs enthält weder die verglichenen Vertragswerte noch den aktiven Modellpfad. Daher ist aus den vorhandenen Belegen nicht bestimmbar, welcher Vertrag damals abwich. Ein abweichender Laufzeitbestand, etwa über `RATSI_MODELS_DIR`, bleibt eine unbestätigte Möglichkeit. Die heutigen Bibliotheksabweichungen allein erklären diese konkrete historische Meldung nicht: Die Modellbereitschaft wird vor dem Vertragsvergleich geprüft.
-
-Nächster Diagnoseschritt: Im tatsächlich betroffenen Windows-Prozess Interpreterpfad, aktiven Modellpfad und beide Verträge mit Feldabweichungen erfassen. Vor einer erneuten Modellvorbereitung zunächst den bestehenden Modellbestand und Freigabemarker sichern und entscheiden, ob die ursprüngliche Bibliotheksumgebung wiederhergestellt oder ein neuer Index aufgebaut werden soll.
-
-### Diagnosewerkzeug
-
-Seit Version 0.5.66 steht `scripts/probe_bi_vector_compatibility.py` für eine Prüfung mit separat vorbereiteten Modellen bereit. Der [Windows-Ablauf](../vector_compatibility_probe.md) beschreibt Vorbereitung, Stichprobenvergleich und Bericht. Ein echter Windows-Modelllauf und die Bewertung des Ergebnisses stehen noch aus.
-
-### Aufgaben
-
-- [ ] Gespeicherten und aktuellen Vertrag vergleichen und abweichende Felder sowie Ursache dokumentieren: Modell- und Tokenizer-IDs, Revisionen, Manifest-SHA-256, Vektordimension und Pipeline-Version.
-- [ ] Einen sicheren Wiederanlauf festlegen: ursprünglichen Vertrag wiederherstellen oder den Index mit dem aktuellen Vertrag vollständig neu aufbauen. Bestehenden Index bis zur geprüften Ablösung erhalten.
-- [ ] Einen nachvollziehbaren Ablauf für getrennten Aufbau, Prüfung und anschließende Aktivierung dokumentieren; benötigte CLI-Unterstützung prüfen.
-- [ ] Fehlermeldung um konkrete Vertragsabweichungen und einen umsetzbaren nächsten Schritt ergänzen.
-- [ ] Erfolgreichen Aufbau und anschließende Suche prüfen; die Ablehnung tatsächlich inkompatibler Bestände muss erhalten bleiben.
-
-## Abnahme
-
-Die Ursache ist anhand der Vertragsfelder nachvollziehbar. Ein dokumentierter Wiederanlauf baut einen kompatiblen Index auf, ohne den bisherigen Bestand vor erfolgreicher Prüfung zu verlieren. Der Index ist anschließend für die Suche freigegeben und nutzbar.
+Die automatisierten Prüfungen müssen den gemischten Aufbau und die Suche sowie die fortbestehende Ablehnung unbekannter Verträge abdecken. Die anschließende Ausführung des normalen Builds und der Suche unter Windows bleibt als Betriebsprüfung ausstehend.
