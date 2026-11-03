@@ -2886,7 +2886,16 @@ def test_dashboard_reads_saved_document_counts_without_passage_scan(tmp_path, mo
     monkeypatch.setenv("RATSI_QDRANT_URL", "http://test.invalid:6333")
     monkeypatch.setenv("RATSI_QDRANT_STATE_DIR", str(tmp_path / "state"))
     db = tmp_path / "local.sqlite"
-    db.touch()
+    source = sqlite3.connect(db)
+    try:
+        source.execute("PRAGMA journal_mode=WAL")
+        source.execute("CREATE TABLE documents (id INTEGER)")
+        source.execute("CREATE TABLE sessions (id INTEGER)")
+        source.execute("INSERT INTO documents VALUES (1)")
+        source.execute("INSERT INTO sessions VALUES (1)")
+        source.commit()
+    finally:
+        source.close()
     monkeypatch.setattr(status_service.paths, "LOCAL_INDEX_DB", db)
     monkeypatch.setattr(status_service.paths, "RAW_DATA_DIR", tmp_path / "raw")
     connection = QdrantConnection.from_env()
@@ -2897,7 +2906,10 @@ def test_dashboard_reads_saved_document_counts_without_passage_scan(tmp_path, mo
     monkeypatch.setattr(status_service, "probe_qdrant", lambda _: {
         "passage_points": 1, "state": "incomplete", "message": "Noch nicht vollständig.", "available": False})
     monkeypatch.setattr(QdrantConnection, "create_client", lambda _: pytest.fail("Coverage scanned Qdrant"))
-    assert status_service.service_status()["qdrant_summary"] == "1 von 2 Dokumenten / 1 fehlt"
+    status = status_service.service_status()
+    assert status["qdrant_summary"] == "1 von 2 Dokumenten / 1 fehlt"
+    assert status["local_document_count"] == 1
+    assert not db.with_name(db.name + "-wal").exists()
     db.write_bytes(b"changed")
     assert "Dokumentzahlen noch nicht aktualisiert" in status_service.service_status()["qdrant_summary"]
 

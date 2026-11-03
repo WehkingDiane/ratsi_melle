@@ -12,13 +12,18 @@ from src.indexing.passage_inventory import complete_document_ids
 def database_stamp(db_path: Path) -> dict:
     """Identify a source SQLite file and its optional WAL without querying it."""
     path = db_path.resolve()
-    def stamp(file):
+    def stamp(file, *, empty_is_absent=False):
         try:
             info = file.stat()
+            # Opening a WAL-mode reader may create a zero-byte WAL. It holds
+            # no data changes and is equivalent to a missing WAL for coverage.
+            if empty_is_absent and info.st_size == 0:
+                return None
             return [info.st_size, info.st_mtime_ns]
         except FileNotFoundError:
             return None
-    return {"path": str(path), "database": stamp(path), "wal": stamp(Path(str(path) + "-wal"))}
+    return {"path": str(path), "database": stamp(path),
+            "wal": stamp(Path(str(path) + "-wal"), empty_is_absent=True)}
 
 
 def _marker_digest(connection):
@@ -53,13 +58,18 @@ def read_coverage(connection, db_path, point_count):
     try:
         path = connection.release_path("ratsi_passages").with_suffix(".coverage.json")
         record = json.loads(path.read_text(encoding="utf-8"))
+        source = record["source"]
+        # Older cache files may have recorded an empty WAL with its mtime.
+        wal = source.get("wal")
+        if isinstance(wal, list) and len(wal) == 2 and type(wal[0]) is int and wal[0] == 0:
+            source = {**source, "wal": None}
         fields = ("points", "total_documents", "complete_documents", "missing_documents")
         if (record.get("format_version") != 1
                 or any(type(record.get(k)) is not int or record[k] < 0 for k in fields)
                 or record["complete_documents"] + record["missing_documents"] != record["total_documents"]
                 or record["points"] != point_count
-                or record["source"] != database_stamp(db_path)
-                or record["source"]["database"] is None
+                or source != database_stamp(db_path)
+                or source["database"] is None
                 or record["marker_sha256"] != _marker_digest(connection)):
             return None
         return record

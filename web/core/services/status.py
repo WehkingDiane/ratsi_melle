@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 
@@ -100,7 +101,7 @@ def _table_count(db_path, table_name: str) -> int | None:
     if not db_path.exists() or db_path.stat().st_size <= 0:
         return None
     try:
-        with sqlite3.connect(db_path) as conn:
+        with closing(sqlite3.connect(db_path)) as conn:
             table_exists = conn.execute(
                 "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
                 (table_name,),
