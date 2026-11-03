@@ -13,7 +13,13 @@ Der vorhandene Index `ratsi_passages` wird weiterverwendet. Nach dem Windows/XPU
 
 Die vollständigen akzeptierten Verträge stehen in `src/config/index_compatibility.py`. Harrier- und Tokenizer-Revision bleiben `f9b9dc8d367d443f2479d27aa5d8d2850c0774ee`, BM25 bleibt `22b8d2af71a76161e18dd432d2cee0eefa66e412`, die Dimension 1024 und die Pipeline `passages-1`. Die Ausnahme gilt ausschließlich für `ratsi_passages`. Andere Collections behalten die exakte Vertragsprüfung. Unbekannte Manifeststände sowie andere Modelle, Revisionen, Dimensionen oder Pipeline-Versionen bleiben gesperrt.
 
-Der akzeptierte Windows-Bestand verwendet `transformers 5.20.2`, `sentence-transformers 5.7.0`, `fastembed 0.9.0` und `huggingface-hub 1.33.0`. Die installierten Bibliotheken müssen weiterhin exakt zum ausgewählten Modellmanifest passen. Insbesondere ist der abweichende WSL-Bibliotheksstand damit nicht freigegeben.
+Der akzeptierte Windows-Bestand verwendet `transformers 5.20.2`, `sentence-transformers 5.7.0`, `fastembed 0.9.0` und `huggingface-hub 1.33.0`. Die installierten Bibliotheken müssen weiterhin exakt zum ausgewählten Modellmanifest passen. Die Indexierung wird unter Windows betrieben; eine eigene WSL-Versionsdefinition wird nicht gepflegt.
+
+## Versionspflege
+
+`requirements.txt` schreibt die vier Modellbibliotheken auf diesen Versionen fest. Zusätzlich ist `torch==2.14.1` festgelegt; die funktionierende Windows-Variante ist `2.14.1+xpu`. Diese Versionsbedingung akzeptiert auch die XPU-Variante, wählt aber allein noch keinen Paketindex aus. Die Installation aus dem Intel-XPU-Wheel-Index erfolgt gezielt nach dem kommentierten Befehl in `requirements.txt`. Optionale Torch-Erweiterungen und Intel-Runtime-Abhängigkeiten werden nicht einzeln aktualisiert. Das ist kein vollständiger Lock aller transitiven Pakete.
+
+Eine Prüfung auf relevante Fehlerkorrekturen, Sicherheitskorrekturen und belegte Leistungsverbesserungen erfolgt ungefähr alle drei Monate, erstmals Anfang Februar 2027. Der Termin ist dokumentiert; eine automatische Erinnerung ist nicht eingerichtet. Eine Prüfung bedeutet kein automatisches Upgrade. Bei konkreten Fehlern oder wichtigen Sicherheitskorrekturen früher prüfen. Ein weiterer Modellbibliothekswechsel benötigt einen passenden vorbereiteten Modellbestand und eine bewusste Kompatibilitätsentscheidung für den vorhandenen Index. Andere Requirements behalten ihre bisherigen Versionsbereiche.
 
 ## Unter Windows weiterarbeiten
 
