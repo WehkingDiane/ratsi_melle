@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from src.config.index_compatibility import IndexCompatibility
+from src.config.index_compatibility import IndexCompatibility, index_contracts_compatible
 from src.indexing.legacy_index_inspection import LegacyInspectionError, _check_schema
 from src.qdrant_connection import QdrantConnection
 
@@ -40,7 +40,7 @@ def check_build_compatibility(
         raise _incompatible(
             collection, "Bestehende Collection hat keinen gueltigen Kompatibilitaetsmarker."
         )
-    if stored != compatibility:
+    if not index_contracts_compatible(stored, compatibility, collection):
         raise _incompatible(
             collection, "Bestehende Collection hat einen anderen Modell- oder Pipelinevertrag."
         )

@@ -2,7 +2,7 @@
 beautifulsoup4>=4.14.3
 pypdf[crypto]>=6.9.2
 requests>=2.32.5
-Django>=5.2.18,<6.0
+Django>=6.1.2,<6.2
 keyring>=25.7.0
 Markdown>=3.11.2,<4.0
 bleach>=6.4.0,<7.0
@@ -12,17 +12,23 @@ anthropic>=0.86.0
 openai>=2.29.0
 
 # Semantische Suche (Harrier + Qdrant)
-huggingface-hub>=1.33.0,<2.0
-sentence-transformers>=5.7.0,<6.0
-transformers>=5.20.2,<6.0
+# Windows-Modellvertrag vom 03.11.2026: exakt beibehalten.
+# Vierteljaehrlich pruefen, naechster Termin: Anfang Februar 2027.
+# Hintergrund und akzeptierte Manifeststaende: docs/index_compatibility.md
+huggingface-hub==1.33.0
+sentence-transformers==5.7.0
+transformers==5.20.2
 qdrant-client>=1.19.1
-fastembed>=0.9.0
+fastembed==0.9.0
 
-# torch wird auch als Abhaengigkeit von sentence-transformers installiert.
+# Funktionierenden Torch-Stand erhalten; == akzeptiert auch die Variante +xpu.
+torch==2.14.1
+# Die Intel-XPU-Variante weiterhin gezielt aus dem XPU-Index installieren.
 # CPU- oder Intel-XPU-Variante gezielt in der aktivierten Umgebung auswaehlen.
 # --upgrade ermoeglicht den Wechsel von CPU zu XPU.
-# CPU: pip install --upgrade torch --index-url https://download.pytorch.org/whl/cpu
-# XPU: pip install --upgrade torch torchaudio torchvision --index-url https://download.pytorch.org/whl/xpu
+# CPU: pip install --upgrade "torch==2.14.1" --index-url https://download.pytorch.org/whl/cpu
+# XPU: pip install --upgrade "torch==2.14.1" --index-url https://download.pytorch.org/whl/xpu
+# Optionale torchaudio/torchvision- und Intel-Runtime-Pakete nicht separat aktualisieren.
 # Pruefen: python -c "import torch; print(torch.__version__); print(torch.xpu.is_available())"
 # Bei nutzbarer Intel-XPU: Versionszusatz +xpu und True.
 
