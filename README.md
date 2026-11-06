@@ -31,7 +31,7 @@ Unter Windows prüft das Skript den Windows Credential Manager. Unter Linux star
 
 Das Skript speichert, liest und entfernt einen eigenen Zufallswert. Bestehende Einträge werden nicht verändert. Bei Fehlern oder Zeitüberschreitung bricht es ab, ohne auf Klartextspeicher auszuweichen. Bei einem unterbrochenen Test kann ein harmloser Eintrag mit Präfix `ratsi_melle_storage_test_` zurückbleiben. Ein erfolgreicher Lauf bestätigt nur die Nutzbarkeit in dieser Sitzung, nicht das Verhalten nach einem Neustart, eine Proton-Anmeldung oder die Verschlüsselung eines bereits früher angelegten Schlüsselspeichers. Der Schlüsselspeicher darf nicht mit leerem Passwort eingerichtet werden.
 
-Das Skript hinterlegt keinen PAT, konfiguriert keine Proton-Sitzung und aktiviert keinen RI-Abruf. Die anschließenden Schritte stehen im [Proton-Pass-Teilplan](docs/plans/ri_proton_pass_zugang_plan.md).
+Das Skript hinterlegt keinen PAT, konfiguriert keine Proton-Sitzung und aktiviert keinen RI-Abruf. Die lokale Einrichtung ist abgeschlossen; das weitere Vorhaben steht im [RI-Hauptplan](docs/plans/ri_ratsbereich_plan.md).
 
 ## RI-Proton-Token hinterlegen oder ersetzen
 
@@ -139,6 +139,8 @@ Die Vektorstatusanzeige zeigt die Dokumentabdeckung aus dem letzten Build. Einma
 ## Tests gezielt ausfuehren
 
 Die Marker `integration` und `live` sind in `pyproject.toml` registriert. `integration` prüft das Zusammenspiel mehrerer Komponenten mit lokalen oder simulierten Abhängigkeiten. `live` benötigt echte Dienste, Modelle oder nicht versionierte Quelldaten und ist im normalen Lauf ausgeschlossen.
+
+Die regulären RI-/Proton-Tests verwenden ausschließlich erfundene Tokens und Zugangsdaten sowie simulierte Schlüsselspeicher, CLI-Aufrufe und HTTP-Antworten. Sie lesen keine echten Tokens und melden sich weder bei Proton noch beim RI an. Die manuell gestarteten Prüfskripte unter `scripts/setup/` greifen dagegen auf den eingerichteten lokalen Speicher und die echten Dienste zu.
 
 ```bash
 python -m pytest -m "not integration and not live"

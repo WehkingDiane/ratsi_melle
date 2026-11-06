@@ -10,14 +10,16 @@ Bereits erledigt (Statuskontext; die Aufgabenliste darunter enthält nur offene 
 
 - **Erledigt:** BI-/RI-Skriptnamen einschließlich Aufrufern, Tests und Dokumentation geordnet; über PR #89 übernommen.
 - **Erledigt:** Navigation, öffentliche Einstiege, RI-Platzhalter und vertikalen Seitenaufbau einschließlich dokumentierter Tests und Browserabnahme umgesetzt; über PR #90 übernommen.
-- **Erledigt:** [Proton-Einrichtung und manueller RI-Zugriffstest](ri_proton_pass_zugang_plan.md) auf `codex/feature/ri-proton-pass-zugang` abgeschlossen (0.5.76). CLI 2.7.0, getrennte geschützte Tokenablage, feste RI-Eintragsbindung und ausschließlich lesender Zugangsdienst sind unter Windows und WSL eingerichtet. Gezielter Zugangsfeldabruf, RI-Anmeldung, RI-Abmeldung und erneute Zugangssperre sind auf beiden Systemen real bestätigt. 47 gezielte Tests je System, sechs betroffene Integrationstests und 690 reguläre Tests bestehen. Hilfsskripte und Bedienung sind dokumentiert. Der Nutzer stellt Neustart-/Ablaufprüfungen, unbeaufsichtigten Betrieb und die Untersuchung des Windows-Proton-Abmeldehinweises zurück; diese Punkte sind nicht als geprüft abgenommen. Die Fetcher-Anbindung bleibt ein späterer Schritt des RI-Hauptplans.
+- **Erledigt:** [Proton-Einrichtung und manueller RI-Zugriffstest](ri_ratsbereich_plan.md#4-ri-fetcher-mit-anmeldung) auf `codex/feature/ri-proton-pass-zugang` abgeschlossen (0.5.76). CLI 2.7.0, getrennte geschützte Tokenablage, feste RI-Eintragsbindung und ausschließlich lesender Zugangsdienst sind unter Windows und WSL eingerichtet. Gezielter Zugangsfeldabruf, RI-Anmeldung, RI-Abmeldung und erneute Zugangssperre sind auf beiden Systemen real bestätigt. 47 gezielte Tests je System, sechs betroffene Integrationstests und 690 reguläre Tests bestehen. Hilfsskripte und Bedienung sind dokumentiert. Der Nutzer stellt Neustart-/Ablaufprüfungen, unbeaufsichtigten Betrieb und die Untersuchung des Windows-Proton-Abmeldehinweises zurück; diese Punkte sind nicht als geprüft abgenommen. Die Fetcher-Anbindung bleibt ein späterer Schritt des RI-Hauptplans.
 
 ## RI-Vorhaben
 
 #### Konkrete Aufgaben
 
-- [ ] Daten- und Zugriffskontrakt für den lokalen Ratsbereich festlegen; Betriebsmodell, Speicherort und Suchindex-Zugriff nach Erhalt der Zugangsdaten prüfen.
-- [ ] Bei Umsetzung des RI-Fetchers den geprüften Proton-Zugangsdienst einbinden; der [Proton-Einrichtungsplan](ri_proton_pass_zugang_plan.md) ist abgeschlossen. Zurückgestellte Betriebsprüfungen bei einem späteren erweiterten Betriebsumfang berücksichtigen.
+- [ ] Als nächsten fachlichen Schritt den RI-Bereich erkunden: tatsächlichen Aufbau und Unterschiede zu BI feststellen, zunächst nur anhand von Seitenstruktur und Dokumentmetadaten. Auf Nutzerwunsch jetzt noch nicht durchführen.
+- [ ] Vor Downloadimplementierung festlegen, welche RI-Dokumentarten benötigt, optional oder nicht benötigt sind; Auswahlregeln und Umgang mit Sammelunterlagen/Anlagen/Dubletten im [Hauptplan](ri_ratsbereich_plan.md#2-vorprüfung-und-verbindliche-entscheidungen) dokumentieren. Kein pauschaler Gesamtdownload.
+- [ ] Daten- und Zugriffskontrakt für den lokalen Ratsbereich festlegen; Betriebsmodell, Speicherort und Suchindex-Zugriff vor der Datenanbindung prüfen.
+- [ ] Bei Umsetzung des RI-Fetchers den geprüften Proton-Zugangsdienst einbinden; die abgeschlossene Einrichtung ist im [Hauptplan](ri_ratsbereich_plan.md#4-ri-fetcher-mit-anmeldung) dokumentiert. Zurückgestellte Betriebsprüfungen bei einem späteren erweiterten Betriebsumfang berücksichtigen.
 - [ ] Eigenen authentifizierten RI-Fetcher für Sitzungsübersicht, Details und Dokumente umsetzen; öffentliche Parserfunktionen nur nach Strukturprüfung wiederverwenden.
 - [ ] Getrennte RI-Rohdatenwurzel und RI-SQLite-Indizes aufbauen; Herkunft und Kennzeichnung pro Dokument speichern.
 - [ ] RI-Dokumente in einem eigenen, zugriffsgeschützten Suchindex indexieren und getrennt durchsuchen.

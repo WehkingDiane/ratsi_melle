@@ -1,6 +1,7 @@
 """Storage setup uses synthetic credentials and never opens the real OS keyring."""
 
 from types import SimpleNamespace
+from pathlib import PurePosixPath
 import subprocess
 import sys
 
@@ -179,6 +180,8 @@ def test_check_prints_only_known_error_and_never_asks_for_password(monkeypatch, 
 
 def test_startup_control_directory_used_for_unlock_without_evaluating_output(monkeypatch):
     calls = []
+    # The daemon reports Linux paths even when this simulation runs on Windows.
+    monkeypatch.setattr(setup, "Path", PurePosixPath)
     monkeypatch.setattr(setup.os, "geteuid", lambda: 1000, raising=False)
     monkeypatch.setattr(setup.shutil, "which", lambda name: "/usr/bin/daemon")
     monkeypatch.setattr(setup, "read_password", lambda prompt: "private-password")

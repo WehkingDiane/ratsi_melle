@@ -4,15 +4,15 @@ Stand: 06.11.2026. Dieser Plan ist die Grundlage für spätere Teilbranches. Gez
 
 ## Fortschritt
 
-Das [Proton-Teilpaket](ri_proton_pass_zugang_plan.md) ist für die lokale Einrichtung und den manuell gestarteten RI-Zugriffstest unter Windows und WSL abgeschlossen. Neustart-/Ablaufprüfungen, unbeaufsichtigter Betrieb und der bekannte Windows-Proton-Abmeldehinweis sind auf Nutzerwunsch zurückgestellt und nicht abgenommen. Die Anbindung an den RI-Fetcher bleibt Teil dieses Hauptplans.
+Das Proton-Teilpaket ist für die lokale Einrichtung und den manuell gestarteten RI-Zugriffstest unter Windows und WSL abgeschlossen. Neustart-/Ablaufprüfungen, unbeaufsichtigter Betrieb und der bekannte Windows-Proton-Abmeldehinweis sind auf Nutzerwunsch zurückgestellt und nicht abgenommen. Die Anbindung an den RI-Fetcher bleibt Teil dieses Hauptplans. Der abgeschlossene separate Proton-Plan ist entfernt; der maßgebliche Stand und die nächsten Aufgaben werden hier geführt.
 
-Abgehakte Punkte bezeichnen nur den jeweils genannten Umfang. Dokumentierte Testläufe stammen aus den bisherigen Umsetzungspaketen und wurden für diese Statuspflege nicht erneut ausgeführt.
+Abgehakte Punkte bezeichnen nur den jeweils genannten Umfang. Die dokumentierten realen Zugriffsprüfungen stammen aus den bisherigen Umsetzungspaketen und werden für diese Statuspflege nicht erneut ausgeführt.
 
 - [x] Schritt 1: BI-/RI-Skriptnamen einschließlich Aufrufern, Tests und Dokumentation umgesetzt; über PR #89 übernommen.
 - [x] Schritt 1a: Navigation, öffentliche Einstiege, RI-Platzhalter und vertikales Layout einschließlich dokumentierter Tests und Browserabnahme umgesetzt; über PR #90 übernommen.
-- [x] Proton-Pass-Teilpaket geplant: eigener Branch und [Schritt-für-Schritt-Plan](ri_proton_pass_zugang_plan.md) angelegt (`cab37b4`).
-- [ ] Schritt 2: Betriebsmodell, Daten- und Zugriffskontrakt sowie echte RI-Anmeldung prüfen und verbindlich festlegen.
-- [x] Proton-Pass-Dokumentation, lokale CLI-Version 2.3.3 und Befehlsoptionen sowie allgemeine Tarifvoraussetzungen geprüft; Ergebnisse und Versionsgrenzen im Teilplan festgehalten.
+- [x] Proton-Pass-Teilpaket auf `codex/feature/ri-proton-pass-zugang` abgeschlossen; Einrichtung und manueller RI-Zugriffstest unter Windows und WSL abgenommen (0.5.76).
+- [ ] Schritt 2: RI-Aufbau und Dokumentangebot erkunden, Unterschiede zu BI prüfen und benötigten Downloadumfang festlegen; weitere Daten- und Zugriffskontrakte entscheiden. Die Anmeldung ist bereits geprüft; die Erkundung ist noch nicht begonnen.
+- [x] Proton-Pass-Dokumentation, Befehlsoptionen und Tarifvoraussetzungen geprüft; Zielversion 2.7.0 (`ba80a19`) auf beiden Systemen praktisch getestet.
 - [x] Geführte lokale Speicherhilfe für Windows und Linux/WSL implementiert (0.5.69); automatisiert mit simulierten Backends geprüft. Diagnosemodus und Übernahme des GNOME-Steuerpfads sind in 0.5.70 ergänzt. Der reale WSL-Speichertest besteht nach gezieltem Dienstneustart; auch der Windows-Speichertest ist laut Nutzer erfolgreich. Die temporären Proton-CLI-Sitzungen sind inzwischen unter Windows und WSL mit erzwungenem Keyring nutzbar; Neustartabnahme steht aus.
 - [x] Skript zur verdeckten lokalen Ablage und zum Ersetzen eines Proton-Pass-Tokens implementiert (0.5.71); Windows- und WSL-Ablage durch erfolgreiche Nutzerläufe bestätigt; feste Eintragsbindung und ausschließlich lesender Zugangsdienst sind inzwischen implementiert und auf beiden Systemen geprüft.
 - [x] Eigenständigen Proton-Login-/Logout-Test implementiert (0.5.72); reale Windows-Anmeldung laut Nutzer erfolgreich, normale Abmeldung fehlgeschlagen. Tresorauflistung und gekennzeichnete lokale CLI-Bereinigung sind seit 0.5.73 implementiert; ihre reale Ausführung unter Windows ist durch den Nutzer bestätigt. Unter WSL sind Anmeldung, Tresorauflistung und normale Abmeldung laut Nutzer erfolgreich. Windows-Proton-Abmeldestatus bleibt offen; feste Eintragsbindung und ausschließlich lesender Zugangsdienst sind inzwischen implementiert und real geprüft.
@@ -45,7 +45,7 @@ RI-Rohdaten, Datenbanken, Suchindex, Protokolle und eventuelle Exporte dürfen n
 
 Alle Teilbranches entstehen vom Vorhaben-Branch `codex/feature/ri-ratsbereich` und werden nach Review in diesen zurückgeführt. Konkrete Namen können bei Arbeitsbeginn angepasst werden:
 
-Die Vorbereitung auf `codex/feature/ri-navigation-vorbereitung` (Schritt 1a) ist abgeschlossen und über PR #90 übernommen. Sie benötigte keinen RI-Zugang. Das zusätzliche Zugangspaket wird auf `codex/feature/ri-proton-pass-zugang` anhand des [Proton-Pass-Teilplans](ri_proton_pass_zugang_plan.md) bearbeitet; bisher ist ausschließlich die Planung abgeschlossen.
+Die Vorbereitung auf `codex/feature/ri-navigation-vorbereitung` (Schritt 1a) ist abgeschlossen und über PR #90 übernommen. Sie benötigte keinen RI-Zugang. Das Zugangspaket auf `codex/feature/ri-proton-pass-zugang` ist mit Version 0.5.76 für die lokale Einrichtung und den manuellen RI-Anmeldetest abgeschlossen. Der separate Proton-Plan ist entfernt; der weitere Ablauf richtet sich nach diesem Hauptplan.
 
 1. `codex/feature/ri-ratsbereich-datenhaltung` – getrennte Pfade, Datenvertrag und Build aus RI-Rohdaten.
 2. `codex/feature/ri-ratsbereich-fetch` – authentifizierter Abruf mit wiederverwendetem Parsing und Download.
@@ -94,7 +94,24 @@ Die Platzhalter bereiten ausschließlich die Bedienoberfläche vor. Die echte RI
 
 **Ohne RI-Zugang möglich:** Aufrufketten und Pfadannahmen erfassen; Daten- und Sicherheitsgrenzen festlegen; Tests mit synthetischen Seiten vorbereiten. Keine echten Zugangsdaten, Cookies oder vertraulichen Beispieldokumente ins Repository übernehmen.
 
-**Nach Erhalt des Zugangs:** Anmeldeablauf prüfen (Formular, Umleitungen, eventuelle zusätzliche Faktoren, Ablauf der Sitzung), eine freigegebene Beispiel-Sitzung nur lokal untersuchen und HTML-, URL-, PDF- und Kennzeichnungsstruktur mit `/bi/` vergleichen. Herkunft und Zugriffsrechte vor automatisiertem Abruf klären. Weicht die Struktur ab, wird der RI-spezifische Parser ergänzt, statt den öffentlichen Parser auf Vermutung hin umzubauen.
+**Zugang bereits geprüft:** Der manuelle Anmelde-/Abmeldeablauf einschließlich erneuter Zugangssperre ist unter Windows und WSL bestätigt. Neustart-/Ablaufprüfungen und unbeaufsichtigter Betrieb sind zurückgestellt. Über die RI-Sitzungs- und Dokumentstruktur ist damit noch keine Aussage getroffen.
+
+### Nächster Schritt: RI-Aufbau und tatsächlichen Downloadbedarf erkunden
+
+**Status: nur geplant, noch nicht begonnen. Auf Nutzerwunsch wird jetzt keine Erkundung durchgeführt.** Der Nutzer vermutet einen anderen Aufbau als im BI-Bereich; das ist zunächst eine zu prüfende Annahme. Ein vollständiger Dokumentdownload ist kein vorgegebenes Ziel.
+
+- [ ] Bei der späteren Erkundung die Navigation, Sitzungsübersichten, Sitzungsdetails, Tagesordnungspunkte und gegebenenfalls Vorlagenansichten erfassen; Unterschiede zu `/bi/` konkret dokumentieren.
+- [ ] An einer kleinen ausgewählten Stichprobe zunächst ausschließlich HTML-Struktur und sichtbare Dokumentmetadaten prüfen. Keine automatische Verfolgung von Datei-/PDF-Links und keinen vollständigen Crawl starten.
+- [ ] Tatsächlich vorhandene Dokumentarten, Einzeldateien und Sammelunterlagen, Anlagen, Kennzeichnungen und Mehrfachverlinkungen inventarisieren. Keine Dokumentkategorien oder Parsergleichheit mit BI voraussetzen.
+- [ ] Für die Recherche festlegen, welche Dokumentarten benötigt, optional oder nicht benötigt sind. Mögliche BI-Dubletten und redundante Sammel-/Einzeldateien berücksichtigen; ein RI-Dokument wird dadurch nicht öffentlich freigegeben.
+- [ ] Daraus Regeln für einen gezielten Abruf ableiten: auswählbare Sitzungen/Zeiträume und Dokumentarten, Umgang mit Anlagen sowie Duplikaten. Einen späteren Vorschaumodus ohne Dateiabruf vorsehen, bevor Downloadlogik umgesetzt wird.
+- [ ] Das Ergebnis als allgemeine Strukturübersicht und begründete Auswahltabelle im Plan festhalten. Vertrauliche Titel, Inhalte, Cookies und vollständige geschützte URLs nicht in Git übernehmen; Parser-Fixtures synthetisch erstellen.
+
+**Abnahme:** Unterschiede zu BI und die tatsächlich vorhandenen Dokumentarten sind belegt; für jede Kategorie ist der vorgesehene Abrufumfang begründet. Erst danach werden Parserwiederverwendung und Downloadstrategie festgelegt. Einzelne Dateiproben wären ein späterer begrenzter Schritt und sind nicht Teil der jetzt zurückgestellten Erkundung.
+
+### Weitere verbindliche Entscheidungen
+
+Herkunft und Zugriffsrechte vor automatisiertem Abruf klären. Weicht die Struktur ab, wird der RI-spezifische Parser ergänzt, statt den öffentlichen Parser auf Vermutung hin umzubauen.
 
 Vor Implementierung verbindlich festlegen und dokumentieren:
 
@@ -115,11 +132,20 @@ Für die Herkunft jedes Datensatzes eine feste Quellenkennung (`bi` oder `ri`) v
 
 ## 4. RI-Fetcher mit Anmeldung
 
-Für die sichere Bereitstellung der Zugangsdaten gibt es den [Teilplan Proton Pass](ri_proton_pass_zugang_plan.md) auf `codex/feature/ri-proton-pass-zugang`: ein Token mit Freigabe ausschließlich für den eigenen RI-Tresor mit einem Eintrag, geschützte lokale Token- und Sitzungsablage sowie schrittweise Tests. Die erste Ausbaustufe verwendet CLI 2.7.0 unter Windows und WSL bei manuell gestarteten lokalen Abrufen; Ablage und Proton-Anmeldung sind dort geprüft. Der Zugangsdienst wird auf lesende Befehle und den fest konfigurierten RI-Eintrag begrenzt; serverseitige Schreibrechte des Tokens werden nicht als eingeschränkt behauptet. Gezielter Passwortabruf sowie RI-Anmeldung und RI-Abmeldung sind mit dem neuen Test unter WSL bestätigt. Auch die Windows-Referenz und der Windows-RI-Test sind real bestätigt; dabei bleibt lediglich der bekannte Hinweis zur nachfolgenden Proton-Abmeldung. Neustartverhalten und echte Fetch-/Daten-/Such-/Webanbindung stehen noch aus.
+### Abgeschlossene Zugangseinrichtung
 
-Ein eigenes CLI-Skript für RI-Sitzungsübersicht und gezielte Sitzungsdownloads vorsehen. Wiederverwendbare Komponenten aus `SessionNetClient` nutzen, sobald HTML- und URL-Parität bestätigt ist. Der authentifizierte Client braucht eine klar abgegrenzte Anmeldung, eine zeitlich begrenzte HTTP-Sitzung und einen eindeutigen Fehler bei abgelaufener Anmeldung. Eine Login-Seite darf nie als Sitzungsdetail oder PDF gespeichert werden.
+- Implementierung: `src/config/ri_proton.py` für den fest gebundenen lesenden Zugang und `src/fetching/ri_login.py` für den begrenzten RI-Anmeldetest. Hilfsskripte und Aufrufe stehen in der [README](../../README.md#gezielten-zugriff-und-ri-anmeldung-prüfen).
+- Der RI-Tresor enthält genau einen aktiven Login-Eintrag. Zusätzliche freigegebene Tresore oder aktive Einträge sowie abweichende Referenzen führen zum Abbruch; es gibt keinen automatischen Wechsel. Eine vorhandene Sicherung in einem anderen Tresor wird nicht verwendet.
+- Die lokale Referenzdatei enthält ausschließlich Tresor-/Eintrags-IDs. RI-Zugangswerte werden nicht ausgegeben oder in Klartextdateien abgelegt; HTTP-Cookies und geschütztes HTML bleiben flüchtig. Die Anwendung erlaubt nur die vorgesehenen Leseoperationen sowie Login/Logout und lokale Einrichtungs-/Sitzungsverwaltung; serverseitige Schreibrechte des Tokens sind unbekannt.
+- Validierung des Implementierungsstands: 47 gezielte Tests je Zielsystem, sechs betroffene Integrationstests und 690 reguläre Tests bestanden. Echte RI-Anmeldung, RI-Abmeldung und erneute Zugangssperre auf beiden Systemen bestätigt; keine Sitzungsunterlagen heruntergeladen. In der aktuellen Dokumentationsänderung werden diese Live-Tests nicht wiederholt.
 
-Zugangsdaten nicht als CLI-Argument oder im Quellcode hinterlegen; ein geeigneter lokaler Secret-Speicher oder eine geschützte Eingabe wird nach Prüfung des echten Loginablaufs gewählt. Passwort, Session-Cookies, Token und vollständige geschützte URLs aus Logs und Fehlermeldungen heraushalten. Umleitungen und Dokumentlinks auf erlaubte RI-Hosts und Pfade begrenzen; keine Credentials an fremde Hosts senden. Bestehende Grenzen für Downloadgröße, Rate-Limit, Retry und sichere Dateipfade gelten auch hier.
+### Spätere Anbindung an den Fetcher
+
+Die sichere Bereitstellung der Zugangsdaten ist auf `codex/feature/ri-proton-pass-zugang` implementiert: ein Token mit Freigabe ausschließlich für den eigenen RI-Tresor mit einem Eintrag, geschützte lokale Token- und Sitzungsablage sowie schrittweise Tests. Die erste Ausbaustufe verwendet CLI 2.7.0 unter Windows und WSL bei manuell gestarteten lokalen Abrufen; Ablage und Proton-Anmeldung sind dort geprüft. Der Zugangsdienst wird auf lesende Befehle und den fest konfigurierten RI-Eintrag begrenzt; serverseitige Schreibrechte des Tokens werden nicht als eingeschränkt behauptet. Gezielter Passwortabruf sowie RI-Anmeldung und RI-Abmeldung sind mit dem neuen Test unter WSL bestätigt. Auch die Windows-Referenz und der Windows-RI-Test sind real bestätigt; dabei bleibt lediglich der bekannte Hinweis zur nachfolgenden Proton-Abmeldung. Neustartverhalten und echte Fetch-/Daten-/Such-/Webanbindung stehen noch aus.
+
+Den Abrufumfang erst nach der Struktur- und Bedarfsprüfung aus Schritt 2 festlegen; keinen pauschalen Download aller RI-Dateien implementieren. Ein eigenes CLI-Skript für RI-Sitzungsübersicht und gezielte Sitzungsdownloads vorsehen. Wiederverwendbare Komponenten aus `SessionNetClient` nutzen, sobald HTML- und URL-Parität bestätigt ist. Der authentifizierte Client braucht eine klar abgegrenzte Anmeldung, eine zeitlich begrenzte HTTP-Sitzung und einen eindeutigen Fehler bei abgelaufener Anmeldung. Eine Login-Seite darf nie als Sitzungsdetail oder PDF gespeichert werden.
+
+Zugangsdaten nicht als CLI-Argument oder im Quellcode hinterlegen; der geprüfte Zugangsdienst liest die Zugangsfelder aus dem fest gebundenen Proton-Eintrag mit getrennten OS-Schlüsselspeichern unter Windows und WSL. Der Sicherungstresor wird nicht angesprochen; an Tresoren, Einträgen und Tokenrechten werden keine Schreiboperationen durchgeführt. Passwort, Session-Cookies, Token und vollständige geschützte URLs aus Logs und Fehlermeldungen heraushalten. Umleitungen und Dokumentlinks auf erlaubte RI-Hosts und Pfade begrenzen; keine Credentials an fremde Hosts senden. Bestehende Grenzen für Downloadgröße, Rate-Limit, Retry und sichere Dateipfade gelten auch hier.
 
 Fetch-Ergebnisse enthalten die Herkunft `ri` und werden ausschließlich in der RI-Rohdatenwurzel abgelegt. Inkrementelle Abrufe und explizite Aktualisierung folgen dem bestehenden Verhalten, sofern es mit dem angemeldeten Portal vereinbar ist.
 
@@ -146,7 +172,7 @@ Die Jobliste darf keine RI-Titel, URLs, Dokumenttexte oder Zugangsdaten in öffe
 ## Reihenfolge, Dokumentation und Abschluss
 
 1. **Erledigt:** BI-/RI-Skriptnamen geordnet und Schritt 1a ohne RI-Zugang umgesetzt: Navigation und öffentliche Einstiege, RI-Platzhalter, vertikales Seitenlayout und dokumentierte Abnahme. Beide Pakete sind in den Vorhaben-Branch übernommen.
-2. **Teilweise vorbereitet, Umsetzung offen:** Proton-Pass-Teilbranch und Aufgabenplan sind angelegt. Sichere Zugangsablage einrichten und prüfen; Schutzgrenzen abstimmen sowie Vorprüfung und verbindliche Entscheidungen aus Schritt 2 mit realem Zugang abschließen.
+2. **Zugang abgeschlossen, Erkundung noch nicht begonnen:** Als Nächstes den RI-Aufbau und tatsächlichen Dokumentbedarf nach Schritt 2 untersuchen, Unterschiede zu BI belegen und einen gezielten Downloadumfang festlegen. Dieser Schritt ist auf Nutzerwunsch jetzt noch nicht auszuführen. Weitere Daten- und Zugriffskontrakte anschließend verbindlich entscheiden.
 3. Datenvertrag und isolierten Build umsetzen. Danach den Fetcher und seine Authentifizierung anschließen.
 4. Suche mit passender Zugriffssicherung bauen. Anschließend die Weboberfläche anbinden.
 5. Mit synthetischen Fixtures und später einer kleinen, lokal gehaltenen RI-Stichprobe prüfen; vor Zusammenführung `python -m pytest -m "not integration and not live"`, betroffene Integrationstests und vor einem PR `python -m pytest` ausführen.
