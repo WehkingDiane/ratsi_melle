@@ -1,10 +1,24 @@
 # Plan: RI-Zugang sicher über Proton Pass beziehen
 
-Stand: 06.11.2026. Status: Zugangsdienst und RI-Anmeldetest implementiert; vollständiger echter RI-Test unter WSL und Windows bestanden. Windows-Proton-Abmeldehinweis bleibt offen. RI-Unterlagendownload und Datenpipeline noch nicht eingerichtet.
+Stand: 06.11.2026. **Status: abgeschlossen im vereinbarten Umfang – lokale Proton-Einrichtung und manueller RI-Zugriffstest unter Windows und WSL.** Weitergehende Prüfungen und die Fetcher-Anbindung sind ausdrücklich zurückgestellt; sie wurden nicht als erledigt abgenommen.
 
 Vorhaben-Branch: `codex/feature/ri-ratsbereich`.
 Arbeitsbranch dieses Teilpakets: `codex/feature/ri-proton-pass-zugang`.
 Übergeordneter Plan: [Geschützter Ratsbereich](ri_ratsbereich_plan.md), insbesondere Schritte 2 und 4.
+
+## Abschluss und Abgrenzung
+
+Die Einrichtung ist für den vereinbarten manuell gestarteten lokalen Betrieb abgeschlossen:
+
+- [x] Proton Pass CLI 2.7.0 und geschützte getrennte Tokenablage unter Windows und WSL eingerichtet.
+- [x] Hilfsskripte unter `scripts/setup/` bereitgestellt und Bedienung dokumentiert.
+- [x] Einen festen RI-Eintrag im eigenen Tresor gebunden; Anwendung auf die vorgesehenen Lesebefehle begrenzt.
+- [x] Gezielten Zugangsfeldabruf sowie echte RI-Anmeldung, RI-Abmeldung und erneute Zugangssperre auf beiden Systemen bestätigt.
+- [x] 47 gezielte Tests auf beiden Systemen, sechs betroffene WSL-Integrationstests und 690 reguläre Tests erfolgreich ausgeführt; Dokumentation und Planstatus aktualisiert.
+
+Der Nutzer möchte die weiteren Arbeiten jetzt nicht durchführen. Neustart-/Ablaufprüfungen, weitergehende Betriebsdokumentation und die Untersuchung des bekannten Windows-Proton-Abmeldehinweises sind deshalb zurückgestellt. Unbeaufsichtigter Betrieb ist nicht abgenommen. Die spätere Anbindung an den RI-Fetcher gehört zu Schritt 4 des [RI-Hauptplans](ri_ratsbereich_plan.md), nicht zum Abschluss dieser Einrichtung. Es wurden noch keine RI-Unterlagen abgerufen oder RI-Datenbanken, Suchindizes oder Webfunktionen freigeschaltet.
+
+Nachfolgende abgehakte Punkte dokumentieren die erledigte Umsetzung. Mit **Zurückgestellt** bezeichnete Punkte bleiben nicht umgesetzt beziehungsweise nicht geprüft und sind keine offenen Arbeitsschritte dieses abgeschlossenen Teilpakets. Historische Prüfergebnisse beschreiben frühere Zwischenstände; maßgeblich ist die obige Abschlussabnahme. Der unbekannte serverseitige Schreibumfang des Tokens wird nicht als eingeschränkt behauptet.
 
 ## Ziel und Schutzgrenzen
 
@@ -22,7 +36,7 @@ Zur RI-Anmeldung muss das Passwort kurzzeitig entschlüsselt im Prozess verfügb
 
 ## Arbeitsweise für den ausführenden Agenten
 
-Die Aufgaben in Reihenfolge bearbeiten. Ein Kästchen erst nach Umsetzung und passender Prüfung abhaken. Zu jedem abgeschlossenen Abschnitt einen kurzen Ergebnisvermerk mit Datum, Prüfung und verbleibenden Grenzen ergänzen, ohne Geheimnisse oder vertrauliche Metadaten. Fehlende echte Zugänge als offen kennzeichnen; synthetische Tests ersetzen keine reale Abnahme.
+Dieses Teilpaket ist abgeschlossen; keine neuen Implementierungs- oder Live-Prüfschritte aus den zurückgestellten Punkten ableiten. Die folgenden Aufgaben dokumentieren die Umsetzung. Ein Kästchen bezeichnet nur tatsächlich umgesetzte und geprüfte Arbeit. Zu jedem abgeschlossenen Abschnitt einen kurzen Ergebnisvermerk mit Datum, Prüfung und verbleibenden Grenzen ergänzen, ohne Geheimnisse oder vertrauliche Metadaten. Fehlende echte Zugänge als offen kennzeichnen; synthetische Tests ersetzen keine reale Abnahme.
 
 Kleine, zusammenhängende Commits mit den jeweils betroffenen Tests und Dokumenten erstellen. Das Anlegen dieses Plans aktiviert noch keine Anmeldung, installiert keine Software und erzeugt keinen Token.
 
@@ -38,12 +52,12 @@ Kleine, zusammenhängende Commits mit den jeweils betroffenen Tests und Dokument
 - [x] Zugriffsmodell festlegen: eigener freigegebener RI-Tresor mit einem Eintrag, ausschließlich lesende Anwendung; serverseitige Eintrags-/Leserechte des Tokens nicht als geprüft einstufen.
 - [x] Zielsysteme Windows und WSL sowie manuell gestartete lokale Abrufe für die erste Ausbaustufe festlegen; kein unbeaufsichtigter Dauerbetrieb in dieser Abnahme.
 - [x] Fest konfigurierte Eintragsbindung und ausschließlich lesende Befehle in `src/config/ri_proton.py` implementieren und mit künstlichen Daten prüfen. WSL-Referenz anhand echter Metadaten eingerichtet; gezielter Passwortabruf, RI-Anmeldung und RI-Abmeldung anschließend real bestätigt. Windows-Referenz und Windows-RI-Test anschließend ebenfalls real bestätigt; nur der separate Proton-Abmeldehinweis bleibt.
-- [ ] Unbeaufsichtigte Jobs erst nach geprüfter Entsperrung, Neustartverhalten, Sitzungs-/Tokenablauf und festgelegtem Betriebsmodell freigeben.
+- **Zurückgestellt:** Unbeaufsichtigte Jobs erst nach geprüfter Entsperrung, Neustartverhalten, Sitzungs-/Tokenablauf und festgelegtem Betriebsmodell freigeben.
 - [x] Geführte Speicherhilfe `scripts/setup/setup_ri_secret_storage.py` für Windows und Linux/WSL mit verdeckter Eingabe, expliziten OS-Backends, Zufallswerttest und begrenzter Wartezeit implementieren; mit simulierten Backends prüfen.
 - [x] WSL-Login-Speicher in der laufenden Sitzung real prüfen: Erreichbarkeit, Entsperrstatus sowie Schreiben, Lesen und Löschen eines künstlichen Zufallswerts bestätigt (06.11.2026). Noch kein PAT oder RI-Passwort gespeichert.
 - [x] Windows Credential Manager in der laufenden Sitzung real prüfen: Nutzer bestätigt Schreiben, Lesen und Löschen des Zufallswerts durch die Speicherhilfe (06.11.2026). Noch kein PAT oder RI-Passwort gespeichert.
 - [x] Betriebssystemspeicher für PAT und temporäre CLI-Sitzungen in beiden laufenden Umgebungen geprüft: Windows Credential Manager sowie GNOME Secret Service unter WSL mit explizitem D-Bus-Backend; getrennte Ablage, keine automatische gemeinsame Nutzung. Neustartprüfung bleibt offen.
-- [ ] Sichere Einrichtung, Verhalten nach Neustart und Wiederanmeldung nach Ablauf einer Sitzung festlegen. Laut derzeitiger Dokumentation laufen PAT-Sitzungen nach zwei Stunden ab; anhand der gewählten Version bestätigen.
+- **Zurückgestellt:** Sichere Einrichtung, Verhalten nach Neustart und Wiederanmeldung nach Ablauf einer Sitzung festlegen. Laut derzeitiger Dokumentation laufen PAT-Sitzungen nach zwei Stunden ab; anhand der gewählten Version bestätigen.
 
 ### Verbindlicher Betriebsstand und verbleibende Abnahme
 
@@ -117,8 +131,8 @@ Abnahme: Version, Kontovoraussetzungen und tragfähiges Speicherkonzept sind bel
 
 ## 2. Zugang aus dem eigenen RI-Tresor bereitstellen
 
-- [ ] Einrichtung zunächst mit einem künstlichen RI-Eintrag und einem zweiten, nicht freigegebenen Testeintrag vorbereiten.
-- [ ] Verwaltungsanmeldung und Laufzeitsitzung trennen: separates CLI-Sitzungsverzeichnis für die Anwendung außerhalb des Repositorys verwenden; dort ausschließlich eine PAT-Sitzung zulassen.
+- [x] Eintragsbindung und Ablehnung fremder beziehungsweise zusätzlicher Einträge mit künstlichen Referenzen und CLI-Antworten testen; keine zusätzlichen echten Passworteinträge erzeugt.
+- [x] Verwaltungsanmeldung und Testsitzung trennen: pro Test neues temporäres CLI-Sitzungsverzeichnis außerhalb des Repositorys verwenden und ausschließlich mit dem gespeicherten PAT anmelden. Eine dauerhafte Fetcher-Sitzung ist nicht Teil dieser Abnahme.
 - [x] Zeitlich begrenzte PATs mit Zugriff auf den eigenen RI-Tresor einrichten; reale Windows-/WSL-Anmeldungen bestätigt. Der Tresor enthält laut Nutzer ausschließlich den RI-Eintrag. Tokenrollen sind nicht geprüft. Tokenwerte nicht in Agentenprotokolle, Terminalmitschnitte oder Tickets übernehmen.
 - [x] Skript `scripts/setup/store_ri_proton_token.py` zum verdeckten Speichern und Ersetzen des PAT mit internem Schreib-/Lesenachweis implementieren; synthetisch testen.
 - [x] Windows-PAT verdeckt im Windows Credential Manager hinterlegen und internes Lesen bestätigen; Nutzer bestätigt erfolgreichen Lauf von `store_ri_proton_token.py` (06.11.2026).
@@ -128,9 +142,9 @@ Abnahme: Version, Kontovoraussetzungen und tragfähiges Speicherkonzept sind bel
 - [x] Tresorauflistung und gesonderte lokale CLI-Bereinigung bei Abmeldefehlern implementieren (0.5.73); synthetisch prüfen.
 - [x] Erweiterten Windows-Test mit erfolgreicher Anmeldung und Tresorauflistung ausführen; Nutzer bestätigt auch erfolgreiche lokale CLI-Bereinigung über `logout --force` (06.11.2026).
 - [x] Erweiterten WSL-Test ausführen: Anmeldung, Tresorauflistung und normale Abmeldung laut Nutzer erfolgreich (06.11.2026); keine erzwungene Bereinigung benötigt.
-- [ ] Normale Windows-Abmeldung weiter untersuchen und serverseitigen Sitzungsstatus verifizieren; der gemeldete Fehler betrifft die Kategorie lokale Bereinigung, beweist aber weder Erfolg noch Fehlschlag der entfernten Abmeldung.
+- **Zurückgestellt:** Normale Windows-Abmeldung weiter untersuchen und serverseitigen Sitzungsstatus verifizieren; der gemeldete Fehler betrifft die Kategorie lokale Bereinigung, beweist aber weder Erfolg noch Fehlschlag der entfernten Abmeldung.
 - [x] Mit künstlichen Daten nachweisen: Nur der konfigurierte RI-Eintrag wird angefordert, fremde Tresor-/Eintragsreferenzen und nicht erlaubte CLI-Operationen werden vor einem Prozessaufruf abgewiesen. Gezieltes Lesen unter WSL real bestätigt; keine Schreibprobe und kein Zugriff auf den Sicherungstresor.
-- [ ] Ablauf, Entzug und Erneuerung des Tokens beschreiben; für Erneuerung ausschließlich dieselbe RI-Tresorfreigabe beibehalten.
+- **Zurückgestellt:** Ablauf, Entzug und Erneuerung des Tokens beschreiben; für Erneuerung ausschließlich dieselbe RI-Tresorfreigabe beibehalten.
 
 Abnahme: Der Zugriff auf den eigenen RI-Tresor und das gezielte Lesen des konfigurierten Eintrags sind bestätigt; der Zugangsdienst lässt ausschließlich die festgelegten Leseoperationen zu. Serverseitige Schreibrechte des Tokens bleiben davon getrennt als unbekannt dokumentiert. Keine Änderungsversuche an echten Einträgen, kein Zugriff auf die Sicherung. Ergebnisse ohne Tokenwerte und Eintragsinhalte festhalten.
 
@@ -140,8 +154,8 @@ Abnahme: Der Zugriff auf den eigenen RI-Tresor und das gezielte Lesen des konfig
 - [x] CLI mit festgelegtem Programm, Argumentliste ohne Shell, begrenzter Laufzeit und abgefangenen Ausgaben aufrufen. Passwortausgabe nur intern über eine Pipe lesen; weder anzeigen noch auf Platte schreiben.
 - [x] PAT bei nötiger Anmeldung aus dem Betriebssystemspeicher lesen und ausschließlich an den vorgesehenen CLI-Unterprozess übergeben. Vererbung vorhandener Proton-Kontopasswörter oder fremder Sitzungs-/Schlüsseleinstellungen verhindern.
 - [x] Für den Test eine neue isolierte Sitzung mit dem vorgesehenen PAT und erzwungenem Keyring verwenden; vollständige Kontositzungen und unsichere Backends ablehnen.
-- [ ] Fehlende CLI, fehlenden Speicherzugriff, Zeitüberschreitung, leere oder ungültige Ausgabe, fehlenden Eintrag, abgelaufenen beziehungsweise widerrufenen Token und abgelaufene Sitzung mit inhaltsfreien Fehlern behandeln. Keine unbegrenzten Wiederanmeldeversuche.
-- [ ] Geheimnisse nur solange benötigt im Speicher halten. CLI-Ausgaben, Prozessumgebung und Zugangsdaten nicht in Fehlerobjekte, Debug-Logs oder Jobstatus übernehmen; keine garantierte Speicherlöschung für Python behaupten.
+- **Zurückgestellt:** Fehlende CLI, fehlenden Speicherzugriff, Zeitüberschreitung, leere oder ungültige Ausgabe, fehlenden Eintrag, abgelaufenen beziehungsweise widerrufenen Token und abgelaufene Sitzung mit inhaltsfreien Fehlern behandeln. Keine unbegrenzten Wiederanmeldeversuche.
+- **Zurückgestellt:** Geheimnisse nur solange benötigt im Speicher halten. CLI-Ausgaben, Prozessumgebung und Zugangsdaten nicht in Fehlerobjekte, Debug-Logs oder Jobstatus übernehmen; keine garantierte Speicherlöschung für Python behaupten.
 
 Abnahme: Zugangsdienst ist mit einer simulierten CLI prüfbar und liefert entweder den vorgesehenen Zugang oder einen sicheren Fehler. Öffentliche BI-Abläufe benötigen keine Proton-Abhängigkeit.
 
@@ -159,34 +173,34 @@ Der öffentliche RI-Ablauf ist ohne Credentials geprüft: Einstieg über `defaul
 
 `python scripts/setup/check_ri_access.py --configure` speichert nur die Referenzen des einzigen aktiven Login-Eintrags. Dieser Schritt war unter WSL mit echten Metadaten erfolgreich. `python scripts/setup/check_ri_access.py` liest danach gezielt die Zugangsfelder intern und prüft die RI-Anmeldung ohne Unterlagendownload. Referenzen werden auf jedem Betriebssystem separat eingerichtet. Erfolgsprüfung über geschützten Einstieg und bestätigte RI-Abmeldung sind Voraussetzung für die echte Abnahme; diese steht vor dem ersten realen Lauf noch aus. Reguläre Tests verwenden ausschließlich künstliche Seiten und Zugangswerte.
 
-## 4. An den RI-Fetcher anschließen
+## 4. Zurückgestellte Anbindung an den RI-Fetcher
 
-- [ ] Abhängigkeit mit dem Fetcher-Teilbranch abstimmen. Falls dieser noch fehlt, nur die Zugangsschnittstelle und ihre Tests liefern; echte Anmeldung weiterhin als offen führen.
-- [ ] Zugang unmittelbar vor der RI-Anmeldung abrufen; keine Weitergabe an öffentliche BI-Jobs, Suchdienste oder Analysefunktionen.
-- [ ] HTTP-Anmeldung gemäß RI-Hauptplan auf erlaubte Hosts begrenzen und Zugangsdaten, Cookies und Token aus Logs und Statusanzeigen ausschließen.
-- [ ] Bei Secret- oder Anmeldefehlern den Job vor Dokumentabrufen abbrechen; keine Ausweichanmeldung mit Klartextkonfiguration.
+- **Zurückgestellt:** Abhängigkeit mit dem Fetcher-Teilbranch abstimmen. Falls dieser noch fehlt, nur die Zugangsschnittstelle und ihre Tests liefern; echte Anmeldung weiterhin als offen führen.
+- **Zurückgestellt:** Zugang unmittelbar vor der RI-Anmeldung abrufen; keine Weitergabe an öffentliche BI-Jobs, Suchdienste oder Analysefunktionen.
+- **Zurückgestellt:** HTTP-Anmeldung gemäß RI-Hauptplan auf erlaubte Hosts begrenzen und Zugangsdaten, Cookies und Token aus Logs und Statusanzeigen ausschließen.
+- **Zurückgestellt:** Bei Secret- oder Anmeldefehlern den Job vor Dokumentabrufen abbrechen; keine Ausweichanmeldung mit Klartextkonfiguration.
 
 Abnahme: Der Fetcher erhält den Zugang ausschließlich über den Zugangsdienst. Eine erfolgreiche Passwortabfrage allein gilt noch nicht als erfolgreiche RI-Anmeldung.
 
 ## 5. Automatisiert prüfen und lokal abnehmen
 
 - [x] Tests mit künstlichen Geheimnissen und simulierter CLI für Eintragsbindung, erlaubte Leseoperationen, Metadatenfehler und Erfolgsfall ergänzen; zusätzliche realistische Ablauf-/Neustartfälle bleiben separat offen. Reguläre Tests greifen weder auf Proton noch auf das echte RI zu.
-- [ ] Mit künstlichen Werten nachweisen, dass weder RI-Passwort noch PAT in Logs, Fehlertexten, Jobstatus, persistenten Dateien oder Prozessargumenten erscheinen und nur der vorgesehene Unterprozess nötige Umgebungswerte erhält.
-- [ ] Testen, dass falsche Sitzungsart, unsichere Schlüsselanbieter und fehlende Speicherunterstützung abgewiesen werden. Bestehende öffentliche Abläufe ohne Proton-Konfiguration prüfen.
-- [ ] `python -m pytest -m "not integration and not live"` und betroffene Integrationstests ausführen; vor einem PR gemäß Repository-Regeln `python -m pytest` ausführen. Ergebnisse dokumentieren.
-- [ ] In jeder unterstützten Umgebung mit Testtoken und Testeinträgen Anmeldung, erneute Anmeldung nach Sitzungsablauf, Neustart, Entzug und Rechtebegrenzung prüfen. Nicht ausgeführte Fälle ausdrücklich offen lassen.
+- **Zurückgestellt:** Mit künstlichen Werten nachweisen, dass weder RI-Passwort noch PAT in Logs, Fehlertexten, Jobstatus, persistenten Dateien oder Prozessargumenten erscheinen und nur der vorgesehene Unterprozess nötige Umgebungswerte erhält.
+- **Zurückgestellt:** Testen, dass falsche Sitzungsart, unsichere Schlüsselanbieter und fehlende Speicherunterstützung abgewiesen werden. Bestehende öffentliche Abläufe ohne Proton-Konfiguration prüfen.
+- [x] Reguläre Suite (690 Tests), betroffene Integrationstests (sechs) und gezielte Windows-/WSL-Tests (je 47) ausführen und Ergebnisse dokumentieren. Ein PR wurde nicht erstellt; dessen vorgeschriebener vollständiger Testlauf bleibt vor einem späteren PR separat erforderlich.
+- **Zurückgestellt:** In jeder unterstützten Umgebung mit Testtoken und Testeinträgen Anmeldung, erneute Anmeldung nach Sitzungsablauf, Neustart, Entzug und Rechtebegrenzung prüfen. Nicht ausgeführte Fälle ausdrücklich offen lassen.
 - [x] Kleine echte RI-Anmeldung unter WSL und Windows nach Prüfung des Formularablaufs bestätigen; RI-Abmeldung jeweils durch erneute Sperre des geschützten Einstiegs geprüft. Kein Dokumentdownload und keine persistenten HTML-/Cookie-/Passwortdaten. Separater Windows-Proton-Abmeldehinweis bleibt offen.
 
-Abnahme: Automatisierte Tests bestehen; reale Rechtebegrenzung und die unterstützten Betriebsumgebungen sind geprüft. Fehlende RI-Zugangsdaten blockieren nur die reale RI-Abnahme, nicht die unabhängigen Vorarbeiten.
+Abnahme im abgeschlossenen Umfang: Automatisierte Tests und echte manuelle RI-Zugriffe auf beiden Systemen bestehen. Eintrags- und Befehlsbindung sind in der Anwendung geprüft; serverseitige Schreibrechte des Tokens bleiben unbekannt. Neustart-/Ablauf- und weitere Betriebsprüfungen sind ausdrücklich nicht abgenommen.
 
 ## 6. Betrieb dokumentieren und abschließen
 
-- [ ] Betriebsanleitung für Installation der geprüften CLI-Version, sichere lokale Einrichtung, Eintragsfreigabe, Anmeldung, Token-Erneuerung, Widerruf und Entfernung lokaler Sitzungen erstellen. Beispiele enthalten ausschließlich Platzhalter.
-- [ ] Verhalten bei gesperrtem Keyring, Neustart und abgelaufenem Zugang sowie Wiederherstellung auf einem neuen Rechner beschreiben; keine Geheimnisse in ungeschützte Backups aufnehmen.
-- [ ] README, `docs/ist_stand.md`, RI-Hauptplan und `docs/plans/project_tasks.md` anhand der tatsächlichen Umsetzung aktualisieren. Beim ersten sichtbaren funktionalen Schritt `VERSION` bewusst anpassen; reine Planung benötigt keinen Versionssprung.
-- [ ] Diff auf Geheimnisse, unbeabsichtigte Dateien, funktionierende Dokumentlinks und Whitespace prüfen. Zusammenhängende Commits erstellen und verbleibende Abnahmegrenzen im PR zum Vorhaben-Branch nennen.
+- **Zurückgestellt:** Betriebsanleitung für Installation der geprüften CLI-Version, sichere lokale Einrichtung, Eintragsfreigabe, Anmeldung, Token-Erneuerung, Widerruf und Entfernung lokaler Sitzungen erstellen. Beispiele enthalten ausschließlich Platzhalter.
+- **Zurückgestellt:** Verhalten bei gesperrtem Keyring, Neustart und abgelaufenem Zugang sowie Wiederherstellung auf einem neuen Rechner beschreiben; keine Geheimnisse in ungeschützte Backups aufnehmen.
+- [x] README, `docs/ist_stand.md`, RI-Hauptplan und `docs/plans/project_tasks.md` anhand der tatsächlichen Umsetzung aktualisieren; `VERSION` bei den funktionalen Schritten bis 0.5.76 angepasst. Der reine Planabschluss benötigt keinen weiteren Versionssprung.
+- [x] Diff, Dokumentlinks und Whitespace prüfen sowie zusammenhängende Zwischen-Commits erstellen. Kein PR erstellt; Abnahmegrenzen sind in diesem Plan dokumentiert.
 
-## Quellen und offene Entscheidungen
+## Quellen und zurückgestellte Entscheidungen
 
 Die Quellen beschreiben den aktuellen Entwicklungsstand; vor Implementierung mit der tatsächlich installierten Version abgleichen:
 
@@ -198,4 +212,4 @@ Die Quellen beschreiben den aktuellen Entwicklungsstand; vor Implementierung mit
 - [Feldweiser Eintragsabruf](https://github.com/protonpass/pass-cli/blob/main/docs/public/docs/commands/item.md)
 - [Anmeldung und PAT-Sitzungen](https://github.com/protonpass/pass-cli/blob/main/docs/public/docs/commands/login.md)
 
-Festgelegt sind CLI 2.7.0, Windows und WSL sowie manuell gestarteter lokaler Betrieb mit ausschließlich lesendem Anwendungscode. Feste Eintragsbindung, gezielter Passwortabruf und echter RI-Anmelde-/Abmeldeablauf sind inzwischen unter WSL und Windows bestätigt. Offen bleiben Neustart-/Ablaufverhalten, normale Windows-Proton-Abmeldung, dauerhafte Laufzeitsitzung und Anbindung an den zukünftigen RI-Fetcher. Diese Punkte sind Prüfaufgaben, keine bereits zugesicherten Eigenschaften der Anwendung.
+Festgelegt sind CLI 2.7.0, Windows und WSL sowie manuell gestarteter lokaler Betrieb mit ausschließlich lesendem Anwendungscode. Feste Eintragsbindung, gezielter Passwortabruf und echter RI-Anmelde-/Abmeldeablauf sind inzwischen unter WSL und Windows bestätigt. Offen bleiben Neustart-/Ablaufverhalten, normale Windows-Proton-Abmeldung, dauerhafte Laufzeitsitzung und Anbindung an den zukünftigen RI-Fetcher. Diese Punkte sind zurückgestellte Folgearbeiten außerhalb des abgeschlossenen Einrichtungsumfangs und keine zugesicherten Eigenschaften der Anwendung.

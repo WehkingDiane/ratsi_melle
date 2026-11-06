@@ -4,6 +4,8 @@ Stand: 06.11.2026. Dieser Plan ist die Grundlage für spätere Teilbranches. Gez
 
 ## Fortschritt
 
+Das [Proton-Teilpaket](ri_proton_pass_zugang_plan.md) ist für die lokale Einrichtung und den manuell gestarteten RI-Zugriffstest unter Windows und WSL abgeschlossen. Neustart-/Ablaufprüfungen, unbeaufsichtigter Betrieb und der bekannte Windows-Proton-Abmeldehinweis sind auf Nutzerwunsch zurückgestellt und nicht abgenommen. Die Anbindung an den RI-Fetcher bleibt Teil dieses Hauptplans.
+
 Abgehakte Punkte bezeichnen nur den jeweils genannten Umfang. Dokumentierte Testläufe stammen aus den bisherigen Umsetzungspaketen und wurden für diese Statuspflege nicht erneut ausgeführt.
 
 - [x] Schritt 1: BI-/RI-Skriptnamen einschließlich Aufrufern, Tests und Dokumentation umgesetzt; über PR #89 übernommen.
