@@ -37,7 +37,7 @@ Kleine, zusammenhängende Commits mit den jeweils betroffenen Tests und Dokument
 - [x] Zielversion auf Proton Pass CLI 2.7.0 (`ba80a19`) festlegen; reale PAT-Anmeldung und Tresorauflistung unter Windows und WSL abgenommen. Unter WSL normale Abmeldung bestätigt, unter Windows nur lokale CLI-Bereinigung; siehe offene Windows-Abmeldeaufgabe.
 - [x] Zugriffsmodell festlegen: eigener freigegebener RI-Tresor mit einem Eintrag, ausschließlich lesende Anwendung; serverseitige Eintrags-/Leserechte des Tokens nicht als geprüft einstufen.
 - [x] Zielsysteme Windows und WSL sowie manuell gestartete lokale Abrufe für die erste Ausbaustufe festlegen; kein unbeaufsichtigter Dauerbetrieb in dieser Abnahme.
-- [ ] Fest konfigurierte Eintragsbindung und ausschließlich lesende Befehle im künftigen Zugangsdienst implementieren und mit künstlichen Daten prüfen. Die bisherigen Tests bestätigen Anmeldung/Tresorauflistung, noch keinen gezielten Passwortabruf.
+- [x] Fest konfigurierte Eintragsbindung und ausschließlich lesende Befehle in `src/config/ri_proton.py` implementieren und mit künstlichen Daten prüfen. WSL-Referenz anhand echter Metadaten eingerichtet; tatsächlicher Passwortabruf und RI-Anmeldung noch separat abzunehmen.
 - [ ] Unbeaufsichtigte Jobs erst nach geprüfter Entsperrung, Neustartverhalten, Sitzungs-/Tokenablauf und festgelegtem Betriebsmodell freigeben.
 - [x] Geführte Speicherhilfe `scripts/setup/setup_ri_secret_storage.py` für Windows und Linux/WSL mit verdeckter Eingabe, expliziten OS-Backends, Zufallswerttest und begrenzter Wartezeit implementieren; mit simulierten Backends prüfen.
 - [x] WSL-Login-Speicher in der laufenden Sitzung real prüfen: Erreichbarkeit, Entsperrstatus sowie Schreiben, Lesen und Löschen eines künstlichen Zufallswerts bestätigt (06.11.2026). Noch kein PAT oder RI-Passwort gespeichert.
@@ -136,14 +136,20 @@ Abnahme: Der Zugriff auf den eigenen RI-Tresor und das gezielte Lesen des konfig
 
 ## 3. Abgegrenzten Zugangsdienst implementieren
 
-- [ ] Eine kleine Schnittstelle für den RI-Zugangsabruf definieren, unabhängig vom HTTP-Client. Konfiguration enthält ausschließlich nicht geheime, feste Tresor-/Eintragsreferenzen; keine Auswahl beliebiger Einträge oder Befehle über Webparameter. Nur explizit erlaubte Leseoperationen zulassen und jede Schreiboperation vor einem CLI-Aufruf abweisen.
-- [ ] CLI mit festgelegtem Programm, Argumentliste ohne Shell, begrenzter Laufzeit und abgefangenen Ausgaben aufrufen. Passwortausgabe nur intern über eine Pipe lesen; weder anzeigen noch auf Platte schreiben.
-- [ ] PAT bei nötiger Anmeldung aus dem Betriebssystemspeicher lesen und ausschließlich an den vorgesehenen CLI-Unterprozess übergeben. Vererbung vorhandener Proton-Kontopasswörter oder fremder Sitzungs-/Schlüsseleinstellungen verhindern.
-- [ ] Sicherstellen, dass die Laufzeitsitzung den vorgesehenen PAT verwendet und der konfigurierte sichere Schlüsselanbieter aktiv ist; vollständige Kontositzungen und unsichere Backends ablehnen.
+- [x] Eine kleine Schnittstelle für den RI-Zugangsabruf definieren, unabhängig vom HTTP-Client. Konfiguration enthält ausschließlich nicht geheime, feste Tresor-/Eintragsreferenzen; keine Auswahl beliebiger Einträge oder Befehle über Webparameter. Nur explizit erlaubte Leseoperationen zulassen und jede Schreiboperation vor einem CLI-Aufruf abweisen.
+- [x] CLI mit festgelegtem Programm, Argumentliste ohne Shell, begrenzter Laufzeit und abgefangenen Ausgaben aufrufen. Passwortausgabe nur intern über eine Pipe lesen; weder anzeigen noch auf Platte schreiben.
+- [x] PAT bei nötiger Anmeldung aus dem Betriebssystemspeicher lesen und ausschließlich an den vorgesehenen CLI-Unterprozess übergeben. Vererbung vorhandener Proton-Kontopasswörter oder fremder Sitzungs-/Schlüsseleinstellungen verhindern.
+- [x] Für den Test eine neue isolierte Sitzung mit dem vorgesehenen PAT und erzwungenem Keyring verwenden; vollständige Kontositzungen und unsichere Backends ablehnen.
 - [ ] Fehlende CLI, fehlenden Speicherzugriff, Zeitüberschreitung, leere oder ungültige Ausgabe, fehlenden Eintrag, abgelaufenen beziehungsweise widerrufenen Token und abgelaufene Sitzung mit inhaltsfreien Fehlern behandeln. Keine unbegrenzten Wiederanmeldeversuche.
 - [ ] Geheimnisse nur solange benötigt im Speicher halten. CLI-Ausgaben, Prozessumgebung und Zugangsdaten nicht in Fehlerobjekte, Debug-Logs oder Jobstatus übernehmen; keine garantierte Speicherlöschung für Python behaupten.
 
 Abnahme: Zugangsdienst ist mit einer simulierten CLI prüfbar und liefert entweder den vorgesehenen Zugang oder einen sicheren Fehler. Öffentliche BI-Abläufe benötigen keine Proton-Abhängigkeit.
+
+### Gezielter Anmeldetest (0.5.75)
+
+Der öffentliche RI-Ablauf ist ohne Credentials geprüft: Einstieg über `default.asp`/`info.asp`, Weiterleitung zu `ylogon.asp`, Formular `smclogon` mit POST nach `ylogon2.asp`. Die Zugangsfelder und versteckten Formularparameter werden ausschließlich im Speicher verarbeitet; eine Passwortänderung oder Wiederherstellung wird nicht angefordert. Der Test akzeptiert nur das feste HTTPS-Ziel und bekannte Login-/Status-/Logoutpfade, begrenzt Antworten und Weiterleitungen und versucht keine zweite Passwortübermittlung.
+
+`python scripts/setup/check_ri_access.py --configure` speichert nur die Referenzen des einzigen aktiven Login-Eintrags. Dieser Schritt war unter WSL mit echten Metadaten erfolgreich. `python scripts/setup/check_ri_access.py` liest danach gezielt die Zugangsfelder intern und prüft die RI-Anmeldung ohne Unterlagendownload. Referenzen werden auf jedem Betriebssystem separat eingerichtet. Erfolgsprüfung über geschützten Einstieg und bestätigte RI-Abmeldung sind Voraussetzung für die echte Abnahme; diese steht vor dem ersten realen Lauf noch aus. Reguläre Tests verwenden ausschließlich künstliche Seiten und Zugangswerte.
 
 ## 4. An den RI-Fetcher anschließen
 

@@ -63,6 +63,30 @@ Nach jedem Versuch wird die Testsitzung abgemeldet. Scheitert das, meldet das Sk
 
 Nur die ausdrücklich angeforderte erfolgreiche Tresorliste wird angezeigt; sonstige CLI-Ausgaben und native Fehlertexte bleiben intern. Der vollständige Token wird aus der Tresorlistenausgabe ausgeblendet; Terminal-Steuerzeichen werden entfernt. Das Skript fordert keine Passworteinträge an; Gültigkeit des Tokens wird durch den Login geprüft, der gezielte Abruf des fest konfigurierten RI-Eintrags und die ausschließliche Nutzung erlaubter Lesebefehle bleiben im Zugangsdienst umzusetzen und zu prüfen. Der Aufruf führt keine RI-Anmeldung durch. Unter WSL muss der lokale Login-Schlüsselspeicher entsperrt und der Token dort separat hinterlegt sein.
 
+## Gezielten Zugriff und RI-Anmeldung prüfen
+
+Ab Version 0.5.75 kann der einzige freigegebene Proton-Eintrag lokal fest gebunden und die RI-Anmeldung getrennt vom Datenabruf geprüft werden. Zuerst pro Betriebssystem einmal ausführen:
+
+```bash
+python scripts/setup/check_ri_access.py --configure
+```
+
+Dafür sind genau ein sichtbarer Tresor und genau ein aktiver Login-Eintrag erforderlich. Es werden nur dessen Referenz-IDs gespeichert: unter Windows in `%LOCALAPPDATA%/ratsi_melle/ri_proton_access.json`, unter WSL in `~/.local/share/ratsi_melle/ri_proton_access.json`. Die Datei enthält keine Benutzernamen oder Passwörter. Eine bestehende abweichende Bindung wird nicht automatisch ersetzt. Ein später hinzugefügter aktiver Eintrag oder ein weiterer freigegebener Tresor blockiert den Abruf.
+
+Danach den eigentlichen Anmeldetest starten:
+
+```bash
+python scripts/setup/check_ri_access.py
+```
+
+Unter WSL jeweils `.venv-wsl/bin/python` statt `python` verwenden. Der Token wird aus dem lokalen OS-Speicher gelesen. Der Zugangsdienst erlaubt nur die vorgesehenen Metadatenabfragen und das Lesen von Benutzername (ersatzweise E-Mail) und Passwort des fest gebundenen Eintrags. Er gibt keine Zugangsdaten aus und erlaubt keine frei übergebenen Proton-Befehle.
+
+Das feste Testziel ist `https://session.melle.info/ri/`. Der Test liest das öffentliche Anmeldeformular und sendet den Zugang genau einmal an den geprüften RI-Anmeldeendpunkt. Passwortänderung und Kennwort-Wiederherstellung werden nicht ausgewählt. HTTPS, Host und Zielpfade werden vor Weiterleitungen geprüft; Wiederholung eines Passwort-POST bei 307/308 wird abgelehnt. Es gibt keine automatischen Anmeldewiederholungen.
+
+Eine HTTP-200-Antwort allein gilt nicht als Erfolg: Die geschützte Einstiegsseite muss einen erkannten Abmeldelink enthalten. Danach wird die RI-Abmeldung über erneute Prüfung des geschützten Einstiegs bestätigt. Der Test lädt keine Sitzungen oder Dokumente herunter und schreibt weder HTML noch HTTP-Cookies auf Platte. Eine möglicherweise notwendige zusätzliche Anmeldung, Passwortänderung oder ein verändertes Formular führt zum Abbruch. Bei einem Abbruch nach dem Passwortversand kann eine entfernte RI-Sitzung bis zu ihrem Ablauf bestehen bleiben; lokale Cookies werden verworfen. Der BI-Abruf und die öffentliche Datenhaltung werden nicht verwendet.
+
+Die Proton-Sitzung wird anschließend separat beendet; eine nicht bestätigte normale Proton-Abmeldung ergibt wie beim bisherigen Test einen Hinweis mit Status 2. Der echte RI-Ablauf ist erst nach erfolgreichem lokalen Test als abgenommen zu behandeln.
+
 ## Daten aufbauen
 
 Die SessionNet-Skripte für den öffentlichen Bürgerinformationsbereich tragen `bi` im Namen. RI-Abrufskripte sind noch nicht vorhanden; für die vorbereitende Speicherprüfung gibt es die unten beschriebene Einrichtungshilfe. Seit Version 0.5.63 gelten folgende Umbenennungen; eigene Automatisierungen müssen die neuen Namen verwenden:

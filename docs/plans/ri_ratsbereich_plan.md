@@ -16,7 +16,8 @@ Abgehakte Punkte bezeichnen nur den jeweils genannten Umfang. Dokumentierte Test
 - [x] Eigenständigen Proton-Login-/Logout-Test implementiert (0.5.72); reale Windows-Anmeldung laut Nutzer erfolgreich, normale Abmeldung fehlgeschlagen. Tresorauflistung und gekennzeichnete lokale CLI-Bereinigung sind seit 0.5.73 implementiert; ihre reale Ausführung unter Windows ist durch den Nutzer bestätigt. Unter WSL sind Anmeldung, Tresorauflistung und normale Abmeldung laut Nutzer erfolgreich. Windows-Abmeldestatus, feste Eintragsbindung und ausschließlich lesender Zugangsdienst bleiben offen.
 - [x] Proton-Hilfsskripte unter `scripts/setup/` bündeln und Aufrufe, Importe sowie Dokumentation anpassen (0.5.74).
 - [x] Zielversion CLI 2.7.0, Windows und WSL sowie manuell gestarteten lokalen Betrieb für die erste Proton-Anbindung festlegen; eigener RI-Tresor mit einem Eintrag, Anwendung ausschließlich lesend.
-- [ ] Gezielten Lesezugriff auf den fest konfigurierten RI-Eintrag im Zugangsdienst implementieren und prüfen; keine Schreiboperationen an Tresoren, Einträgen oder Tokenrechten.
+- [x] Gezielten Lesezugriff und feste Eintragsbindung im Zugangsdienst mit synthetischen Tests implementieren (0.5.75); keine Schreiboperationen an Tresoren, Einträgen oder Tokenrechten.
+- [ ] Gezielten Passwortabruf und RI-Anmeldung mit dem neuen Testskript real abnehmen; Windows-Referenz separat einrichten.
 - [ ] Schritt 3: Getrennte RI-Datenhaltung und Build umsetzen und abnehmen.
 - [ ] Schritt 4: Authentifizierten RI-Fetcher umsetzen und mit dem Zugangsdienst verbinden.
 - [ ] Schritt 5: Geschützte RI-Suche umsetzen und abnehmen.
