@@ -44,6 +44,10 @@ Validierung der Speicherhilfe: `python -m pytest tests/test_setup_ri_secret_stor
 
 Der Nutzer hat den passenden Tarif bestätigt und CLI 2.7.0 (`ba80a19`) unter Windows und WSL nachgewiesen. Die lokale WSL-Versionsprüfung bestätigt diesen Stand. PAT-Erstellung und Kontofreischaltung wurden nicht praktisch geprüft. GNOME Secret Service antwortet; die manuelle Entsperr-/Speicherprobe war bisher nicht erfolgreich. Das Vorhandensein eines Alias oder Eintrags in `Collections` gilt ausdrücklich nicht als Nachweis eines nutzbaren Speichers.
 
+### Nachbesserung der Speicherhilfe (0.5.70)
+
+Der reale WSL-Speichertest ist laut Nutzerrückmeldung fehlgeschlagen; die tatsächliche Ursache ist noch nicht bestimmt. Die bisherige Sammelmeldung war dafür unzureichend. Die Speicherhilfe übernimmt jetzt den vom GNOME-Dienst gemeldeten Steuerpfad gezielt für den Entsperraufruf und meldet feste Fehlerkategorien ohne native Fehlertexte. Vor einem Schreibversuch wird der Login-Speicher auf Erreichbarkeit und Sperrstatus geprüft. Der neue Aufruf `python scripts/setup_ri_secret_storage.py --check` benötigt kein Passwort und liest keine gespeicherten Geheimnisse; er dient der nächsten lokalen Diagnose. Die Agentenumgebung verweigert selbst den Zugriff auf den Sitzungsbus, was nicht die Ursache im Nutzerterminal belegt. Validierung: 19 gezielte Tests und 628 reguläre Tests bestanden (630 abgewählt); CLI-Hilfe und `git diff --check` geprüft. Reale WSL-Abnahme bleibt offen.
+
 ### Bisherige Prüfergebnisse vom 06.11.2026
 
 - Repository sauber auf `codex/feature/ri-proton-pass-zugang` geprüft. Die Statusprüfung ist bei Fortsetzung erneut auszuführen.

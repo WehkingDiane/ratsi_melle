@@ -2,6 +2,7 @@
 
 from types import SimpleNamespace
 import subprocess
+import sys
 
 import pytest
 
@@ -48,7 +49,8 @@ def test_partial_write_failure_is_cleaned_up_without_exposing_error(monkeypatch,
 
     backend.set_password = partial_write
     monkeypatch.setattr(setup, "select_backend", lambda platform: backend)
-    assert setup.worker() == 1
+    monkeypatch.setattr(setup.sys, "platform", "win32")
+    assert setup.worker() == 14
     assert backend.values == {}
     output = capsys.readouterr()
     assert "private-native-error" not in output.out + output.err
@@ -127,6 +129,7 @@ def test_unsupported_backend_rejected():
         setup.select_backend("unsupported")
 
 
+@pytest.mark.skipif(sys.platform != "linux", reason="Linux Secret Service backend")
 def test_linux_backend_rejects_locked_store_without_gui_or_plaintext_fallback(monkeypatch):
     import sys
     import keyring.backends.SecretService
@@ -158,3 +161,67 @@ def test_windows_main_probes_in_bounded_subprocess_without_password(monkeypatch,
     assert calls[0][0][-1] == "--probe-worker"
     assert calls[0][1] == {"timeout": 20}
     assert "noch nicht eingerichtet" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("code", [11, 12, 13, 17])
+def test_check_prints_only_known_error_and_never_asks_for_password(monkeypatch, capsys, code):
+    monkeypatch.setattr(setup.sys, "platform", "linux")
+    monkeypatch.setattr(setup, "read_password", lambda prompt: pytest.fail("No password in --check"))
+    monkeypatch.setattr(setup, "prepare_linux", lambda: pytest.fail("No daemon startup in --check"))
+    monkeypatch.setattr(setup, "run_command", lambda *args, **kwargs: SimpleNamespace(
+        returncode=code, stdout="private-secret", stderr="private-secret",
+    ))
+    assert setup.main(["--check"]) == 1
+    output = capsys.readouterr()
+    assert setup.PROBE_ERRORS[code] in output.err
+    assert "private-secret" not in output.err + output.out
+
+
+def test_startup_control_directory_used_for_unlock_without_evaluating_output(monkeypatch):
+    calls = []
+    monkeypatch.setattr(setup.os, "geteuid", lambda: 1000, raising=False)
+    monkeypatch.setattr(setup.shutil, "which", lambda name: "/usr/bin/daemon")
+    monkeypatch.setattr(setup, "read_password", lambda prompt: "private-password")
+    monkeypatch.setenv("GNOME_KEYRING_CONTROL", "/old/path")
+
+    def run(args, **kwargs):
+        calls.append((args, kwargs))
+        return SimpleNamespace(returncode=0, stdout=(
+            "GNOME_KEYRING_CONTROL=/run/user/1000/new-keyring\n"
+            "UNRELATED=value\n"
+            "GNOME_KEYRING_CONTROL=relative-path\n"
+        ))
+
+    monkeypatch.setattr(setup, "run_command", run)
+    setup.prepare_linux()
+    env = calls[1][1]["env"]
+    assert env["GNOME_KEYRING_CONTROL"] == "/run/user/1000/new-keyring"
+    assert "UNRELATED" not in env
+    assert "private-password" not in env.values()
+    assert setup.os.environ["GNOME_KEYRING_CONTROL"] == "/old/path"
+
+
+def test_inspection_never_reads_or_writes_credentials(monkeypatch):
+    calls = []
+    collection = SimpleNamespace(connection=SimpleNamespace(close=lambda: calls.append("close")))
+    backend = SimpleNamespace(get_preferred_collection=lambda: collection)
+    monkeypatch.setattr(setup.sys, "platform", "linux")
+    monkeypatch.setattr(setup, "select_backend", lambda platform: backend)
+    monkeypatch.setattr(setup, "probe_backend", lambda backend: pytest.fail("No credential access"))
+    assert setup.worker(inspect_only=True) == 0
+    assert calls == ["close"]
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="Linux Secret Service backend")
+def test_missing_collection_is_reported_before_any_write(monkeypatch):
+    from secretstorage.exceptions import ItemNotFoundException
+
+    def missing():
+        raise ItemNotFoundException("native error with private information")
+
+    monkeypatch.setattr(setup.sys, "platform", "linux")
+    monkeypatch.setattr(setup, "select_backend", lambda platform: SimpleNamespace(
+        get_preferred_collection=missing,
+    ))
+    monkeypatch.setattr(setup, "probe_backend", lambda backend: pytest.fail("Must not write"))
+    assert setup.worker() == 12

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import errno
 import getpass
 import os
 from pathlib import Path
@@ -16,13 +17,33 @@ import warnings
 class SetupError(Exception):
     """Einrichtungsfehler mit einer inhaltsfreien Meldung für die Bedienung."""
 
+    def __init__(self, message: str, *, code: int = 1):
+        super().__init__(message)
+        self.code = code
 
-def run_command(args: list[str], *, password: str | None = None, timeout: int = 20):
+
+PROBE_ERRORS = {
+    10: "Python-Unterstützung für den Betriebssystemspeicher fehlt (keyring/SecretStorage).",
+    11: "Der Login-Schlüsselspeicher ist gesperrt. Das Entsperren war nicht erfolgreich.",
+    12: "Der Dienst findet den Login-Schlüsselspeicher nicht; ein Alias allein genügt nicht.",
+    13: "Der Secret-Service-Dienst oder seine D-Bus-Sitzung ist nicht erreichbar.",
+    14: "Schreiben oder Lesen im Schlüsselspeicher ist fehlgeschlagen.",
+    15: "Der eigene Testwert konnte nicht entfernt werden.",
+    16: "Der gelesene Testwert stimmt nicht mit dem gespeicherten Wert überein.",
+    17: "Das Betriebssystem verweigert den Zugriff auf den Schlüsselspeicher.",
+    18: "Der ausgewählte Speicher unterstützt die benötigte Operation nicht.",
+}
+
+
+def run_command(
+    args: list[str], *, password: str | None = None, timeout: int = 20,
+    env: dict[str, str] | None = None,
+):
     """Run a bounded subprocess without forwarding its output or exception details."""
     try:
         return subprocess.run(
             args, input=password, text=True, capture_output=True,
-            timeout=timeout, check=False,
+            timeout=timeout, check=False, env=env,
         )
     except subprocess.TimeoutExpired:
         raise SetupError(
@@ -69,9 +90,16 @@ def prepare_linux() -> None:
         "Hier weder Proton-Passwort noch RI-Passwort oder Token eingeben.",
         flush=True,
     )
+    # GNOME can announce a different control directory than the inherited one.
+    # Parse one allowlisted value; never evaluate the daemon output as shell code.
+    daemon_env = os.environ.copy()
+    for line in getattr(result, "stdout", "").splitlines():
+        name, separator, value = line.partition("=")
+        if name == "GNOME_KEYRING_CONTROL" and separator and Path(value).is_absolute():
+            daemon_env[name] = value
     password = read_password("Passwort des lokalen Schlüsselspeichers (unsichtbar): ")
     try:
-        result = run_command([daemon, "--unlock", "--components=secrets"], password=password)
+        result = run_command([daemon, "--unlock", "--components=secrets"], password=password, env=daemon_env)
     finally:
         password = None
     if result.returncode:
@@ -97,7 +125,7 @@ def select_backend(platform: str):
                         bus, "/org/freedesktop/secrets/collection/login",
                     )
                     if collection.is_locked():
-                        raise SetupError("Der Login-Schlüsselspeicher ist noch gesperrt.")
+                        raise SetupError("Der Login-Schlüsselspeicher ist noch gesperrt.", code=11)
                     return collection
                 except Exception:
                     bus.close()
@@ -112,31 +140,65 @@ def probe_backend(backend) -> None:
     service = "ratsi_melle_storage_test_" + secrets.token_hex(16)
     username = "storage_test"
     value = secrets.token_urlsafe(32)
+    failure = None
     try:
         backend.set_password(service, username, value)
         if backend.get_password(service, username) != value:
-            raise SetupError("Der Speichertest konnte den Testwert nicht korrekt lesen.")
-    finally:
-        # Delete only our unique test item, even if writing failed halfway through.
-        try:
-            backend.delete_password(service, username)
-        except Exception:
-            raise SetupError(
-                "Speichertest fehlgeschlagen oder Testwert nicht entfernbar. "
-                "Es kann ein harmloser Eintrag mit Präfix ratsi_melle_storage_test_ "
-                "zurückbleiben; keine echten Geheimnisse wurden gespeichert."
-            ) from None
+            raise SetupError("Der Testwert stimmt nicht überein.", code=16)
+    except Exception as error:
+        failure = error
+    try:
+        backend.delete_password(service, username)
+    except Exception:
+        if failure is None:
+            raise SetupError("Der Testwert konnte nicht entfernt werden.", code=15) from None
+    if failure is not None:
+        raise failure
     if backend.get_password(service, username) is not None:
-        raise SetupError("Der Testwert konnte nicht vollständig entfernt werden.")
+        raise SetupError("Der Testwert konnte nicht vollständig entfernt werden.", code=15)
 
 
-def worker() -> int:
+def classify_error(error: Exception) -> int:
+    """Return only allowlisted error codes; never serialize native error text."""
+    if isinstance(error, SetupError):
+        return error.code if error.code in PROBE_ERRORS else 14
+    if isinstance(error, ImportError):
+        return 10
+    if isinstance(error, PermissionError):
+        return 17
+    # Match the actual library types, never untrusted exception text.
+    if sys.platform == "linux":
+        try:
+            from secretstorage.exceptions import (
+                ItemNotFoundException, LockedException, SecretServiceNotAvailableException,
+            )
+            if isinstance(error, ItemNotFoundException):
+                return 12
+            if isinstance(error, LockedException):
+                return 11
+            if isinstance(error, SecretServiceNotAvailableException):
+                return 13
+        except ImportError:
+            return 10
+    if isinstance(error, NotImplementedError):
+        return 18
+    if isinstance(error, OSError) and error.errno in {errno.ENOENT, errno.ECONNREFUSED}:
+        return 13
+    return 14
+
+
+def worker(*, inspect_only: bool = False) -> int:
     """Perform the OS probe in a process that the parent can stop on timeout."""
     try:
-        probe_backend(select_backend(sys.platform))
-    except Exception:
-        # Native errors can contain credential details: never forward them.
-        return 1
+        backend = select_backend(sys.platform)
+        if sys.platform == "linux":
+            # Preflight before attempting a write/deletion, without GUI prompts.
+            collection = backend.get_preferred_collection()
+            collection.connection.close()
+        if not inspect_only:
+            probe_backend(backend)
+    except Exception as error:
+        return classify_error(error)
     return 0
 
 
@@ -144,13 +206,20 @@ def main(argv: list[str] | None = None) -> int:
     """Guide the storage test and return a safe, bounded result."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--probe-worker", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--inspect-worker", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument(
+        "--check", action="store_true",
+        help="Unter Linux nur Erreichbarkeit und Sperrstatus prüfen, ohne Passwort oder Testeintrag.",
+    )
     args = parser.parse_args(argv)
+    if args.inspect_worker:
+        return worker(inspect_only=True)
     if args.probe_worker:
         return worker()
     try:
         if sys.platform not in {"win32", "linux"}:
             raise SetupError("Dieses Skript unterstützt Windows und Linux/WSL.")
-        if not sys.stdin.isatty():
+        if not args.check and not sys.stdin.isatty():
             raise SetupError("Bitte direkt in einem interaktiven Terminal starten.")
         try:
             import keyring  # noqa: F401 -- check the existing project dependency
@@ -159,6 +228,16 @@ def main(argv: list[str] | None = None) -> int:
                 'Python-Paket fehlt. In dieser Umgebung ausführen: '
                 'python -m pip install "keyring>=25.7.0"'
             ) from None
+        if args.check:
+            if sys.platform != "linux":
+                raise SetupError("--check ist für die Diagnose unter Linux/WSL vorgesehen.")
+            result = run_command(
+                [sys.executable, str(Path(__file__).resolve()), "--inspect-worker"],
+            )
+            if result.returncode:
+                raise SetupError(PROBE_ERRORS.get(result.returncode, "Speicherstatus nicht bestimmbar."))
+            print("Login-Schlüsselspeicher erreichbar und entsperrt. Kein Speichertest ausgeführt.")
+            return 0
         print("RI-Speicherhilfe: keine Anmeldung bei Proton, keine echten Zugangsdaten.")
         if sys.platform == "linux":
             prepare_linux()
@@ -171,11 +250,11 @@ def main(argv: list[str] | None = None) -> int:
             timeout=20,
         )
         if result.returncode:
+            detail = PROBE_ERRORS.get(result.returncode, "Speichertest fehlgeschlagen.")
             raise SetupError(
-                "Der Speichertest ist fehlgeschlagen. Unter WSL wurde der Login-Speicher "
-                "möglicherweise nicht entsperrt (Passwort prüfen) oder ist nicht verfügbar. "
-                "Es wird kein Klartextspeicher verwendet. Ein harmloser Testeintrag "
-                "mit Präfix ratsi_melle_storage_test_ kann zurückbleiben."
+                detail + " Es wird kein Klartextspeicher verwendet. "
+                "Ein harmloser Testeintrag mit Präfix ratsi_melle_storage_test_ "
+                "kann zurückbleiben."
             )
         print(
             "Erfolgreich: Testwert gespeichert, gelesen und wieder entfernt.\n"
