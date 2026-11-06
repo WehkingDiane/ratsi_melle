@@ -31,7 +31,7 @@
 
 - Tests liegen in `tests/` und heissen `test_*.py`.
 - Nutze Fixtures aus `tests/fixtures/` beim Parsen von HTML.
-- Fuege Tests fuer neue Parsing- oder Download-Edge-Cases hinzu; vor PRs `python -m pytest` laufen lassen.
+- Fuege Tests fuer neue Parsing- oder Download-Edge-Cases hinzu. Der Agent startet keine vollständige Testsuite (`python -m pytest`) und keinen anderen vollständigen Testsatz; den vollständigen PR-Testlauf führt der Nutzer selbst aus. Für konkrete Änderungen darf der Agent gezielte, schnelle Tests ausführen, sofern der Nutzer nicht darum bittet, Tests ganz zu unterlassen.
 
 ## Commit- & Pull-Request-Richtlinien
 
