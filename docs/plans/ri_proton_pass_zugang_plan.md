@@ -10,7 +10,11 @@ Arbeitsbranch dieses Teilpakets: `codex/feature/ri-proton-pass-zugang`.
 
 Der künftige RI-Fetcher soll Benutzername und Passwort bei Bedarf aus einem einzelnen Proton-Pass-Eintrag beziehen. Weder RI-Passwort noch Proton-Zugriffstoken werden als Klartext in `.env`, Konfiguration, Quellcode, Kommandozeilenargumenten, Logs oder temporären Dateien abgelegt. Nicht geheime Referenzen wie Eintrags-ID und CLI-Pfad dürfen konfiguriert werden.
 
-Die Anwendung erhält einen Personal Access Token (PAT), der ausschließlich den RI-Eintrag mit der Rolle `viewer` lesen darf. Die Begrenzung gilt für einen vollständigen Eintrag einschließlich seiner Felder, nicht für ein einzelnes Passwortfeld. Ein eigener Tresor kann die Organisation erleichtern, ersetzt aber keine Beschränkung des Tokens auf den Eintrag. Die Anwendung darf keine vollständige persönliche Proton-Sitzung verwenden.
+Festgelegt ist ein eigener RI-Tresor mit ausschließlich dem einen benötigten Zugang; der PAT erhält nur Zugriff auf diesen Tresor. Der Nutzer bestätigt eine Sicherung in einem anderen Tresor. Dieser Sicherungstresor wird von der Anwendung weder angesprochen noch freigegeben. Die bestehende Weboberfläche erlaubt dem Nutzer nur die Tresorauswahl, keine Rollenwahl. Die tatsächlichen Schreibrechte des Tokens bleiben deshalb ungeprüft; eine serverseitige `viewer`- oder Eintragsbeschränkung wird nicht als vorhanden behauptet.
+
+Verbindlich für den Anwendungscode: ausschließlich lesender Zugriff auf den vorgesehenen RI-Eintrag und die für seine Identifikation nötigen Metadaten. Keine Befehle zum Erstellen, Ändern, Verschieben, Teilen, Löschen oder Verwalten von Tresoren/Einträgen und Tokenrechten; keine Schreibprobe gegen echte Einträge. Zulässig bleiben die ausdrücklich vorgesehenen lokalen Tokenablagen, Login/Logout und das Entfernen eigener temporärer Sitzungsdaten. Der künftige Zugangsdienst verwendet eine feste Liste erlaubter Leseoperationen und fest konfigurierte Tresor-/Eintragsreferenzen, keine frei übergebenen CLI-Befehle.
+
+Diese Begrenzung gilt für unsere Anwendung, nicht als technische Einschränkung des Tokens außerhalb der Anwendung. Wird später ein weiterer Eintrag in den freigegebenen Tresor gelegt, erweitert sich dessen potenzieller Zugriff. Die Anwendung darf keine vollständige persönliche Proton-Sitzung verwenden. Eine zusätzliche Eintrags-/Rollenfreigabe über die CLI ist eine optionale spätere Härtung und keine Voraussetzung für die vereinbarte erste Ausbaustufe.
 
 Der Token ist selbst ein Geheimnis und braucht einen geeigneten Betriebssystemspeicher. Die CLI muss auch ihre lokalen Sitzungsdaten mit einem Schlüssel aus dem Betriebssystem-Keyring schützen. Ein Dateibackend mit daneben liegendem Klartextschlüssel oder ein dauerhaft in einer Umgebungsdatei gespeicherter Schlüssel erfüllt das Ziel nicht. Für eine Anmeldung nötige Umgebungswerte dürfen allenfalls kurzzeitig und gezielt an den CLI-Unterprozess übergeben werden; sie werden nicht in der globalen Prozessumgebung oder Shell-Historie hinterlegt.
 
@@ -29,14 +33,23 @@ Kleine, zusammenhängende Commits mit den jeweils betroffenen Tests und Dokument
 - [x] Lokal vorhandene CLI-Version und ihre Befehlsoptionen ohne Anmeldung oder Geheimnisabruf prüfen und dokumentieren.
 - [x] Allgemeine Tarifvoraussetzungen anhand der offiziellen Proton-Hilfe prüfen.
 - [x] Passenden Proton-Tarif durch Nutzer bestätigen lassen.
-- [x] Tatsächliche PAT-Anmeldung unter Windows und WSL durch erfolgreiche Nutzerläufe bestätigen; Einzelrechte bleiben separat zu prüfen.
-- [ ] Verbindliche Zielversion für die Umsetzung wählen und mit eingeschränktem Testtoken abnehmen; die lokale Hilfe allein belegt noch keine funktionsfähige Anmeldung oder Rechtebegrenzung.
-- [ ] Betriebsumgebung festlegen: Windows, WSL oder beide; interaktiver lokaler Abruf oder unbeaufsichtigte Jobs. Unterstützte Umgebungen und Einschränkungen dokumentieren.
+- [x] Tatsächliche PAT-Anmeldung unter Windows und WSL durch erfolgreiche Nutzerläufe bestätigen; feste Eintragsbindung im Zugangsdienst bleibt separat umzusetzen.
+- [x] Zielversion auf Proton Pass CLI 2.7.0 (`ba80a19`) festlegen; reale PAT-Anmeldung und Tresorauflistung unter Windows und WSL abgenommen. Unter WSL normale Abmeldung bestätigt, unter Windows nur lokale CLI-Bereinigung; siehe offene Windows-Abmeldeaufgabe.
+- [x] Zugriffsmodell festlegen: eigener freigegebener RI-Tresor mit einem Eintrag, ausschließlich lesende Anwendung; serverseitige Eintrags-/Leserechte des Tokens nicht als geprüft einstufen.
+- [x] Zielsysteme Windows und WSL sowie manuell gestartete lokale Abrufe für die erste Ausbaustufe festlegen; kein unbeaufsichtigter Dauerbetrieb in dieser Abnahme.
+- [ ] Fest konfigurierte Eintragsbindung und ausschließlich lesende Befehle im künftigen Zugangsdienst implementieren und mit künstlichen Daten prüfen. Die bisherigen Tests bestätigen Anmeldung/Tresorauflistung, noch keinen gezielten Passwortabruf.
+- [ ] Unbeaufsichtigte Jobs erst nach geprüfter Entsperrung, Neustartverhalten, Sitzungs-/Tokenablauf und festgelegtem Betriebsmodell freigeben.
 - [x] Geführte Speicherhilfe `scripts/setup/setup_ri_secret_storage.py` für Windows und Linux/WSL mit verdeckter Eingabe, expliziten OS-Backends, Zufallswerttest und begrenzter Wartezeit implementieren; mit simulierten Backends prüfen.
 - [x] WSL-Login-Speicher in der laufenden Sitzung real prüfen: Erreichbarkeit, Entsperrstatus sowie Schreiben, Lesen und Löschen eines künstlichen Zufallswerts bestätigt (06.11.2026). Noch kein PAT oder RI-Passwort gespeichert.
 - [x] Windows Credential Manager in der laufenden Sitzung real prüfen: Nutzer bestätigt Schreiben, Lesen und Löschen des Zufallswerts durch die Speicherhilfe (06.11.2026). Noch kein PAT oder RI-Passwort gespeichert.
-- [ ] Je unterstützter Umgebung prüfen, ob ein geeigneter Betriebssystemspeicher für den PAT und das CLI-Keyring-Backend tatsächlich verfügbar sind. Windows Credential Manager und Linux-Kernel-Keyring nicht als automatisch zwischen Windows und WSL geteilt voraussetzen.
+- [x] Betriebssystemspeicher für PAT und temporäre CLI-Sitzungen in beiden laufenden Umgebungen geprüft: Windows Credential Manager sowie GNOME Secret Service unter WSL mit explizitem D-Bus-Backend; getrennte Ablage, keine automatische gemeinsame Nutzung. Neustartprüfung bleibt offen.
 - [ ] Sichere Einrichtung, Verhalten nach Neustart und Wiederanmeldung nach Ablauf einer Sitzung festlegen. Laut derzeitiger Dokumentation laufen PAT-Sitzungen nach zwei Stunden ab; anhand der gewählten Version bestätigen.
+
+### Verbindlicher Betriebsstand und verbleibende Abnahme
+
+Zielversion: **Proton Pass CLI 2.7.0 (`ba80a19`)**. Zielsysteme: **Windows und WSL**. Erste Ausbaustufe: **lokal und manuell gestartet**; interaktives Entsperren und Ersetzen abgelaufener Tokens sind zulässig. Ein unbeaufsichtigter Betrieb ist noch nicht freigegeben. Die Tests bestätigen reale Anmeldung und Tresorauflistung auf beiden Systemen sowie getrennte sichere Ablage und CLI-Schlüsselverwendung in den laufenden Sitzungen. Unter Windows bleibt die normale Abmeldung ungeklärt; die lokale Bereinigung funktioniert. Unter WSL ist auch die normale Abmeldung bestätigt.
+
+Der Nutzer bestätigt einen eigenen RI-Tresor mit einem Eintrag und eine Sicherung in einem anderen Tresor. Vereinbart ist ausschließlich lesender Anwendungscode; der Token wird nicht als serverseitig schreibgeschützt bezeichnet. Das gezielte Lesen des RI-Eintrags, die feste Eintragsbindung im Zugangsdienst, Neustart-/Ablaufprüfung und die echte RI-Anmeldung sind noch umzusetzen beziehungsweise abzunehmen. Frühere Vermerke zu CLI 2.3.3 oder fehlgeschlagenen Zwischenprüfungen weiter unten sind historische Prüfergebnisse.
 
 ### Geführte Speicherhilfe
 
@@ -64,7 +77,7 @@ Damit ist der WSL-Speicher für diese Sitzung geprüft. Der Nutzer bestätigt an
 
 Validierung: 31 gezielte Tests der Speicherhilfe und Tokenablage sowie 640 reguläre Tests bestanden (630 abgewählt). CLI-Hilfe, lokale Dokumentlinks und `git diff --check` sind geprüft. Es wurden ausschließlich künstliche Tokens in simulierten Backends verwendet.
 
-Der Nutzer hat einen zunächst einen Tag gültigen Windows-Token erzeugt. Die lokale Ablage samt internem Lesenachweis ist unter Windows durch den erfolgreichen Skriptlauf des Nutzers bestätigt. Die Rechtebeschränkung ist noch nicht bestätigt; tatsächliche Freigaben werden vor Verwendung geprüft. Ein abgelaufener Token wird außerhalb des Skripts erneuert beziehungsweise neu erstellt und anschließend mit demselben Aufruf lokal ersetzt. Die Eintragsbeschränkung muss auch beim neuen Token erhalten bleiben.
+Der Nutzer hat einen zunächst einen Tag gültigen Windows-Token erzeugt. Die lokale Ablage samt internem Lesenachweis ist unter Windows durch den erfolgreichen Skriptlauf des Nutzers bestätigt. Die Rechtebeschränkung ist noch nicht bestätigt; tatsächliche Freigaben werden vor Verwendung geprüft. Ein abgelaufener Token wird außerhalb des Skripts erneuert beziehungsweise neu erstellt und anschließend mit demselben Aufruf lokal ersetzt. Nach der inzwischen vereinbarten ersten Ausbaustufe muss die Freigabe beim neuen Token auf den eigenen RI-Tresor beschränkt bleiben.
 
 ### Eigenständiger Anmeldetest (0.5.72)
 
@@ -82,7 +95,7 @@ Eine nicht bestätigte normale Abmeldung wird als feste Fehlerkategorie ausgegeb
 
 Der Nutzer bestätigt den erfolgreichen Lauf von `python scripts/setup/check_ri_proton_login.py` unter WSL: Der gespeicherte PAT wurde intern gelesen, die Proton-Anmeldung und Tresorauflistung waren erfolgreich, und die normale Abmeldung der temporären Testsitzung wurde bestätigt. `logout --force` war nicht erforderlich. Das bestätigt die WSL-Tokenablage sowie die Nutzbarkeit der CLI-Sitzung mit dem erzwungenen D-Bus-Keyring über mehrere Prozesse hinweg. Tresornamen, IDs und Tokenwerte werden nicht in die Dokumentation übernommen.
 
-Die Speicher- und Anmeldeprüfung in den laufenden Sitzungen ist damit für Windows und WSL erfolgt. Die normale Windows-Abmeldung bleibt gesondert offen; dort war nur die lokale Bereinigung bestätigt. Neustartverhalten, Eintragsbeschränkung mit Leserecht, dauerhafte Laufzeitsitzung und echte RI-Anbindung bleiben ebenfalls offen.
+Die Speicher- und Anmeldeprüfung in den laufenden Sitzungen ist damit für Windows und WSL erfolgt. Die normale Windows-Abmeldung bleibt gesondert offen; dort war nur die lokale Bereinigung bestätigt. Nach dem inzwischen vereinbarten Modell bleiben Neustartverhalten, feste Eintragsbindung und ausschließlich lesender Zugangsdienst, dauerhafte Laufzeitsitzung sowie echte RI-Anbindung offen; serverseitige Schreibrechte sind unbekannt.
 
 ### Gemeinsamer Setup-Ordner (0.5.74)
 
@@ -92,7 +105,7 @@ Die drei Proton-Hilfsskripte liegen unter `scripts/setup/`: `setup_ri_secret_sto
 
 - Repository sauber auf `codex/feature/ri-proton-pass-zugang` geprüft. Die Statusprüfung ist bei Fortsetzung erneut auszuführen.
 - Bei der ersten Vorprüfung war in der WSL2-Umgebung `/home/diane/.local/bin/pass-cli` vorhanden: `Proton Pass CLI 2.3.3 (0d7235d)`. Es wurde nichts installiert oder aktualisiert. Windows wurde nicht geprüft.
-- `pass-cli pat access grant --help` bestätigt in dieser Version `--personal-access-token-id`, `--share-id`, `--item-id` und `--role viewer`. Mit `--item-id` muss der Zugriff auf den einzelnen Eintrag begrenzt werden; keine zusätzliche Tresorfreigabe erteilen.
+- `pass-cli pat access grant --help` bestätigt in dieser Version `--personal-access-token-id`, `--share-id`, `--item-id` und `--role viewer`. Diese Optionen waren für die ursprüngliche serverseitige Eintragsbegrenzung vorgesehen. Inzwischen vereinbart ist der eigene RI-Tresor mit einem Eintrag und ausschließlich lesender Anwendungscode; feinere CLI-Freigaben bleiben optional.
 - `pass-cli item view --help` bestätigt `--share-id`, `--item-id`, `--field` und `--output`. Context7 dokumentiert die Felder `username` und `password`. Der vorgesehene Aufruf ist `pass-cli item view --share-id <SHARE_ID> --item-id <ITEM_ID> --field password`; seine Standardausgabe muss der spätere Zugangsdienst intern abfangen. Dieser Abruf wurde nicht ausgeführt.
 - Die lokale Login-Hilfe nennt `--pat`, die aktuelle Dokumentation dagegen `--personal-access-token`. Der geplante Anmeldeweg bleibt die kurzzeitige Übergabe über `PROTON_PASS_PERSONAL_ACCESS_TOKEN` an den Unterprozess; dessen Funktion in der gewählten Zielversion ist noch real zu prüfen. Keine geheimen Tokenwerte als Argument verwenden.
 - Das [offizielle Changelog](https://github.com/protonpass/pass-cli/blob/main/CHANGELOG.md) führt PAT-Unterstützung ab 1.10.0 (08.04.2026) und als neuesten dort gelisteten Stand 2.7.0 (03.11.2026). Daraus folgt keine vollständige Mindestversionszusage für alle benötigten Sicherheitsmerkmale. 2.3.3 ist vorläufig nur die lokal untersuchte Version. Seit 2.5.0 ist der direkte Login mit Kontopasswort entfernt; für die Verwaltung ist der Weblogin vorzusehen.
@@ -102,11 +115,11 @@ Die drei Proton-Hilfsskripte liegen unter `scripts/setup/`: `setup_ri_secret_sto
 
 Abnahme: Version, Kontovoraussetzungen und tragfähiges Speicherkonzept sind belegt. Ohne verfügbaren sicheren Speicher bleibt die Anbindung gesperrt; kein stiller Wechsel auf Klartextablage.
 
-## 2. Zugriff auf genau einen Eintrag einrichten
+## 2. Zugang aus dem eigenen RI-Tresor bereitstellen
 
 - [ ] Einrichtung zunächst mit einem künstlichen RI-Eintrag und einem zweiten, nicht freigegebenen Testeintrag vorbereiten.
 - [ ] Verwaltungsanmeldung und Laufzeitsitzung trennen: separates CLI-Sitzungsverzeichnis für die Anwendung außerhalb des Repositorys verwenden; dort ausschließlich eine PAT-Sitzung zulassen.
-- [ ] Einen benannten PAT mit begrenztem Ablaufdatum erstellen und ausschließlich dem vorgesehenen Eintrag die Rolle `viewer` gewähren. Token-Ausgabe nicht in Agentenprotokolle, Terminalmitschnitte oder Tickets übernehmen.
+- [x] Zeitlich begrenzte PATs mit Zugriff auf den eigenen RI-Tresor einrichten; reale Windows-/WSL-Anmeldungen bestätigt. Der Tresor enthält laut Nutzer ausschließlich den RI-Eintrag. Tokenrollen sind nicht geprüft. Tokenwerte nicht in Agentenprotokolle, Terminalmitschnitte oder Tickets übernehmen.
 - [x] Skript `scripts/setup/store_ri_proton_token.py` zum verdeckten Speichern und Ersetzen des PAT mit internem Schreib-/Lesenachweis implementieren; synthetisch testen.
 - [x] Windows-PAT verdeckt im Windows Credential Manager hinterlegen und internes Lesen bestätigen; Nutzer bestätigt erfolgreichen Lauf von `store_ri_proton_token.py` (06.11.2026).
 - [x] PAT für Linux/WSL separat im GNOME-Login-Speicher hinterlegen; erfolgreicher Login-Test mit intern aus dem Speicher gelesenem Token durch Nutzer bestätigt (06.11.2026).
@@ -116,14 +129,14 @@ Abnahme: Version, Kontovoraussetzungen und tragfähiges Speicherkonzept sind bel
 - [x] Erweiterten Windows-Test mit erfolgreicher Anmeldung und Tresorauflistung ausführen; Nutzer bestätigt auch erfolgreiche lokale CLI-Bereinigung über `logout --force` (06.11.2026).
 - [x] Erweiterten WSL-Test ausführen: Anmeldung, Tresorauflistung und normale Abmeldung laut Nutzer erfolgreich (06.11.2026); keine erzwungene Bereinigung benötigt.
 - [ ] Normale Windows-Abmeldung weiter untersuchen und serverseitigen Sitzungsstatus verifizieren; der gemeldete Fehler betrifft die Kategorie lokale Bereinigung, beweist aber weder Erfolg noch Fehlschlag der entfernten Abmeldung.
-- [ ] Mit der Laufzeitsitzung nachweisen: freigegebener Testeintrag lesbar, zweiter Testeintrag nicht lesbar, Änderung des freigegebenen Eintrags nicht erlaubt. Freigabeliste auf zusätzliche Rechte prüfen.
-- [ ] Ablauf, Entzug und Erneuerung des Tokens beschreiben; für Erneuerung dieselbe Eintragsbeschränkung sicherstellen.
+- [ ] Mit künstlichen Daten nachweisen: Nur der konfigurierte RI-Eintrag wird angefordert, fremde Tresor-/Eintragsreferenzen und alle schreibenden CLI-Operationen werden vom Zugangsdienst abgewiesen. Mit realem Zugang ausschließlich Lesefunktionen prüfen; keine Schreibprobe und kein Zugriff auf den Sicherungstresor.
+- [ ] Ablauf, Entzug und Erneuerung des Tokens beschreiben; für Erneuerung ausschließlich dieselbe RI-Tresorfreigabe beibehalten.
 
-Abnahme: Die Rechtebegrenzung ist mit einem echten eingeschränkten Testtoken geprüft, ohne Zugriff auf andere persönliche Einträge vorauszusetzen. Ergebnis nur ohne Tokenwerte und Eintragsinhalte festhalten.
+Abnahme: Der Zugriff auf den eigenen RI-Tresor und das gezielte Lesen des konfigurierten Eintrags sind bestätigt; der Zugangsdienst lässt ausschließlich die festgelegten Leseoperationen zu. Serverseitige Schreibrechte des Tokens bleiben davon getrennt als unbekannt dokumentiert. Keine Änderungsversuche an echten Einträgen, kein Zugriff auf die Sicherung. Ergebnisse ohne Tokenwerte und Eintragsinhalte festhalten.
 
 ## 3. Abgegrenzten Zugangsdienst implementieren
 
-- [ ] Eine kleine Schnittstelle für den RI-Zugangsabruf definieren, unabhängig vom HTTP-Client. Konfiguration enthält ausschließlich nicht geheime Referenzen; beliebige Einträge dürfen nicht über Webparameter auswählbar sein.
+- [ ] Eine kleine Schnittstelle für den RI-Zugangsabruf definieren, unabhängig vom HTTP-Client. Konfiguration enthält ausschließlich nicht geheime, feste Tresor-/Eintragsreferenzen; keine Auswahl beliebiger Einträge oder Befehle über Webparameter. Nur explizit erlaubte Leseoperationen zulassen und jede Schreiboperation vor einem CLI-Aufruf abweisen.
 - [ ] CLI mit festgelegtem Programm, Argumentliste ohne Shell, begrenzter Laufzeit und abgefangenen Ausgaben aufrufen. Passwortausgabe nur intern über eine Pipe lesen; weder anzeigen noch auf Platte schreiben.
 - [ ] PAT bei nötiger Anmeldung aus dem Betriebssystemspeicher lesen und ausschließlich an den vorgesehenen CLI-Unterprozess übergeben. Vererbung vorhandener Proton-Kontopasswörter oder fremder Sitzungs-/Schlüsseleinstellungen verhindern.
 - [ ] Sicherstellen, dass die Laufzeitsitzung den vorgesehenen PAT verwendet und der konfigurierte sichere Schlüsselanbieter aktiv ist; vollständige Kontositzungen und unsichere Backends ablehnen.
@@ -171,4 +184,4 @@ Die Quellen beschreiben den aktuellen Entwicklungsstand; vor Implementierung mit
 - [Feldweiser Eintragsabruf](https://github.com/protonpass/pass-cli/blob/main/docs/public/docs/commands/item.md)
 - [Anmeldung und PAT-Sitzungen](https://github.com/protonpass/pass-cli/blob/main/docs/public/docs/commands/login.md)
 
-Offen sind insbesondere Zielumgebung, interaktiver oder unbeaufsichtigter Betrieb, verfügbare Kontofunktionen, konkrete sichere Tokenablage und der echte RI-Anmeldeablauf. Diese Punkte sind Prüfaufgaben, keine bereits zugesicherten Eigenschaften der Anwendung.
+Festgelegt sind CLI 2.7.0, Windows und WSL sowie manuell gestarteter lokaler Betrieb mit ausschließlich lesendem Anwendungscode. Offen bleiben feste Eintragsbindung und gezielter Passwortabruf, Neustart-/Ablaufverhalten, normale Windows-Abmeldung, dauerhafte Laufzeitsitzung und der echte RI-Anmeldeablauf. Diese Punkte sind Prüfaufgaben, keine bereits zugesicherten Eigenschaften der Anwendung.
