@@ -1,6 +1,21 @@
 # Plan: Geschützter Ratsbereich für SessionNet `/ri/`
 
-Stand: 30.10.2026. Dieser Plan ist die Grundlage für spätere Teilbranches. Er beschreibt noch keine freigeschaltete RI-Anbindung; Zugangsdaten und ein Beispiel der angemeldeten Seiten liegen derzeit nicht vor.
+Stand: 06.11.2026. Dieser Plan ist die Grundlage für spätere Teilbranches. Er beschreibt noch keine freigeschaltete RI-Anbindung; Zugangsdaten und ein Beispiel der angemeldeten Seiten liegen derzeit nicht vor.
+
+## Fortschritt
+
+Abgehakte Punkte bezeichnen nur den jeweils genannten Umfang. Dokumentierte Testläufe stammen aus den bisherigen Umsetzungspaketen und wurden für diese Statuspflege nicht erneut ausgeführt.
+
+- [x] Schritt 1: BI-/RI-Skriptnamen einschließlich Aufrufern, Tests und Dokumentation umgesetzt; über PR #89 übernommen.
+- [x] Schritt 1a: Navigation, öffentliche Einstiege, RI-Platzhalter und vertikales Layout einschließlich dokumentierter Tests und Browserabnahme umgesetzt; über PR #90 übernommen.
+- [x] Proton-Pass-Teilpaket geplant: eigener Branch und [Schritt-für-Schritt-Plan](ri_proton_pass_zugang_plan.md) angelegt (`cab37b4`).
+- [ ] Schritt 2: Betriebsmodell, Daten- und Zugriffskontrakt sowie echte RI-Anmeldung prüfen und verbindlich festlegen.
+- [ ] Proton-Pass-Zugang einrichten, Eintragsbeschränkung nachweisen und Zugangsdienst implementieren.
+- [ ] Schritt 3: Getrennte RI-Datenhaltung und Build umsetzen und abnehmen.
+- [ ] Schritt 4: Authentifizierten RI-Fetcher umsetzen und mit dem Zugangsdienst verbinden.
+- [ ] Schritt 5: Geschützte RI-Suche umsetzen und abnehmen.
+- [ ] Schritt 6: Geschützte RI-Funktionen in die Oberfläche integrieren.
+- [ ] Gesamtintegration, reale lokale RI-Stichprobe und Betriebsdokumentation abschließen.
 
 ## Ziel und Grenzen
 
@@ -20,7 +35,7 @@ RI-Rohdaten, Datenbanken, Suchindex, Protokolle und eventuelle Exporte dürfen n
 
 Alle Teilbranches entstehen vom Vorhaben-Branch `codex/feature/ri-ratsbereich` und werden nach Review in diesen zurückgeführt. Konkrete Namen können bei Arbeitsbeginn angepasst werden:
 
-Vor den folgenden RI-Teilbranches wird auf `codex/feature/ri-navigation-vorbereitung` die Navigation mit Platzhalterseiten und durchgehend untereinander angeordneten Hauptcontainern vorbereitet (Schritt 1a). Dieses Arbeitspaket benötigt keinen RI-Zugang.
+Die Vorbereitung auf `codex/feature/ri-navigation-vorbereitung` (Schritt 1a) ist abgeschlossen und über PR #90 übernommen. Sie benötigte keinen RI-Zugang. Das zusätzliche Zugangspaket wird auf `codex/feature/ri-proton-pass-zugang` anhand des [Proton-Pass-Teilplans](ri_proton_pass_zugang_plan.md) bearbeitet; bisher ist ausschließlich die Planung abgeschlossen.
 
 1. `codex/feature/ri-ratsbereich-datenhaltung` – getrennte Pfade, Datenvertrag und Build aus RI-Rohdaten.
 2. `codex/feature/ri-ratsbereich-fetch` – authentifizierter Abruf mit wiederverwendetem Parsing und Download.
@@ -32,7 +47,7 @@ Die Daten- und Zugriffskontrakte werden vor paralleler Umsetzung festgelegt. Jed
 
 ## 1. Skriptnamen nach Datenbereich ordnen
 
-Umsetzungsstand: Schritt 1 ist auf `codex/refactor/bi-ri-skriptnamen` umgesetzt. Die acht öffentlichen SessionNet-Skripte einschließlich Aufrufern und Dokumentation sind umbenannt; die Namenszuordnung steht in der README. Das ungenutzte `setup_venv.sh` ist nach bytegleicher Archivierung entfernt. Der vollständige WSL-Testlauf mit `python -m pytest` besteht: 1202 bestanden, einer übersprungen, acht Live-Tests abgewählt. Die vier im vorherigen Windows-Lauf aufgefallenen Plattformannahmen sind in den Tests korrigiert; ein erneuter Windows-Lauf wurde noch nicht bestätigt. Die Zusammenführung in den Vorhaben-Branch erfolgt per PR.
+Umsetzungsstand: Schritt 1 ist auf `codex/refactor/bi-ri-skriptnamen` umgesetzt. Die acht öffentlichen SessionNet-Skripte einschließlich Aufrufern und Dokumentation sind umbenannt; die Namenszuordnung steht in der README. Das ungenutzte `setup_venv.sh` ist nach bytegleicher Archivierung entfernt. Der vollständige WSL-Testlauf mit `python -m pytest` besteht: 1202 bestanden, einer übersprungen, acht Live-Tests abgewählt. Die vier im vorherigen Windows-Lauf aufgefallenen Plattformannahmen sind in den Tests korrigiert; ein erneuter Windows-Lauf wurde noch nicht bestätigt. Die Zusammenführung in den Vorhaben-Branch ist über PR #89 erfolgt.
 
 Vor der Erweiterung um RI-Funktionen die vorhandenen Skripte inventarisieren und eine einheitliche BI-/RI-Namenskonvention festlegen. Skripte, die heute allgemein benannt sind, aber ausschließlich den öffentlichen Bürgerinformationsbereich (`/bi/`) bearbeiten, sollen dies im Namen ausdrücken, zum Beispiel `fetch_bi_sessions.py`. Neue RI-Skripte erhalten entsprechend Namen wie `fetch_ri_sessions.py`.
 
@@ -42,7 +57,7 @@ Bei einer Umbenennung alle Aufrufer, Tests, Dokumentation und Automatisierungen 
 
 ## 1a. Navigation und Seitenaufbau ohne RI-Zugang vorbereiten
 
-Arbeitsbranch: `codex/feature/ri-navigation-vorbereitung`. Umgesetzt in Version 0.5.64: Navigation und öffentliche Einstiege, RI-Platzhalter sowie vertikale Hauptbereiche. Navigation und Platzhalter wurden gemeinsam im ersten Implementierungscommit gesichert; Layout und Browserkorrekturen folgten in eigenen Zwischen-Commits. Dieser Zwischenschritt folgt auf die zusammengeführten BI-Skriptumbenennungen und wird vor der RI-Vorprüfung umgesetzt. Die Nummern der weiteren Schritte bleiben erhalten.
+Arbeitsbranch: `codex/feature/ri-navigation-vorbereitung`; über PR #90 in den Vorhaben-Branch übernommen. Umgesetzt in Version 0.5.64: Navigation und öffentliche Einstiege, RI-Platzhalter sowie vertikale Hauptbereiche. Navigation und Platzhalter wurden gemeinsam im ersten Implementierungscommit gesichert; Layout und Browserkorrekturen folgten in eigenen Zwischen-Commits. Dieser Zwischenschritt folgt auf die zusammengeführten BI-Skriptumbenennungen und wird vor der RI-Vorprüfung umgesetzt. Die Nummern der weiteren Schritte bleiben erhalten.
 
 ### Umfang und praktische Zwischen-Commits
 
@@ -120,9 +135,8 @@ Die Jobliste darf keine RI-Titel, URLs, Dokumenttexte oder Zugangsdaten in öffe
 
 ## Reihenfolge, Dokumentation und Abschluss
 
-1. BI-/RI-Skriptnamen ordnen und alle betroffenen Aufrufer, Tests und Dokumente anpassen.
-   Anschließend Schritt 1a ohne RI-Zugang umsetzen: Navigation und öffentliche Einstiege, RI-Platzhalter, vertikales Seitenlayout und Abnahme in eigenen Zwischen-Commits.
-2. Plan und Schutzgrenzen abstimmen; Vorprüfung und verbindliche Entscheidungen aus Schritt 2 mit realem Zugang abschließen.
+1. **Erledigt:** BI-/RI-Skriptnamen geordnet und Schritt 1a ohne RI-Zugang umgesetzt: Navigation und öffentliche Einstiege, RI-Platzhalter, vertikales Seitenlayout und dokumentierte Abnahme. Beide Pakete sind in den Vorhaben-Branch übernommen.
+2. **Teilweise vorbereitet, Umsetzung offen:** Proton-Pass-Teilbranch und Aufgabenplan sind angelegt. Sichere Zugangsablage einrichten und prüfen; Schutzgrenzen abstimmen sowie Vorprüfung und verbindliche Entscheidungen aus Schritt 2 mit realem Zugang abschließen.
 3. Datenvertrag und isolierten Build umsetzen. Danach den Fetcher und seine Authentifizierung anschließen.
 4. Suche mit passender Zugriffssicherung bauen. Anschließend die Weboberfläche anbinden.
 5. Mit synthetischen Fixtures und später einer kleinen, lokal gehaltenen RI-Stichprobe prüfen; vor Zusammenführung `python -m pytest -m "not integration and not live"`, betroffene Integrationstests und vor einem PR `python -m pytest` ausführen.
