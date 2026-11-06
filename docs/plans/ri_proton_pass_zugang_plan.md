@@ -29,7 +29,7 @@ Kleine, zusammenhängende Commits mit den jeweils betroffenen Tests und Dokument
 - [x] Lokal vorhandene CLI-Version und ihre Befehlsoptionen ohne Anmeldung oder Geheimnisabruf prüfen und dokumentieren.
 - [x] Allgemeine Tarifvoraussetzungen anhand der offiziellen Proton-Hilfe prüfen.
 - [x] Passenden Proton-Tarif durch Nutzer bestätigen lassen.
-- [ ] Tatsächliche Kontofreischaltung mit eingeschränktem Testtoken prüfen.
+- [x] Tatsächliche PAT-Anmeldung unter Windows und WSL durch erfolgreiche Nutzerläufe bestätigen; Einzelrechte bleiben separat zu prüfen.
 - [ ] Verbindliche Zielversion für die Umsetzung wählen und mit eingeschränktem Testtoken abnehmen; die lokale Hilfe allein belegt noch keine funktionsfähige Anmeldung oder Rechtebegrenzung.
 - [ ] Betriebsumgebung festlegen: Windows, WSL oder beide; interaktiver lokaler Abruf oder unbeaufsichtigte Jobs. Unterstützte Umgebungen und Einschränkungen dokumentieren.
 - [x] Geführte Speicherhilfe `scripts/setup/setup_ri_secret_storage.py` für Windows und Linux/WSL mit verdeckter Eingabe, expliziten OS-Backends, Zufallswerttest und begrenzter Wartezeit implementieren; mit simulierten Backends prüfen.
@@ -78,6 +78,12 @@ Der Test führt jetzt nach erfolgreichem Login in derselben Sitzung `pass-cli va
 
 Eine nicht bestätigte normale Abmeldung wird als feste Fehlerkategorie ausgegeben; native Fehlertexte bleiben intern. Danach wird `logout --force` mit demselben isolierten Sitzungsverzeichnis ohne PAT im Prozessumfeld ausgeführt. Dies ist ausschließlich lokale CLI-Bereinigung und keine Bestätigung einer serverseitigen Abmeldung. Bei erfolgreichem Test mit nur lokal bestätigter Bereinigung ist der Exitcode 2; Test- oder Bereinigungsfehler ergeben 1, vollständig bestätigter Ablauf 0. Das temporäre Verzeichnis wird wie bisher entfernt. Der Nutzer bestätigt inzwischen den erweiterten Windows-Lauf: Anmeldung und Tresorauflistung erfolgreich, normale Abmeldung mit Fehlerkategorie lokale Bereinigung nicht bestätigt, anschließender `logout --force` laut CLI erfolgreich. Es wurden keine Tresornamen oder IDs in die Dokumentation übernommen. Der serverseitige Abmeldestatus und die Einzelberechtigung bleiben offen. Die Tresorauflistung ohne erneute Tokenübergabe bestätigt die Nutzbarkeit der temporären CLI-Sitzung über Prozessgrenzen hinweg mit dem erzwungenen Windows-Keyring-Backend. Validierung: 40 gezielte Tests und 649 reguläre Tests bestanden (630 abgewählt); CLI-Hilfe und `git diff --check` geprüft.
 
+### Erfolgreicher vollständiger WSL-Anmeldetest am 06.11.2026
+
+Der Nutzer bestätigt den erfolgreichen Lauf von `python scripts/setup/check_ri_proton_login.py` unter WSL: Der gespeicherte PAT wurde intern gelesen, die Proton-Anmeldung und Tresorauflistung waren erfolgreich, und die normale Abmeldung der temporären Testsitzung wurde bestätigt. `logout --force` war nicht erforderlich. Das bestätigt die WSL-Tokenablage sowie die Nutzbarkeit der CLI-Sitzung mit dem erzwungenen D-Bus-Keyring über mehrere Prozesse hinweg. Tresornamen, IDs und Tokenwerte werden nicht in die Dokumentation übernommen.
+
+Die Speicher- und Anmeldeprüfung in den laufenden Sitzungen ist damit für Windows und WSL erfolgt. Die normale Windows-Abmeldung bleibt gesondert offen; dort war nur die lokale Bereinigung bestätigt. Neustartverhalten, Eintragsbeschränkung mit Leserecht, dauerhafte Laufzeitsitzung und echte RI-Anbindung bleiben ebenfalls offen.
+
 ### Gemeinsamer Setup-Ordner (0.5.74)
 
 Die drei Proton-Hilfsskripte liegen unter `scripts/setup/`: `setup_ri_secret_storage.py`, `store_ri_proton_token.py` und `check_ri_proton_login.py`. Interne Importe, direkte Starts, Tests und aktive Dokumentation sind an die neue Verzeichnistiefe angepasst. Vor dem Verschieben wurden die bisherigen Dateien unter `archive/scripts/` bytegleich gesichert und per SHA-256 mit dem vorherigen Stand verglichen. Die Archivkopien bleiben unverändert und sind gemäß Repository-Regeln lokal, nicht in Git. Die Zugangsdatenablage und der Name des gespeicherten Tokens werden durch die Verschiebung nicht geändert. Validierung: alle drei direkten Hilfeaufrufe funktionieren; 40 gezielte und 649 reguläre Tests bestanden (630 abgewählt). Lokale Dokumentlinks, alte Pfad-/Importverweise und `git diff --check` sind geprüft. Archivkopien vor dem Commit erneut mit dem vorherigen Git-Stand per SHA-256 verglichen.
@@ -103,12 +109,13 @@ Abnahme: Version, Kontovoraussetzungen und tragfähiges Speicherkonzept sind bel
 - [ ] Einen benannten PAT mit begrenztem Ablaufdatum erstellen und ausschließlich dem vorgesehenen Eintrag die Rolle `viewer` gewähren. Token-Ausgabe nicht in Agentenprotokolle, Terminalmitschnitte oder Tickets übernehmen.
 - [x] Skript `scripts/setup/store_ri_proton_token.py` zum verdeckten Speichern und Ersetzen des PAT mit internem Schreib-/Lesenachweis implementieren; synthetisch testen.
 - [x] Windows-PAT verdeckt im Windows Credential Manager hinterlegen und internes Lesen bestätigen; Nutzer bestätigt erfolgreichen Lauf von `store_ri_proton_token.py` (06.11.2026).
-- [ ] Für eine Linux-/WSL-Nutzung den PAT dort separat über die geschützte Eingabe hinterlegen; kein Proton-Kontopasswort speichern.
+- [x] PAT für Linux/WSL separat im GNOME-Login-Speicher hinterlegen; erfolgreicher Login-Test mit intern aus dem Speicher gelesenem Token durch Nutzer bestätigt (06.11.2026).
 - [x] Eigenes Skript `scripts/setup/check_ri_proton_login.py` für einen begrenzten Login-/Logout-Test in einer neuen temporären Sitzung mit erzwungenem Keyring implementieren; synthetisch prüfen.
 - [x] Echte Windows-Anmeldung mit gespeichertem Token durch Nutzerlauf bestätigt (06.11.2026); normale Abmeldung fehlgeschlagen.
 - [x] Tresorauflistung und gesonderte lokale CLI-Bereinigung bei Abmeldefehlern implementieren (0.5.73); synthetisch prüfen.
 - [x] Erweiterten Windows-Test mit erfolgreicher Anmeldung und Tresorauflistung ausführen; Nutzer bestätigt auch erfolgreiche lokale CLI-Bereinigung über `logout --force` (06.11.2026).
-- [ ] Normale Abmeldung weiter untersuchen und serverseitigen Sitzungsstatus verifizieren; der gemeldete Fehler betrifft die Kategorie lokale Bereinigung, beweist aber weder Erfolg noch Fehlschlag der entfernten Abmeldung.
+- [x] Erweiterten WSL-Test ausführen: Anmeldung, Tresorauflistung und normale Abmeldung laut Nutzer erfolgreich (06.11.2026); keine erzwungene Bereinigung benötigt.
+- [ ] Normale Windows-Abmeldung weiter untersuchen und serverseitigen Sitzungsstatus verifizieren; der gemeldete Fehler betrifft die Kategorie lokale Bereinigung, beweist aber weder Erfolg noch Fehlschlag der entfernten Abmeldung.
 - [ ] Mit der Laufzeitsitzung nachweisen: freigegebener Testeintrag lesbar, zweiter Testeintrag nicht lesbar, Änderung des freigegebenen Eintrags nicht erlaubt. Freigabeliste auf zusätzliche Rechte prüfen.
 - [ ] Ablauf, Entzug und Erneuerung des Tokens beschreiben; für Erneuerung dieselbe Eintragsbeschränkung sicherstellen.
 
