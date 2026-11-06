@@ -15,9 +15,25 @@ python scripts/run_web.py
 
 Die lokale Django-Oberfläche ist danach unter `http://127.0.0.1:8000/` erreichbar. Sie ist aktuell für lokale Entwicklung konfiguriert und besitzt keine Benutzeranmeldung.
 
+## RI-Schlüsselspeicher prüfen (Vorbereitung)
+
+Ab Version 0.5.69 führt ein Skript durch die lokale Speicherprüfung. In der aktivierten Python-Umgebung unter Windows oder Linux/WSL als normaler Benutzer starten:
+
+```bash
+python scripts/setup_ri_secret_storage.py
+```
+
+Unter WSL alternativ `.venv-wsl/bin/python scripts/setup_ri_secret_storage.py` verwenden. Voraussetzung ist die vorhandene Projektabhängigkeit `keyring`; fehlt unter Ubuntu/WSL GNOME Keyring, einmal `sudo apt install gnome-keyring` ausführen.
+
+Unter Windows prüft das Skript den Windows Credential Manager. Unter Linux startet es GNOME Keyring und fragt verdeckt nach dem Passwort des lokalen Login-Schlüsselspeichers. Bei vorhandenem Speicher dessen bisheriges Passwort verwenden; bei neuem Speicher ein starkes, nicht leeres Passwort wählen. Kein Proton-Passwort, RI-Passwort oder Token eingeben. Die Eingabe zeigt keine Zeichen; bei einer Fehlermeldung wird das Passwort nicht ausgegeben.
+
+Das Skript speichert, liest und entfernt einen eigenen Zufallswert. Bestehende Einträge werden nicht verändert. Bei Fehlern oder Zeitüberschreitung bricht es ab, ohne auf Klartextspeicher auszuweichen. Bei einem unterbrochenen Test kann ein harmloser Eintrag mit Präfix `ratsi_melle_storage_test_` zurückbleiben. Ein erfolgreicher Lauf bestätigt nur die Nutzbarkeit in dieser Sitzung, nicht das Verhalten nach einem Neustart, eine Proton-Anmeldung oder die Verschlüsselung eines bereits früher angelegten Schlüsselspeichers. Der Schlüsselspeicher darf nicht mit leerem Passwort eingerichtet werden.
+
+Das Skript hinterlegt keinen PAT, konfiguriert keine Proton-Sitzung und aktiviert keinen RI-Abruf. Die anschließenden Schritte stehen im [Proton-Pass-Teilplan](docs/plans/ri_proton_pass_zugang_plan.md).
+
 ## Daten aufbauen
 
-Die SessionNet-Skripte für den öffentlichen Bürgerinformationsbereich tragen `bi` im Namen. Eigene RI-Skripte sind noch nicht vorhanden. Seit Version 0.5.63 gelten folgende Umbenennungen; eigene Automatisierungen müssen die neuen Namen verwenden:
+Die SessionNet-Skripte für den öffentlichen Bürgerinformationsbereich tragen `bi` im Namen. RI-Abrufskripte sind noch nicht vorhanden; für die vorbereitende Speicherprüfung gibt es die unten beschriebene Einrichtungshilfe. Seit Version 0.5.63 gelten folgende Umbenennungen; eigene Automatisierungen müssen die neuen Namen verwenden:
 
 | Bisher | Neu |
 | --- | --- |

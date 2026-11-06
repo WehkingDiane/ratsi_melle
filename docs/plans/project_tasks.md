@@ -10,7 +10,7 @@ Bereits erledigt (Statuskontext; die Aufgabenliste darunter enthält nur offene 
 
 - **Erledigt:** BI-/RI-Skriptnamen einschließlich Aufrufern, Tests und Dokumentation geordnet; über PR #89 übernommen.
 - **Erledigt:** Navigation, öffentliche Einstiege, RI-Platzhalter und vertikalen Seitenaufbau einschließlich dokumentierter Tests und Browserabnahme umgesetzt; über PR #90 übernommen.
-- **Erledigt:** Eigenen Branch `codex/feature/ri-proton-pass-zugang` und [abhakbaren Proton-Pass-Teilplan](ri_proton_pass_zugang_plan.md) angelegt (Commit `cab37b4`). Dokumentations- und lokale CLI-Vorprüfung sind begonnen: Version 2.3.3, Optionen für Eintragsfreigabe und Feldabruf sowie allgemeine Tarifvoraussetzungen sind geprüft. Konkrete Kontofreischaltung, Zielumgebung, sichere Ablage und technische Umsetzung bleiben offen.
+- **Erledigt:** Eigenen Branch `codex/feature/ri-proton-pass-zugang` und [abhakbaren Proton-Pass-Teilplan](ri_proton_pass_zugang_plan.md) angelegt (Commit `cab37b4`). Dokumentations- und lokale CLI-Vorprüfung sind begonnen: Version 2.3.3, Optionen für Eintragsfreigabe und Feldabruf sowie allgemeine Tarifvoraussetzungen sind geprüft. Der Nutzer bestätigt einen passenden Tarif sowie CLI 2.7.0 unter Windows und WSL. Eine geführte lokale Speicherhilfe ist in Version 0.5.69 implementiert; ihre reale Abnahme, Kontofreischaltung, sichere Tokenablage und Proton-Anbindung bleiben offen.
 
 ## RI-Vorhaben
 

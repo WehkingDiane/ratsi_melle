@@ -46,6 +46,10 @@ verfügbar. Der Ratsbereich unter `/ratsbereich/` enthält informative Platzhalt
 Sie akzeptieren nur GET/HEAD; unbekannte Sitzungsdetails liefern 404. Die echte
 RI-Anbindung und Zugriffssicherung stehen weiterhin aus.
 
+## Lokale RI-Speicherhilfe (0.5.69)
+
+`scripts/setup_ri_secret_storage.py` bereitet die Prüfung des lokalen Schlüsselspeichers unter Windows und Linux/WSL vor. Es verwendet explizit Windows Credential Manager beziehungsweise den persistenten GNOME-Login-Schlüsselspeicher über Secret Service; automatische Speicher-Fallbacks werden nicht genutzt. Unter Linux übernimmt es Dienststart und verdeckte Passworteingabe zum Entsperren beziehungsweise Anlegen des Login-Speichers. Ein Zufallswert prüft Schreiben, Lesen und Löschen in einem zeitlich begrenzten Unterprozess. Es liest keine bestehenden Geheimnisse aus und speichert weder Proton-Token noch RI-Passwort. Ein realer erfolgreicher Speichertest auf beiden Zielsystemen und die Neustartprüfung stehen noch aus. Bedienung und Grenzen stehen in der README.
+
 ## Gremienfilter der Sitzungsübersicht (0.5.65)
 
 Die Sitzungsübersicht fasst Gremiennamen zusammen, die sich nur durch Bindestriche,

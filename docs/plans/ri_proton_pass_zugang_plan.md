@@ -1,6 +1,6 @@
 # Plan: RI-Zugang sicher über Proton Pass beziehen
 
-Stand: 06.11.2026. Status: Vorprüfung begonnen, noch keine Anbindung eingerichtet.
+Stand: 06.11.2026. Status: Vorprüfung begonnen, geführte Speicherhilfe implementiert; noch keine Proton-/RI-Anbindung eingerichtet.
 
 Vorhaben-Branch: `codex/feature/ri-ratsbereich`.
 Arbeitsbranch dieses Teilpakets: `codex/feature/ri-proton-pass-zugang`.
@@ -28,16 +28,26 @@ Kleine, zusammenhängende Commits mit den jeweils betroffenen Tests und Dokument
 - [x] Aktuelle offizielle CLI-Dokumentation mit Context7 auf PAT, Eintragsfreigabe und feldweisen Passwortabruf prüfen.
 - [x] Lokal vorhandene CLI-Version und ihre Befehlsoptionen ohne Anmeldung oder Geheimnisabruf prüfen und dokumentieren.
 - [x] Allgemeine Tarifvoraussetzungen anhand der offiziellen Proton-Hilfe prüfen.
-- [ ] Verfügbarkeit im konkret verwendeten Proton-Konto bestätigen; Tarifangabe und späteren Funktionstest dokumentieren.
+- [x] Passenden Proton-Tarif durch Nutzer bestätigen lassen.
+- [ ] Tatsächliche Kontofreischaltung mit eingeschränktem Testtoken prüfen.
 - [ ] Verbindliche Zielversion für die Umsetzung wählen und mit eingeschränktem Testtoken abnehmen; die lokale Hilfe allein belegt noch keine funktionsfähige Anmeldung oder Rechtebegrenzung.
 - [ ] Betriebsumgebung festlegen: Windows, WSL oder beide; interaktiver lokaler Abruf oder unbeaufsichtigte Jobs. Unterstützte Umgebungen und Einschränkungen dokumentieren.
+- [x] Geführte Speicherhilfe `scripts/setup_ri_secret_storage.py` für Windows und Linux/WSL mit verdeckter Eingabe, expliziten OS-Backends, Zufallswerttest und begrenzter Wartezeit implementieren; mit simulierten Backends prüfen.
 - [ ] Je unterstützter Umgebung prüfen, ob ein geeigneter Betriebssystemspeicher für den PAT und das CLI-Keyring-Backend tatsächlich verfügbar sind. Windows Credential Manager und Linux-Kernel-Keyring nicht als automatisch zwischen Windows und WSL geteilt voraussetzen.
 - [ ] Sichere Einrichtung, Verhalten nach Neustart und Wiederanmeldung nach Ablauf einer Sitzung festlegen. Laut derzeitiger Dokumentation laufen PAT-Sitzungen nach zwei Stunden ab; anhand der gewählten Version bestätigen.
+
+### Geführte Speicherhilfe
+
+Ab Version 0.5.69 ersetzt `python scripts/setup_ri_secret_storage.py` die manuellen Start-, Entsperr- und Testbefehle. Das Skript richtet noch keinen Proton-Zugang ein und ändert keine dauerhafte Proton-Konfiguration. Es prüft ausschließlich den lokalen Speicher und verwendet nur einen eigenen Zufallswert. Ein erfolgreicher Test ist keine Zusage über die Verschlüsselung eines früher angelegten Speichers; ein leeres Speicherpasswort ist unzulässig. Automatisierte Tests nutzen simulierte Backends; reale Windows-/WSL-Abnahme und Neustartprüfung bleiben offen.
+
+Validierung der Speicherhilfe: `python -m pytest tests/test_setup_ri_secret_storage.py -q` besteht mit 12 Tests, ohne echte Speicherzugriffe. CLI-Hilfe, lokale Dokumentlinks und `git diff --check` sind geprüft. Der abschließende reguläre Lauf mit `-m "not integration and not live"` besteht mit 621 Tests und 630 abgewählten Tests. Die reale Abnahme bleibt offen.
+
+Der Nutzer hat den passenden Tarif bestätigt und CLI 2.7.0 (`ba80a19`) unter Windows und WSL nachgewiesen. Die lokale WSL-Versionsprüfung bestätigt diesen Stand. PAT-Erstellung und Kontofreischaltung wurden nicht praktisch geprüft. GNOME Secret Service antwortet; die manuelle Entsperr-/Speicherprobe war bisher nicht erfolgreich. Das Vorhandensein eines Alias oder Eintrags in `Collections` gilt ausdrücklich nicht als Nachweis eines nutzbaren Speichers.
 
 ### Bisherige Prüfergebnisse vom 06.11.2026
 
 - Repository sauber auf `codex/feature/ri-proton-pass-zugang` geprüft. Die Statusprüfung ist bei Fortsetzung erneut auszuführen.
-- In der aktuellen WSL2-Umgebung ist `/home/diane/.local/bin/pass-cli` vorhanden: `Proton Pass CLI 2.3.3 (0d7235d)`. Es wurde nichts installiert oder aktualisiert. Windows wurde nicht geprüft.
+- Bei der ersten Vorprüfung war in der WSL2-Umgebung `/home/diane/.local/bin/pass-cli` vorhanden: `Proton Pass CLI 2.3.3 (0d7235d)`. Es wurde nichts installiert oder aktualisiert. Windows wurde nicht geprüft.
 - `pass-cli pat access grant --help` bestätigt in dieser Version `--personal-access-token-id`, `--share-id`, `--item-id` und `--role viewer`. Mit `--item-id` muss der Zugriff auf den einzelnen Eintrag begrenzt werden; keine zusätzliche Tresorfreigabe erteilen.
 - `pass-cli item view --help` bestätigt `--share-id`, `--item-id`, `--field` und `--output`. Context7 dokumentiert die Felder `username` und `password`. Der vorgesehene Aufruf ist `pass-cli item view --share-id <SHARE_ID> --item-id <ITEM_ID> --field password`; seine Standardausgabe muss der spätere Zugangsdienst intern abfangen. Dieser Abruf wurde nicht ausgeführt.
 - Die lokale Login-Hilfe nennt `--pat`, die aktuelle Dokumentation dagegen `--personal-access-token`. Der geplante Anmeldeweg bleibt die kurzzeitige Übergabe über `PROTON_PASS_PERSONAL_ACCESS_TOKEN` an den Unterprozess; dessen Funktion in der gewählten Zielversion ist noch real zu prüfen. Keine geheimen Tokenwerte als Argument verwenden.
