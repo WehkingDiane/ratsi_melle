@@ -83,9 +83,11 @@ Unter WSL jeweils `.venv-wsl/bin/python` statt `python` verwenden. Der Token wir
 
 Das feste Testziel ist `https://session.melle.info/ri/`. Der Test liest das öffentliche Anmeldeformular und sendet den Zugang genau einmal an den geprüften RI-Anmeldeendpunkt. Passwortänderung und Kennwort-Wiederherstellung werden nicht ausgewählt. HTTPS, Host und Zielpfade werden vor Weiterleitungen geprüft; Wiederholung eines Passwort-POST bei 307/308 wird abgelehnt. Es gibt keine automatischen Anmeldewiederholungen.
 
+Der beobachtete Ablauf nutzt nach dem POST `ylogonstart.asp` und kann HTML-Meta-Weiterleitungen enthalten. Der Formularparameter `logongopn` erhält den Seitennamen `info` ohne `.asp`. Die reine Abschlussseite `smc_end.asp` nach der Abmeldung wird nicht angefordert; stattdessen wird der geschützte Einstieg erneut geprüft.
+
 Eine HTTP-200-Antwort allein gilt nicht als Erfolg: Die geschützte Einstiegsseite muss einen erkannten Abmeldelink enthalten. Danach wird die RI-Abmeldung über erneute Prüfung des geschützten Einstiegs bestätigt. Der Test lädt keine Sitzungen oder Dokumente herunter und schreibt weder HTML noch HTTP-Cookies auf Platte. Eine möglicherweise notwendige zusätzliche Anmeldung, Passwortänderung oder ein verändertes Formular führt zum Abbruch. Bei einem Abbruch nach dem Passwortversand kann eine entfernte RI-Sitzung bis zu ihrem Ablauf bestehen bleiben; lokale Cookies werden verworfen. Der BI-Abruf und die öffentliche Datenhaltung werden nicht verwendet.
 
-Die Proton-Sitzung wird anschließend separat beendet; eine nicht bestätigte normale Proton-Abmeldung ergibt wie beim bisherigen Test einen Hinweis mit Status 2. Der echte RI-Ablauf ist erst nach erfolgreichem lokalen Test als abgenommen zu behandeln.
+Die Proton-Sitzung wird anschließend separat beendet; eine nicht bestätigte normale Proton-Abmeldung ergibt wie beim bisherigen Test einen Hinweis mit Status 2. Der vollständige echte Test ist unter WSL und Windows bestätigt: gezielter Zugangsfeldabruf, RI-Anmeldung, RI-Abmeldung und anschließende Zugangssperre. Die Referenz ist auf beiden Systemen separat eingerichtet. Unter Windows bleibt der bereits bekannte Hinweis zur nachfolgenden Proton-Abmeldung (Status 2); die RI-Abmeldung selbst ist dort erfolgreich bestätigt. Die Umsetzung enthält noch keinen RI-Dokumentabruf, RI-Index oder Webzugang.
 
 ## Daten aufbauen
 

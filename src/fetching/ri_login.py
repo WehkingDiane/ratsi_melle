@@ -26,7 +26,7 @@ def allowed_url(value: str) -> str:
             parts.scheme != "https" or parts.hostname != "session.melle.info"
             or parts.port not in (None, 443) or parts.username or parts.password
             or parts.fragment or any(c in value for c in "\r\n\\")
-            or (parts.path not in {"/ri/", "/ri/default.asp", "/ri/ylogon.asp", "/ri/ylogon2.asp", "/ri/info.asp"}
+            or (parts.path not in {"/ri/", "/ri/default.asp", "/ri/ylogon.asp", "/ri/ylogon2.asp", "/ri/ylogonstart.asp", "/ri/smc_end.asp", "/ri/info.asp"}
                 and not _LOGOUT.fullmatch(parts.path))
         ):
             raise ValueError
@@ -57,7 +57,7 @@ def login_payload(html: bytes, page_url: str, credentials: RiCredentials) -> tup
     if len(submit) != 1:
         raise RiAccessError("RI-Anmeldeschaltfläche ist nicht eindeutig.")
     data.update(pesch=credentials.username, pepwd=credentials.password,
-                logongopn="info.asp", logongoqs="", submit=submit[0].get("value", ""))
+                logongopn="info", logongoqs="", submit=submit[0].get("value", ""))
     return action, data
 
 
@@ -113,7 +113,12 @@ class RiLoginProbe:
         for _ in range(6):
             status, target, body = self._request("GET", url)
             if target is None:
-                return url, body
+                soup = BeautifulSoup(body, "html.parser")
+                refresh = soup.find("meta", attrs={"http-equiv": re.compile(r"^refresh$", re.IGNORECASE)})
+                match = re.search(r";\s*url\s*=\s*(.+)$", str(refresh.get("content", "")), re.IGNORECASE) if refresh else None
+                if match is None:
+                    return url, body
+                target = allowed_url(urljoin(url, match.group(1).strip().strip("\"'")))
             url = target
         raise RiAccessError("Zu viele RI-Weiterleitungen.")
 
@@ -139,14 +144,19 @@ class RiLoginProbe:
         action, data = login_payload(html, page_url, credentials)
         try:
             # Exactly one POST. Its redirect body is never resent.
-            self._request("POST", action, data=data)
+            _, target, html = self._request("POST", action, data=data)
         finally:
             data.clear()
-        page_url, html = self.get(PROTECTED)
+        page_url = action
+        if target is not None:
+            page_url, html = self.get(target)
+        if urlsplit(page_url).path != "/ri/info.asp":
+            page_url, html = self.get(PROTECTED)
         if urlsplit(page_url).path != "/ri/info.asp":
             raise RiAccessError("RI-Anmeldung nicht bestätigt; kein weiterer Anmeldeversuch.")
         logout = self.logout_link(html, page_url)
-        self.get(logout)
+        # The logout redirect is only a completion page; verify access revocation directly.
+        self._request("GET", logout)
         page_url, html = self.get(PROTECTED)
         if urlsplit(page_url).path != "/ri/ylogon.asp" or not BeautifulSoup(html, "html.parser").select('form#smclogon input[type="password"]'):
             raise RiAccessError("RI-Abmeldung nicht bestätigt; lokale Cookies werden verworfen.")

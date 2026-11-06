@@ -1,6 +1,6 @@
 # Plan: Geschützter Ratsbereich für SessionNet `/ri/`
 
-Stand: 06.11.2026. Dieser Plan ist die Grundlage für spätere Teilbranches. Er beschreibt noch keine freigeschaltete RI-Anbindung; Zugangsdaten und ein Beispiel der angemeldeten Seiten liegen derzeit nicht vor.
+Stand: 06.11.2026. Dieser Plan ist die Grundlage für spätere Teilbranches. Gezielter Proton-Zugangsabruf sowie RI-Anmeldung und RI-Abmeldung sind inzwischen unter WSL und Windows real geprüft. RI-Unterlagendownload, Datenhaltung, Suche und Webzugang sind noch nicht freigeschaltet; eine Beispiel-Sitzung zum Parservergleich wurde noch nicht untersucht.
 
 ## Fortschritt
 
@@ -12,12 +12,13 @@ Abgehakte Punkte bezeichnen nur den jeweils genannten Umfang. Dokumentierte Test
 - [ ] Schritt 2: Betriebsmodell, Daten- und Zugriffskontrakt sowie echte RI-Anmeldung prüfen und verbindlich festlegen.
 - [x] Proton-Pass-Dokumentation, lokale CLI-Version 2.3.3 und Befehlsoptionen sowie allgemeine Tarifvoraussetzungen geprüft; Ergebnisse und Versionsgrenzen im Teilplan festgehalten.
 - [x] Geführte lokale Speicherhilfe für Windows und Linux/WSL implementiert (0.5.69); automatisiert mit simulierten Backends geprüft. Diagnosemodus und Übernahme des GNOME-Steuerpfads sind in 0.5.70 ergänzt. Der reale WSL-Speichertest besteht nach gezieltem Dienstneustart; auch der Windows-Speichertest ist laut Nutzer erfolgreich. Die temporären Proton-CLI-Sitzungen sind inzwischen unter Windows und WSL mit erzwungenem Keyring nutzbar; Neustartabnahme steht aus.
-- [x] Skript zur verdeckten lokalen Ablage und zum Ersetzen eines Proton-Pass-Tokens implementiert (0.5.71); Windows- und WSL-Ablage durch erfolgreiche Nutzerläufe bestätigt; feste Eintragsbindung und ausschließlich lesender Zugangsdienst bleiben umzusetzen und zu prüfen.
-- [x] Eigenständigen Proton-Login-/Logout-Test implementiert (0.5.72); reale Windows-Anmeldung laut Nutzer erfolgreich, normale Abmeldung fehlgeschlagen. Tresorauflistung und gekennzeichnete lokale CLI-Bereinigung sind seit 0.5.73 implementiert; ihre reale Ausführung unter Windows ist durch den Nutzer bestätigt. Unter WSL sind Anmeldung, Tresorauflistung und normale Abmeldung laut Nutzer erfolgreich. Windows-Abmeldestatus, feste Eintragsbindung und ausschließlich lesender Zugangsdienst bleiben offen.
+- [x] Skript zur verdeckten lokalen Ablage und zum Ersetzen eines Proton-Pass-Tokens implementiert (0.5.71); Windows- und WSL-Ablage durch erfolgreiche Nutzerläufe bestätigt; feste Eintragsbindung und ausschließlich lesender Zugangsdienst sind inzwischen implementiert und auf beiden Systemen geprüft.
+- [x] Eigenständigen Proton-Login-/Logout-Test implementiert (0.5.72); reale Windows-Anmeldung laut Nutzer erfolgreich, normale Abmeldung fehlgeschlagen. Tresorauflistung und gekennzeichnete lokale CLI-Bereinigung sind seit 0.5.73 implementiert; ihre reale Ausführung unter Windows ist durch den Nutzer bestätigt. Unter WSL sind Anmeldung, Tresorauflistung und normale Abmeldung laut Nutzer erfolgreich. Windows-Proton-Abmeldestatus bleibt offen; feste Eintragsbindung und ausschließlich lesender Zugangsdienst sind inzwischen implementiert und real geprüft.
 - [x] Proton-Hilfsskripte unter `scripts/setup/` bündeln und Aufrufe, Importe sowie Dokumentation anpassen (0.5.74).
 - [x] Zielversion CLI 2.7.0, Windows und WSL sowie manuell gestarteten lokalen Betrieb für die erste Proton-Anbindung festlegen; eigener RI-Tresor mit einem Eintrag, Anwendung ausschließlich lesend.
 - [x] Gezielten Lesezugriff und feste Eintragsbindung im Zugangsdienst mit synthetischen Tests implementieren (0.5.75); keine Schreiboperationen an Tresoren, Einträgen oder Tokenrechten.
-- [ ] Gezielten Passwortabruf und RI-Anmeldung mit dem neuen Testskript real abnehmen; Windows-Referenz separat einrichten.
+- [x] Gezielten Passwortabruf sowie RI-Anmeldung, RI-Abmeldung und erneute Zugangssperre unter WSL real bestätigen (0.5.76); keine Unterlagen oder Rohseiten gespeichert.
+- [x] Windows-Referenz separat einrichten und echten RI-Test mit Windows-Python abnehmen: RI-Anmeldung, RI-Abmeldung und erneute Zugangssperre bestätigt; bekannter Proton-Abmeldehinweis bleibt.
 - [ ] Schritt 3: Getrennte RI-Datenhaltung und Build umsetzen und abnehmen.
 - [ ] Schritt 4: Authentifizierten RI-Fetcher umsetzen und mit dem Zugangsdienst verbinden.
 - [ ] Schritt 5: Geschützte RI-Suche umsetzen und abnehmen.
@@ -112,7 +113,7 @@ Für die Herkunft jedes Datensatzes eine feste Quellenkennung (`bi` oder `ri`) v
 
 ## 4. RI-Fetcher mit Anmeldung
 
-Für die sichere Bereitstellung der Zugangsdaten gibt es den [Teilplan Proton Pass](ri_proton_pass_zugang_plan.md) auf `codex/feature/ri-proton-pass-zugang`: ein Token mit Freigabe ausschließlich für den eigenen RI-Tresor mit einem Eintrag, geschützte lokale Token- und Sitzungsablage sowie schrittweise Tests. Die erste Ausbaustufe verwendet CLI 2.7.0 unter Windows und WSL bei manuell gestarteten lokalen Abrufen; Ablage und Proton-Anmeldung sind dort geprüft. Der Zugangsdienst wird auf lesende Befehle und den fest konfigurierten RI-Eintrag begrenzt; serverseitige Schreibrechte des Tokens werden nicht als eingeschränkt behauptet. Gezielter Passwortabruf, Neustartverhalten und echte RI-Anbindung stehen noch aus.
+Für die sichere Bereitstellung der Zugangsdaten gibt es den [Teilplan Proton Pass](ri_proton_pass_zugang_plan.md) auf `codex/feature/ri-proton-pass-zugang`: ein Token mit Freigabe ausschließlich für den eigenen RI-Tresor mit einem Eintrag, geschützte lokale Token- und Sitzungsablage sowie schrittweise Tests. Die erste Ausbaustufe verwendet CLI 2.7.0 unter Windows und WSL bei manuell gestarteten lokalen Abrufen; Ablage und Proton-Anmeldung sind dort geprüft. Der Zugangsdienst wird auf lesende Befehle und den fest konfigurierten RI-Eintrag begrenzt; serverseitige Schreibrechte des Tokens werden nicht als eingeschränkt behauptet. Gezielter Passwortabruf sowie RI-Anmeldung und RI-Abmeldung sind mit dem neuen Test unter WSL bestätigt. Auch die Windows-Referenz und der Windows-RI-Test sind real bestätigt; dabei bleibt lediglich der bekannte Hinweis zur nachfolgenden Proton-Abmeldung. Neustartverhalten und echte Fetch-/Daten-/Such-/Webanbindung stehen noch aus.
 
 Ein eigenes CLI-Skript für RI-Sitzungsübersicht und gezielte Sitzungsdownloads vorsehen. Wiederverwendbare Komponenten aus `SessionNetClient` nutzen, sobald HTML- und URL-Parität bestätigt ist. Der authentifizierte Client braucht eine klar abgegrenzte Anmeldung, eine zeitlich begrenzte HTTP-Sitzung und einen eindeutigen Fehler bei abgelaufener Anmeldung. Eine Login-Seite darf nie als Sitzungsdetail oder PDF gespeichert werden.
 

@@ -66,7 +66,7 @@ def test_payload_keeps_csrf_but_never_changes_password_or_recovers_account():
     assert data["pepwd"] == CREDS.password
     assert "pwdch_confirm" not in data
     assert "pwforgotten" not in data
-    assert data["logongopn"] == "info.asp"
+    assert data["logongopn"] == "info"
 
 
 @pytest.mark.parametrize("target", [
@@ -91,7 +91,7 @@ def test_foreign_form_action_never_submits_password():
 def test_success_requires_protected_marker_and_checks_logout(monkeypatch):
     session = Session([
         Response(FORM), Response(status=302, location="info.asp"), Response(AUTH),
-        Response(status=302, location="default.asp"), Response(b"public landing"),
+        Response(status=302, location="smc_end.asp"),
         Response(status=302, location="ylogon.asp"), Response(FORM),
     ])
     monkeypatch.setattr(ri.requests, "Session", lambda: session)
@@ -101,6 +101,7 @@ def test_success_requires_protected_marker_and_checks_logout(monkeypatch):
     assert posts[0][2]["data"]["pesch"] == CREDS.username
     assert session.trust_env is False
     assert session.cleared
+    assert not any(url.endswith("smc_end.asp") for _, url, _ in session.calls)
     for method, url, kwargs in session.calls:
         assert kwargs["allow_redirects"] is False
         assert kwargs["verify"] is True
@@ -150,3 +151,33 @@ def test_network_error_never_exposes_native_details(capsys):
         ri.RiLoginProbe(Session([error])).get(ri.LOGIN)
     assert "synthetic-password" not in str(result.value)
     assert "private" not in str(result.value) + repr(capsys.readouterr())
+
+
+
+def test_observed_start_step_and_meta_refresh_are_followed_without_reposting():
+    session = Session([
+        Response(FORM), Response(status=302, location="ylogonstart.asp"),
+        Response(b'<meta http-equiv="Refresh" content="0; URL=info.asp">'), Response(AUTH),
+        Response(status=302, location="smc_end.asp"),
+        Response(status=302, location="ylogon.asp"), Response(FORM),
+    ])
+    ri.RiLoginProbe(session).verify(CREDS)
+    assert sum(method == "POST" for method, _, _ in session.calls) == 1
+    assert any(url.endswith("ylogonstart.asp") for _, url, _ in session.calls)
+
+
+def test_meta_refresh_to_foreign_host_is_not_followed():
+    session = Session([Response(b'<meta http-equiv="refresh" content="0;url=https://foreign.invalid/ri/info.asp">')])
+    with pytest.raises(RiAccessError):
+        ri.RiLoginProbe(session).get(ri.LOGIN)
+    assert len(session.calls) == 1
+
+
+
+def test_logout_is_not_confirmed_if_protected_page_stays_accessible(monkeypatch):
+    session = Session([Response(FORM), Response(status=302, location="info.asp"), Response(AUTH),
+                       Response(status=302, location="smc_end.asp"), Response(AUTH)])
+    monkeypatch.setattr(ri.requests, "Session", lambda: session)
+    with pytest.raises(RiAccessError, match="RI-Abmeldung nicht bestätigt"):
+        ri.verify_ri_login(CREDS)
+    assert session.cleared
