@@ -1,6 +1,6 @@
 # Plan: RI-Zugang sicher über Proton Pass beziehen
 
-Stand: 06.11.2026. Status: Vorprüfung begonnen, geführte Speicherhilfe implementiert; noch keine Proton-/RI-Anbindung eingerichtet.
+Stand: 06.11.2026. Status: Speicherhilfe und lokale Tokenablage implementiert; noch keine Proton-/RI-Anbindung eingerichtet.
 
 Vorhaben-Branch: `codex/feature/ri-ratsbereich`.
 Arbeitsbranch dieses Teilpakets: `codex/feature/ri-proton-pass-zugang`.
@@ -58,6 +58,14 @@ Der fehlerhafte Dienst lief manuell; `gnome-keyring-daemon.service` war inaktiv.
 
 Damit ist der WSL-Speicher für diese Sitzung geprüft. Der Nutzer bestätigt anschließend auch unter Windows den erfolgreichen vollständigen Lauf der Speicherhilfe: Testwert gespeichert, gelesen und gelöscht. Damit sind beide Betriebssystemspeicher in den laufenden Sitzungen geprüft. Verhalten nach Neustart und die eigene Proton-CLI-Schlüsselablage bleiben separat abzunehmen. Die bisherigen Fehlversuche in den vorherigen Vermerken sind Diagnosehistorie, nicht der aktuelle Speicherstatus. Es wurden noch keine echten Proton- oder RI-Zugangsdaten eingerichtet.
 
+### Lokale Tokenablage (0.5.71)
+
+`python scripts/store_ri_proton_token.py` speichert oder ersetzt einen verdeckt eingegebenen Token im expliziten Betriebssystemspeicher unter `ratsi_melle_ri` / `proton_pass_pat`. Der interne Schreibprozess erhält den Token nur über stdin; Schreiben und anschließendes Lesen werden abgeglichen. Geheimnisse und native Fehlermeldungen werden nicht ausgegeben. Das Skript führt keine Proton-Anmeldung durch und prüft weder Gültigkeit noch Ablauf oder Zugriffsrechte. Bei einem Speicherfehler oder einer Zeitüberschreitung kann der Schreibvorgang bereits erfolgt sein; Erfolg wird dann nicht bestätigt. Unter WSL muss der GNOME-Login-Speicher zuvor entsperrt sein.
+
+Validierung: 31 gezielte Tests der Speicherhilfe und Tokenablage sowie 640 reguläre Tests bestanden (630 abgewählt). CLI-Hilfe, lokale Dokumentlinks und `git diff --check` sind geprüft. Es wurden ausschließlich künstliche Tokens in simulierten Backends verwendet.
+
+Der Nutzer hat einen zunächst einen Tag gültigen Windows-Token erzeugt. Dessen lokale Ablage und Rechtebeschränkung sind noch nicht bestätigt; tatsächliche Freigaben werden vor Verwendung geprüft. Ein abgelaufener Token wird außerhalb des Skripts erneuert beziehungsweise neu erstellt und anschließend mit demselben Aufruf lokal ersetzt. Die Eintragsbeschränkung muss auch beim neuen Token erhalten bleiben.
+
 ### Bisherige Prüfergebnisse vom 06.11.2026
 
 - Repository sauber auf `codex/feature/ri-proton-pass-zugang` geprüft. Die Statusprüfung ist bei Fortsetzung erneut auszuführen.
@@ -77,6 +85,7 @@ Abnahme: Version, Kontovoraussetzungen und tragfähiges Speicherkonzept sind bel
 - [ ] Einrichtung zunächst mit einem künstlichen RI-Eintrag und einem zweiten, nicht freigegebenen Testeintrag vorbereiten.
 - [ ] Verwaltungsanmeldung und Laufzeitsitzung trennen: separates CLI-Sitzungsverzeichnis für die Anwendung außerhalb des Repositorys verwenden; dort ausschließlich eine PAT-Sitzung zulassen.
 - [ ] Einen benannten PAT mit begrenztem Ablaufdatum erstellen und ausschließlich dem vorgesehenen Eintrag die Rolle `viewer` gewähren. Token-Ausgabe nicht in Agentenprotokolle, Terminalmitschnitte oder Tickets übernehmen.
+- [x] Skript `scripts/store_ri_proton_token.py` zum verdeckten Speichern und Ersetzen des PAT mit internem Schreib-/Lesenachweis implementieren; synthetisch testen.
 - [ ] PAT über eine geschützte lokale Eingabe im gewählten Betriebssystemspeicher hinterlegen. Das Konto-Passwort von Proton nicht in der Anwendung speichern.
 - [ ] Mit der Laufzeitsitzung nachweisen: freigegebener Testeintrag lesbar, zweiter Testeintrag nicht lesbar, Änderung des freigegebenen Eintrags nicht erlaubt. Freigabeliste auf zusätzliche Rechte prüfen.
 - [ ] Ablauf, Entzug und Erneuerung des Tokens beschreiben; für Erneuerung dieselbe Eintragsbeschränkung sicherstellen.

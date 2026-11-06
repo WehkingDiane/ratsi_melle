@@ -33,6 +33,20 @@ Das Skript speichert, liest und entfernt einen eigenen Zufallswert. Bestehende E
 
 Das Skript hinterlegt keinen PAT, konfiguriert keine Proton-Sitzung und aktiviert keinen RI-Abruf. Die anschließenden Schritte stehen im [Proton-Pass-Teilplan](docs/plans/ri_proton_pass_zugang_plan.md).
 
+## RI-Proton-Token hinterlegen oder ersetzen
+
+In der aktivierten Python-Umgebung als normaler Benutzer ausführen:
+
+```bash
+python scripts/store_ri_proton_token.py
+```
+
+Unter WSL alternativ `.venv-wsl/bin/python scripts/store_ri_proton_token.py` verwenden. Voraussetzung ist der erfolgreich geprüfte, entsperrte lokale Speicher. Falls der Login-Speicher unter WSL gesperrt ist, zuerst die oben beschriebene Speicherhilfe starten.
+
+Den vollständigen Proton-Pass-Zugriffstoken bei der unsichtbaren Eingabe einfügen und Enter drücken. Das Skript speichert unter Dienst `ratsi_melle_ri` und Benutzername `proton_pass_pat` im Windows Credential Manager beziehungsweise im GNOME-Login-Speicher. Ein dort vorhandener Token wird ersetzt; mit demselben Aufruf kann später ein neuer Token hinterlegt werden. Windows und WSL haben getrennte Speicher, sodass die Ablage auf jedem Zielsystem separat erfolgt.
+
+Es werden nur das lokale Format und das erfolgreiche Schreiben/Lesen geprüft, nicht Ablaufdatum, Gültigkeit oder Proton-Berechtigungen. Der Token muss vor Verwendung ausschließlich Leserecht auf den RI-Eintrag erhalten. Die Ablage startet keine Proton-Anmeldung und keinen RI-Abruf. Der Token wird nicht angezeigt und weder als Prozessargument oder Umgebungswert noch als Klartextdatei übergeben. Bei Zeitüberschreitung oder Schreib-/Prüffehler ist die Speicherung nicht bestätigt; sie kann bereits erfolgt sein und muss nach Behebung erneut ausgeführt werden. Die Anwendung benutzt keinen Klartext-Fallback.
+
 ## Daten aufbauen
 
 Die SessionNet-Skripte für den öffentlichen Bürgerinformationsbereich tragen `bi` im Namen. RI-Abrufskripte sind noch nicht vorhanden; für die vorbereitende Speicherprüfung gibt es die unten beschriebene Einrichtungshilfe. Seit Version 0.5.63 gelten folgende Umbenennungen; eigene Automatisierungen müssen die neuen Namen verwenden:

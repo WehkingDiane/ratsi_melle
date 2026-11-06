@@ -50,6 +50,10 @@ RI-Anbindung und Zugriffssicherung stehen weiterhin aus.
 
 `scripts/setup_ri_secret_storage.py` bereitet die Prüfung des lokalen Schlüsselspeichers unter Windows und Linux/WSL vor. Es verwendet explizit Windows Credential Manager beziehungsweise den persistenten GNOME-Login-Schlüsselspeicher über Secret Service; automatische Speicher-Fallbacks werden nicht genutzt. Unter Linux übernimmt es Dienststart und verdeckte Passworteingabe zum Entsperren beziehungsweise Anlegen des Login-Speichers. Ein Zufallswert prüft Schreiben, Lesen und Löschen in einem zeitlich begrenzten Unterprozess. Es liest keine bestehenden Geheimnisse aus und speichert weder Proton-Token noch RI-Passwort. Der reale WSL-Speichertest (Schreiben, Lesen und Löschen eines Zufallswerts) besteht nach gezieltem Neustart eines fehlerhaften manuell gestarteten Dienstes über die vorhandene Benutzer-Serviceverwaltung. Der Nutzer bestätigt auch unter Windows den erfolgreichen Speichertest. Neustartprüfung und Prüfung der eigenen Proton-CLI-Schlüsselablage stehen noch aus. Seit 0.5.70 wird der beim Dienststart gemeldete Steuerpfad beim Entsperren übernommen; Fehler werden anhand fester Fehlerkategorien statt einer Sammelmeldung angezeigt. `--check` prüft unter Linux nur den Speicherstatus ohne Passworteingabe oder Geheimnisabruf. Bedienung und Grenzen stehen in der README.
 
+## Lokale RI-Tokenablage (0.5.71)
+
+`scripts/store_ri_proton_token.py` fragt den vollständigen PAT verdeckt ab und speichert oder ersetzt ihn ausschließlich im expliziten Windows-/GNOME-Backend unter `ratsi_melle_ri` / `proton_pass_pat`. Ein begrenzter Unterprozess erhält den Token nur über eine Pipe und bestätigt intern das erfolgreiche Schreiben/Lesen; native Fehlertexte werden nicht ausgegeben. Eine erfolgreiche echte Ablage muss lokal noch bestätigt werden. Das Skript prüft weder Rechte noch Ablaufdatum und meldet sich nicht bei Proton an. Die echte RI-Anbindung bleibt offen. Bedienung und Ersetzen abgelaufener Tokens stehen in der README.
+
 ## Gremienfilter der Sitzungsübersicht (0.5.65)
 
 Die Sitzungsübersicht fasst Gremiennamen zusammen, die sich nur durch Bindestriche,
