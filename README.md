@@ -47,6 +47,18 @@ Den vollständigen Proton-Pass-Zugriffstoken bei der unsichtbaren Eingabe einfü
 
 Es werden nur das lokale Format und das erfolgreiche Schreiben/Lesen geprüft, nicht Ablaufdatum, Gültigkeit oder Proton-Berechtigungen. Der Token muss vor Verwendung ausschließlich Leserecht auf den RI-Eintrag erhalten. Die Ablage startet keine Proton-Anmeldung und keinen RI-Abruf. Der Token wird nicht angezeigt und weder als Prozessargument oder Umgebungswert noch als Klartextdatei übergeben. Bei Zeitüberschreitung oder Schreib-/Prüffehler ist die Speicherung nicht bestätigt; sie kann bereits erfolgt sein und muss nach Behebung erneut ausgeführt werden. Die Anwendung benutzt keinen Klartext-Fallback.
 
+## RI-Proton-Anmeldung testen
+
+Nach erfolgreicher Tokenablage in derselben Windows-/WSL-Umgebung:
+
+```bash
+python scripts/check_ri_proton_login.py
+```
+
+Das Skript liest ausschließlich den hinterlegten RI-PAT und übergibt ihn kurzzeitig über die Umgebung an den Login-Unterprozess. Es verwendet eine neue temporäre Sitzung mit erzwungenem CLI-Keyring-Backend (unter Linux D-Bus), unabhängig von einer persönlichen CLI-Anmeldung. Nach dem Versuch wird die Testsitzung abgemeldet und ihr temporäres Verzeichnis entfernt. Eine nicht bestätigte Abmeldung gilt als Fehler; es kann dann bis zum Ablauf eine entfernte Testsitzung verbleiben. Eine dauerhafte RI-Laufzeitsitzung wird damit noch nicht eingerichtet. Die Anmeldung hat maximal 45 Sekunden Zeit, die Abmeldung weitere zehn Sekunden.
+
+CLI-Ausgaben und native Fehlertexte werden nicht angezeigt. Das Skript fordert keine Passworteinträge an; Gültigkeit des Tokens wird durch den Login geprüft, die Beschränkung auf genau einen RI-Eintrag bleibt separat nachzuweisen. Der Aufruf führt keine RI-Anmeldung durch. Unter WSL muss der lokale Login-Schlüsselspeicher entsperrt und der Token dort separat hinterlegt sein.
+
 ## Daten aufbauen
 
 Die SessionNet-Skripte für den öffentlichen Bürgerinformationsbereich tragen `bi` im Namen. RI-Abrufskripte sind noch nicht vorhanden; für die vorbereitende Speicherprüfung gibt es die unten beschriebene Einrichtungshilfe. Seit Version 0.5.63 gelten folgende Umbenennungen; eigene Automatisierungen müssen die neuen Namen verwenden:

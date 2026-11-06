@@ -52,7 +52,11 @@ RI-Anbindung und Zugriffssicherung stehen weiterhin aus.
 
 ## Lokale RI-Tokenablage (0.5.71)
 
-`scripts/store_ri_proton_token.py` fragt den vollständigen PAT verdeckt ab und speichert oder ersetzt ihn ausschließlich im expliziten Windows-/GNOME-Backend unter `ratsi_melle_ri` / `proton_pass_pat`. Ein begrenzter Unterprozess erhält den Token nur über eine Pipe und bestätigt intern das erfolgreiche Schreiben/Lesen; native Fehlertexte werden nicht ausgegeben. Eine erfolgreiche echte Ablage muss lokal noch bestätigt werden. Das Skript prüft weder Rechte noch Ablaufdatum und meldet sich nicht bei Proton an. Die echte RI-Anbindung bleibt offen. Bedienung und Ersetzen abgelaufener Tokens stehen in der README.
+`scripts/store_ri_proton_token.py` fragt den vollständigen PAT verdeckt ab und speichert oder ersetzt ihn ausschließlich im expliziten Windows-/GNOME-Backend unter `ratsi_melle_ri` / `proton_pass_pat`. Ein begrenzter Unterprozess erhält den Token nur über eine Pipe und bestätigt intern das erfolgreiche Schreiben/Lesen; native Fehlertexte werden nicht ausgegeben. Der Nutzer bestätigt unter Windows die erfolgreiche echte Ablage samt internem Lesenachweis; die Linux-Tokenablage ist noch nicht bestätigt. Das Skript prüft weder Rechte noch Ablaufdatum und meldet sich nicht bei Proton an. Die echte RI-Anbindung bleibt offen. Bedienung und Ersetzen abgelaufener Tokens stehen in der README.
+
+## RI-Proton-Anmeldetest (0.5.72)
+
+`scripts/check_ri_proton_login.py` liest den gespeicherten PAT und testet die Proton-Anmeldung in einem neuen temporären CLI-Sitzungsverzeichnis mit erzwungenem Betriebssystem-Keyring. Der Token wird nur dem Login-Unterprozess per Umgebung übergeben; die anschließende Abmeldung erhält ihn nicht. CLI-Ausgaben bleiben intern. Das Skript meldet die Testsitzung wieder ab und entfernt lokale Testdaten; es richtet keine dauerhafte RI-Laufzeitsitzung ein. Reale Anmeldung und Rechteprüfung sind noch nicht bestätigt. Die Anleitung steht in der README.
 
 ## Gremienfilter der Sitzungsübersicht (0.5.65)
 

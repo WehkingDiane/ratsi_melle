@@ -64,7 +64,11 @@ Damit ist der WSL-Speicher für diese Sitzung geprüft. Der Nutzer bestätigt an
 
 Validierung: 31 gezielte Tests der Speicherhilfe und Tokenablage sowie 640 reguläre Tests bestanden (630 abgewählt). CLI-Hilfe, lokale Dokumentlinks und `git diff --check` sind geprüft. Es wurden ausschließlich künstliche Tokens in simulierten Backends verwendet.
 
-Der Nutzer hat einen zunächst einen Tag gültigen Windows-Token erzeugt. Dessen lokale Ablage und Rechtebeschränkung sind noch nicht bestätigt; tatsächliche Freigaben werden vor Verwendung geprüft. Ein abgelaufener Token wird außerhalb des Skripts erneuert beziehungsweise neu erstellt und anschließend mit demselben Aufruf lokal ersetzt. Die Eintragsbeschränkung muss auch beim neuen Token erhalten bleiben.
+Der Nutzer hat einen zunächst einen Tag gültigen Windows-Token erzeugt. Die lokale Ablage samt internem Lesenachweis ist unter Windows durch den erfolgreichen Skriptlauf des Nutzers bestätigt. Die Rechtebeschränkung ist noch nicht bestätigt; tatsächliche Freigaben werden vor Verwendung geprüft. Ein abgelaufener Token wird außerhalb des Skripts erneuert beziehungsweise neu erstellt und anschließend mit demselben Aufruf lokal ersetzt. Die Eintragsbeschränkung muss auch beim neuen Token erhalten bleiben.
+
+### Eigenständiger Anmeldetest (0.5.72)
+
+`python scripts/check_ri_proton_login.py` liest den gespeicherten PAT im expliziten OS-Backend und verwendet ein neues temporäres Sitzungsverzeichnis für `pass-cli login`. Persönliche Proton-Umgebungseinstellungen werden entfernt, Keyring wird erzwungen und unter Linux explizit D-Bus gewählt. Nur der Login-Unterprozess erhält den Token als Umgebungswert. Nach jedem Versuch folgt ein Logout ohne Token und die Entfernung des temporären Verzeichnisses. Ein fehlgeschlagener Logout wird nicht als Gesamterfolg ausgegeben. Es werden keine Passworteinträge angefordert; Einzelberechtigung und RI-Anmeldung bleiben offen. Dieser Test ersetzt nicht die noch ausstehende dauerhafte Laufzeitsitzung. Validierung: 36 gezielte Tests der Speicher-, Token- und Login-Skripte sowie 645 reguläre Tests bestanden (630 abgewählt). CLI-Hilfe, lokale Links und `git diff --check` geprüft. Kein echter Token wurde durch den Agenten ausgelesen oder bei Proton verwendet.
 
 ### Bisherige Prüfergebnisse vom 06.11.2026
 
@@ -86,7 +90,10 @@ Abnahme: Version, Kontovoraussetzungen und tragfähiges Speicherkonzept sind bel
 - [ ] Verwaltungsanmeldung und Laufzeitsitzung trennen: separates CLI-Sitzungsverzeichnis für die Anwendung außerhalb des Repositorys verwenden; dort ausschließlich eine PAT-Sitzung zulassen.
 - [ ] Einen benannten PAT mit begrenztem Ablaufdatum erstellen und ausschließlich dem vorgesehenen Eintrag die Rolle `viewer` gewähren. Token-Ausgabe nicht in Agentenprotokolle, Terminalmitschnitte oder Tickets übernehmen.
 - [x] Skript `scripts/store_ri_proton_token.py` zum verdeckten Speichern und Ersetzen des PAT mit internem Schreib-/Lesenachweis implementieren; synthetisch testen.
-- [ ] PAT über eine geschützte lokale Eingabe im gewählten Betriebssystemspeicher hinterlegen. Das Konto-Passwort von Proton nicht in der Anwendung speichern.
+- [x] Windows-PAT verdeckt im Windows Credential Manager hinterlegen und internes Lesen bestätigen; Nutzer bestätigt erfolgreichen Lauf von `store_ri_proton_token.py` (06.11.2026).
+- [ ] Für eine Linux-/WSL-Nutzung den PAT dort separat über die geschützte Eingabe hinterlegen; kein Proton-Kontopasswort speichern.
+- [x] Eigenes Skript `scripts/check_ri_proton_login.py` für einen begrenzten Login-/Logout-Test in einer neuen temporären Sitzung mit erzwungenem Keyring implementieren; synthetisch prüfen.
+- [ ] Echten Login-/Logout-Test mit dem gespeicherten Token lokal ausführen und Ergebnis ohne Kontodaten dokumentieren.
 - [ ] Mit der Laufzeitsitzung nachweisen: freigegebener Testeintrag lesbar, zweiter Testeintrag nicht lesbar, Änderung des freigegebenen Eintrags nicht erlaubt. Freigabeliste auf zusätzliche Rechte prüfen.
 - [ ] Ablauf, Entzug und Erneuerung des Tokens beschreiben; für Erneuerung dieselbe Eintragsbeschränkung sicherstellen.
 

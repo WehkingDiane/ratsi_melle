@@ -12,7 +12,8 @@ Abgehakte Punkte bezeichnen nur den jeweils genannten Umfang. Dokumentierte Test
 - [ ] Schritt 2: Betriebsmodell, Daten- und Zugriffskontrakt sowie echte RI-Anmeldung prüfen und verbindlich festlegen.
 - [x] Proton-Pass-Dokumentation, lokale CLI-Version 2.3.3 und Befehlsoptionen sowie allgemeine Tarifvoraussetzungen geprüft; Ergebnisse und Versionsgrenzen im Teilplan festgehalten.
 - [x] Geführte lokale Speicherhilfe für Windows und Linux/WSL implementiert (0.5.69); automatisiert mit simulierten Backends geprüft. Diagnosemodus und Übernahme des GNOME-Steuerpfads sind in 0.5.70 ergänzt. Der reale WSL-Speichertest besteht nach gezieltem Dienstneustart; auch der Windows-Speichertest ist laut Nutzer erfolgreich. Neustartabnahme und Proton-CLI-Schlüsselablage stehen aus.
-- [x] Skript zur verdeckten lokalen Ablage und zum Ersetzen eines Proton-Pass-Tokens implementiert (0.5.71); tatsächliche Ablage und Rechteprüfung bleiben offen.
+- [x] Skript zur verdeckten lokalen Ablage und zum Ersetzen eines Proton-Pass-Tokens implementiert (0.5.71); Windows-Ablage durch erfolgreichen Nutzerlauf bestätigt; WSL-Ablage und Rechteprüfung bleiben offen.
+- [x] Eigenständigen Proton-Login-/Logout-Test implementiert (0.5.72); reale Anmeldung und Rechteprüfung stehen aus.
 - [ ] Proton-Pass-Zugang einrichten, Eintragsbeschränkung nachweisen und Zugangsdienst implementieren.
 - [ ] Schritt 3: Getrennte RI-Datenhaltung und Build umsetzen und abnehmen.
 - [ ] Schritt 4: Authentifizierten RI-Fetcher umsetzen und mit dem Zugangsdienst verbinden.
