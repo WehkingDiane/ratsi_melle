@@ -56,7 +56,7 @@ RI-Anbindung und Zugriffssicherung stehen weiterhin aus.
 
 ## RI-Proton-Anmeldetest (0.5.72)
 
-`scripts/check_ri_proton_login.py` liest den gespeicherten PAT und testet die Proton-Anmeldung in einem neuen temporären CLI-Sitzungsverzeichnis mit erzwungenem Betriebssystem-Keyring. Der Token wird nur dem Login-Unterprozess per Umgebung übergeben; die anschließende Abmeldung erhält ihn nicht. CLI-Ausgaben bleiben intern. Das Skript meldet die Testsitzung wieder ab und entfernt lokale Testdaten; es richtet keine dauerhafte RI-Laufzeitsitzung ein. Reale Anmeldung und Rechteprüfung sind noch nicht bestätigt. Die Anleitung steht in der README.
+`scripts/check_ri_proton_login.py` liest den gespeicherten PAT und testet die Proton-Anmeldung in einem neuen temporären CLI-Sitzungsverzeichnis mit erzwungenem Betriebssystem-Keyring. Der Token wird nur dem Login-Unterprozess per Umgebung übergeben; die anschließende Abmeldung erhält ihn nicht. Seit 0.5.73 wird nach erfolgreicher Anmeldung die mit `vault list` abgerufene Liste der sichtbaren Tresore angezeigt; sonstige CLI-Ausgaben bleiben intern. Bei fehlgeschlagener normaler Abmeldung folgt ein explizit als lokal gekennzeichneter `logout --force`; eine unbestätigte entfernte Abmeldung ergibt Warnstatus 2, ein Test-/Bereinigungsfehler Status 1. Das temporäre Verzeichnis wird entfernt; eine dauerhafte RI-Laufzeitsitzung wird nicht eingerichtet. Die echte Anmeldung unter Windows ist laut Nutzer erfolgreich; die normale Abmeldung ist dabei fehlgeschlagen. Reale Tresorauflistung, lokale CLI-Bereinigung und Einzelrechteprüfung sind noch nicht bestätigt. Die Anleitung steht in der README.
 
 ## Gremienfilter der Sitzungsübersicht (0.5.65)
 

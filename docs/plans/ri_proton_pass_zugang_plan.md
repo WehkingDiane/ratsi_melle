@@ -70,6 +70,14 @@ Der Nutzer hat einen zunächst einen Tag gültigen Windows-Token erzeugt. Die lo
 
 `python scripts/check_ri_proton_login.py` liest den gespeicherten PAT im expliziten OS-Backend und verwendet ein neues temporäres Sitzungsverzeichnis für `pass-cli login`. Persönliche Proton-Umgebungseinstellungen werden entfernt, Keyring wird erzwungen und unter Linux explizit D-Bus gewählt. Nur der Login-Unterprozess erhält den Token als Umgebungswert. Nach jedem Versuch folgt ein Logout ohne Token und die Entfernung des temporären Verzeichnisses. Ein fehlgeschlagener Logout wird nicht als Gesamterfolg ausgegeben. Es werden keine Passworteinträge angefordert; Einzelberechtigung und RI-Anmeldung bleiben offen. Dieser Test ersetzt nicht die noch ausstehende dauerhafte Laufzeitsitzung. Validierung: 36 gezielte Tests der Speicher-, Token- und Login-Skripte sowie 645 reguläre Tests bestanden (630 abgewählt). CLI-Hilfe, lokale Links und `git diff --check` geprüft. Kein echter Token wurde durch den Agenten ausgelesen oder bei Proton verwendet.
 
+### Erweiterter Test und Abmeldegrenzen (0.5.73)
+
+Der Nutzer bestätigt eine echte erfolgreiche Anmeldung unter Windows. Die normale Abmeldung war nicht bestätigt; der anschließende direkte Aufruf `pass-cli logout` nutzte die Standardsitzung und fand dort keine aktive Sitzung. Die konkrete Ursache des Abmeldefehlers ist noch unbekannt. Frühere Angaben zum reinen Login-/Logout-Test oben beschreiben den vorherigen Implementierungsstand.
+
+Der Test führt jetzt nach erfolgreichem Login in derselben Sitzung `pass-cli vault list --output human` aus und zeigt nur deren erfolgreiche Ausgabe an. Er maskiert den vollständigen PAT und entfernt Terminal-Steuerzeichen. Sichtbar sind Tresornamen und IDs, keine einzelnen Passwörter. Weder die Tresorliste noch ein erfolgreicher Login beweisen die Beschränkung auf einen einzigen Eintrag.
+
+Eine nicht bestätigte normale Abmeldung wird als feste Fehlerkategorie ausgegeben; native Fehlertexte bleiben intern. Danach wird `logout --force` mit demselben isolierten Sitzungsverzeichnis ohne PAT im Prozessumfeld ausgeführt. Dies ist ausschließlich lokale CLI-Bereinigung und keine Bestätigung einer serverseitigen Abmeldung. Bei erfolgreichem Test mit nur lokal bestätigter Bereinigung ist der Exitcode 2; Test- oder Bereinigungsfehler ergeben 1, vollständig bestätigter Ablauf 0. Das temporäre Verzeichnis wird wie bisher entfernt. Reale Tresorauflistung und Abmelde-/Bereinigungsabnahme stehen noch aus. Validierung: 40 gezielte Tests und 649 reguläre Tests bestanden (630 abgewählt); CLI-Hilfe und `git diff --check` geprüft.
+
 ### Bisherige Prüfergebnisse vom 06.11.2026
 
 - Repository sauber auf `codex/feature/ri-proton-pass-zugang` geprüft. Die Statusprüfung ist bei Fortsetzung erneut auszuführen.
@@ -93,7 +101,9 @@ Abnahme: Version, Kontovoraussetzungen und tragfähiges Speicherkonzept sind bel
 - [x] Windows-PAT verdeckt im Windows Credential Manager hinterlegen und internes Lesen bestätigen; Nutzer bestätigt erfolgreichen Lauf von `store_ri_proton_token.py` (06.11.2026).
 - [ ] Für eine Linux-/WSL-Nutzung den PAT dort separat über die geschützte Eingabe hinterlegen; kein Proton-Kontopasswort speichern.
 - [x] Eigenes Skript `scripts/check_ri_proton_login.py` für einen begrenzten Login-/Logout-Test in einer neuen temporären Sitzung mit erzwungenem Keyring implementieren; synthetisch prüfen.
-- [ ] Echten Login-/Logout-Test mit dem gespeicherten Token lokal ausführen und Ergebnis ohne Kontodaten dokumentieren.
+- [x] Echte Windows-Anmeldung mit gespeichertem Token durch Nutzerlauf bestätigt (06.11.2026); normale Abmeldung fehlgeschlagen.
+- [x] Tresorauflistung und gesonderte lokale CLI-Bereinigung bei Abmeldefehlern implementieren (0.5.73); synthetisch prüfen.
+- [ ] Erweiterten echten Test inklusive Tresorauflistung, normalem Logout oder gekennzeichneter lokaler Bereinigung ausführen; entfernte Abmeldung gegebenenfalls weiter untersuchen.
 - [ ] Mit der Laufzeitsitzung nachweisen: freigegebener Testeintrag lesbar, zweiter Testeintrag nicht lesbar, Änderung des freigegebenen Eintrags nicht erlaubt. Freigabeliste auf zusätzliche Rechte prüfen.
 - [ ] Ablauf, Entzug und Erneuerung des Tokens beschreiben; für Erneuerung dieselbe Eintragsbeschränkung sicherstellen.
 
