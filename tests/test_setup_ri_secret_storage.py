@@ -6,7 +6,7 @@ import sys
 
 import pytest
 
-from scripts import setup_ri_secret_storage as setup
+from scripts.setup import setup_ri_secret_storage as setup
 
 
 class MemoryBackend:

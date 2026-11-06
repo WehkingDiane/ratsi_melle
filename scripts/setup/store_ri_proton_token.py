@@ -8,11 +8,11 @@ from pathlib import Path
 import subprocess
 import sys
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.setup_ri_secret_storage import (
+from scripts.setup.setup_ri_secret_storage import (
     PROBE_ERRORS, SetupError, classify_error, read_password, select_backend,
 )
 

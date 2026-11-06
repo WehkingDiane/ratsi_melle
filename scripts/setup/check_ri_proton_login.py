@@ -11,12 +11,12 @@ import subprocess
 import sys
 import tempfile
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.setup_ri_secret_storage import SetupError, select_backend
-from scripts.store_ri_proton_token import SERVICE, USERNAME, valid_token
+from scripts.setup.setup_ri_secret_storage import SetupError, select_backend
+from scripts.setup.store_ri_proton_token import SERVICE, USERNAME, valid_token
 
 
 def logout_problem(result) -> str:
@@ -136,7 +136,7 @@ def main(argv: list[str] | None = None) -> int:
             raise SetupError("Proton Pass CLI wurde nicht im PATH gefunden.")
         token = select_backend(sys.platform).get_password(SERVICE, USERNAME)
         if not token or not valid_token(token):
-            raise SetupError("Kein vollständiger RI-Token hinterlegt. Zuerst store_ri_proton_token.py starten.")
+            raise SetupError("Kein vollständiger RI-Token hinterlegt. Zuerst python scripts/setup/store_ri_proton_token.py starten.")
         print("Gespeicherten Token in einer eigenen temporären Sitzung prüfen ...", flush=True)
         try:
             logged_out = test_login(cli, token)

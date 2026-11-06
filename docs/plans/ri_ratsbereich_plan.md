@@ -14,6 +14,7 @@ Abgehakte Punkte bezeichnen nur den jeweils genannten Umfang. Dokumentierte Test
 - [x] Geführte lokale Speicherhilfe für Windows und Linux/WSL implementiert (0.5.69); automatisiert mit simulierten Backends geprüft. Diagnosemodus und Übernahme des GNOME-Steuerpfads sind in 0.5.70 ergänzt. Der reale WSL-Speichertest besteht nach gezieltem Dienstneustart; auch der Windows-Speichertest ist laut Nutzer erfolgreich. Neustartabnahme und Proton-CLI-Schlüsselablage stehen aus.
 - [x] Skript zur verdeckten lokalen Ablage und zum Ersetzen eines Proton-Pass-Tokens implementiert (0.5.71); Windows-Ablage durch erfolgreichen Nutzerlauf bestätigt; WSL-Ablage und Rechteprüfung bleiben offen.
 - [x] Eigenständigen Proton-Login-/Logout-Test implementiert (0.5.72); reale Windows-Anmeldung laut Nutzer erfolgreich, normale Abmeldung fehlgeschlagen. Tresorauflistung und gekennzeichnete lokale CLI-Bereinigung sind seit 0.5.73 implementiert; ihre reale Prüfung und Einzelrechteprüfung stehen aus.
+- [x] Proton-Hilfsskripte unter `scripts/setup/` bündeln und Aufrufe, Importe sowie Dokumentation anpassen (0.5.74).
 - [ ] Proton-Pass-Zugang einrichten, Eintragsbeschränkung nachweisen und Zugangsdienst implementieren.
 - [ ] Schritt 3: Getrennte RI-Datenhaltung und Build umsetzen und abnehmen.
 - [ ] Schritt 4: Authentifizierten RI-Fetcher umsetzen und mit dem Zugangsdienst verbinden.

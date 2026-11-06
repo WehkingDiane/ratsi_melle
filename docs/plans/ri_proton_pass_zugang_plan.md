@@ -32,7 +32,7 @@ Kleine, zusammenhängende Commits mit den jeweils betroffenen Tests und Dokument
 - [ ] Tatsächliche Kontofreischaltung mit eingeschränktem Testtoken prüfen.
 - [ ] Verbindliche Zielversion für die Umsetzung wählen und mit eingeschränktem Testtoken abnehmen; die lokale Hilfe allein belegt noch keine funktionsfähige Anmeldung oder Rechtebegrenzung.
 - [ ] Betriebsumgebung festlegen: Windows, WSL oder beide; interaktiver lokaler Abruf oder unbeaufsichtigte Jobs. Unterstützte Umgebungen und Einschränkungen dokumentieren.
-- [x] Geführte Speicherhilfe `scripts/setup_ri_secret_storage.py` für Windows und Linux/WSL mit verdeckter Eingabe, expliziten OS-Backends, Zufallswerttest und begrenzter Wartezeit implementieren; mit simulierten Backends prüfen.
+- [x] Geführte Speicherhilfe `scripts/setup/setup_ri_secret_storage.py` für Windows und Linux/WSL mit verdeckter Eingabe, expliziten OS-Backends, Zufallswerttest und begrenzter Wartezeit implementieren; mit simulierten Backends prüfen.
 - [x] WSL-Login-Speicher in der laufenden Sitzung real prüfen: Erreichbarkeit, Entsperrstatus sowie Schreiben, Lesen und Löschen eines künstlichen Zufallswerts bestätigt (06.11.2026). Noch kein PAT oder RI-Passwort gespeichert.
 - [x] Windows Credential Manager in der laufenden Sitzung real prüfen: Nutzer bestätigt Schreiben, Lesen und Löschen des Zufallswerts durch die Speicherhilfe (06.11.2026). Noch kein PAT oder RI-Passwort gespeichert.
 - [ ] Je unterstützter Umgebung prüfen, ob ein geeigneter Betriebssystemspeicher für den PAT und das CLI-Keyring-Backend tatsächlich verfügbar sind. Windows Credential Manager und Linux-Kernel-Keyring nicht als automatisch zwischen Windows und WSL geteilt voraussetzen.
@@ -40,7 +40,7 @@ Kleine, zusammenhängende Commits mit den jeweils betroffenen Tests und Dokument
 
 ### Geführte Speicherhilfe
 
-Ab Version 0.5.69 ersetzt `python scripts/setup_ri_secret_storage.py` die manuellen Start-, Entsperr- und Testbefehle. Das Skript richtet noch keinen Proton-Zugang ein und ändert keine dauerhafte Proton-Konfiguration. Es prüft ausschließlich den lokalen Speicher und verwendet nur einen eigenen Zufallswert. Ein erfolgreicher Test ist keine Zusage über die Verschlüsselung eines früher angelegten Speichers; ein leeres Speicherpasswort ist unzulässig. Automatisierte Tests nutzen simulierte Backends; die Speicherhilfe ist inzwischen unter Windows und WSL real geprüft. Neustartprüfung, Proton-CLI-Schlüsselablage und PAT-Anbindung bleiben offen.
+Ab Version 0.5.69 ersetzt `python scripts/setup/setup_ri_secret_storage.py` die manuellen Start-, Entsperr- und Testbefehle. Das Skript richtet noch keinen Proton-Zugang ein und ändert keine dauerhafte Proton-Konfiguration. Es prüft ausschließlich den lokalen Speicher und verwendet nur einen eigenen Zufallswert. Ein erfolgreicher Test ist keine Zusage über die Verschlüsselung eines früher angelegten Speichers; ein leeres Speicherpasswort ist unzulässig. Automatisierte Tests nutzen simulierte Backends; die Speicherhilfe ist inzwischen unter Windows und WSL real geprüft. Neustartprüfung, Proton-CLI-Schlüsselablage und PAT-Anbindung bleiben offen.
 
 Validierung der Speicherhilfe: `python -m pytest tests/test_setup_ri_secret_storage.py -q` besteht mit 12 Tests, ohne echte Speicherzugriffe. CLI-Hilfe, lokale Dokumentlinks und `git diff --check` sind geprüft. Der abschließende reguläre Lauf mit `-m "not integration and not live"` besteht mit 621 Tests und 630 abgewählten Tests. Die reale Proton-/RI-Abnahme bleibt offen; die lokalen Speichertests sind inzwischen erfolgreich.
 
@@ -48,7 +48,7 @@ Der Nutzer hat den passenden Tarif bestätigt und CLI 2.7.0 (`ba80a19`) unter Wi
 
 ### Nachbesserung der Speicherhilfe (0.5.70)
 
-Der reale WSL-Speichertest ist laut Nutzerrückmeldung fehlgeschlagen; die tatsächliche Ursache ist noch nicht bestimmt. Die bisherige Sammelmeldung war dafür unzureichend. Die Speicherhilfe übernimmt jetzt den vom GNOME-Dienst gemeldeten Steuerpfad gezielt für den Entsperraufruf und meldet feste Fehlerkategorien ohne native Fehlertexte. Vor einem Schreibversuch wird der Login-Speicher auf Erreichbarkeit und Sperrstatus geprüft. Der neue Aufruf `python scripts/setup_ri_secret_storage.py --check` benötigt kein Passwort und liest keine gespeicherten Geheimnisse; er dient der nächsten lokalen Diagnose. Die Agentenumgebung verweigert selbst den Zugriff auf den Sitzungsbus, was nicht die Ursache im Nutzerterminal belegt. Validierung: 19 gezielte Tests und 628 reguläre Tests bestanden (630 abgewählt); CLI-Hilfe und `git diff --check` geprüft. Reale WSL-Abnahme bleibt offen.
+Der reale WSL-Speichertest ist laut Nutzerrückmeldung fehlgeschlagen; die tatsächliche Ursache ist noch nicht bestimmt. Die bisherige Sammelmeldung war dafür unzureichend. Die Speicherhilfe übernimmt jetzt den vom GNOME-Dienst gemeldeten Steuerpfad gezielt für den Entsperraufruf und meldet feste Fehlerkategorien ohne native Fehlertexte. Vor einem Schreibversuch wird der Login-Speicher auf Erreichbarkeit und Sperrstatus geprüft. Der neue Aufruf `python scripts/setup/setup_ri_secret_storage.py --check` benötigt kein Passwort und liest keine gespeicherten Geheimnisse; er dient der nächsten lokalen Diagnose. Die Agentenumgebung verweigert selbst den Zugriff auf den Sitzungsbus, was nicht die Ursache im Nutzerterminal belegt. Validierung: 19 gezielte Tests und 628 reguläre Tests bestanden (630 abgewählt); CLI-Hilfe und `git diff --check` geprüft. Reale WSL-Abnahme bleibt offen.
 
 ### Erfolgreicher WSL-Speichertest am 06.11.2026
 
@@ -60,7 +60,7 @@ Damit ist der WSL-Speicher für diese Sitzung geprüft. Der Nutzer bestätigt an
 
 ### Lokale Tokenablage (0.5.71)
 
-`python scripts/store_ri_proton_token.py` speichert oder ersetzt einen verdeckt eingegebenen Token im expliziten Betriebssystemspeicher unter `ratsi_melle_ri` / `proton_pass_pat`. Der interne Schreibprozess erhält den Token nur über stdin; Schreiben und anschließendes Lesen werden abgeglichen. Geheimnisse und native Fehlermeldungen werden nicht ausgegeben. Das Skript führt keine Proton-Anmeldung durch und prüft weder Gültigkeit noch Ablauf oder Zugriffsrechte. Bei einem Speicherfehler oder einer Zeitüberschreitung kann der Schreibvorgang bereits erfolgt sein; Erfolg wird dann nicht bestätigt. Unter WSL muss der GNOME-Login-Speicher zuvor entsperrt sein.
+`python scripts/setup/store_ri_proton_token.py` speichert oder ersetzt einen verdeckt eingegebenen Token im expliziten Betriebssystemspeicher unter `ratsi_melle_ri` / `proton_pass_pat`. Der interne Schreibprozess erhält den Token nur über stdin; Schreiben und anschließendes Lesen werden abgeglichen. Geheimnisse und native Fehlermeldungen werden nicht ausgegeben. Das Skript führt keine Proton-Anmeldung durch und prüft weder Gültigkeit noch Ablauf oder Zugriffsrechte. Bei einem Speicherfehler oder einer Zeitüberschreitung kann der Schreibvorgang bereits erfolgt sein; Erfolg wird dann nicht bestätigt. Unter WSL muss der GNOME-Login-Speicher zuvor entsperrt sein.
 
 Validierung: 31 gezielte Tests der Speicherhilfe und Tokenablage sowie 640 reguläre Tests bestanden (630 abgewählt). CLI-Hilfe, lokale Dokumentlinks und `git diff --check` sind geprüft. Es wurden ausschließlich künstliche Tokens in simulierten Backends verwendet.
 
@@ -68,7 +68,7 @@ Der Nutzer hat einen zunächst einen Tag gültigen Windows-Token erzeugt. Die lo
 
 ### Eigenständiger Anmeldetest (0.5.72)
 
-`python scripts/check_ri_proton_login.py` liest den gespeicherten PAT im expliziten OS-Backend und verwendet ein neues temporäres Sitzungsverzeichnis für `pass-cli login`. Persönliche Proton-Umgebungseinstellungen werden entfernt, Keyring wird erzwungen und unter Linux explizit D-Bus gewählt. Nur der Login-Unterprozess erhält den Token als Umgebungswert. Nach jedem Versuch folgt ein Logout ohne Token und die Entfernung des temporären Verzeichnisses. Ein fehlgeschlagener Logout wird nicht als Gesamterfolg ausgegeben. Es werden keine Passworteinträge angefordert; Einzelberechtigung und RI-Anmeldung bleiben offen. Dieser Test ersetzt nicht die noch ausstehende dauerhafte Laufzeitsitzung. Validierung: 36 gezielte Tests der Speicher-, Token- und Login-Skripte sowie 645 reguläre Tests bestanden (630 abgewählt). CLI-Hilfe, lokale Links und `git diff --check` geprüft. Kein echter Token wurde durch den Agenten ausgelesen oder bei Proton verwendet.
+`python scripts/setup/check_ri_proton_login.py` liest den gespeicherten PAT im expliziten OS-Backend und verwendet ein neues temporäres Sitzungsverzeichnis für `pass-cli login`. Persönliche Proton-Umgebungseinstellungen werden entfernt, Keyring wird erzwungen und unter Linux explizit D-Bus gewählt. Nur der Login-Unterprozess erhält den Token als Umgebungswert. Nach jedem Versuch folgt ein Logout ohne Token und die Entfernung des temporären Verzeichnisses. Ein fehlgeschlagener Logout wird nicht als Gesamterfolg ausgegeben. Es werden keine Passworteinträge angefordert; Einzelberechtigung und RI-Anmeldung bleiben offen. Dieser Test ersetzt nicht die noch ausstehende dauerhafte Laufzeitsitzung. Validierung: 36 gezielte Tests der Speicher-, Token- und Login-Skripte sowie 645 reguläre Tests bestanden (630 abgewählt). CLI-Hilfe, lokale Links und `git diff --check` geprüft. Kein echter Token wurde durch den Agenten ausgelesen oder bei Proton verwendet.
 
 ### Erweiterter Test und Abmeldegrenzen (0.5.73)
 
@@ -77,6 +77,10 @@ Der Nutzer bestätigt eine echte erfolgreiche Anmeldung unter Windows. Die norma
 Der Test führt jetzt nach erfolgreichem Login in derselben Sitzung `pass-cli vault list --output human` aus und zeigt nur deren erfolgreiche Ausgabe an. Er maskiert den vollständigen PAT und entfernt Terminal-Steuerzeichen. Sichtbar sind Tresornamen und IDs, keine einzelnen Passwörter. Weder die Tresorliste noch ein erfolgreicher Login beweisen die Beschränkung auf einen einzigen Eintrag.
 
 Eine nicht bestätigte normale Abmeldung wird als feste Fehlerkategorie ausgegeben; native Fehlertexte bleiben intern. Danach wird `logout --force` mit demselben isolierten Sitzungsverzeichnis ohne PAT im Prozessumfeld ausgeführt. Dies ist ausschließlich lokale CLI-Bereinigung und keine Bestätigung einer serverseitigen Abmeldung. Bei erfolgreichem Test mit nur lokal bestätigter Bereinigung ist der Exitcode 2; Test- oder Bereinigungsfehler ergeben 1, vollständig bestätigter Ablauf 0. Das temporäre Verzeichnis wird wie bisher entfernt. Reale Tresorauflistung und Abmelde-/Bereinigungsabnahme stehen noch aus. Validierung: 40 gezielte Tests und 649 reguläre Tests bestanden (630 abgewählt); CLI-Hilfe und `git diff --check` geprüft.
+
+### Gemeinsamer Setup-Ordner (0.5.74)
+
+Die drei Proton-Hilfsskripte liegen unter `scripts/setup/`: `setup_ri_secret_storage.py`, `store_ri_proton_token.py` und `check_ri_proton_login.py`. Interne Importe, direkte Starts, Tests und aktive Dokumentation sind an die neue Verzeichnistiefe angepasst. Vor dem Verschieben wurden die bisherigen Dateien unter `archive/scripts/` bytegleich gesichert und per SHA-256 mit dem vorherigen Stand verglichen. Die Archivkopien bleiben unverändert und sind gemäß Repository-Regeln lokal, nicht in Git. Die Zugangsdatenablage und der Name des gespeicherten Tokens werden durch die Verschiebung nicht geändert. Validierung: alle drei direkten Hilfeaufrufe funktionieren; 40 gezielte und 649 reguläre Tests bestanden (630 abgewählt). Lokale Dokumentlinks, alte Pfad-/Importverweise und `git diff --check` sind geprüft. Archivkopien vor dem Commit erneut mit dem vorherigen Git-Stand per SHA-256 verglichen.
 
 ### Bisherige Prüfergebnisse vom 06.11.2026
 
@@ -97,10 +101,10 @@ Abnahme: Version, Kontovoraussetzungen und tragfähiges Speicherkonzept sind bel
 - [ ] Einrichtung zunächst mit einem künstlichen RI-Eintrag und einem zweiten, nicht freigegebenen Testeintrag vorbereiten.
 - [ ] Verwaltungsanmeldung und Laufzeitsitzung trennen: separates CLI-Sitzungsverzeichnis für die Anwendung außerhalb des Repositorys verwenden; dort ausschließlich eine PAT-Sitzung zulassen.
 - [ ] Einen benannten PAT mit begrenztem Ablaufdatum erstellen und ausschließlich dem vorgesehenen Eintrag die Rolle `viewer` gewähren. Token-Ausgabe nicht in Agentenprotokolle, Terminalmitschnitte oder Tickets übernehmen.
-- [x] Skript `scripts/store_ri_proton_token.py` zum verdeckten Speichern und Ersetzen des PAT mit internem Schreib-/Lesenachweis implementieren; synthetisch testen.
+- [x] Skript `scripts/setup/store_ri_proton_token.py` zum verdeckten Speichern und Ersetzen des PAT mit internem Schreib-/Lesenachweis implementieren; synthetisch testen.
 - [x] Windows-PAT verdeckt im Windows Credential Manager hinterlegen und internes Lesen bestätigen; Nutzer bestätigt erfolgreichen Lauf von `store_ri_proton_token.py` (06.11.2026).
 - [ ] Für eine Linux-/WSL-Nutzung den PAT dort separat über die geschützte Eingabe hinterlegen; kein Proton-Kontopasswort speichern.
-- [x] Eigenes Skript `scripts/check_ri_proton_login.py` für einen begrenzten Login-/Logout-Test in einer neuen temporären Sitzung mit erzwungenem Keyring implementieren; synthetisch prüfen.
+- [x] Eigenes Skript `scripts/setup/check_ri_proton_login.py` für einen begrenzten Login-/Logout-Test in einer neuen temporären Sitzung mit erzwungenem Keyring implementieren; synthetisch prüfen.
 - [x] Echte Windows-Anmeldung mit gespeichertem Token durch Nutzerlauf bestätigt (06.11.2026); normale Abmeldung fehlgeschlagen.
 - [x] Tresorauflistung und gesonderte lokale CLI-Bereinigung bei Abmeldefehlern implementieren (0.5.73); synthetisch prüfen.
 - [ ] Erweiterten echten Test inklusive Tresorauflistung, normalem Logout oder gekennzeichneter lokaler Bereinigung ausführen; entfernte Abmeldung gegebenenfalls weiter untersuchen.

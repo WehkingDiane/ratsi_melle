@@ -20,12 +20,12 @@ Die lokale Django-Oberfläche ist danach unter `http://127.0.0.1:8000/` erreichb
 Ab Version 0.5.69 führt ein Skript durch die lokale Speicherprüfung. In der aktivierten Python-Umgebung unter Windows oder Linux/WSL als normaler Benutzer starten:
 
 ```bash
-python scripts/setup_ri_secret_storage.py
+python scripts/setup/setup_ri_secret_storage.py
 ```
 
-Unter WSL alternativ `.venv-wsl/bin/python scripts/setup_ri_secret_storage.py` verwenden. Voraussetzung ist die vorhandene Projektabhängigkeit `keyring`; fehlt unter Ubuntu/WSL GNOME Keyring, einmal `sudo apt install gnome-keyring` ausführen.
+Unter WSL alternativ `.venv-wsl/bin/python scripts/setup/setup_ri_secret_storage.py` verwenden. Voraussetzung ist die vorhandene Projektabhängigkeit `keyring`; fehlt unter Ubuntu/WSL GNOME Keyring, einmal `sudo apt install gnome-keyring` ausführen.
 
-Bei Problemen unter WSL liefert `python scripts/setup_ri_secret_storage.py --check` ohne Passworteingabe den aktuellen Sperr-/Erreichbarkeitsstatus. Dieser Modus startet keinen Dienst, entsperrt nichts und greift auf keine gespeicherten Passwörter zu. Die Fehlerausgabe unterscheidet fehlende Python-Unterstützung, gesperrten oder fehlenden Login-Speicher, unerreichbaren Dienst und verweigerten Zugriff; native Fehlertexte werden nicht ausgegeben.
+Bei Problemen unter WSL liefert `python scripts/setup/setup_ri_secret_storage.py --check` ohne Passworteingabe den aktuellen Sperr-/Erreichbarkeitsstatus. Dieser Modus startet keinen Dienst, entsperrt nichts und greift auf keine gespeicherten Passwörter zu. Die Fehlerausgabe unterscheidet fehlende Python-Unterstützung, gesperrten oder fehlenden Login-Speicher, unerreichbaren Dienst und verweigerten Zugriff; native Fehlertexte werden nicht ausgegeben.
 
 Unter Windows prüft das Skript den Windows Credential Manager. Unter Linux startet es GNOME Keyring und fragt verdeckt nach dem Passwort des lokalen Login-Schlüsselspeichers. Bei vorhandenem Speicher dessen bisheriges Passwort verwenden; bei neuem Speicher ein starkes, nicht leeres Passwort wählen. Kein Proton-Passwort, RI-Passwort oder Token eingeben. Die Eingabe zeigt keine Zeichen; bei einer Fehlermeldung wird das Passwort nicht ausgegeben.
 
@@ -38,10 +38,10 @@ Das Skript hinterlegt keinen PAT, konfiguriert keine Proton-Sitzung und aktivier
 In der aktivierten Python-Umgebung als normaler Benutzer ausführen:
 
 ```bash
-python scripts/store_ri_proton_token.py
+python scripts/setup/store_ri_proton_token.py
 ```
 
-Unter WSL alternativ `.venv-wsl/bin/python scripts/store_ri_proton_token.py` verwenden. Voraussetzung ist der erfolgreich geprüfte, entsperrte lokale Speicher. Falls der Login-Speicher unter WSL gesperrt ist, zuerst die oben beschriebene Speicherhilfe starten.
+Unter WSL alternativ `.venv-wsl/bin/python scripts/setup/store_ri_proton_token.py` verwenden. Voraussetzung ist der erfolgreich geprüfte, entsperrte lokale Speicher. Falls der Login-Speicher unter WSL gesperrt ist, zuerst die oben beschriebene Speicherhilfe starten.
 
 Den vollständigen Proton-Pass-Zugriffstoken bei der unsichtbaren Eingabe einfügen und Enter drücken. Das Skript speichert unter Dienst `ratsi_melle_ri` und Benutzername `proton_pass_pat` im Windows Credential Manager beziehungsweise im GNOME-Login-Speicher. Ein dort vorhandener Token wird ersetzt; mit demselben Aufruf kann später ein neuer Token hinterlegt werden. Windows und WSL haben getrennte Speicher, sodass die Ablage auf jedem Zielsystem separat erfolgt.
 
@@ -52,7 +52,7 @@ Es werden nur das lokale Format und das erfolgreiche Schreiben/Lesen geprüft, n
 Nach erfolgreicher Tokenablage in derselben Windows-/WSL-Umgebung:
 
 ```bash
-python scripts/check_ri_proton_login.py
+python scripts/setup/check_ri_proton_login.py
 ```
 
 Das Skript liest ausschließlich den hinterlegten RI-PAT und übergibt ihn kurzzeitig über die Umgebung an den Login-Unterprozess. Es verwendet eine neue temporäre Sitzung mit erzwungenem CLI-Keyring-Backend (unter Linux D-Bus), unabhängig von einer persönlichen CLI-Anmeldung. Nach erfolgreichem Login zeigt `pass-cli vault list --output human` die für diesen Token sichtbaren Tresore einschließlich ihrer Namen/IDs. Das sind Tresore, keine einzelnen Login-Einträge oder Passwörter. Tresor- und Passwortänderungen werden nicht ausgeführt.

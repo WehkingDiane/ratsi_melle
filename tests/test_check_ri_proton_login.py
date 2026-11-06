@@ -6,7 +6,7 @@ import subprocess
 
 import pytest
 
-from scripts import check_ri_proton_login as check
+from scripts.setup import check_ri_proton_login as check
 
 TOKEN = "pst_synthetic::synthetic-key"
 

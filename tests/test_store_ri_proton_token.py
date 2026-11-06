@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from scripts import store_ri_proton_token as store
+from scripts.setup import store_ri_proton_token as store
 from tests.test_setup_ri_secret_storage import MemoryBackend
 
 TOKEN = "pst_synthetic-test::synthetic-key"
