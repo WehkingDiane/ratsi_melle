@@ -33,6 +33,7 @@ Kleine, zusammenhängende Commits mit den jeweils betroffenen Tests und Dokument
 - [ ] Verbindliche Zielversion für die Umsetzung wählen und mit eingeschränktem Testtoken abnehmen; die lokale Hilfe allein belegt noch keine funktionsfähige Anmeldung oder Rechtebegrenzung.
 - [ ] Betriebsumgebung festlegen: Windows, WSL oder beide; interaktiver lokaler Abruf oder unbeaufsichtigte Jobs. Unterstützte Umgebungen und Einschränkungen dokumentieren.
 - [x] Geführte Speicherhilfe `scripts/setup_ri_secret_storage.py` für Windows und Linux/WSL mit verdeckter Eingabe, expliziten OS-Backends, Zufallswerttest und begrenzter Wartezeit implementieren; mit simulierten Backends prüfen.
+- [x] WSL-Login-Speicher in der laufenden Sitzung real prüfen: Erreichbarkeit, Entsperrstatus sowie Schreiben, Lesen und Löschen eines künstlichen Zufallswerts bestätigt (06.11.2026). Noch kein PAT oder RI-Passwort gespeichert.
 - [ ] Je unterstützter Umgebung prüfen, ob ein geeigneter Betriebssystemspeicher für den PAT und das CLI-Keyring-Backend tatsächlich verfügbar sind. Windows Credential Manager und Linux-Kernel-Keyring nicht als automatisch zwischen Windows und WSL geteilt voraussetzen.
 - [ ] Sichere Einrichtung, Verhalten nach Neustart und Wiederanmeldung nach Ablauf einer Sitzung festlegen. Laut derzeitiger Dokumentation laufen PAT-Sitzungen nach zwei Stunden ab; anhand der gewählten Version bestätigen.
 
@@ -47,6 +48,14 @@ Der Nutzer hat den passenden Tarif bestätigt und CLI 2.7.0 (`ba80a19`) unter Wi
 ### Nachbesserung der Speicherhilfe (0.5.70)
 
 Der reale WSL-Speichertest ist laut Nutzerrückmeldung fehlgeschlagen; die tatsächliche Ursache ist noch nicht bestimmt. Die bisherige Sammelmeldung war dafür unzureichend. Die Speicherhilfe übernimmt jetzt den vom GNOME-Dienst gemeldeten Steuerpfad gezielt für den Entsperraufruf und meldet feste Fehlerkategorien ohne native Fehlertexte. Vor einem Schreibversuch wird der Login-Speicher auf Erreichbarkeit und Sperrstatus geprüft. Der neue Aufruf `python scripts/setup_ri_secret_storage.py --check` benötigt kein Passwort und liest keine gespeicherten Geheimnisse; er dient der nächsten lokalen Diagnose. Die Agentenumgebung verweigert selbst den Zugriff auf den Sitzungsbus, was nicht die Ursache im Nutzerterminal belegt. Validierung: 19 gezielte Tests und 628 reguläre Tests bestanden (630 abgewählt); CLI-Hilfe und `git diff --check` geprüft. Reale WSL-Abnahme bleibt offen.
+
+### Erfolgreicher WSL-Speichertest am 06.11.2026
+
+Die direkte Diagnose außerhalb der Agentensandbox reproduzierte den fehlenden D-Bus-Login-Pfad. Ein isolierter Test mit künstlichem Passwort sowie ein isolierter Test einer temporären Kopie der verschlüsselten Login-Datei waren erfolgreich; die Datei selbst war damit grundsätzlich lesbar. Ein vorheriger Neustart über `--replace` hatte den Fehler nicht behoben.
+
+Der fehlerhafte Dienst lief manuell; `gnome-keyring-daemon.service` war inaktiv. Der tatsächlich zu beiden D-Bus-Namen gehörige GNOME-Prozess wurde anhand seiner Prozess-ID und Programmdatei verifiziert, gezielt beendet und anschließend die vorhandene Benutzer-Serviceeinheit gestartet. Danach meldete die Speicherhilfe den Login-Speicher als erreichbar und entsperrt. Der reale Probe-Unterprozess beendete Schreiben, Lesen und Löschen seines eigenen Zufallswerts erfolgreich mit Exitcode 0. Bestehende Geheimnisse wurden nicht ausgelesen; die Originalspeicherdateien wurden weder gelöscht noch ersetzt. Das spricht für einen fehlerhaften Zustand des zuvor laufenden Dienstes; dessen genauer interner Auslöser ist nicht bestimmt.
+
+Damit ist der WSL-Speicher für diese Sitzung geprüft. Windows, Verhalten nach Neustart und die eigene Proton-CLI-Schlüsselablage bleiben separat abzunehmen. Die bisherigen Fehlversuche in den vorherigen Vermerken sind Diagnosehistorie, nicht der aktuelle Speicherstatus. Es wurden noch keine echten Proton- oder RI-Zugangsdaten eingerichtet.
 
 ### Bisherige Prüfergebnisse vom 06.11.2026
 

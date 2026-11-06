@@ -11,7 +11,7 @@ Abgehakte Punkte bezeichnen nur den jeweils genannten Umfang. Dokumentierte Test
 - [x] Proton-Pass-Teilpaket geplant: eigener Branch und [Schritt-für-Schritt-Plan](ri_proton_pass_zugang_plan.md) angelegt (`cab37b4`).
 - [ ] Schritt 2: Betriebsmodell, Daten- und Zugriffskontrakt sowie echte RI-Anmeldung prüfen und verbindlich festlegen.
 - [x] Proton-Pass-Dokumentation, lokale CLI-Version 2.3.3 und Befehlsoptionen sowie allgemeine Tarifvoraussetzungen geprüft; Ergebnisse und Versionsgrenzen im Teilplan festgehalten.
-- [x] Geführte lokale Speicherhilfe für Windows und Linux/WSL implementiert (0.5.69); automatisiert mit simulierten Backends geprüft. Diagnosemodus und Übernahme des GNOME-Steuerpfads sind in 0.5.70 ergänzt. Reale Speicher- und Neustartabnahme stehen nach fehlgeschlagenem WSL-Test weiterhin aus.
+- [x] Geführte lokale Speicherhilfe für Windows und Linux/WSL implementiert (0.5.69); automatisiert mit simulierten Backends geprüft. Diagnosemodus und Übernahme des GNOME-Steuerpfads sind in 0.5.70 ergänzt. Der reale WSL-Speichertest besteht nach gezieltem Dienstneustart; Windows- und Neustartabnahme sowie Proton-CLI-Schlüsselablage stehen aus.
 - [ ] Proton-Pass-Zugang einrichten, Eintragsbeschränkung nachweisen und Zugangsdienst implementieren.
 - [ ] Schritt 3: Getrennte RI-Datenhaltung und Build umsetzen und abnehmen.
 - [ ] Schritt 4: Authentifizierten RI-Fetcher umsetzen und mit dem Zugangsdienst verbinden.
