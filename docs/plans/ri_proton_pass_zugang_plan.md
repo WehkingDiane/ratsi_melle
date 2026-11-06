@@ -1,6 +1,6 @@
 # Plan: RI-Zugang sicher über Proton Pass beziehen
 
-Stand: 06.11.2026. Status: geplant, noch keine Anbindung eingerichtet.
+Stand: 06.11.2026. Status: Vorprüfung begonnen, noch keine Anbindung eingerichtet.
 
 Vorhaben-Branch: `codex/feature/ri-ratsbereich`.
 Arbeitsbranch dieses Teilpakets: `codex/feature/ri-proton-pass-zugang`.
@@ -24,11 +24,27 @@ Kleine, zusammenhängende Commits mit den jeweils betroffenen Tests und Dokument
 
 ## 1. Voraussetzungen und aktuelle Funktionen prüfen
 
-- [ ] Repository-Status und Branch prüfen; ausschließlich auf einem passenden `codex/`-Branch arbeiten.
-- [ ] Aktuelle offizielle CLI-Dokumentation mit Context7 prüfen; unterstützte CLI-Version für PAT, Eintragsfreigabe und Passwortabruf festhalten. Verfügbarkeit im verwendeten Proton-Konto beziehungsweise Tarif prüfen.
+- [x] Repository-Status und Branch prüfen; ausschließlich auf einem passenden `codex/`-Branch arbeiten.
+- [x] Aktuelle offizielle CLI-Dokumentation mit Context7 auf PAT, Eintragsfreigabe und feldweisen Passwortabruf prüfen.
+- [x] Lokal vorhandene CLI-Version und ihre Befehlsoptionen ohne Anmeldung oder Geheimnisabruf prüfen und dokumentieren.
+- [x] Allgemeine Tarifvoraussetzungen anhand der offiziellen Proton-Hilfe prüfen.
+- [ ] Verfügbarkeit im konkret verwendeten Proton-Konto bestätigen; Tarifangabe und späteren Funktionstest dokumentieren.
+- [ ] Verbindliche Zielversion für die Umsetzung wählen und mit eingeschränktem Testtoken abnehmen; die lokale Hilfe allein belegt noch keine funktionsfähige Anmeldung oder Rechtebegrenzung.
 - [ ] Betriebsumgebung festlegen: Windows, WSL oder beide; interaktiver lokaler Abruf oder unbeaufsichtigte Jobs. Unterstützte Umgebungen und Einschränkungen dokumentieren.
 - [ ] Je unterstützter Umgebung prüfen, ob ein geeigneter Betriebssystemspeicher für den PAT und das CLI-Keyring-Backend tatsächlich verfügbar sind. Windows Credential Manager und Linux-Kernel-Keyring nicht als automatisch zwischen Windows und WSL geteilt voraussetzen.
 - [ ] Sichere Einrichtung, Verhalten nach Neustart und Wiederanmeldung nach Ablauf einer Sitzung festlegen. Laut derzeitiger Dokumentation laufen PAT-Sitzungen nach zwei Stunden ab; anhand der gewählten Version bestätigen.
+
+### Bisherige Prüfergebnisse vom 06.11.2026
+
+- Repository sauber auf `codex/feature/ri-proton-pass-zugang` geprüft. Die Statusprüfung ist bei Fortsetzung erneut auszuführen.
+- In der aktuellen WSL2-Umgebung ist `/home/diane/.local/bin/pass-cli` vorhanden: `Proton Pass CLI 2.3.3 (0d7235d)`. Es wurde nichts installiert oder aktualisiert. Windows wurde nicht geprüft.
+- `pass-cli pat access grant --help` bestätigt in dieser Version `--personal-access-token-id`, `--share-id`, `--item-id` und `--role viewer`. Mit `--item-id` muss der Zugriff auf den einzelnen Eintrag begrenzt werden; keine zusätzliche Tresorfreigabe erteilen.
+- `pass-cli item view --help` bestätigt `--share-id`, `--item-id`, `--field` und `--output`. Context7 dokumentiert die Felder `username` und `password`. Der vorgesehene Aufruf ist `pass-cli item view --share-id <SHARE_ID> --item-id <ITEM_ID> --field password`; seine Standardausgabe muss der spätere Zugangsdienst intern abfangen. Dieser Abruf wurde nicht ausgeführt.
+- Die lokale Login-Hilfe nennt `--pat`, die aktuelle Dokumentation dagegen `--personal-access-token`. Der geplante Anmeldeweg bleibt die kurzzeitige Übergabe über `PROTON_PASS_PERSONAL_ACCESS_TOKEN` an den Unterprozess; dessen Funktion in der gewählten Zielversion ist noch real zu prüfen. Keine geheimen Tokenwerte als Argument verwenden.
+- Das [offizielle Changelog](https://github.com/protonpass/pass-cli/blob/main/CHANGELOG.md) führt PAT-Unterstützung ab 1.10.0 (08.04.2026) und als neuesten dort gelisteten Stand 2.7.0 (03.11.2026). Daraus folgt keine vollständige Mindestversionszusage für alle benötigten Sicherheitsmerkmale. 2.3.3 ist vorläufig nur die lokal untersuchte Version. Seit 2.5.0 ist der direkte Login mit Kontopasswort entfernt; für die Verwaltung ist der Weblogin vorzusehen.
+- Die [Proton-Hilfe zu Zugriffstokens](https://proton.me/support/pass-access-tokens) nennt Pass Plus, Pass Family, Proton Unlimited, Pass Professional und Workspace Standard. Das konkret verwendete Konto und seine Freischaltung wurden nicht geprüft. Die Webanleitung beschreibt Tresorfreigaben; die feinere Eintragsfreigabe ist in der CLI-Dokumentation und lokalen Befehlsoptionen belegt und muss mit Testtoken bestätigt werden.
+- Laut aktueller Konfigurationsdokumentation verliert der Linux-Kernel-Keyring seine Schlüssel beim Neustart. Ein optionales D-Bus-Secret-Service-Backend kann persistent speichern (`PROTON_PASS_LINUX_KEYRING=dbus`), benötigt aber einen verfügbaren entsperrten Dienst. Verfügbarkeit und Unterstützung in der lokalen Version sind noch offen; Kernel-Keyring allein löst die dauerhafte PAT-Ablage nicht.
+- Es wurden ausschließlich Version und Hilfe aufgerufen, keine Kontodaten, Einträge, Token oder vorhandenen Sitzungsinhalte ausgelesen. Echte Anmeldung, Passwortausgabe, Speichereignung und Rechtebegrenzung sind nicht abgenommen.
 
 Abnahme: Version, Kontovoraussetzungen und tragfähiges Speicherkonzept sind belegt. Ohne verfügbaren sicheren Speicher bleibt die Anbindung gesperrt; kein stiller Wechsel auf Klartextablage.
 
@@ -88,6 +104,9 @@ Die Quellen beschreiben den aktuellen Entwicklungsstand; vor Implementierung mit
 - [Proton Pass CLI](https://github.com/protonpass/pass-cli)
 - [PAT erstellen und Eintragsrechte vergeben](https://github.com/protonpass/pass-cli/blob/main/docs/public/docs/commands/personal-access-token.md)
 - [Konfiguration und sichere Schlüsselablage](https://github.com/protonpass/pass-cli/blob/main/docs/public/docs/get-started/configuration.md)
+- [Tarifvoraussetzungen für Zugriffstokens](https://proton.me/support/pass-access-tokens)
+- [Versionshistorie](https://github.com/protonpass/pass-cli/blob/main/CHANGELOG.md)
+- [Feldweiser Eintragsabruf](https://github.com/protonpass/pass-cli/blob/main/docs/public/docs/commands/item.md)
 - [Anmeldung und PAT-Sitzungen](https://github.com/protonpass/pass-cli/blob/main/docs/public/docs/commands/login.md)
 
 Offen sind insbesondere Zielumgebung, interaktiver oder unbeaufsichtigter Betrieb, verfügbare Kontofunktionen, konkrete sichere Tokenablage und der echte RI-Anmeldeablauf. Diese Punkte sind Prüfaufgaben, keine bereits zugesicherten Eigenschaften der Anwendung.
