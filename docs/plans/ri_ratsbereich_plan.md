@@ -90,6 +90,8 @@ Für die Herkunft jedes Datensatzes eine feste Quellenkennung (`bi` oder `ri`) v
 
 ## 4. RI-Fetcher mit Anmeldung
 
+Für die sichere Bereitstellung der Zugangsdaten gibt es den [Teilplan Proton Pass](ri_proton_pass_zugang_plan.md) auf `codex/feature/ri-proton-pass-zugang`: ein auf genau den RI-Eintrag begrenzter Lesetoken, geschützte lokale Token- und Sitzungsablage sowie schrittweise Tests. Die Anbindung ist noch nicht eingerichtet; Zielumgebung und sichere Speicherunterstützung werden vor Umsetzung geprüft.
+
 Ein eigenes CLI-Skript für RI-Sitzungsübersicht und gezielte Sitzungsdownloads vorsehen. Wiederverwendbare Komponenten aus `SessionNetClient` nutzen, sobald HTML- und URL-Parität bestätigt ist. Der authentifizierte Client braucht eine klar abgegrenzte Anmeldung, eine zeitlich begrenzte HTTP-Sitzung und einen eindeutigen Fehler bei abgelaufener Anmeldung. Eine Login-Seite darf nie als Sitzungsdetail oder PDF gespeichert werden.
 
 Zugangsdaten nicht als CLI-Argument oder im Quellcode hinterlegen; ein geeigneter lokaler Secret-Speicher oder eine geschützte Eingabe wird nach Prüfung des echten Loginablaufs gewählt. Passwort, Session-Cookies, Token und vollständige geschützte URLs aus Logs und Fehlermeldungen heraushalten. Umleitungen und Dokumentlinks auf erlaubte RI-Hosts und Pfade begrenzen; keine Credentials an fremde Hosts senden. Bestehende Grenzen für Downloadgröße, Rate-Limit, Retry und sichere Dateipfade gelten auch hier.

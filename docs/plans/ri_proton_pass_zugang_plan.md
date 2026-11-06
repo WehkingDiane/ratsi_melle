@@ -1,0 +1,93 @@
+# Plan: RI-Zugang sicher über Proton Pass beziehen
+
+Stand: 06.11.2026. Status: geplant, noch keine Anbindung eingerichtet.
+
+Vorhaben-Branch: `codex/feature/ri-ratsbereich`.
+Arbeitsbranch dieses Teilpakets: `codex/feature/ri-proton-pass-zugang`.
+Übergeordneter Plan: [Geschützter Ratsbereich](ri_ratsbereich_plan.md), insbesondere Schritte 2 und 4.
+
+## Ziel und Schutzgrenzen
+
+Der künftige RI-Fetcher soll Benutzername und Passwort bei Bedarf aus einem einzelnen Proton-Pass-Eintrag beziehen. Weder RI-Passwort noch Proton-Zugriffstoken werden als Klartext in `.env`, Konfiguration, Quellcode, Kommandozeilenargumenten, Logs oder temporären Dateien abgelegt. Nicht geheime Referenzen wie Eintrags-ID und CLI-Pfad dürfen konfiguriert werden.
+
+Die Anwendung erhält einen Personal Access Token (PAT), der ausschließlich den RI-Eintrag mit der Rolle `viewer` lesen darf. Die Begrenzung gilt für einen vollständigen Eintrag einschließlich seiner Felder, nicht für ein einzelnes Passwortfeld. Ein eigener Tresor kann die Organisation erleichtern, ersetzt aber keine Beschränkung des Tokens auf den Eintrag. Die Anwendung darf keine vollständige persönliche Proton-Sitzung verwenden.
+
+Der Token ist selbst ein Geheimnis und braucht einen geeigneten Betriebssystemspeicher. Die CLI muss auch ihre lokalen Sitzungsdaten mit einem Schlüssel aus dem Betriebssystem-Keyring schützen. Ein Dateibackend mit daneben liegendem Klartextschlüssel oder ein dauerhaft in einer Umgebungsdatei gespeicherter Schlüssel erfüllt das Ziel nicht. Für eine Anmeldung nötige Umgebungswerte dürfen allenfalls kurzzeitig und gezielt an den CLI-Unterprozess übergeben werden; sie werden nicht in der globalen Prozessumgebung oder Shell-Historie hinterlegt.
+
+Zur RI-Anmeldung muss das Passwort kurzzeitig entschlüsselt im Prozess verfügbar sein. Diese Lösung schützt die Ablage und begrenzt den Proton-Zugriff; sie ersetzt weder den Schutz des Benutzerkontos auf dem Rechner noch den getrennten Zugriffsschutz für RI-Daten und Weboberfläche.
+
+## Arbeitsweise für den ausführenden Agenten
+
+Die Aufgaben in Reihenfolge bearbeiten. Ein Kästchen erst nach Umsetzung und passender Prüfung abhaken. Zu jedem abgeschlossenen Abschnitt einen kurzen Ergebnisvermerk mit Datum, Prüfung und verbleibenden Grenzen ergänzen, ohne Geheimnisse oder vertrauliche Metadaten. Fehlende echte Zugänge als offen kennzeichnen; synthetische Tests ersetzen keine reale Abnahme.
+
+Kleine, zusammenhängende Commits mit den jeweils betroffenen Tests und Dokumenten erstellen. Das Anlegen dieses Plans aktiviert noch keine Anmeldung, installiert keine Software und erzeugt keinen Token.
+
+## 1. Voraussetzungen und aktuelle Funktionen prüfen
+
+- [ ] Repository-Status und Branch prüfen; ausschließlich auf einem passenden `codex/`-Branch arbeiten.
+- [ ] Aktuelle offizielle CLI-Dokumentation mit Context7 prüfen; unterstützte CLI-Version für PAT, Eintragsfreigabe und Passwortabruf festhalten. Verfügbarkeit im verwendeten Proton-Konto beziehungsweise Tarif prüfen.
+- [ ] Betriebsumgebung festlegen: Windows, WSL oder beide; interaktiver lokaler Abruf oder unbeaufsichtigte Jobs. Unterstützte Umgebungen und Einschränkungen dokumentieren.
+- [ ] Je unterstützter Umgebung prüfen, ob ein geeigneter Betriebssystemspeicher für den PAT und das CLI-Keyring-Backend tatsächlich verfügbar sind. Windows Credential Manager und Linux-Kernel-Keyring nicht als automatisch zwischen Windows und WSL geteilt voraussetzen.
+- [ ] Sichere Einrichtung, Verhalten nach Neustart und Wiederanmeldung nach Ablauf einer Sitzung festlegen. Laut derzeitiger Dokumentation laufen PAT-Sitzungen nach zwei Stunden ab; anhand der gewählten Version bestätigen.
+
+Abnahme: Version, Kontovoraussetzungen und tragfähiges Speicherkonzept sind belegt. Ohne verfügbaren sicheren Speicher bleibt die Anbindung gesperrt; kein stiller Wechsel auf Klartextablage.
+
+## 2. Zugriff auf genau einen Eintrag einrichten
+
+- [ ] Einrichtung zunächst mit einem künstlichen RI-Eintrag und einem zweiten, nicht freigegebenen Testeintrag vorbereiten.
+- [ ] Verwaltungsanmeldung und Laufzeitsitzung trennen: separates CLI-Sitzungsverzeichnis für die Anwendung außerhalb des Repositorys verwenden; dort ausschließlich eine PAT-Sitzung zulassen.
+- [ ] Einen benannten PAT mit begrenztem Ablaufdatum erstellen und ausschließlich dem vorgesehenen Eintrag die Rolle `viewer` gewähren. Token-Ausgabe nicht in Agentenprotokolle, Terminalmitschnitte oder Tickets übernehmen.
+- [ ] PAT über eine geschützte lokale Eingabe im gewählten Betriebssystemspeicher hinterlegen. Das Konto-Passwort von Proton nicht in der Anwendung speichern.
+- [ ] Mit der Laufzeitsitzung nachweisen: freigegebener Testeintrag lesbar, zweiter Testeintrag nicht lesbar, Änderung des freigegebenen Eintrags nicht erlaubt. Freigabeliste auf zusätzliche Rechte prüfen.
+- [ ] Ablauf, Entzug und Erneuerung des Tokens beschreiben; für Erneuerung dieselbe Eintragsbeschränkung sicherstellen.
+
+Abnahme: Die Rechtebegrenzung ist mit einem echten eingeschränkten Testtoken geprüft, ohne Zugriff auf andere persönliche Einträge vorauszusetzen. Ergebnis nur ohne Tokenwerte und Eintragsinhalte festhalten.
+
+## 3. Abgegrenzten Zugangsdienst implementieren
+
+- [ ] Eine kleine Schnittstelle für den RI-Zugangsabruf definieren, unabhängig vom HTTP-Client. Konfiguration enthält ausschließlich nicht geheime Referenzen; beliebige Einträge dürfen nicht über Webparameter auswählbar sein.
+- [ ] CLI mit festgelegtem Programm, Argumentliste ohne Shell, begrenzter Laufzeit und abgefangenen Ausgaben aufrufen. Passwortausgabe nur intern über eine Pipe lesen; weder anzeigen noch auf Platte schreiben.
+- [ ] PAT bei nötiger Anmeldung aus dem Betriebssystemspeicher lesen und ausschließlich an den vorgesehenen CLI-Unterprozess übergeben. Vererbung vorhandener Proton-Kontopasswörter oder fremder Sitzungs-/Schlüsseleinstellungen verhindern.
+- [ ] Sicherstellen, dass die Laufzeitsitzung den vorgesehenen PAT verwendet und der konfigurierte sichere Schlüsselanbieter aktiv ist; vollständige Kontositzungen und unsichere Backends ablehnen.
+- [ ] Fehlende CLI, fehlenden Speicherzugriff, Zeitüberschreitung, leere oder ungültige Ausgabe, fehlenden Eintrag, abgelaufenen beziehungsweise widerrufenen Token und abgelaufene Sitzung mit inhaltsfreien Fehlern behandeln. Keine unbegrenzten Wiederanmeldeversuche.
+- [ ] Geheimnisse nur solange benötigt im Speicher halten. CLI-Ausgaben, Prozessumgebung und Zugangsdaten nicht in Fehlerobjekte, Debug-Logs oder Jobstatus übernehmen; keine garantierte Speicherlöschung für Python behaupten.
+
+Abnahme: Zugangsdienst ist mit einer simulierten CLI prüfbar und liefert entweder den vorgesehenen Zugang oder einen sicheren Fehler. Öffentliche BI-Abläufe benötigen keine Proton-Abhängigkeit.
+
+## 4. An den RI-Fetcher anschließen
+
+- [ ] Abhängigkeit mit dem Fetcher-Teilbranch abstimmen. Falls dieser noch fehlt, nur die Zugangsschnittstelle und ihre Tests liefern; echte Anmeldung weiterhin als offen führen.
+- [ ] Zugang unmittelbar vor der RI-Anmeldung abrufen; keine Weitergabe an öffentliche BI-Jobs, Suchdienste oder Analysefunktionen.
+- [ ] HTTP-Anmeldung gemäß RI-Hauptplan auf erlaubte Hosts begrenzen und Zugangsdaten, Cookies und Token aus Logs und Statusanzeigen ausschließen.
+- [ ] Bei Secret- oder Anmeldefehlern den Job vor Dokumentabrufen abbrechen; keine Ausweichanmeldung mit Klartextkonfiguration.
+
+Abnahme: Der Fetcher erhält den Zugang ausschließlich über den Zugangsdienst. Eine erfolgreiche Passwortabfrage allein gilt noch nicht als erfolgreiche RI-Anmeldung.
+
+## 5. Automatisiert prüfen und lokal abnehmen
+
+- [ ] Tests mit künstlichen Geheimnissen und simulierter CLI für Erfolgsfall sowie die Fehlerfälle aus Schritt 3 ergänzen. Reguläre Tests greifen weder auf Proton noch auf das echte RI zu.
+- [ ] Mit künstlichen Werten nachweisen, dass weder RI-Passwort noch PAT in Logs, Fehlertexten, Jobstatus, persistenten Dateien oder Prozessargumenten erscheinen und nur der vorgesehene Unterprozess nötige Umgebungswerte erhält.
+- [ ] Testen, dass falsche Sitzungsart, unsichere Schlüsselanbieter und fehlende Speicherunterstützung abgewiesen werden. Bestehende öffentliche Abläufe ohne Proton-Konfiguration prüfen.
+- [ ] `python -m pytest -m "not integration and not live"` und betroffene Integrationstests ausführen; vor einem PR gemäß Repository-Regeln `python -m pytest` ausführen. Ergebnisse dokumentieren.
+- [ ] In jeder unterstützten Umgebung mit Testtoken und Testeinträgen Anmeldung, erneute Anmeldung nach Sitzungsablauf, Neustart, Entzug und Rechtebegrenzung prüfen. Nicht ausgeführte Fälle ausdrücklich offen lassen.
+- [ ] Erst mit bereitgestelltem RI-Zugang und geklärtem Loginablauf eine kleine lokale Anmeldung prüfen. Echte Geheimnisse ausschließlich über den geschützten lokalen Einrichtungsweg eingeben, nie im Chat oder Repository.
+
+Abnahme: Automatisierte Tests bestehen; reale Rechtebegrenzung und die unterstützten Betriebsumgebungen sind geprüft. Fehlende RI-Zugangsdaten blockieren nur die reale RI-Abnahme, nicht die unabhängigen Vorarbeiten.
+
+## 6. Betrieb dokumentieren und abschließen
+
+- [ ] Betriebsanleitung für Installation der geprüften CLI-Version, sichere lokale Einrichtung, Eintragsfreigabe, Anmeldung, Token-Erneuerung, Widerruf und Entfernung lokaler Sitzungen erstellen. Beispiele enthalten ausschließlich Platzhalter.
+- [ ] Verhalten bei gesperrtem Keyring, Neustart und abgelaufenem Zugang sowie Wiederherstellung auf einem neuen Rechner beschreiben; keine Geheimnisse in ungeschützte Backups aufnehmen.
+- [ ] README, `docs/ist_stand.md`, RI-Hauptplan und `docs/plans/project_tasks.md` anhand der tatsächlichen Umsetzung aktualisieren. Beim ersten sichtbaren funktionalen Schritt `VERSION` bewusst anpassen; reine Planung benötigt keinen Versionssprung.
+- [ ] Diff auf Geheimnisse, unbeabsichtigte Dateien, funktionierende Dokumentlinks und Whitespace prüfen. Zusammenhängende Commits erstellen und verbleibende Abnahmegrenzen im PR zum Vorhaben-Branch nennen.
+
+## Quellen und offene Entscheidungen
+
+Die Quellen beschreiben den aktuellen Entwicklungsstand; vor Implementierung mit der tatsächlich installierten Version abgleichen:
+
+- [Proton Pass CLI](https://github.com/protonpass/pass-cli)
+- [PAT erstellen und Eintragsrechte vergeben](https://github.com/protonpass/pass-cli/blob/main/docs/public/docs/commands/personal-access-token.md)
+- [Konfiguration und sichere Schlüsselablage](https://github.com/protonpass/pass-cli/blob/main/docs/public/docs/get-started/configuration.md)
+- [Anmeldung und PAT-Sitzungen](https://github.com/protonpass/pass-cli/blob/main/docs/public/docs/commands/login.md)
+
+Offen sind insbesondere Zielumgebung, interaktiver oder unbeaufsichtigter Betrieb, verfügbare Kontofunktionen, konkrete sichere Tokenablage und der echte RI-Anmeldeablauf. Diese Punkte sind Prüfaufgaben, keine bereits zugesicherten Eigenschaften der Anwendung.

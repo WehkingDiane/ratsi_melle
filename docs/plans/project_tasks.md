@@ -11,6 +11,7 @@ Zugangsdaten für `/ri/` liegen noch nicht vor. Gleichheit der RI-Seitenstruktur
 #### Konkrete Aufgaben
 
 - [ ] Daten- und Zugriffskontrakt für den lokalen Ratsbereich festlegen; Betriebsmodell, Speicherort und Suchindex-Zugriff nach Erhalt der Zugangsdaten prüfen.
+- [ ] Sicheren RI-Zugangsabruf über Proton Pass mit ausschließlich lesendem Zugriff auf einen Eintrag vorbereiten und umsetzen; [Schritt-für-Schritt-Teilplan](ri_proton_pass_zugang_plan.md) abarbeiten.
 - [ ] Eigenen authentifizierten RI-Fetcher für Sitzungsübersicht, Details und Dokumente umsetzen; öffentliche Parserfunktionen nur nach Strukturprüfung wiederverwenden.
 - [ ] Getrennte RI-Rohdatenwurzel und RI-SQLite-Indizes aufbauen; Herkunft und Kennzeichnung pro Dokument speichern.
 - [ ] RI-Dokumente in einem eigenen, zugriffsgeschützten Suchindex indexieren und getrennt durchsuchen.
