@@ -17,6 +17,10 @@ Der RI-Zugang verwendet ab 0.6.0 eine lokale Token-Datei `.env/ri_token.txt`. Un
 
 ## Abnahme und Grenzen
 
-Die frühere Umsetzung bis 0.5.76 mit OS-Tokenablage und fester Eintragsbindung wurde auf beiden Betriebssystemen real bestätigt. Der Dateifluss ab 0.6.0 ist mit synthetischen Dateien, CLI-Antworten und RI-Antworten geprüft; echte Windows-/WSL-Läufe stehen noch aus. Eine nicht bestätigte entfernte Proton-Abmeldung bleibt als Warnstatus sichtbar. Neustart-/Ablaufverhalten und unbeaufsichtigter Betrieb sind nicht abgenommen.
+Die frühere Umsetzung bis 0.5.76 mit OS-Tokenablage und fester Eintragsbindung wurde auf beiden Betriebssystemen real bestätigt. Der Dateifluss ab 0.6.0 ist mit synthetischen Dateien, CLI-Antworten und RI-Antworten geprüft; Windows-Nutzerläufe bestätigen beide Checks einschließlich RI-Abmeldung; die entfernte Proton-Abmeldung bleibt dort unbestätigt. Begrenzte WSL-Erkundungsläufe bestätigten RI- und normale Proton-Abmeldung. Eine nicht bestätigte entfernte Proton-Abmeldung bleibt als Warnstatus sichtbar. Neustart-/Ablaufverhalten und unbeaufsichtigter Betrieb sind nicht abgenommen.
 
 RI-Dokumentabruf, Datenhaltung, Index und geschützter Webzugang sind noch nicht aktiviert. Historische Änderungen stehen im [Changelog](../../CHANGELOG.md).
+
+## Vorläufige Richtung der ersten Ausbaustufe
+
+Geplant ist ein temporärer RI-Arbeitsbestand für kommende Sitzungen mit einer kleinen Datenbank ausschließlich lokal vorhandener Dokumente. Eine RI-Volltext-/Vektorindexierung ist zunächst nicht vorgesehen. Die Bewertung, offenen Zeit-/Löschregeln und die vorrangige noch fehlende Stichprobe des Verwaltungsausschusses stehen im [Hauptplan](../plans/ri_ratsbereich_plan.md#bewertung-und-offene-regeln-des-temporären-arbeitsbestands). Abrufzeitfilter und regelmäßige Bereinigung sind noch nicht implementiert.

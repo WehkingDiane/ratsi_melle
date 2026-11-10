@@ -14,6 +14,8 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 
 ### Dokumentation – 10.11.2026
 
+- Vorläufigen RI-Umfang als temporären Arbeitsbestand ohne Volltext-/Vektorindexierung festgehalten; Zeitgrenzen, Nachlauf, Bereinigung und Verwaltungsausschuss-Stichprobe als offene Entscheidungen dokumentiert.
+
 - Veraltete Verweise und Statusformulierungen bei einer Nachprüfung der Markdown-Dateien korrigiert; Live- und PDF-Belastungstest-Aufrufe in der Testdokumentation ergänzt.
 
 - Dokumentation nach Funktionen in Unterordner gegliedert und einen zentralen [Wegweiser](docs/README.md) angelegt (`1adfd81`).
