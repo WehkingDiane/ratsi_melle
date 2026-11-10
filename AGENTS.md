@@ -4,9 +4,10 @@
 
 - `src/` enthaelt die Python-Pakete fuer Fetching, Parsing, Analyse und Interfaces.
 - `scripts/` enthaelt CLI-Einstiegspunkte fuer Datenaufbau, Exporte und Hilfsjobs.
+- `web/` enthaelt die aktive Django-Oberflaeche.
 - `tests/` enthaelt pytest-Tests und Fixtures.
 - `data/` enthaelt Laufzeitdaten und lokale Datenbanken.
-- `docs/` enthaelt Projektdokumentation; Detailregeln zur Ablage stehen in `docs/repository_guidelines.md`.
+- `docs/` enthaelt die nach Funktionen gegliederte Projektdokumentation. Einstieg ist [docs/README.md](docs/README.md); Detailregeln zur Ablage stehen in `docs/entwicklung/repository_guidelines.md`.
 
 ## Build-, Test- und Entwicklungsbefehle
 
@@ -20,14 +21,14 @@
 - Python-Code nutzt 4 Leerzeichen Einrueckung und `snake_case.py` fuer Module.
 - Klassennamen folgen `UpperCamelCase`; oeffentliche Funktionen sollen kurze Docstrings haben.
 - Verzeichnisse nutzen `snake_case`.
-- Datenordner folgen `YYYY-MM-DD_Gremium_ID/`, Tagesordnungspunkte `NN_kurztitel/`.
+- Oeffentliche SessionNet-Rohdaten liegen unter `data/raw/YYYY/MM/`, Landkreis-Rohdaten unter `data/raw/landkreis/`. Bestehende Sitzungs-, TOP- und Manifeststrukturen beim Abruf beibehalten.
 - Bevorzuge strukturiertes Logging und halte Laufzeitlogs unter `logs/`.
 
 ## Test-Richtlinien
 
 - Fuer die normale Entwicklung `python -m pytest -m "not integration and not live"` nutzen; bei betroffenen Workflows zusaetzlich `python -m pytest -m "integration and not live"` ausfuehren.
 - Marker nach dem tatsaechlichen Testverhalten vergeben, in gemischten Modulen pro Test. Neue Marker zentral in `pyproject.toml` registrieren und die Struktur klein halten.
-- Marker-Bedeutung, Voraussetzungen und Live-Aufrufe stehen in [README.md](README.md#tests-gezielt-ausfuehren).
+- Marker-Bedeutung, Voraussetzungen und Live-Aufrufe stehen in [Testdokumentation](docs/entwicklung/tests.md).
 
 - Tests liegen in `tests/` und heissen `test_*.py`.
 - Nutze Fixtures aus `tests/fixtures/` beim Parsen von HTML.
@@ -45,27 +46,42 @@
 
 - Keine Secrets, API-Keys oder grosse Download-Daten einchecken; stattdessen `*.template`-Beispiele.
 - Rohdaten bleiben unveraendert unter `data/raw/`, abgeleitete Daten unter `data/processed/`.
-- Aktualisiere `docs/`, wenn sich Datenformate oder Crawl-Verhalten aendern.
-- Nach Aenderungen an GUI, Workflows, Exporten, Datenformaten oder Nutzerfuehrung muessen die betroffenen Dokumente geprueft und bei Bedarf aktualisiert werden, insbesondere `README.md`, `docs/ist_stand.md`, die aktiven Spezialdokumente unter `docs/` und `docs/plans/project_tasks.md` bei geaenderten Aufgaben.
-- Konkrete Aufgaben in `docs/plans/project_tasks.md` stehen unter `#### Konkrete Aufgaben`; allgemeine Beschreibungen kommen in einen getrennten Kontextabschnitt. Die Aufgabenliste enthaelt nur das aktuelle RI-Vorhaben; abgeschlossene Arbeiten und andere Zukunftsideen gehoeren nicht hinein.
 - Zeilenenden werden ueber `.gitattributes` und `.editorconfig` vereinheitlicht:
   - Quell- und Konfigurationsdateien (u. a. `*.py`, `*.json`, `*.yml`) werden im Repository mit `LF` gefuehrt.
   - Windows-Skripte (`*.bat`, `*.cmd`, `*.ps1`) werden mit `CRLF` gefuehrt.
   - Keine manuellen Massenumstellungen von Zeilenenden ohne expliziten Anlass.
 
+## Dokumentation pflegen
+
+- Nach Aenderungen an GUI, Workflows, Exporten, Datenformaten oder Crawl-Verhalten die betroffenen Fachseiten pruefen und bei Bedarf aktualisieren.
+- Fachliche Anleitungen liegen unter `docs/datenabruf/`, `docs/suche/`, `docs/oberflaeche/`, `docs/analyse/` und `docs/ri/`; Betrieb unter `docs/betrieb/`, Entwicklungsregeln unter `docs/entwicklung/`.
+- Jede Information hat einen verbindlichen Hauptort. Andere Seiten verlinken dorthin, statt Befehle oder Erklaerungen mehrfach zu pflegen.
+- `README.md` bleibt Projektueberblick und Schnellstart. `docs/README.md` dient als zentraler Wegweiser und wird bei neuen oder verschobenen Fachseiten aktualisiert.
+- `docs/ist_stand.md` beschreibt den aktuellen Funktionsumfang kompakt und verlinkt auf die Fachseiten. Versionsbezogene Aenderungen gehoeren in `CHANGELOG.md`, geplante Arbeiten unter `docs/plans/`.
+- Changelog-Eintraege mit den neuesten Aenderungen oben und kurzen Stichpunkten pro Version pflegen. Historische Angaben anhand von Git oder vorhandener Dokumentation belegen; Aenderungen ohne eigene Version getrennt kennzeichnen.
+- Neue Anleitungen beschreiben, soweit zutreffend, Zweck, Voraussetzungen, Schritte, erwartetes Ergebnis und typische Fehler. Befehle gelten aus dem Repository-Stamm. Vorhandene, vorbereitete und geplante Funktionen klar unterscheiden, besonders beim RI-Zugang.
+- Unterordner bei mehreren fachlichen Themen mit einem eigenen Einstieg versehen. Weitere Dateien nur bei ausreichendem Inhalt anlegen; Formatbeispiele gehoeren unter `docs/examples/`, zentrale Begriffe nach `docs/glossar.md`.
+- Bei geaenderten Aufgaben `docs/plans/project_tasks.md` aktualisieren. Konkrete Aufgaben stehen unter `#### Konkrete Aufgaben`; allgemeine Beschreibungen in einem getrennten Kontextabschnitt. Die Aufgabenliste enthaelt nur das aktuelle RI-Vorhaben; abgeschlossene Arbeiten und andere Zukunftsideen gehoeren nicht hinein.
+- Nach Verschieben oder Umbenennen von Dokumenten interne Links und ausgeschriebene Pfadverweise aktualisieren und pruefen. Die Archivierungsregeln gelten auch fuer Dokumentationsdateien.
+
 ## Voraussetzungen
 
 - Python 3.14 wird fuer die vollstaendige Umgebung unter Windows und WSL empfohlen; pip ist fuer die Paketinstallation erforderlich.
 - Git ist fuer Versionskontrolle und Zusammenarbeit erforderlich.
-- Fuer optionale UI-Arbeiten wird Tkinter benoetigt; unter WSL `python3-tk` installieren.
+- Die aktive Weboberflaeche benoetigt kein Tkinter. Einrichtung und Start stehen unter [Einrichtung](docs/betrieb/einrichtung.md).
 
 ## Versionspflege
 
-- Das Projekt verwendet `Major.Minor.Patch`; die kanonische Versionsnummer liegt in `VERSION`.
-- Solange das Projekt noch vor `1.0.0` liegt, gelten pragmatisch:
-  - `0.x.0` fuer groessere Entwicklungsschritte oder inkompatiblere Meilensteine
-  - `0.x.y` fuer Bugfixes, kleinere Erweiterungen und inkrementelle Verbesserungen
-- Bei sichtbaren funktionalen Aenderungen, Meilensteinen oder Releases muss `VERSION` bewusst angepasst werden.
+- Das Projekt verwendet `Major.Minor.Patch`; die einzige kanonische Versionsnummer liegt in `VERSION`.
+- Solange das Projekt vor `1.0.0` liegt, gelten pragmatisch:
+  - Patch erhoehen fuer Fehlerbehebungen, kleinere Erweiterungen und sonstige sichtbare Verhaltensaenderungen, z. B. `0.5.76` auf `0.5.77`.
+  - Minor erhoehen und Patch auf null setzen fuer groessere zusammenhaengende Funktionsausbauten oder inkompatible Datenformat-/Konfigurationsaenderungen, z. B. `0.5.76` auf `0.6.0`. Auch ein abgeschlossenes, eigenstaendig nutzbares Teilpaket kann einen Minor-Schritt rechtfertigen; das Gesamtvorhaben muss dafuer nicht fertig sein.
+  - Reine Dokumentations- und Testaenderungen sowie interne Refactorings ohne Verhaltensaenderung erhalten keine neue Anwendungsversion.
+- Eine Version pro zusammenhaengendem Aenderungspaket vergeben, nicht pro Zwischen-Commit. Die Einordnung bei funktionalen Aenderungen bewusst pruefen.
+- Vor dem Zusammenfuehren paralleler Branches die Versionsnummer mit dem Zielbranch abgleichen; bereits vergebene Nummern nicht fuer ein weiteres Aenderungspaket wiederverwenden.
+- Versionsaenderung und zugehoerige Changelog-Stichpunkte gemeinsam committen. Noch nicht zugeordnete Aenderungen oben unter `Unveröffentlicht` sammeln.
+- Historische Versionsnummern bleiben unveraendert. Die praezisierten Regeln gelten fuer kuenftige Aenderungspakete.
+- Eine Versionsnummer allein bedeutet kein veroeffentlichtes Release. `1.0.0` bezeichnet die erste bewusst als stabil freigegebene Fassung.
 
 ## Agent-spezifische Anweisungen (verpflichtend)
 

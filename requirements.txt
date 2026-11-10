@@ -14,7 +14,7 @@ openai>=2.29.0
 # Semantische Suche (Harrier + Qdrant)
 # Windows-Modellvertrag vom 03.11.2026: exakt beibehalten.
 # Vierteljaehrlich pruefen, naechster Termin: Anfang Februar 2027.
-# Hintergrund und akzeptierte Manifeststaende: docs/index_compatibility.md
+# Hintergrund und akzeptierte Manifeststaende: docs/suche/kompatibilitaet.md
 huggingface-hub==1.33.0
 sentence-transformers==5.7.0
 transformers==5.20.2

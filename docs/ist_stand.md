@@ -1,73 +1,14 @@
 # Ist-Stand des Projekts
 
-Stand: 27.10.2026. Diese Übersicht beschreibt die vorhandene Implementierung. Sie ist keine Liste geplanter Funktionen. Der einzige aktuelle Ausbau steht im [RI-Plan](plans/ri_ratsbereich_plan.md).
+Stand: 10.11.2026. Diese Übersicht beschreibt die vorhandene Implementierung. Der [Dokumentationswegweiser](README.md) führt zu Bedienung und technischen Einzelheiten.
 
-## Datenquellen und Abruf
+| Bereich | Aktueller Umfang |
+| --- | --- |
+| [Datenabruf](datenabruf/README.md) | Öffentliche SessionNet-Sitzungen und Landkreis-Veröffentlichungen, getrennte Rohdaten. |
+| [Suche](suche/README.md) | SQLite-Indizes und semantische Suche mit getrennten Vektorbeständen. |
+| [Oberfläche](oberflaeche/README.md) | Lokale Django-Oberfläche, Sitzungsübersicht, Filter und Datenjobs. |
+| [Analyse](analyse/README.md) | Vorlagen, vorbereitete Jobs, Provider-Ausführung und Antwortansicht. |
+| [RI-Zugang](ri/README.md) | Lokale Tokenablage und manuelle Anmeldung bestätigt; kein RI-Dokumentabruf, Index oder geschützter Webzugang. |
+| [Betrieb](betrieb/einrichtung.md) | Lokale Entwicklungsumgebung ohne Benutzeranmeldung; Laufzeitdaten bleiben außerhalb von Git. |
 
-- SessionNet `/bi/` liefert öffentliche Sitzungen, Tagesordnungspunkte und Dokumente. `scripts/fetch_bi_sessions.py` lädt nach Jahr und Monaten; `scripts/fetch_bi_session_from_index.py` lädt einzelne Sitzungen anhand des gespeicherten Online-Index. Beide nutzen `src/fetching/sessionnet_client.py`.
-- `scripts/build_bi_online_index_db.py` baut den Kalender- und Metadatenindex in `data/db/online_session_index.sqlite`. Angekündigte Termine ohne Detailseite werden über die Kalender-ID erfasst.
-- SessionNet-Rohdaten liegen unter `data/raw/YYYY/MM/`. Gespeicherte HTML-Seiten und Dokumente bleiben beim Indexaufbau unverändert. Ein Sitzungsmanifest und eine Tagesordnungsübersicht halten Metadaten zum Download fest.
-- Landkreis-Bekanntmachungen und Amtsblätter sind eine zweite, getrennte Quelle. `scripts/fetch_landkreis_publications.py` speichert sie unter `data/raw/landkreis/` oder der mit `RATSI_LANDKREIS_DATA_DIR` gesetzten Datenwurzel.
-- Ein authentifizierter Abruf aus SessionNet `/ri/` existiert derzeit nicht. Es gibt auch noch keine RI-Datenbank und keinen geschützten Ratsbereich.
-
-## Datenbanken und Suche
-
-- `scripts/build_bi_local_index.py` baut `data/db/local_index.sqlite` aus den öffentlichen SessionNet-Rohdaten. `session_detail.html` ist die maßgebliche Quelle für aktuelle TOP- und Dokumentmetadaten im Index.
-- `scripts/build_landkreis_publications_db.py` baut `data/db/landkreis_publications.sqlite` getrennt vom SessionNet-Index.
-- `scripts/prepare_embedding_models.py` bereitet lokale Suchmodelle vor. `scripts/build_bi_vector_index.py` baut den Ratsinfo-Index in Qdrant; `scripts/build_landkreis_vector_index.py` baut die getrennte Landkreis-Collection. Der Ratsinfo-Abschnittsindex heißt `ratsi_passages`; `ratsi_documents` ist der ältere Dokumentindex und kann je nach lokalem Migrationsstand noch aktiv sein.
-- Standardmäßig wird Qdrant unter `http://127.0.0.1:6333` angesprochen. `RATSI_QDRANT_URL` wählt einen anderen Server; `RATSI_QDRANT_MODE=local` nutzt lokalen Speicher unter `data/db/qdrant/`, sofern keine URL gesetzt ist. Datenbank, Modelle und Suchindex müssen zur gleichen lokalen Umgebung gehören.
-- `/suche/` bietet semantische Suche in Ratsinfo- und Landkreis-Unterlagen mit Datumsfiltern und, für Ratsinfo, Gremium und Dokumenttyp. Der Landkreisbestand kann zusätzlich per `scripts/search_landkreis_publications.py` in SQLite durchsucht werden.
-
-- Seit 0.5.67 akzeptieren Aufbau und Suche für `ratsi_passages` die beiden konkret geprüften Manifeststände gemäß [Index-Kompatibilität](index_compatibility.md). Alte Vektoren und ihre Herkunft bleiben erhalten; neue Punkte dürfen den akzeptierten Windows-Bibliotheksstand verwenden. Der normale Build ergänzt weiterhin nur fehlende oder unvollständige Dokumente. Die temporären Diagnosewerkzeuge wurden entfernt; eine neue gezielte Aktualisierung alter Dokumente ist nicht Teil dieser Änderung.
-
-Die Vektorstatusanzeige nennt vollständig indexierte und erwartete Dokumente sowie die fehlende Anzahl, zum Beispiel „7824 von 7888 Dokumenten / 64 fehlen“. Der Build speichert diese Zahlen nach jedem Lauf; die Oberfläche liest nur diesen Stand, ohne alle Textabschnitte erneut zu scannen. Nach Änderungen am lokalen Index, am Freigabemarker oder an der Punktzahl wird der alte Stand nicht angezeigt. Eine leere, nur durch Lesezugriffe angelegte SQLite-WAL-Datei gilt dabei wie eine fehlende WAL-Datei; ein WAL mit Inhalt wird weiterhin auf Änderungen geprüft. Statusabfragen schließen ihre Datenbankverbindungen nach dem Lesen. Ohne aktuellen Stand erscheint ein Hinweis; `python scripts/check_bi_vector_index.py --update-status` berechnet ihn einmalig neu und speichert nur die Statuszahlen. Indexpunkte und Suchfreigabe bleiben dabei unverändert.
-
-## Oberfläche und Analyse
-
-- Die aktive Oberfläche ist Django unter `web/`, gestartet mit `python scripts/run_web.py` auf `127.0.0.1:8000`.
-- Das Dashboard zeigt kommende und vergangene Termine aus den gespeicherten Indizes. Unter `/daten/` lassen sich Fetch-, SQLite- und Vektorjobs starten und deren Status prüfen. `/service/` bündelt Wartung und Einstellungen.
-- Unter Erweiterungen (weiterhin `/analyse/`) gibt es Sitzungsansichten, Vorlagen für Prompts, vorbereitete Analysejobs, die Provider-Ausführung und eine Antwort-Leseansicht. Workflow-Zustand liegt in `data/db/analysis_workflow.sqlite`, Ausgabedateien in `data/analysis_outputs/`, private Prompt-Dateien in `data/private/`. Der vorhandene Analysepfad wird im RI-Vorhaben zunächst nicht erweitert.
-- Veröffentlichung ist aus dem Menü entfernt; die bestehende URL `/veroeffentlichung/` bleibt als Platzhalter erreichbar.
-- Die aktuelle Django-Konfiguration ist eine lokale Entwicklungsoberfläche mit `DEBUG=True`, festem Entwicklungsschlüssel und ohne Benutzeranmeldung. Sie ist noch keine Zugangskontrolle für interne Ratsunterlagen.
-
-## Betrieb und Datenpflege
-
-- `data/raw/`, `data/db/`, `data/processed/`, `data/private/`, `data/analysis_requests/`, `data/analysis_outputs/`, `data/models/` und `logs/` sind lokale Laufzeitbereiche und werden nicht eingecheckt. Geheimnisse gehören in den Betriebskontext oder den OS-Schlüsselring, nicht in Git.
-- Dokumentpfade und Manifest-Verweise werden auf erlaubte Datenwurzeln begrenzt. SessionNet-Downloads warnen oberhalb von 25 MiB und brechen oberhalb von 100 MiB ab; bei Landkreis-Downloads gilt ein Limit von 25 MiB.
-- Die reguläre Testsuite läuft mit `python -m pytest`; `live` ist standardmäßig ausgeschlossen. Für Änderungen am Code zuerst `python -m pytest -m "not integration and not live"`, bei betroffenen Workflows zusätzlich `python -m pytest -m "integration and not live"`.
-- Die kanonische Version steht in `VERSION`. Seit 0.5.63 tragen öffentliche SessionNet-Skripte `bi` im Namen; die Zuordnung alter und neuer Namen steht in der README. Datenpfade und gespeicherte Job-Aktionskennungen bleiben unverändert.
-
-## Vorbereitung der RI-Oberfläche (0.5.64)
-
-Die Hauptnavigation enthält Übersicht, Bürgerinformation, Ratsbereich, Landkreis,
-Erweiterungen und Einstellungen. `/buergerinformation/` und `/landkreis/` bieten
-quellengebundene Such- und Datenpflege-Einstiege; die bisherigen URLs bleiben
-verfügbar. Der Ratsbereich unter `/ratsbereich/` enthält informative Platzhalter.
-Sie akzeptieren nur GET/HEAD; unbekannte Sitzungsdetails liefern 404. Die echte
-RI-Anbindung und Zugriffssicherung stehen weiterhin aus.
-
-## Lokale RI-Speicherhilfe (0.5.69)
-
-`scripts/setup/setup_ri_secret_storage.py` bereitet die Prüfung des lokalen Schlüsselspeichers unter Windows und Linux/WSL vor. Es verwendet explizit Windows Credential Manager beziehungsweise den persistenten GNOME-Login-Schlüsselspeicher über Secret Service; automatische Speicher-Fallbacks werden nicht genutzt. Unter Linux übernimmt es Dienststart und verdeckte Passworteingabe zum Entsperren beziehungsweise Anlegen des Login-Speichers. Ein Zufallswert prüft Schreiben, Lesen und Löschen in einem zeitlich begrenzten Unterprozess. Es liest keine bestehenden Geheimnisse aus und speichert weder Proton-Token noch RI-Passwort. Der reale WSL-Speichertest (Schreiben, Lesen und Löschen eines Zufallswerts) besteht nach gezieltem Neustart eines fehlerhaften manuell gestarteten Dienstes über die vorhandene Benutzer-Serviceverwaltung. Der Nutzer bestätigt auch unter Windows den erfolgreichen Speichertest. Die Nutzung der CLI-Schlüsselablage ist inzwischen über reale Anmeldung und Folgezugriffe auf beiden Systemen bestätigt; Neustartprüfung bleibt offen. Seit 0.5.70 wird der beim Dienststart gemeldete Steuerpfad beim Entsperren übernommen; Fehler werden anhand fester Fehlerkategorien statt einer Sammelmeldung angezeigt. `--check` prüft unter Linux nur den Speicherstatus ohne Passworteingabe oder Geheimnisabruf. Bedienung und Grenzen stehen in der README.
-
-## Lokale RI-Tokenablage (0.5.71)
-
-`scripts/setup/store_ri_proton_token.py` fragt den vollständigen PAT verdeckt ab und speichert oder ersetzt ihn ausschließlich im expliziten Windows-/GNOME-Backend unter `ratsi_melle_ri` / `proton_pass_pat`. Ein begrenzter Unterprozess erhält den Token nur über eine Pipe und bestätigt intern das erfolgreiche Schreiben/Lesen; native Fehlertexte werden nicht ausgegeben. Der Nutzer bestätigt unter Windows die erfolgreiche echte Ablage samt internem Lesenachweis; auch die WSL-Tokenablage ist durch den nachfolgenden erfolgreichen Login mit intern ausgelesenem Token bestätigt. Das Skript prüft weder Rechte noch Ablaufdatum und meldet sich nicht bei Proton an. Die echte RI-Anbindung bleibt offen. Bedienung und Ersetzen abgelaufener Tokens stehen in der README.
-
-## RI-Proton-Anmeldetest (0.5.72)
-
-`scripts/setup/check_ri_proton_login.py` liest den gespeicherten PAT und testet die Proton-Anmeldung in einem neuen temporären CLI-Sitzungsverzeichnis mit erzwungenem Betriebssystem-Keyring. Der Token wird nur dem Login-Unterprozess per Umgebung übergeben; die anschließende Abmeldung erhält ihn nicht. Seit 0.5.73 wird nach erfolgreicher Anmeldung die mit `vault list` abgerufene Liste der sichtbaren Tresore angezeigt; sonstige CLI-Ausgaben bleiben intern. Bei fehlgeschlagener normaler Abmeldung folgt ein explizit als lokal gekennzeichneter `logout --force`; eine unbestätigte entfernte Abmeldung ergibt Warnstatus 2, ein Test-/Bereinigungsfehler Status 1. Das temporäre Verzeichnis wird entfernt; eine dauerhafte RI-Laufzeitsitzung wird nicht eingerichtet. Die echte Anmeldung unter Windows ist laut Nutzer erfolgreich; die normale Abmeldung ist dabei fehlgeschlagen. Der Nutzer bestätigt inzwischen auch Tresorauflistung und lokale CLI-Bereinigung unter Windows. Die normale Abmeldung meldet einen Fehler der Kategorie lokale Bereinigung; der serverseitige Windows-Abmeldestatus bleibt offen. Vereinbart ist für die erste Ausbaustufe CLI 2.7.0 unter Windows und WSL bei manuell gestartetem lokalem Betrieb. Der eigene RI-Tresor enthält laut Nutzer einen Eintrag; der geplante Zugangsdienst darf ausschließlich diesen lesen und keine Einträge oder Rechte verändern. Token-Schreibrechte sind unbekannt; eine Sicherung im anderen Tresor wird nicht angesprochen. Feste Eintragsbindung und gezielter Passwortabruf sind inzwischen über den unten beschriebenen RI-Test auf beiden Systemen bestätigt. Unter WSL bestätigt der Nutzer den vollständigen erfolgreichen Ablauf aus Anmeldung, Tresorauflistung und normaler Abmeldung ohne erzwungene Bereinigung. Die Anleitung steht in der README.
-
-## Gezielter RI-Zugang und Anmeldetest (0.5.75)
-
-`src/config/ri_proton.py` implementiert eine kurzlebige PAT-Sitzung mit fest erlaubten Metadaten- und Feldleseoperationen. Der Zugang wird an einen lokalen Tresor-/Eintragsverweis außerhalb des Repositorys gebunden; zusätzliche oder abweichende aktive Einträge führen zum Abbruch. Zugangsdaten werden nur intern gelesen und in Darstellungen maskiert. `scripts/setup/check_ri_access.py --configure` richtet die Referenz ein; ohne Option führt das Skript den gezielten RI-Anmeldetest aus. Die WSL-Referenzbindung wurde bereits mit echten Metadaten erfolgreich eingerichtet.
-
-`src/fetching/ri_login.py` verwendet einen eigenen HTTPS-Client mit flüchtigen Cookies und begrenzten HTML-Antworten, ohne den öffentlichen BI-Client oder Dateidownloadfunktionen einzubeziehen. Ein Passwort wird höchstens einmal an das beobachtete Formularziel gesendet; Hostwechsel und erneute Passwort-POST-Weiterleitungen werden abgewiesen. Erfolgsprüfung und RI-Abmeldung erfolgen über den geschützten Einstieg. Kein HTML, keine Cookies und keine RI-Unterlagen werden gespeichert. Der vollständige echte WSL-Test ist inzwischen bestätigt: gezieltes Lesen des gebundenen Eintrags, RI-Anmeldung, RI-Abmeldung und erneute Sperre des geschützten Einstiegs. Auch die Windows-Referenz wurde separat eingerichtet und der echte RI-Test mit der Windows-Python-Umgebung erfolgreich ausgeführt; RI-Abmeldung bestätigt, nachfolgende Proton-Abmeldung weiterhin nur mit lokalem Bereinigungshinweis. Die in 0.5.76 ergänzten beobachteten Schritte `ylogonstart.asp` und der Abmeldeabschluss `smc_end.asp` sind berücksichtigt; bei Logout wird die reine Abschlussseite nicht geladen. Damit ist die gezielte Anmeldung auf beiden Zielsystemen abgenommen; Neustart-/Ablaufverhalten bleiben offen. RI-Unterlagendownload, Datenhaltung, Index und Webzugang sind weiterhin nicht aktiviert. Das Proton-Einrichtungsteilpaket ist damit im vereinbarten lokalen manuellen Umfang abgeschlossen. Neustart-/Ablaufprüfungen und die weitere Untersuchung des Windows-Proton-Abmeldehinweises sind auf Nutzerwunsch zurückgestellt, nicht als geprüft abgenommen. Die spätere Fetcher-Anbindung bleibt im RI-Hauptplan. Voraussetzungen, Grenzen und Befehle stehen in der README.
-
-## Gremienfilter der Sitzungsübersicht (0.5.65)
-
-Die Sitzungsübersicht fasst Gremiennamen zusammen, die sich nur durch Bindestriche,
-Leerzeichen oder Groß-/Kleinschreibung unterscheiden. Eine vorhandene Schreibweise
-mit Bindestrich wird bevorzugt angezeigt. Auch Filterlinks mit einer abweichenden
-Schreibweise finden alle zugehörigen Sitzungen. Gespeicherte Sitzungsdaten bleiben
-unverändert; die Vereinheitlichung erfolgt beim Aufbau der Übersicht.
+Das einzige aktuelle Ausbauvorhaben ist der [geschützte Ratsbereich](plans/ri_ratsbereich_plan.md). Die [Aufgabenliste](plans/project_tasks.md) enthält dessen aktuelle Arbeitspakete. Versionsbezogene Änderungen stehen im [Changelog](../CHANGELOG.md).

@@ -15,10 +15,8 @@ from typing import Any
 AGENT_BRANCH_RE = re.compile(r"^(codex|claude|gemini|gpt)/(feature|fix|security|refactor|chore)/.+")
 DESTRUCTIVE_COMMAND_RE = re.compile(r"(^|\s)(rm\s+-|git\s+(reset\s+--hard|checkout\s+--|clean\s+-))")
 DOC_TOUCH_RE = re.compile(r"(web/|src/(analysis|fetching|parsing|indexing)/|scripts/)")
-DOC_PATH_RE = re.compile(r"^(README\.md|docs/)")
+DOC_PATH_RE = re.compile(r"^(README\.md$|CHANGELOG\.md$|docs/)")
 PROJECT_TASKS_PATH = "docs/plans/project_tasks.md"
-PROJECT_TASKS_SECTION = "## 3. Offene Aufgaben nach Architekturschicht"
-PROJECT_TASKS_SECTION_END = "## 4. Abhängigkeiten und sinnvolle Reihenfolge"
 PROJECT_TASKS_LIST_HEADING = "#### Konkrete Aufgaben"
 TASK_MODEL_LABEL_RE = re.compile(r"`?\[(Leicht|Mittel|Schwer)\s+·\s+GPT-[^/\]]+\s*/\s*(Low|Medium|High)\]`?\s*$")
 
@@ -60,13 +58,43 @@ def git_pre_commit() -> int:
         )
 
     touched = [path for change in staged for path in change.paths]
+    errors.extend(version_errors(touched))
     if any(DOC_TOUCH_RE.search(path) for path in touched) and not any(DOC_PATH_RE.search(path) for path in touched):
         warnings.append(
-            "Code-/Workflow-Dateien geaendert, aber keine README.md/docs-Datei gestaged. "
+            "Code-/Workflow-Dateien geaendert, aber keine README.md/CHANGELOG.md/docs-Datei gestaged. "
             "Bitte Doku-Pruefung bewusst bestaetigen."
         )
 
     return report("pre-commit", errors, warnings)
+
+
+def version_errors(touched: list[str]) -> list[str]:
+    """Validate a staged version change together with its changelog entry."""
+    if "VERSION" not in touched:
+        return []
+    current = run_git(["show", ":VERSION"])
+    version = current.stdout.strip()
+    pattern = r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
+    if current.returncode != 0 or not re.fullmatch(pattern, version):
+        return ["VERSION muss erhalten bleiben und Major.Minor.Patch enthalten (z. B. 0.6.0)."]
+    previous = run_git(["show", "HEAD:VERSION"])
+    old = previous.stdout.strip()
+    if previous.returncode == 0 and version == old:
+        return []
+    errors: list[str] = []
+    if re.fullmatch(pattern, old) and tuple(map(int, version.split("."))) <= tuple(map(int, old.split("."))):
+        errors.append("VERSION muss gegenueber HEAD steigen; historische Nummern nicht wiederverwenden.")
+    if "CHANGELOG.md" not in touched:
+        errors.append("VERSION und zugehoerigen CHANGELOG.md-Eintrag gemeinsam committen.")
+        return errors
+    changelog = run_git(["show", ":CHANGELOG.md"])
+    section = re.search(
+        rf"^## {re.escape(version)}(?:[ \t]+[^\n]*)?\n(?P<body>.*?)(?=^## |\Z)",
+        changelog.stdout, re.MULTILINE | re.DOTALL,
+    )
+    if changelog.returncode != 0 or not section or not re.search(r"^[-*]\s+\S", section["body"], re.MULTILINE):
+        errors.append(f"CHANGELOG.md braucht einen Abschnitt '## {version}' mit mindestens einem Stichpunkt.")
+    return errors
 
 
 def task_metadata_reminders() -> list[str]:
@@ -91,26 +119,13 @@ def task_metadata_reminders() -> list[str]:
         elif line.startswith(" ") and new_line_number:
             new_line_number += 1
 
-    task_section = False
     task_list = False
     reminders: list[str] = []
     for line_number, line in enumerate(staged_file.stdout.splitlines(), start=1):
-        if line == PROJECT_TASKS_SECTION:
-            task_section = True
-            continue
-        if line == PROJECT_TASKS_SECTION_END:
-            task_section = False
-            task_list = False
-            continue
-        if not task_section:
-            continue
         if line == PROJECT_TASKS_LIST_HEADING:
             task_list = True
             continue
-        if line.startswith("###"):
-            task_list = False
-            continue
-        if line.startswith("####"):
+        if re.match(r"^#{1,4}\s", line):
             task_list = False
             continue
         if task_list and re.match(r"^[-*]\s+\S", line):

@@ -57,7 +57,7 @@ Die Daten- und Zugriffskontrakte werden vor paralleler Umsetzung festgelegt. Jed
 
 ## 1. Skriptnamen nach Datenbereich ordnen
 
-Umsetzungsstand: Schritt 1 ist auf `codex/refactor/bi-ri-skriptnamen` umgesetzt. Die acht öffentlichen SessionNet-Skripte einschließlich Aufrufern und Dokumentation sind umbenannt; die Namenszuordnung steht in der README. Das ungenutzte `setup_venv.sh` ist nach bytegleicher Archivierung entfernt. Der vollständige WSL-Testlauf mit `python -m pytest` besteht: 1202 bestanden, einer übersprungen, acht Live-Tests abgewählt. Die vier im vorherigen Windows-Lauf aufgefallenen Plattformannahmen sind in den Tests korrigiert; ein erneuter Windows-Lauf wurde noch nicht bestätigt. Die Zusammenführung in den Vorhaben-Branch ist über PR #89 erfolgt.
+Umsetzungsstand: Schritt 1 ist auf `codex/refactor/bi-ri-skriptnamen` umgesetzt. Die acht öffentlichen SessionNet-Skripte einschließlich Aufrufern und Dokumentation sind umbenannt; die Namenszuordnung steht im [Changelog](../../CHANGELOG.md#0563--2026-10-30). Das ungenutzte `setup_venv.sh` ist nach bytegleicher Archivierung entfernt. Der vollständige WSL-Testlauf mit `python -m pytest` besteht: 1202 bestanden, einer übersprungen, acht Live-Tests abgewählt. Die vier im vorherigen Windows-Lauf aufgefallenen Plattformannahmen sind in den Tests korrigiert; ein erneuter Windows-Lauf wurde noch nicht bestätigt. Die Zusammenführung in den Vorhaben-Branch ist über PR #89 erfolgt.
 
 Vor der Erweiterung um RI-Funktionen die vorhandenen Skripte inventarisieren und eine einheitliche BI-/RI-Namenskonvention festlegen. Skripte, die heute allgemein benannt sind, aber ausschließlich den öffentlichen Bürgerinformationsbereich (`/bi/`) bearbeiten, sollen dies im Namen ausdrücken, zum Beispiel `fetch_bi_sessions.py`. Neue RI-Skripte erhalten entsprechend Namen wie `fetch_ri_sessions.py`.
 
@@ -134,7 +134,7 @@ Für die Herkunft jedes Datensatzes eine feste Quellenkennung (`bi` oder `ri`) v
 
 ### Abgeschlossene Zugangseinrichtung
 
-- Implementierung: `src/config/ri_proton.py` für den fest gebundenen lesenden Zugang und `src/fetching/ri_login.py` für den begrenzten RI-Anmeldetest. Hilfsskripte und Aufrufe stehen in der [README](../../README.md#gezielten-zugriff-und-ri-anmeldung-prüfen).
+- Implementierung: `src/config/ri_proton.py` für den fest gebundenen lesenden Zugang und `src/fetching/ri_login.py` für den begrenzten RI-Anmeldetest. Hilfsskripte und Aufrufe stehen in der [RI-Zugangsanleitung](../ri/zugang.md#gezielten-zugriff-und-ri-anmeldung-prüfen).
 - Der RI-Tresor enthält genau einen aktiven Login-Eintrag. Zusätzliche freigegebene Tresore oder aktive Einträge sowie abweichende Referenzen führen zum Abbruch; es gibt keinen automatischen Wechsel. Eine vorhandene Sicherung in einem anderen Tresor wird nicht verwendet.
 - Die lokale Referenzdatei enthält ausschließlich Tresor-/Eintrags-IDs. RI-Zugangswerte werden nicht ausgegeben oder in Klartextdateien abgelegt; HTTP-Cookies und geschütztes HTML bleiben flüchtig. Die Anwendung erlaubt nur die vorgesehenen Leseoperationen sowie Login/Logout und lokale Einrichtungs-/Sitzungsverwaltung; serverseitige Schreibrechte des Tokens sind unbekannt.
 - Validierung des Implementierungsstands: 47 gezielte Tests je Zielsystem, sechs betroffene Integrationstests und 690 reguläre Tests bestanden. Echte RI-Anmeldung, RI-Abmeldung und erneute Zugangssperre auf beiden Systemen bestätigt; keine Sitzungsunterlagen heruntergeladen. In der aktuellen Dokumentationsänderung werden diese Live-Tests nicht wiederholt.
@@ -176,6 +176,6 @@ Die Jobliste darf keine RI-Titel, URLs, Dokumenttexte oder Zugangsdaten in öffe
 3. Datenvertrag und isolierten Build umsetzen. Danach den Fetcher und seine Authentifizierung anschließen.
 4. Suche mit passender Zugriffssicherung bauen. Anschließend die Weboberfläche anbinden.
 5. Mit synthetischen Fixtures und später einer kleinen, lokal gehaltenen RI-Stichprobe prüfen; vor Zusammenführung `python -m pytest -m "not integration and not live"`, betroffene Integrationstests und vor einem PR `python -m pytest` ausführen.
-6. README, `docs/ist_stand.md`, die betroffenen aktiven Spezialdokumente und `docs/plans/project_tasks.md` bei den jeweiligen funktionalen Änderungen aktualisieren. `VERSION` beim ersten sichtbaren funktionalen Schritt bewusst prüfen.
+6. Die betroffenen Fachseiten aktualisieren; Wegweiser, Ist-Stand und Aufgaben bei geändertem Umfang nachziehen. Die Version pro zusammenhängendem Änderungspaket gemäß [Versionsregeln](../../AGENTS.md#versionspflege) prüfen und gemeinsam mit dem Changelog pflegen. Vollständige Testsätze aus Schritt 5 führt der Nutzer aus; Agenten führen nur gezielte, schnelle Tests aus.
 
 Der Vorhaben-Branch ist abgeschlossen, wenn Fetch, Datenbank und Suche im geschützten Ratsbereich funktionieren, die Negativtests zur Trennung bestehen und die Betriebsanleitung den Umgang mit Zugang, Sicherung und Wiederherstellung erklärt. Offene Annahmen aus Schritt 2 werden vor produktiver Nutzung entschieden, nicht stillschweigend als erfüllt betrachtet.

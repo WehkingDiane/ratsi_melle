@@ -46,4 +46,4 @@ beschrieben. Die abgeschnittene Datei besteht exakt aus `original_bytes[:16]`.
 Groessere Testdateien werden temporaer erzeugt. Die regulaeren Groessenpruefungen
 verwenden Sparse-Dateien an den echten 25-/100-MiB-Grenzen. Ein optionaler
 Belastungstest wiederholt die Originalseiten der Geschaeftsordnung zu einem
-300-seitigen PDF unter pytest `tmp_path`; der Aufruf steht in der Projekt-README.
+300-seitigen PDF unter pytest `tmp_path`; der Aufruf steht in der [Testdokumentation](../../../docs/entwicklung/tests.md#optionaler-pdf-belastungstest).
