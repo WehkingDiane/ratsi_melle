@@ -58,6 +58,7 @@
 - Jede Information hat einen verbindlichen Hauptort. Andere Seiten verlinken dorthin, statt Befehle oder Erklaerungen mehrfach zu pflegen.
 - `README.md` bleibt Projektueberblick und Schnellstart. `docs/README.md` dient als zentraler Wegweiser und wird bei neuen oder verschobenen Fachseiten aktualisiert.
 - `docs/ist_stand.md` beschreibt den aktuellen Funktionsumfang kompakt und verlinkt auf die Fachseiten. Versionsbezogene Aenderungen gehoeren in `CHANGELOG.md`, geplante Arbeiten unter `docs/plans/`.
+- Changelog-Eintraege mit den neuesten Aenderungen oben und kurzen Stichpunkten pro Version pflegen. Historische Angaben anhand von Git oder vorhandener Dokumentation belegen; Aenderungen ohne eigene Version getrennt kennzeichnen.
 - Neue Anleitungen beschreiben, soweit zutreffend, Zweck, Voraussetzungen, Schritte, erwartetes Ergebnis und typische Fehler. Befehle gelten aus dem Repository-Stamm. Vorhandene, vorbereitete und geplante Funktionen klar unterscheiden, besonders beim RI-Zugang.
 - Unterordner bei mehreren fachlichen Themen mit einem eigenen Einstieg versehen. Weitere Dateien nur bei ausreichendem Inhalt anlegen; Formatbeispiele gehoeren unter `docs/examples/`, zentrale Begriffe nach `docs/glossar.md`.
 - Bei geaenderten Aufgaben `docs/plans/project_tasks.md` aktualisieren. Konkrete Aufgaben stehen unter `#### Konkrete Aufgaben`; allgemeine Beschreibungen in einem getrennten Kontextabschnitt. Die Aufgabenliste enthaelt nur das aktuelle RI-Vorhaben; abgeschlossene Arbeiten und andere Zukunftsideen gehoeren nicht hinein.
