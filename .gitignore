@@ -51,3 +51,5 @@ data/models/*
 
 tmp/
 archive/
+# Local RI token and other personal environment files
+.env/
