@@ -13,7 +13,7 @@ Stand: 27.10.2026. Die verbindlichen Agenten- und Branchregeln stehen in [AGENTS
 ## Entwicklung und Dokumentation
 
 - Anwendungsänderungen erhalten passende Tests und eine Aktualisierung der betroffenen Dokumentation. Für Web-Änderungen gelten die [UI-Regeln](ui_guidelines.md); Datenformate und Nutzerwege werden im [Ist-Stand](ist_stand.md) beziehungsweise in der README beschrieben.
-- Die normale Entwicklung prüft `python -m pytest -m "not integration and not live"`; für betroffene Abläufe kommen Integrationstests hinzu. Vor PRs `python -m pytest` ausführen. `live` ist dabei standardmäßig ausgeschlossen.
+- Die normale Entwicklung prüft `python -m pytest -m "not integration and not live"`; für betroffene Abläufe kommen Integrationstests hinzu. Den vollständigen PR-Testlauf führt der Nutzer aus; `live` ist standardmäßig ausgeschlossen. Die verbindliche Agentenregel steht in [AGENTS.md](../AGENTS.md).
 - Die kanonische Version steht in `VERSION`. Bei sichtbaren funktionalen Änderungen wird bewusst entschieden, ob sie erhöht wird.
 - Branches verwenden das Agentenpräfix, Codex also `codex/`. Auf `main` wird nicht gearbeitet. Commits sind klein und zusammenhängend.
 - Bei Entfernen oder Ablösen einer Datei zuerst eine bytegleiche Kopie unter `archive/<ursprünglicher-pfad>` anlegen und per SHA-256 prüfen. `archive/` wird von Git ignoriert und muss außerhalb von Git gesichert werden, wenn die lokale Kopie dauerhaft benötigt wird. Frühere Versionen bleiben außerdem in Git erreichbar.
