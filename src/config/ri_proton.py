@@ -1,4 +1,4 @@
-"""Read one pinned RI login from Proton Pass without exposing credential values."""
+"""Read the sole shared RI login using a local token file and temporary CLI session."""
 
 from __future__ import annotations
 
@@ -13,8 +13,10 @@ import sys
 from tempfile import TemporaryDirectory
 
 
-SERVICE = "ratsi_melle_ri"
-TOKEN_USERNAME = "proton_pass_pat"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+MAX_TOKEN_LENGTH = 16000
+
+
 _ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_+/=-]{7,1023}\Z")
 
 
@@ -45,80 +47,39 @@ class RiCredentials:
         return "RiCredentials(<geschützt>)"
 
 
-def reference_path() -> Path:
-    """Return the OS-specific local configuration path outside the repository."""
-    if sys.platform == "win32":
-        root = os.environ.get("LOCALAPPDATA")
-        if not root:
-            raise RiAccessError("Windows-Benutzerdatenverzeichnis ist nicht verfügbar.")
-        return Path(root) / "ratsi_melle" / "ri_proton_access.json"
-    if sys.platform == "linux":
-        return Path.home() / ".local" / "share" / "ratsi_melle" / "ri_proton_access.json"
-    raise RiAccessError("RI-Zugang unterstützt Windows und Linux/WSL.")
+def token_path() -> Path:
+    """Locate the local token file independently of the working directory."""
+    return REPO_ROOT / ".env" / "ri_token.txt"
 
 
-def load_reference(path: Path) -> RiReference:
-    """Load only the two fixed reference IDs, never account credentials."""
+def read_token() -> str:
+    """Read only a bounded plain-text PAT, never include its contents in errors."""
+    path = token_path()
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        if set(data) != {"share_id", "item_id"}:
-            raise ValueError
-        return RiReference(**data)
-    except (OSError, ValueError, TypeError):
-        raise RiAccessError(
-            "RI-Eintragsbindung fehlt oder ist ungültig. Zuerst --configure ausführen."
-        ) from None
+        with path.open(encoding="utf-8-sig") as source:
+            value = source.read(MAX_TOKEN_LENGTH + 3)
+    except FileNotFoundError:
+        raise RiAccessError(f"Token-Datei fehlt: {path}. Vollständigen Proton-Pass-Token dort als einzelne Zeile einfügen.") from None
+    except (OSError, UnicodeError):
+        raise RiAccessError(f"Token-Datei nicht lesbar: {path}. UTF-8-Textdatei und Zugriffsrechte prüfen.") from None
+    token = value.rstrip("\r\n")
+    identifier, separator, key = token.partition("::")
+    if (not token or len(value) > MAX_TOKEN_LENGTH + 2 or len(token) > MAX_TOKEN_LENGTH
+            or not identifier.startswith("pst_") or len(identifier) <= 4
+            or separator != "::" or not key or "::" in key
+            or any(char.isspace() or ord(char) < 32 for char in token)):
+        raise RiAccessError(f"Token-Datei leer oder ungültig: {path}. Nur den vollständigen Token eintragen, ohne Anführungszeichen.")
+    return token
 
 
-def save_reference(path: Path, reference: RiReference) -> None:
-    """Create the local reference once; never silently rebind an existing entry."""
-    if path.exists():
-        if load_reference(path) != reference:
-            raise RiAccessError("Vorhandene RI-Eintragsbindung weicht ab; kein automatischer Wechsel.")
-        return
-    path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        with path.open("x", encoding="utf-8") as target:
-            if sys.platform != "win32":
-                os.chmod(path, 0o600)
-            json.dump({"share_id": reference.share_id, "item_id": reference.item_id}, target)
-            target.write("\n")
-    except OSError:
-        raise RiAccessError("Lokale RI-Eintragsbindung konnte nicht gespeichert werden.") from None
-
-
-def read_os_token() -> str:
-    """Read the PAT from an explicit OS backend with no plaintext fallback."""
-    try:
-        if sys.platform == "win32":
-            from keyring.backends.Windows import WinVaultKeyring
-            backend = WinVaultKeyring()
-        elif sys.platform == "linux":
-            from keyring.backends.SecretService import Keyring
-            import secretstorage
-
-            class LoginKeyring(Keyring):
-                def get_preferred_collection(self):
-                    bus = secretstorage.dbus_init()
-                    try:
-                        collection = secretstorage.Collection(bus, "/org/freedesktop/secrets/collection/login")
-                        if collection.is_locked():
-                            raise RiAccessError("Lokalen WSL-Schlüsselspeicher zuerst entsperren.")
-                        return collection
-                    except Exception:
-                        bus.close()
-                        raise
-            backend = LoginKeyring()
-        else:
-            raise RiAccessError("RI-Zugang unterstützt Windows und Linux/WSL.")
-        token = backend.get_password(SERVICE, TOKEN_USERNAME)
-        if not isinstance(token, str) or not token.startswith("pst_") or "::" not in token:
-            raise RiAccessError("Kein vollständiger RI-Token im lokalen Speicher hinterlegt.")
-        return token
-    except RiAccessError:
-        raise
-    except Exception:
-        raise RiAccessError("RI-Token konnte nicht aus dem geschützten Speicher gelesen werden.") from None
+def find_cli() -> str | None:
+    """Find the CLI in PATH or its official per-user Windows install directory."""
+    cli = shutil.which("pass-cli.exe" if sys.platform == "win32" else "pass-cli")
+    if cli is None and sys.platform == "win32" and os.environ.get("LOCALAPPDATA"):
+        candidate = Path(os.environ["LOCALAPPDATA"]) / "Programs" / "ProtonPass" / "pass-cli.exe"
+        if candidate.is_file():
+            cli = str(candidate)
+    return cli
 
 
 class ProtonRiSession:
@@ -126,7 +87,7 @@ class ProtonRiSession:
 
     def __init__(self, token: str, *, cli: str | None = None):
         self._token = token
-        self._cli = cli or shutil.which("pass-cli.exe" if sys.platform == "win32" else "pass-cli")
+        self._cli = cli or find_cli()
         self._directory = None
         self._env = None
         self.cleanup_warning = False
@@ -162,7 +123,7 @@ class ProtonRiSession:
                 check=False,
             )
             if result.returncode:
-                raise RiAccessError("Proton-Zugriff fehlgeschlagen; Token, Ablauf oder Speicher prüfen.")
+                raise RiAccessError("Proton-Zugriff fehlgeschlagen; Token in .env/ri_token.txt, dessen Gültigkeit und Netzwerk prüfen.")
             return result.stdout
         except (OSError, subprocess.TimeoutExpired):
             raise RiAccessError("Proton CLI nicht erreichbar oder Zeitüberschreitung.") from None
@@ -176,9 +137,7 @@ class ProtonRiSession:
         self._env = {key: value for key, value in os.environ.items()
                      if not key.startswith(("PROTON_PASS_", "PASS_"))}
         self._env.update(PROTON_PASS_SESSION_DIR=self._directory.name,
-                         PROTON_PASS_KEY_PROVIDER="keyring", PASS_LOG_LEVEL="off")
-        if sys.platform == "linux":
-            self._env["PROTON_PASS_LINUX_KEYRING"] = "dbus"
+                         PROTON_PASS_KEY_PROVIDER="fs", PASS_LOG_LEVEL="off")
         try:
             if not re.search(r"\b2\.7\.0\b", self._call("version")):
                 raise RiAccessError("Dieser RI-Test ist für Proton Pass CLI 2.7.0 geprüft.")
@@ -233,10 +192,9 @@ class ProtonRiSession:
                 "Erforderlich ist genau ein freigegebener Tresor mit genau einem aktiven Login-Eintrag."
             ) from None
 
-    def credentials(self, reference: RiReference) -> RiCredentials:
-        """Read only the pinned entry; refuse additional or changed entries first."""
-        if self.discover_reference() != reference:
-            raise RiAccessError("RI-Eintragsbindung stimmt nicht; kein automatischer Wechsel.")
+    def credentials(self) -> RiCredentials:
+        """Read fields only after verifying exactly one shared vault and active login."""
+        reference = self.discover_reference()
         username = self._field("username", reference)
         if not username:
             username = self._field("email", reference)

@@ -6,7 +6,6 @@ import argparse
 import os
 import re
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -15,8 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.setup.setup_ri_secret_storage import SetupError, select_backend
-from scripts.setup.store_ri_proton_token import SERVICE, USERNAME, valid_token
+from src.config.ri_proton import RiAccessError as SetupError, find_cli, read_token
 
 
 def logout_problem(result) -> str:
@@ -38,7 +36,7 @@ def cleanup_session(cli: str, env: dict[str, str]) -> bool:
     try:
         result = subprocess.run(
             [cli, "logout"], env=env, stdin=subprocess.DEVNULL,
-            capture_output=True, text=True, timeout=30, check=False,
+            capture_output=True, text=True, encoding="utf-8", timeout=30, check=False,
         )
         if result.returncode == 0:
             print("Temporäre Testsitzung abgemeldet.")
@@ -52,7 +50,7 @@ def cleanup_session(cli: str, env: dict[str, str]) -> bool:
     try:
         forced = subprocess.run(
             [cli, "logout", "--force"], env=env, stdin=subprocess.DEVNULL,
-            capture_output=True, text=True, timeout=10, check=False,
+            capture_output=True, text=True, encoding="utf-8", timeout=10, check=False,
         )
         if forced.returncode:
             raise SetupError("Auch die lokale CLI-Bereinigung konnte nicht bestätigt werden.")
@@ -73,11 +71,9 @@ def test_login(cli: str, token: str) -> bool:
         }
         env.update({
             "PROTON_PASS_SESSION_DIR": directory,
-            "PROTON_PASS_KEY_PROVIDER": "keyring",
+            "PROTON_PASS_KEY_PROVIDER": "fs",
             "PASS_LOG_LEVEL": "off",
         })
-        if sys.platform == "linux":
-            env["PROTON_PASS_LINUX_KEYRING"] = "dbus"
         env["PROTON_PASS_PERSONAL_ACCESS_TOKEN"] = token
         failure = None
         cleanup_failure = None
@@ -86,7 +82,7 @@ def test_login(cli: str, token: str) -> bool:
         try:
             result = subprocess.run(
                 [cli, "login"], env=env, stdin=subprocess.DEVNULL,
-                capture_output=True, text=True, timeout=45, check=False,
+                capture_output=True, text=True, encoding="utf-8", timeout=45, check=False,
             )
             env.pop("PROTON_PASS_PERSONAL_ACCESS_TOKEN", None)
             if result.returncode:
@@ -124,27 +120,25 @@ def test_login(cli: str, token: str) -> bool:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run a login-only test using the PAT from the explicit OS credential store."""
+    """Run a login-only test using the local PAT file, without a keyring password."""
     argparse.ArgumentParser(description=__doc__).parse_args(argv)
     try:
         if sys.platform not in {"win32", "linux"}:
             raise SetupError("Dieses Skript unterstützt Windows und Linux/WSL.")
         if sys.platform == "linux" and os.geteuid() == 0:
             raise SetupError("Als normaler Benutzer starten, nicht mit sudo.")
-        cli = shutil.which("pass-cli.exe" if sys.platform == "win32" else "pass-cli")
+        cli = find_cli()
         if cli is None:
             raise SetupError("Proton Pass CLI wurde nicht im PATH gefunden.")
-        token = select_backend(sys.platform).get_password(SERVICE, USERNAME)
-        if not token or not valid_token(token):
-            raise SetupError("Kein vollständiger RI-Token hinterlegt. Zuerst python scripts/setup/store_ri_proton_token.py starten.")
-        print("Gespeicherten Token in einer eigenen temporären Sitzung prüfen ...", flush=True)
+        token = read_token()
+        print("Token aus .env/ri_token.txt in einer temporären Sitzung prüfen ...", flush=True)
         try:
             logged_out = test_login(cli, token)
         finally:
             token = None
         print(
             "Erfolgreich: Proton-Anmeldung und Tresorauflistung bestätigt.\n"
-            "Keine Passworteinträge angefordert; RI-Einzelberechtigung noch nicht geprüft."
+            "Keine Passworteinträge angefordert; einzelnen RI-Eintrag mit check_ri_access.py prüfen."
         )
         return 0 if logged_out else 2
     except SetupError as error:

@@ -31,7 +31,7 @@ def test_login_isolated_and_token_only_passed_to_login(monkeypatch, capsys):
     assert "PROTON_PASS_PERSONAL_ACCESS_TOKEN" not in vault_env
     assert "PROTON_PASS_PERSONAL_ACCESS_TOKEN" not in logout_env
     assert "PROTON_PASS_PASSWORD" not in login_env
-    assert login_env["PROTON_PASS_KEY_PROVIDER"] == "keyring"
+    assert login_env["PROTON_PASS_KEY_PROVIDER"] == "fs"
     assert login_env["PROTON_PASS_SESSION_DIR"] != "/personal/session"
     assert login_env["PROTON_PASS_SESSION_DIR"] == logout_env["PROTON_PASS_SESSION_DIR"]
     assert not Path(login_env["PROTON_PASS_SESSION_DIR"]).exists()
@@ -108,10 +108,8 @@ def test_vault_failure_does_not_print_error_contents_and_still_cleans_up(monkeyp
 
 def test_main_returns_warning_code_after_forced_local_cleanup(monkeypatch, capsys):
     monkeypatch.setattr(check.sys, "platform", "win32")
-    monkeypatch.setattr(check.shutil, "which", lambda name: "fake-cli")
-    monkeypatch.setattr(check, "select_backend", lambda platform: SimpleNamespace(
-        get_password=lambda *args: TOKEN,
-    ))
+    monkeypatch.setattr(check, "find_cli", lambda: "fake-cli")
+    monkeypatch.setattr(check, "read_token", lambda: TOKEN)
     monkeypatch.setattr(check, "test_login", lambda cli, token: False)
     assert check.main([]) == 2
     assert TOKEN not in repr(capsys.readouterr())
@@ -119,10 +117,11 @@ def test_main_returns_warning_code_after_forced_local_cleanup(monkeypatch, capsy
 
 def test_absent_token_never_starts_cli(monkeypatch, capsys):
     monkeypatch.setattr(check.sys, "platform", "win32")
-    monkeypatch.setattr(check.shutil, "which", lambda name: "fake-cli")
-    monkeypatch.setattr(check, "select_backend", lambda platform: SimpleNamespace(
-        get_password=lambda *args: None,
-    ))
+    monkeypatch.setattr(check, "find_cli", lambda: "fake-cli")
+    def missing():
+        raise check.SetupError("Token-Datei fehlt: .env/ri_token.txt")
+
+    monkeypatch.setattr(check, "read_token", missing)
     monkeypatch.setattr(check.subprocess, "run", lambda *args, **kwargs: pytest.fail("No token, no login"))
     assert check.main([]) == 1
-    assert "Kein vollständiger RI-Token" in capsys.readouterr().err
+    assert "Token-Datei fehlt" in capsys.readouterr().err

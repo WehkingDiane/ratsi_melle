@@ -1,4 +1,4 @@
-"""Pinned, read-only Proton access with synthetic tokens and CLI responses."""
+"""Single-entry, read-only Proton access with synthetic tokens and CLI responses."""
 
 import json
 from pathlib import Path
@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from src.config.ri_proton import (
-    ProtonRiSession, RiAccessError, RiCredentials, RiReference, load_reference, save_reference,
+    ProtonRiSession, RiAccessError, RiCredentials, RiReference,
 )
 
 REF = RiReference("share_test_123", "item_test_123")
@@ -23,16 +23,6 @@ def test_reference_rejects_malformed_ids(identifier):
         RiReference(identifier, REF.item_id)
 
 
-@pytest.mark.integration
-def test_reference_roundtrip_does_not_silently_rebind(tmp_path):
-    path = tmp_path / "config" / "ri.json"
-    save_reference(path, REF)
-    assert load_reference(path) == REF
-    save_reference(path, REF)
-    with pytest.raises(RiAccessError):
-        save_reference(path, RiReference(REF.share_id, "another_item_123"))
-    assert load_reference(path) == REF
-    assert json.loads(path.read_text()) == {"share_id": REF.share_id, "item_id": REF.item_id}
 
 
 @pytest.fixture
@@ -51,7 +41,7 @@ def responses(operation, reference=None, share_id=None):
     return {"username": "test-user\n", "password": "  test-password  \n", "email": "test@example.invalid\n"}[operation]
 
 
-def test_only_pinned_item_fields_read_and_password_spaces_preserved(session, monkeypatch):
+def test_only_single_item_fields_read_and_password_spaces_preserved(session, monkeypatch):
     calls = []
 
     def fake(operation, **kwargs):
@@ -59,7 +49,7 @@ def test_only_pinned_item_fields_read_and_password_spaces_preserved(session, mon
         return responses(operation, **kwargs)
 
     monkeypatch.setattr(session, "_call", fake)
-    result = session.credentials(REF)
+    result = session.credentials()
     assert result.username == "test-user"
     assert result.password == "  test-password  "
     assert calls == ["vaults", "items", "username", "password"]
@@ -79,21 +69,13 @@ def test_multiple_vaults_or_items_prevent_any_secret_read(session, monkeypatch, 
 
     monkeypatch.setattr(session, "_call", fake)
     with pytest.raises(RiAccessError):
-        session.credentials(REF)
+        session.credentials()
     assert not {"username", "password", "email"}.intersection(calls)
 
 
-def test_changed_reference_prevents_secret_read(session, monkeypatch):
-    calls = []
-
-    def fake(op, **kwargs):
-        calls.append(op)
-        return responses(op, **kwargs)
-
-    monkeypatch.setattr(session, "_call", fake)
-    with pytest.raises(RiAccessError):
-        session.credentials(RiReference(REF.share_id, "changed_item_123"))
-    assert calls == ["vaults", "items"]
+def test_current_single_entry_is_used_without_persistent_binding(session, monkeypatch):
+    monkeypatch.setattr(session, "_call", responses)
+    assert session.credentials().username == "test-user"
 
 
 @pytest.mark.parametrize("operation", ["create", "update", "delete", "trash", "move", "grant", "share", "url", "item view"])
@@ -126,7 +108,7 @@ def test_lifecycle_only_login_receives_token_and_native_outputs_are_hidden(monke
     for args, env in calls:
         assert "private-token" not in repr(args)
         assert "PROTON_PASS_PASSWORD" not in env
-        assert env["PROTON_PASS_KEY_PROVIDER"] == "keyring"
+        assert env["PROTON_PASS_KEY_PROVIDER"] == "fs"
         assert env["PROTON_PASS_SESSION_DIR"] != "/personal-session"
         assert ("PROTON_PASS_PERSONAL_ACCESS_TOKEN" in env) == (args[1] == "login")
     assert "private" not in repr(capsys.readouterr())

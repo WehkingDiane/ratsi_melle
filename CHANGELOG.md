@@ -4,11 +4,17 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 
 ## Unveröffentlicht
 
+### Testdaten – 10.11.2026
+
+- Namen und geschäftliche Kontaktangaben in der Windkraft-Testfixture durch Platzhalter ersetzt; Quellenhinweis entsprechend ergänzt.
+
 ### Entwicklungsworkflow – 10.11.2026
 
 - Repository-Hooks an die aktuelle Aufgabenstruktur angepasst; gestagte Versionsänderungen auf Format, Steigerung und passenden Changelog-Abschnitt geprüft. Changelog als Dokumentation anerkannt.
 
 ### Dokumentation – 10.11.2026
+
+- Vorläufigen RI-Umfang als temporären Arbeitsbestand ohne Volltext-/Vektorindexierung festgehalten; Zeitgrenzen, Nachlauf, Bereinigung und Verwaltungsausschuss-Stichprobe als offene Entscheidungen dokumentiert.
 
 - Veraltete Verweise und Statusformulierungen bei einer Nachprüfung der Markdown-Dateien korrigiert; Live- und PDF-Belastungstest-Aufrufe in der Testdokumentation ergänzt.
 
@@ -17,6 +23,14 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 - Agentenregeln auf die neue Dokumentationsstruktur abgestimmt und veraltete Hinweise korrigiert (`a23d853`).
 - Ältere Änderungen als Stichpunkte nachgetragen und absteigend geordnet. Die Anwendungsversion bleibt bei 0.5.76.
 - Versionsregeln präzisiert: Versionen pro Änderungspaket, Minor für größere Funktionsausbauten, kein Versionswechsel für reine Dokumentationsänderungen. Historische Nummern bleiben erhalten.
+
+## 0.6.0 – 10.11.2026
+
+- RI-Token aus der lokalen Datei `.env/ri_token.txt` lesen; gesamter Ordner von Git ausgeschlossen. Die unverschlüsselte Datei ersetzt die bisherige RI-Tokenablage im Betriebssystemspeicher.
+- Proton- und RI-Check verwenden temporäre CLI-Dateisitzungen ohne Keyring-Passwort. Windows-CLI auch am offiziellen Benutzer-Installationsort finden.
+- Separate Eintragsbindung und `--configure` abgelöst; vor jedem Passwortabruf genau einen freigegebenen Tresor mit genau einem aktiven Login prüfen.
+- Alte RI-Speicherhilfen und ihre Tests nach bytegleicher lokaler Archivierung entfernt. Vorhandene OS-Geheimnisse und Referenzdateien bleiben unverändert und werden nicht mehr verwendet.
+- Anleitung und RI-Plan angepasst; synthetische Checks bestehen, echte Abnahme des Dateiflusses unter Windows und WSL steht aus.
 
 ## 0.5.76 – 2026-11-06
 

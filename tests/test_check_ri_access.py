@@ -1,21 +1,19 @@
-"""CLI orchestration with local reference files and fake Proton/RI services."""
+"""RI check orchestration with file token and fake services; no real accounts."""
 
 import pytest
 
 from scripts.setup import check_ri_access as cli
-from src.config.ri_proton import RiAccessError, RiCredentials, RiReference, load_reference, save_reference
+from src.config.ri_proton import RiAccessError, RiCredentials
 from src.fetching import ri_login
 
 pytestmark = pytest.mark.integration
-REF = RiReference("synthetic_share_123", "synthetic_item_123")
 
 
 class FakeProton:
     cleanup_warning = False
-    read_calls = 0
 
     def __init__(self, token):
-        self.token = token
+        assert token == "pst_synthetic::private-token"
 
     def __enter__(self):
         return self
@@ -23,40 +21,28 @@ class FakeProton:
     def __exit__(self, *args):
         pass
 
-    def discover_reference(self):
-        return REF
-
-    def credentials(self, reference):
-        assert reference == REF
-        self.read_calls += 1
+    def credentials(self):
         return RiCredentials("private-user", "private-password")
 
 
 @pytest.fixture
-def setup(monkeypatch, tmp_path):
-    path = tmp_path / "private_config" / "ri.json"
-    monkeypatch.setattr(cli, "reference_path", lambda: path)
-    monkeypatch.setattr(cli, "read_os_token", lambda: "pst_synthetic::private-token")
+def setup(monkeypatch):
+    monkeypatch.setattr(cli, "read_token", lambda: "pst_synthetic::private-token")
     monkeypatch.setattr(cli, "ProtonRiSession", FakeProton)
     monkeypatch.setattr(cli.sys, "platform", "win32")
-    return path
 
 
-def test_configure_persists_only_reference_and_does_not_read_credentials(setup, monkeypatch, capsys):
-    monkeypatch.setattr(FakeProton, "credentials", lambda *args: pytest.fail("No secret read in configure"))
-    monkeypatch.setattr(ri_login, "verify_ri_login", lambda *args: pytest.fail("No RI login in configure"))
-    assert cli.main(["--configure"]) == 0
-    assert load_reference(setup) == REF
-    assert "private" not in setup.read_text() + repr(capsys.readouterr())
+def test_missing_token_never_opens_proton_session(setup, monkeypatch, capsys):
+    def missing():
+        raise RiAccessError("Token-Datei fehlt: .env/ri_token.txt")
 
-
-def test_no_reference_means_no_token_read_and_no_login(setup, monkeypatch):
-    monkeypatch.setattr(cli, "read_os_token", lambda: pytest.fail("Missing reference must stop first"))
+    monkeypatch.setattr(cli, "read_token", missing)
+    monkeypatch.setattr(cli, "ProtonRiSession", lambda token: pytest.fail("No session without token"))
     assert cli.main([]) == 1
+    assert "Token-Datei fehlt" in capsys.readouterr().err
 
 
-def test_bound_access_supplies_credentials_only_to_ri_verifier(setup, monkeypatch, capsys):
-    save_reference(setup, REF)
+def test_access_without_binding_supplies_credentials_only_to_ri_verifier(setup, monkeypatch, capsys):
     calls = []
     monkeypatch.setattr(ri_login, "verify_ri_login", lambda credentials: calls.append(credentials))
     assert cli.main([]) == 0
@@ -66,11 +52,24 @@ def test_bound_access_supplies_credentials_only_to_ri_verifier(setup, monkeypatc
 
 
 def test_native_failure_hides_sensitive_error_text(setup, monkeypatch, capsys):
-    save_reference(setup, REF)
-
     def fail(credentials):
         raise RuntimeError("private-user private-password private-cookie")
 
     monkeypatch.setattr(ri_login, "verify_ri_login", fail)
     assert cli.main([]) == 1
     assert "private" not in repr(capsys.readouterr())
+
+
+def test_ambiguous_entry_does_not_attempt_ri_login(setup, monkeypatch):
+    def ambiguous(self):
+        raise RiAccessError("Erforderlich ist genau ein freigegebener Tresor mit genau einem aktiven Login-Eintrag.")
+
+    monkeypatch.setattr(FakeProton, "credentials", ambiguous)
+    monkeypatch.setattr(ri_login, "verify_ri_login", lambda credentials: pytest.fail("No RI login"))
+    assert cli.main([]) == 1
+
+
+def test_remote_logout_warning_is_preserved(setup, monkeypatch):
+    monkeypatch.setattr(FakeProton, "cleanup_warning", True)
+    monkeypatch.setattr(ri_login, "verify_ri_login", lambda credentials: None)
+    assert cli.main([]) == 2
