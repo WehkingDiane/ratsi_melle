@@ -6,6 +6,8 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 
 ### Dokumentation – 10.11.2026
 
+- Veraltete Verweise und Statusformulierungen bei einer Nachprüfung der Markdown-Dateien korrigiert; Live- und PDF-Belastungstest-Aufrufe in der Testdokumentation ergänzt.
+
 - Dokumentation nach Funktionen in Unterordner gegliedert und einen zentralen [Wegweiser](docs/README.md) angelegt (`1adfd81`).
 - README und Ist-Stand gekürzt; Glossar, Betriebshilfen und Changelog ergänzt.
 - Agentenregeln auf die neue Dokumentationsstruktur abgestimmt und veraltete Hinweise korrigiert (`a23d853`).

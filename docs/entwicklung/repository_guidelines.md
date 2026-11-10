@@ -1,6 +1,6 @@
 # Repository-Grundlagen
 
-Stand: 27.10.2026. Die verbindlichen Agenten- und Branchregeln stehen in [AGENTS.md](../../AGENTS.md). Der [Ist-Stand](../ist_stand.md) beschreibt den laufenden Datenfluss; der [RI-Plan](../plans/ri_ratsbereich_plan.md) ist das einzige aktuelle Ausbauvorhaben.
+Stand: 27.10.2026. Die verbindlichen Agenten- und Branchregeln stehen in [AGENTS.md](../../AGENTS.md). Der [Ist-Stand](../ist_stand.md) fasst den aktuellen Funktionsumfang zusammen; der [RI-Plan](../plans/ri_ratsbereich_plan.md) ist das einzige aktuelle Ausbauvorhaben.
 
 ## Struktur und Ablage
 
