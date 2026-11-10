@@ -6,7 +6,7 @@
 - `scripts/` enthaelt CLI-Einstiegspunkte fuer Datenaufbau, Exporte und Hilfsjobs.
 - `tests/` enthaelt pytest-Tests und Fixtures.
 - `data/` enthaelt Laufzeitdaten und lokale Datenbanken.
-- `docs/` enthaelt Projektdokumentation; Detailregeln zur Ablage stehen in `docs/repository_guidelines.md`.
+- `docs/` enthaelt Projektdokumentation; Detailregeln zur Ablage stehen in `docs/entwicklung/repository_guidelines.md`.
 
 ## Build-, Test- und Entwicklungsbefehle
 
@@ -27,7 +27,7 @@
 
 - Fuer die normale Entwicklung `python -m pytest -m "not integration and not live"` nutzen; bei betroffenen Workflows zusaetzlich `python -m pytest -m "integration and not live"` ausfuehren.
 - Marker nach dem tatsaechlichen Testverhalten vergeben, in gemischten Modulen pro Test. Neue Marker zentral in `pyproject.toml` registrieren und die Struktur klein halten.
-- Marker-Bedeutung, Voraussetzungen und Live-Aufrufe stehen in [README.md](README.md#tests-gezielt-ausfuehren).
+- Marker-Bedeutung, Voraussetzungen und Live-Aufrufe stehen in [Testdokumentation](docs/entwicklung/tests.md).
 
 - Tests liegen in `tests/` und heissen `test_*.py`.
 - Nutze Fixtures aus `tests/fixtures/` beim Parsen von HTML.

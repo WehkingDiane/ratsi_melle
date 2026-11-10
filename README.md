@@ -1,108 +1,29 @@
 # Ratsi Melle
 
-Die Anwendung sammelt **öffentliche** Sitzungs- und Dokumentdaten aus dem Bürgerinformationssystem der Stadt Melle (`/bi/`) und Veröffentlichungen des Landkreises Osnabrück. Sie erstellt lokale SQLite-Indizes, bietet semantische Suche und eine Django-Oberfläche für Datenpflege und Analyse. Der geschützte Ratsbereich (`/ri/`) ist derzeit geplant und noch nicht implementiert.
+Die Anwendung sammelt öffentliche Sitzungs- und Dokumentdaten aus dem Bürgerinformationssystem der Stadt Melle (`/bi/`) und Veröffentlichungen des Landkreises Osnabrück. Sie erstellt lokale SQLite-Indizes und bietet semantische Suche sowie eine Django-Oberfläche für Datenpflege und Analyse.
 
-Der [Ist-Stand](docs/ist_stand.md) beschreibt Quellen, Datenhaltung, Suche und Oberfläche. Der [RI-Plan](docs/plans/ri_ratsbereich_plan.md) ist das einzige aktuelle Ausbauvorhaben.
+Der geschützte Ratsbereich (`/ri/`) befindet sich im Ausbau. Tokenablage und manuelle Anmeldetests sind vorhanden; RI-Dokumentabruf, Index und geschützter Webzugang sind noch nicht aktiviert.
 
-## Voraussetzungen und Start
+## Schnellstart
 
-Python 3.14, pip und Git werden empfohlen. Für die Oberfläche wird Tkinter nicht benötigt. Unter WSL kann `.venv-wsl` verwendet werden; falls `python` fehlt, `python3` beziehungsweise `.venv-wsl/bin/python` nutzen.
+In einer aktivierten Python-Umgebung aus dem Repository-Stamm:
 
 ```bash
 pip install -r requirements.txt
 python scripts/run_web.py
 ```
 
-Die lokale Django-Oberfläche ist danach unter `http://127.0.0.1:8000/` erreichbar. Sie ist aktuell für lokale Entwicklung konfiguriert und besitzt keine Benutzeranmeldung.
-
-## Schnellstart für den RI-Zugang
-
-Der geschützte Ratsbereich wird noch nicht für Downloads, Suche oder die Weboberfläche verwendet. Tokenablage und manueller Anmeldetest sind eingerichtet; die ausführliche Anleitung mit Voraussetzungen, Speicherorten und Grenzen steht unter [RI-Zugang einrichten und prüfen](docs/ri_zugang.md). Der [RI-Plan](docs/plans/ri_ratsbereich_plan.md) hält den Umsetzungsstand und die nächsten Aufgaben fest.
-
-Die Einrichtung wird pro System separat durchgeführt. In Windows die aktivierte `.venv`, unter WSL `.venv-wsl` verwenden. Als normaler Benutzer, nicht als Administrator oder mit `sudo`, starten:
-
-```powershell
-python scripts/setup/setup_ri_secret_storage.py
-python scripts/setup/store_ri_proton_token.py
-python scripts/setup/check_ri_proton_login.py
-python scripts/setup/check_ri_access.py --configure
-python scripts/setup/check_ri_access.py
-```
-
-Unter WSL jeweils `.venv-wsl/bin/python` statt `python` verwenden. Der RI-Zugriffstest liest den fest gebundenen Eintrag und prüft Anmeldung sowie Abmeldung; er lädt keine Sitzungsunterlagen herunter.
-
-## Daten aufbauen
-
-Die SessionNet-Skripte für den öffentlichen Bürgerinformationsbereich tragen `bi` im Namen. RI-Abrufskripte sind noch nicht vorhanden; für die vorbereitende Speicherprüfung gibt es die unten beschriebene Einrichtungshilfe. Seit Version 0.5.63 gelten folgende Umbenennungen; eigene Automatisierungen müssen die neuen Namen verwenden:
-
-| Bisher | Neu |
-| --- | --- |
-| `fetch_sessions.py` | `fetch_bi_sessions.py` |
-| `fetch_session_from_index.py` | `fetch_bi_session_from_index.py` |
-| `build_online_index_db.py` | `build_bi_online_index_db.py` |
-| `build_local_index.py` | `build_bi_local_index.py` |
-| `build_vector_index.py` | `build_bi_vector_index.py` |
-| `check_vector_index.py` | `check_bi_vector_index.py` |
-| `update_vector_index.py` | `update_bi_vector_index.py` |
-| `evaluate_search.py` | `evaluate_bi_search.py` |
-
-Landkreis-Skripte behalten ihre eindeutigen Namen. Gemeinsame Werkzeuge wie `prepare_embedding_models.py`, `migrate_legacy_index.py` und `run_web.py` bleiben neutral benannt. Die Weboberfläche verwendet die neuen Skriptpfade; bestehende Job-Aktionskennungen bleiben erhalten.
-
-```bash
-# Öffentliche SessionNet-Daten und Indizes
-python scripts/fetch_bi_sessions.py 2024 --months 5 6
-python scripts/build_bi_online_index_db.py 2024 --months 5 6
-python scripts/fetch_bi_session_from_index.py --list --from-date 2026-04-01 --to-date 2026-04-30
-python scripts/fetch_bi_session_from_index.py --session-id 7128
-python scripts/build_bi_local_index.py
-
-# Lokale Suchmodelle und Ratsinfo-Vektorindex
-python scripts/prepare_embedding_models.py --download
-python scripts/build_bi_vector_index.py
-
-# Landkreis-Veröffentlichungen
-python scripts/fetch_landkreis_publications.py --source all
-python scripts/build_landkreis_publications_db.py
-python scripts/build_landkreis_vector_index.py
-```
-
-Die Befehle sind Beispiele. Fetch-Jahr, Monate und Sitzungs-ID müssen zum gewünschten Datenbestand passen. Die Weboberfläche bietet die entsprechenden Datenjobs unter `/daten/`. Die Suche liegt unter `/suche/`; die SQLite-Suche für Landkreis-Daten ist außerdem mit `python scripts/search_landkreis_publications.py "Melle Genehmigung"` nutzbar.
-
-Standardmäßig verwendet die Suche Qdrant unter `http://127.0.0.1:6333`. Ein anderer Server kann mit `RATSI_QDRANT_URL` gewählt werden. Für lokalen Speicher ohne Server `RATSI_QDRANT_MODE=local` setzen und `RATSI_QDRANT_URL` frei lassen. Vor dem Vektorbuild müssen die lokalen Modelle vorbereitet sein.
-
-Die [Index-Kompatibilität](docs/index_compatibility.md) beschreibt die Weiterverwendung des bestehenden Ratsinfo-Index mit den am 03.11.2026 akzeptierten Windows-Modellbibliotheken. Der normale Aufbau ergänzt weiterhin nur fehlende oder unvollständige Dokumente.
-
-Die Vektorstatusanzeige zeigt die Dokumentabdeckung aus dem letzten Build. Einmalig nach einem bestehenden Aufbau können die Zahlen mit `python scripts/check_bi_vector_index.py --update-status` gespeichert werden; der Vektorindex bleibt dabei unverändert.
-
-## Lokale Daten
-
-Öffentliche SessionNet-Rohdaten liegen unter `data/raw/YYYY/MM/`, Landkreis-Rohdaten unter `data/raw/landkreis/`. SQLite-Dateien liegen unter `data/db/`, private Prompt-Dateien unter `data/private/`, Analyseausgaben unter `data/analysis_outputs/`. Diese Laufzeitdaten und Geheimnisse werden nicht versioniert. Die Struktur der Analyseartefakte steht in [Analyseausgaben](docs/analysis_outputs.md).
-
-## Tests gezielt ausfuehren
-
-`integration` prüft das Zusammenspiel mehrerer Komponenten mit lokalen oder simulierten Abhängigkeiten. `live` benötigt echte Dienste, Modelle oder nicht versionierte Quelldaten und ist standardmäßig ausgeschlossen. Die vollständige Testsuite wird vor einem PR vom Nutzer ausgeführt.
-
-```bash
-python -m pytest -m "not integration and not live"  # schnelle reguläre Tests
-python -m pytest -m "integration and not live"      # Integrationstests
-python -m pytest                                     # vollständiger Lauf vor dem PR
-```
+Die lokale Entwicklungsoberfläche ist unter `http://127.0.0.1:8000/` erreichbar und besitzt keine Benutzeranmeldung. Voraussetzungen und Hinweise für Windows/WSL stehen unter [Einrichtung](docs/betrieb/einrichtung.md).
 
 ## Dokumentation
 
-- [Ist-Stand](docs/ist_stand.md): vorhandene Datenflüsse, Speicherorte, Suche und Oberfläche
-- [RI-Zugang](docs/ri_zugang.md): Einrichtung und manueller Zugriffstest unter Windows und WSL
-- [RI-Plan](docs/plans/ri_ratsbereich_plan.md): einziges aktuelles Ausbauvorhaben
-- [Aktuelle Aufgaben](docs/plans/project_tasks.md): Arbeitspakete des RI-Vorhabens
-- [Repository-Regeln](docs/repository_guidelines.md) und [Agentenregeln](AGENTS.md)
-- [UI-Regeln](docs/ui_guidelines.md) und [Analyseausgaben](docs/analysis_outputs.md)
+Der [Dokumentationswegweiser](docs/README.md) erschließt alle Fachbereiche.
 
-## Navigation der Weboberfläche
+- [Daten abrufen](docs/datenabruf/README.md)
+- [Suchindizes aufbauen](docs/suche/indizes.md)
+- [Weboberfläche bedienen](docs/oberflaeche/README.md)
+- [Analysen durchführen](docs/analyse/README.md)
+- [RI-Zugang einrichten und prüfen](docs/ri/zugang.md)
+- [Tests gezielt ausführen](docs/entwicklung/tests.md)
 
-Seit 0.5.64 gliedert sich die Oberfläche in Übersicht, Bürgerinformation, Ratsbereich,
-Landkreis, Erweiterungen und Einstellungen. Bürgerinformation und Landkreis haben
-getrennte Einstiege für Suche und Datenpflege. Bestehende URLs bleiben erreichbar.
-Analyse liegt unter Erweiterungen; Wartung und Konfiguration unter Einstellungen.
-Der Ratsbereich zeigt vorerst informative Platzhalter und verarbeitet keine
-Zugangsdaten oder internen Unterlagen. Hauptbereiche stehen wie im Dashboard
-untereinander.
+[Ist-Stand](docs/ist_stand.md), [RI-Plan](docs/plans/ri_ratsbereich_plan.md), [aktuelle Aufgaben](docs/plans/project_tasks.md) und [Changelog](CHANGELOG.md) beschreiben Umfang und Entwicklung. Verbindliche Arbeitsregeln stehen in [AGENTS.md](AGENTS.md).

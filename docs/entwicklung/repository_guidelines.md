@@ -1,6 +1,6 @@
 # Repository-Grundlagen
 
-Stand: 27.10.2026. Die verbindlichen Agenten- und Branchregeln stehen in [AGENTS.md](../AGENTS.md). Der [Ist-Stand](ist_stand.md) beschreibt den laufenden Datenfluss; der [RI-Plan](plans/ri_ratsbereich_plan.md) ist das einzige aktuelle Ausbauvorhaben.
+Stand: 27.10.2026. Die verbindlichen Agenten- und Branchregeln stehen in [AGENTS.md](../../AGENTS.md). Der [Ist-Stand](../ist_stand.md) beschreibt den laufenden Datenfluss; der [RI-Plan](../plans/ri_ratsbereich_plan.md) ist das einzige aktuelle Ausbauvorhaben.
 
 ## Struktur und Ablage
 
@@ -12,8 +12,8 @@ Stand: 27.10.2026. Die verbindlichen Agenten- und Branchregeln stehen in [AGENTS
 
 ## Entwicklung und Dokumentation
 
-- Anwendungsänderungen erhalten passende Tests und eine Aktualisierung der betroffenen Dokumentation. Für Web-Änderungen gelten die [UI-Regeln](ui_guidelines.md); Datenformate und Nutzerwege werden im [Ist-Stand](ist_stand.md) beziehungsweise in der README beschrieben.
-- Die normale Entwicklung prüft `python -m pytest -m "not integration and not live"`; für betroffene Abläufe kommen Integrationstests hinzu. Den vollständigen PR-Testlauf führt der Nutzer aus; `live` ist standardmäßig ausgeschlossen. Die verbindliche Agentenregel steht in [AGENTS.md](../AGENTS.md).
+- Anwendungsänderungen erhalten passende Tests und eine Aktualisierung der betroffenen Dokumentation. Für Web-Änderungen gelten die [UI-Regeln](ui_guidelines.md); Datenformate und Nutzerwege werden in den Fachbereichen des [Dokumentationswegweisers](../README.md) beschrieben.
+- Die normale Entwicklung prüft `python -m pytest -m "not integration and not live"`; für betroffene Abläufe kommen Integrationstests hinzu. Den vollständigen PR-Testlauf führt der Nutzer aus; `live` ist standardmäßig ausgeschlossen. Die verbindliche Agentenregel steht in [AGENTS.md](../../AGENTS.md).
 - Die kanonische Version steht in `VERSION`. Bei sichtbaren funktionalen Änderungen wird bewusst entschieden, ob sie erhöht wird.
 - Branches verwenden das Agentenpräfix, Codex also `codex/`. Auf `main` wird nicht gearbeitet. Commits sind klein und zusammenhängend.
 - Bei Entfernen oder Ablösen einer Datei zuerst eine bytegleiche Kopie unter `archive/<ursprünglicher-pfad>` anlegen und per SHA-256 prüfen. `archive/` wird von Git ignoriert und muss außerhalb von Git gesichert werden, wenn die lokale Kopie dauerhaft benötigt wird. Frühere Versionen bleiben außerdem in Git erreichbar.
@@ -22,3 +22,7 @@ Stand: 27.10.2026. Die verbindlichen Agenten- und Branchregeln stehen in [AGENTS
 
 - Der öffentliche SessionNet-Client begrenzt Anfragerate, Wiederholungen und Downloads. Dokumente über 100 MiB werden abgebrochen; ab 25 MiB wird gewarnt. Landkreis-Downloads brechen über 25 MiB ab.
 - Öffentliche und künftige interne RI-Daten müssen über den gesamten Weg getrennt bleiben: Download, Rohdaten, SQLite, Suchindex, Dateiauslieferung und Jobs. Der RI-Plan beschreibt die noch ausstehende Umsetzung.
+
+## Dokumentationsstruktur
+
+Fachbereiche liegen unter `docs/datenabruf/`, `docs/suche/`, `docs/oberflaeche/`, `docs/analyse/` und `docs/ri/`. Betrieb und Entwicklung haben eigene Ordner. Der [Wegweiser](../README.md) legt Einstieg und Pflegekonventionen fest. Testaufrufe stehen unter [Tests](tests.md).

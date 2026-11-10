@@ -1,6 +1,6 @@
 # RI-Zugang einrichten und prüfen
 
-Diese Anleitung beschreibt die lokale Einrichtung unter Windows und Linux/WSL sowie den manuellen Proton- und RI-Zugriffstest. Die Schritte richten keinen Dokumentabruf ein. Der aktuelle Umsetzungsstand steht im [RI-Plan](plans/ri_ratsbereich_plan.md).
+Diese Anleitung beschreibt die lokale Einrichtung unter Windows und Linux/WSL sowie den manuellen Proton- und RI-Zugriffstest. Die Schritte richten keinen Dokumentabruf ein. Der aktuelle Umsetzungsstand steht im [RI-Plan](../plans/ri_ratsbereich_plan.md).
 
 ## RI-Schlüsselspeicher prüfen (Vorbereitung)
 
@@ -18,7 +18,7 @@ Unter Windows prüft das Skript den Windows Credential Manager. Unter Linux star
 
 Das Skript speichert, liest und entfernt einen eigenen Zufallswert. Bestehende Einträge werden nicht verändert. Bei Fehlern oder Zeitüberschreitung bricht es ab, ohne auf Klartextspeicher auszuweichen. Bei einem unterbrochenen Test kann ein harmloser Eintrag mit Präfix `ratsi_melle_storage_test_` zurückbleiben. Ein erfolgreicher Lauf bestätigt nur die Nutzbarkeit in dieser Sitzung, nicht das Verhalten nach einem Neustart, eine Proton-Anmeldung oder die Verschlüsselung eines bereits früher angelegten Schlüsselspeichers. Der Schlüsselspeicher darf nicht mit leerem Passwort eingerichtet werden.
 
-Das Skript hinterlegt keinen PAT, konfiguriert keine Proton-Sitzung und aktiviert keinen RI-Abruf. Die lokale Einrichtung ist abgeschlossen; das weitere Vorhaben steht im [RI-Hauptplan](plans/ri_ratsbereich_plan.md).
+Das Skript hinterlegt keinen PAT, konfiguriert keine Proton-Sitzung und aktiviert keinen RI-Abruf. Die lokale Einrichtung ist abgeschlossen; das weitere Vorhaben steht im [RI-Hauptplan](../plans/ri_ratsbereich_plan.md).
 
 ## RI-Proton-Token hinterlegen oder ersetzen
 
@@ -75,4 +75,3 @@ Der beobachtete Ablauf nutzt nach dem POST `ylogonstart.asp` und kann HTML-Meta-
 Eine HTTP-200-Antwort allein gilt nicht als Erfolg: Die geschützte Einstiegsseite muss einen erkannten Abmeldelink enthalten. Danach wird die RI-Abmeldung über erneute Prüfung des geschützten Einstiegs bestätigt. Der Test lädt keine Sitzungen oder Dokumente herunter und schreibt weder HTML noch HTTP-Cookies auf Platte. Eine möglicherweise notwendige zusätzliche Anmeldung, Passwortänderung oder ein verändertes Formular führt zum Abbruch. Bei einem Abbruch nach dem Passwortversand kann eine entfernte RI-Sitzung bis zu ihrem Ablauf bestehen bleiben; lokale Cookies werden verworfen. Der BI-Abruf und die öffentliche Datenhaltung werden nicht verwendet.
 
 Die Proton-Sitzung wird anschließend separat beendet; eine nicht bestätigte normale Proton-Abmeldung ergibt wie beim bisherigen Test einen Hinweis mit Status 2. Der vollständige echte Test ist unter WSL und Windows bestätigt: gezielter Zugangsfeldabruf, RI-Anmeldung, RI-Abmeldung und anschließende Zugangssperre. Die Referenz ist auf beiden Systemen separat eingerichtet. Unter Windows bleibt der bereits bekannte Hinweis zur nachfolgenden Proton-Abmeldung (Status 2); die RI-Abmeldung selbst ist dort erfolgreich bestätigt. Die Umsetzung enthält noch keinen RI-Dokumentabruf, RI-Index oder Webzugang.
-
