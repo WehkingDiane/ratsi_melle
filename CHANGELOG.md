@@ -4,6 +4,10 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 
 ## Unveröffentlicht
 
+### Testdaten – 10.11.2026
+
+- Namen und geschäftliche Kontaktangaben in der Windkraft-Testfixture durch Platzhalter ersetzt; Quellenhinweis entsprechend ergänzt.
+
 ### Entwicklungsworkflow – 10.11.2026
 
 - Repository-Hooks an die aktuelle Aufgabenstruktur angepasst; gestagte Versionsänderungen auf Format, Steigerung und passenden Changelog-Abschnitt geprüft. Changelog als Dokumentation anerkannt.
