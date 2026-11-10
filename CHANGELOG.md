@@ -2,12 +2,15 @@
 
 Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Historie und vorhandener Dokumentation zusammengefasst; sie bilden keine vollständige Liste aller Commits. Versionsdaten bezeichnen das Datum des zugehörigen Versionscommits, nicht einen gesondert belegten Veröffentlichungstermin. Commit-Kürzel ermöglichen die Prüfung mit `git show <kürzel>`. Der aktuelle Funktionsumfang steht im [Ist-Stand](docs/ist_stand.md).
 
-## Dokumentation – 10.11.2026
+## Unveröffentlicht
+
+### Dokumentation – 10.11.2026
 
 - Dokumentation nach Funktionen in Unterordner gegliedert und einen zentralen [Wegweiser](docs/README.md) angelegt (`1adfd81`).
 - README und Ist-Stand gekürzt; Glossar, Betriebshilfen und Changelog ergänzt.
 - Agentenregeln auf die neue Dokumentationsstruktur abgestimmt und veraltete Hinweise korrigiert (`a23d853`).
 - Ältere Änderungen als Stichpunkte nachgetragen und absteigend geordnet. Die Anwendungsversion bleibt bei 0.5.76.
+- Versionsregeln präzisiert: Versionen pro Änderungspaket, Minor für größere Funktionsausbauten, kein Versionswechsel für reine Dokumentationsänderungen. Historische Nummern bleiben erhalten.
 
 ## 0.5.76 – 2026-11-06
 

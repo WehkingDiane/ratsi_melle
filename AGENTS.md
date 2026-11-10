@@ -72,11 +72,16 @@
 
 ## Versionspflege
 
-- Das Projekt verwendet `Major.Minor.Patch`; die kanonische Versionsnummer liegt in `VERSION`.
-- Solange das Projekt noch vor `1.0.0` liegt, gelten pragmatisch:
-  - `0.x.0` fuer groessere Entwicklungsschritte oder inkompatiblere Meilensteine
-  - `0.x.y` fuer Bugfixes, kleinere Erweiterungen und inkrementelle Verbesserungen
-- Bei sichtbaren funktionalen Aenderungen, Meilensteinen oder Releases muss `VERSION` bewusst angepasst werden.
+- Das Projekt verwendet `Major.Minor.Patch`; die einzige kanonische Versionsnummer liegt in `VERSION`.
+- Solange das Projekt vor `1.0.0` liegt, gelten pragmatisch:
+  - Patch erhoehen fuer Fehlerbehebungen, kleinere Erweiterungen und sonstige sichtbare Verhaltensaenderungen, z. B. `0.5.76` auf `0.5.77`.
+  - Minor erhoehen und Patch auf null setzen fuer groessere zusammenhaengende Funktionsausbauten oder inkompatible Datenformat-/Konfigurationsaenderungen, z. B. `0.5.76` auf `0.6.0`. Auch ein abgeschlossenes, eigenstaendig nutzbares Teilpaket kann einen Minor-Schritt rechtfertigen; das Gesamtvorhaben muss dafuer nicht fertig sein.
+  - Reine Dokumentations- und Testaenderungen sowie interne Refactorings ohne Verhaltensaenderung erhalten keine neue Anwendungsversion.
+- Eine Version pro zusammenhaengendem Aenderungspaket vergeben, nicht pro Zwischen-Commit. Die Einordnung bei funktionalen Aenderungen bewusst pruefen.
+- Vor dem Zusammenfuehren paralleler Branches die Versionsnummer mit dem Zielbranch abgleichen; bereits vergebene Nummern nicht fuer ein weiteres Aenderungspaket wiederverwenden.
+- Versionsaenderung und zugehoerige Changelog-Stichpunkte gemeinsam committen. Noch nicht zugeordnete Aenderungen oben unter `Unveröffentlicht` sammeln.
+- Historische Versionsnummern bleiben unveraendert. Die praezisierten Regeln gelten fuer kuenftige Aenderungspakete.
+- Eine Versionsnummer allein bedeutet kein veroeffentlichtes Release. `1.0.0` bezeichnet die erste bewusst als stabil freigegebene Fassung.
 
 ## Agent-spezifische Anweisungen (verpflichtend)
 
