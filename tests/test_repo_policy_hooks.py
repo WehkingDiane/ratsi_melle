@@ -269,7 +269,7 @@ def test_git_pre_commit_ignores_explanatory_lists_in_project_tasks(tmp_path: Pat
     project_tasks = repo / "docs" / "plans" / "project_tasks.md"
     project_tasks.parent.mkdir(parents=True)
     project_tasks.write_text(
-        "## 3. Offene Aufgaben nach Architekturschicht\n\n"
+        "## RI-Vorhaben\n\n"
         "### 3.4 Analyse und Artefakte\n"
         "#### Konkrete Aufgaben\n"
         "- Analyseziele verbindlich festlegen `[Mittel · GPT-6 Sol / Medium]`\n\n"
@@ -277,7 +277,7 @@ def test_git_pre_commit_ignores_explanatory_lists_in_project_tasks(tmp_path: Pat
         "Das fachliche Zielbild umfasst drei Ebenen:\n\n"
         "- **Dokument:** Kernaussagen\n"
         "- **Sitzung:** Ergebnisse verdichten\n\n"
-        "## 4. Abhängigkeiten und sinnvolle Reihenfolge\n",
+        "## Weiterer Kontext\n",
         encoding="utf-8",
     )
     git(repo, "add", "docs/plans/project_tasks.md")
@@ -299,19 +299,19 @@ def test_git_pre_commit_only_warns_about_missing_task_recommendations(tmp_path: 
     project_tasks = repo / "docs" / "plans" / "project_tasks.md"
     project_tasks.parent.mkdir(parents=True)
     project_tasks.write_text(
-        "## 3. Offene Aufgaben nach Architekturschicht\n\n"
+        "## RI-Vorhaben\n\n"
         "### 3.1 Datenzufuhr\n"
         "#### Konkrete Aufgaben\n"
         "- Neue Aufgabe ohne Einstufung\n\n"
-        "## 4. Abhängigkeiten und sinnvolle Reihenfolge\n",
+        "## Weiterer Kontext\n",
         encoding="utf-8",
     )
     git(repo, "add", "docs/plans/project_tasks.md")
     git(repo, "commit", "-m", "Add initial task list")
     updated = project_tasks.read_text(encoding="utf-8").replace(
-        "## 4. Abhängigkeiten und sinnvolle Reihenfolge\n",
+        "## Weiterer Kontext\n",
         "- Weitere neue Aufgabe ohne Einstufung\n\n"
-        "## 4. Abhängigkeiten und sinnvolle Reihenfolge\n",
+        "## Weiterer Kontext\n",
     )
     project_tasks.write_text(updated, encoding="utf-8")
     git(repo, "add", "docs/plans/project_tasks.md")
@@ -328,21 +328,21 @@ def test_git_pre_commit_keeps_checking_after_description_paragraph(tmp_path: Pat
     project_tasks = repo / "docs" / "plans" / "project_tasks.md"
     project_tasks.parent.mkdir(parents=True)
     project_tasks.write_text(
-        "## 3. Offene Aufgaben nach Architekturschicht\n\n"
+        "## RI-Vorhaben\n\n"
         "### 3.1 Datenzufuhr\n"
         "#### Konkrete Aufgaben\n"
         "- Bestehende Aufgabe `[Mittel · GPT-6 Sol / Medium]`\n"
         "  Ergänzende Beschreibung der Aufgabe über mehrere Zeilen.\n\n"
         "Analyseartefakte sollen Quellenangaben und Unsicherheit unterstützen.\n\n"
-        "## 4. Abhängigkeiten und sinnvolle Reihenfolge\n",
+        "## Weiterer Kontext\n",
         encoding="utf-8",
     )
     git(repo, "add", "docs/plans/project_tasks.md")
     git(repo, "commit", "-m", "Add described project task")
     updated = project_tasks.read_text(encoding="utf-8").replace(
-        "## 4. Abhängigkeiten und sinnvolle Reihenfolge\n",
+        "## Weiterer Kontext\n",
         "- Neue Aufgabe nach Fortsetzung ohne Einstufung\n"
-        "## 4. Abhängigkeiten und sinnvolle Reihenfolge\n",
+        "## Weiterer Kontext\n",
     )
     project_tasks.write_text(updated, encoding="utf-8")
     git(repo, "add", "docs/plans/project_tasks.md")
@@ -365,3 +365,61 @@ def test_codex_pre_tool_use_warns_about_destructive_python_delete(tmp_path: Path
     assert result.returncode == 0
     assert "systemMessage" in result.stdout
     assert "Python-Dateien" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "version,changelog,expected",
+    [
+        ("0.6.0", "# Changelog\n\n## 0.6.0 – 2026-11-10\n\n- Neuer Funktionsbereich.\n", 0),
+        ("0.5.77", "# Changelog\n\n## 0.5.77\n\n- Fehler korrigiert.\n", 0),
+        ("0.6.0", None, 1),
+        ("0.6.0", "# Changelog\n\n## 0.6.0\n\nNoch kein Stichpunkt.\n", 1),
+        ("0.6.0", "# Changelog\n\n## 0.5.77\n\n- Falsche Version.\n", 1),
+        ("0.5.75", "## 0.5.75\n\n- Rueckschritt.\n", 1),
+        ("0.5.077", "## 0.5.077\n\n- Ungueltige Nummer.\n", 1),
+        (None, None, 1),
+    ],
+)
+def test_staged_version_requires_matching_changelog(tmp_path, version, changelog, expected):
+    repo = init_repo(tmp_path)
+    (repo / "VERSION").write_text("0.5.76\n")
+    git(repo, "add", "VERSION")
+    git(repo, "commit", "-m", "Record version")
+    if version is None:
+        (repo / "VERSION").unlink()
+    else:
+        (repo / "VERSION").write_text(version + "\n")
+    git(repo, "add", "VERSION")
+    if changelog is not None:
+        (repo / "CHANGELOG.md").write_text(changelog)
+        git(repo, "add", "CHANGELOG.md")
+
+    result = run_policy("git-pre-commit", cwd=repo)
+
+    assert result.returncode == expected, result.stderr
+
+
+def test_version_check_uses_staged_changelog_not_worktree(tmp_path):
+    repo = init_repo(tmp_path)
+    (repo / "VERSION").write_text("0.5.76\n")
+    git(repo, "add", "VERSION")
+    git(repo, "commit", "-m", "Record version")
+    (repo / "VERSION").write_text("0.6.0\n")
+    (repo / "CHANGELOG.md").write_text("## 0.6.0\n\n- Neuer Bereich.\n")
+    git(repo, "add", "VERSION", "CHANGELOG.md")
+    (repo / "CHANGELOG.md").write_text("Nicht gestagte Aenderung\n")
+
+    assert run_policy("git-pre-commit", cwd=repo).returncode == 0
+
+
+def test_documentation_and_intermediate_code_commits_need_no_version(tmp_path):
+    repo = init_repo(tmp_path)
+    (repo / "CHANGELOG.md").write_text("## Unveröffentlicht\n\n- Dokumentation aktualisiert.\n")
+    (repo / "scripts").mkdir()
+    (repo / "scripts" / "example.py").write_text("VALUE = 1\n")
+    git(repo, "add", "CHANGELOG.md", "scripts/example.py")
+
+    result = run_policy("git-pre-commit", cwd=repo)
+
+    assert result.returncode == 0
+    assert "Doku-Pruefung" not in result.stderr

@@ -4,6 +4,10 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 
 ## Unveröffentlicht
 
+### Entwicklungsworkflow – 10.11.2026
+
+- Repository-Hooks an die aktuelle Aufgabenstruktur angepasst; gestagte Versionsänderungen auf Format, Steigerung und passenden Changelog-Abschnitt geprüft. Changelog als Dokumentation anerkannt.
+
 ### Dokumentation – 10.11.2026
 
 - Veraltete Verweise und Statusformulierungen bei einer Nachprüfung der Markdown-Dateien korrigiert; Live- und PDF-Belastungstest-Aufrufe in der Testdokumentation ergänzt.

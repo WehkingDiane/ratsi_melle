@@ -26,3 +26,13 @@ Stand: 27.10.2026. Die verbindlichen Agenten- und Branchregeln stehen in [AGENTS
 ## Dokumentationsstruktur
 
 Fachbereiche liegen unter `docs/datenabruf/`, `docs/suche/`, `docs/oberflaeche/`, `docs/analyse/` und `docs/ri/`. Betrieb und Entwicklung haben eigene Ordner. Der [Wegweiser](../README.md) legt Einstieg und Pflegekonventionen fest. Testaufrufe stehen unter [Tests](tests.md).
+
+## Repository-Hooks
+
+`core.hooksPath` ist lokal auf `.githooks` gesetzt. Der Pre-Commit-Hook prüft Branchregeln und Archivkopien entfernter Python-Dateien; der Pre-Push-Hook blockiert Pushes nach `main`. Die Codex-Konfiguration unter `.codex/hooks.json` verweist auf denselben Policy-Einstieg unter `scripts/hooks/repo_policy.py`.
+
+Bei einer gestagten Änderung von `VERSION` verlangt der Pre-Commit-Hook eine gültige, gegenüber `HEAD` höhere Nummer sowie eine gemeinsam gestagte `CHANGELOG.md` mit passendem Versionsabschnitt und mindestens einem Stichpunkt. Reine Änderungen der Zeilenenden lösen keine Versionspflicht aus. Die Prüfung liest den Git-Index; nicht gestagte Dateiinhalte zählen nicht. Sie entscheidet weder Patch gegenüber Minor noch prüft sie die Nummer gegen einen entfernten Zielbranch; dieser Abgleich bleibt vor dem Zusammenführen erforderlich.
+
+Zwischen-Commits ohne Versionsänderung bleiben möglich. Fehlende Dokumentationsänderungen bei Code-/Workflow-Änderungen erzeugen einen Hinweis; README, Changelog und alle Fachseiten unter `docs/` werden als Dokumentation erkannt. Neue Aufgaben unter `#### Konkrete Aufgaben` werden unabhängig vom übergeordneten Bereich erkannt; fehlende Aufwand-/Modell-Empfehlungen bleiben optionale Hinweise. Kontextlisten außerhalb dieses Abschnitts werden nicht beanstandet.
+
+Gezielte Prüfung: `python -m pytest tests/test_repo_policy_hooks.py`. Die Hooks sind lokale Hilfen und ersetzen weder Review noch den vollständigen PR-Testlauf des Nutzers.
