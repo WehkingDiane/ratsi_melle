@@ -36,7 +36,7 @@ def cleanup_session(cli: str, env: dict[str, str]) -> bool:
     try:
         result = subprocess.run(
             [cli, "logout"], env=env, stdin=subprocess.DEVNULL,
-            capture_output=True, text=True, timeout=30, check=False,
+            capture_output=True, text=True, encoding="utf-8", timeout=30, check=False,
         )
         if result.returncode == 0:
             print("Temporäre Testsitzung abgemeldet.")
@@ -50,7 +50,7 @@ def cleanup_session(cli: str, env: dict[str, str]) -> bool:
     try:
         forced = subprocess.run(
             [cli, "logout", "--force"], env=env, stdin=subprocess.DEVNULL,
-            capture_output=True, text=True, timeout=10, check=False,
+            capture_output=True, text=True, encoding="utf-8", timeout=10, check=False,
         )
         if forced.returncode:
             raise SetupError("Auch die lokale CLI-Bereinigung konnte nicht bestätigt werden.")
@@ -82,7 +82,7 @@ def test_login(cli: str, token: str) -> bool:
         try:
             result = subprocess.run(
                 [cli, "login"], env=env, stdin=subprocess.DEVNULL,
-                capture_output=True, text=True, timeout=45, check=False,
+                capture_output=True, text=True, encoding="utf-8", timeout=45, check=False,
             )
             env.pop("PROTON_PASS_PERSONAL_ACCESS_TOKEN", None)
             if result.returncode:
@@ -138,7 +138,7 @@ def main(argv: list[str] | None = None) -> int:
             token = None
         print(
             "Erfolgreich: Proton-Anmeldung und Tresorauflistung bestätigt.\n"
-            "Keine Passworteinträge angefordert; Einzelnen RI-Eintrag mit check_ri_access.py prüfen."
+            "Keine Passworteinträge angefordert; einzelnen RI-Eintrag mit check_ri_access.py prüfen."
         )
         return 0 if logged_out else 2
     except SetupError as error:

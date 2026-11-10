@@ -2,7 +2,7 @@
 
 Die Anwendung sammelt öffentliche Sitzungs- und Dokumentdaten aus dem Bürgerinformationssystem der Stadt Melle (`/bi/`) und Veröffentlichungen des Landkreises Osnabrück. Sie erstellt lokale SQLite-Indizes und bietet semantische Suche sowie eine Django-Oberfläche für Datenpflege und Analyse.
 
-Der geschützte Ratsbereich (`/ri/`) befindet sich im Ausbau. Tokenablage und manuelle Anmeldetests sind vorhanden; RI-Dokumentabruf, Index und geschützter Webzugang sind noch nicht aktiviert.
+Der geschützte Ratsbereich (`/ri/`) befindet sich im Ausbau. Lokale Token-Datei und manuelle Anmeldetests sind vorhanden (siehe [RI-Zugang](docs/ri/zugang.md)); RI-Dokumentabruf, Index und geschützter Webzugang sind noch nicht aktiviert.
 
 ## Schnellstart
 

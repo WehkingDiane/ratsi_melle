@@ -1,6 +1,6 @@
 # Aktuelle Projektaufgabe
 
-Stand: 06.11.2026. Das aktuelle Vorhaben ist der geschützte Ratsbereich für SessionNet `/ri/`, einschließlich der vorgezogenen Vorbereitung von Navigation und Seitenaufbau ohne RI-Zugang. Der [detaillierte Umsetzungsplan](ri_ratsbereich_plan.md) enthält Schutzgrenzen, Abnahmen und die vorgesehene Aufteilung in Teilbranches. Der vorhandene Funktionsumfang steht im [Ist-Stand](../ist_stand.md).
+Stand: 10.11.2026. Das aktuelle Vorhaben ist der geschützte Ratsbereich für SessionNet `/ri/`, einschließlich der vorgezogenen Vorbereitung von Navigation und Seitenaufbau ohne RI-Zugang. Der [detaillierte Umsetzungsplan](ri_ratsbereich_plan.md) enthält Schutzgrenzen, Abnahmen und die vorgesehene Aufteilung in Teilbranches. Der vorhandene Funktionsumfang steht im [Ist-Stand](../ist_stand.md).
 
 ## Kontext
 
@@ -12,9 +12,13 @@ Bereits erledigt (Statuskontext; die Aufgabenliste darunter enthält nur offene 
 - **Erledigt:** Navigation, öffentliche Einstiege, RI-Platzhalter und vertikalen Seitenaufbau einschließlich dokumentierter Tests und Browserabnahme umgesetzt; über PR #90 übernommen.
 - **Erledigt:** [Proton-Einrichtung und manueller RI-Zugriffstest](ri_ratsbereich_plan.md#4-ri-fetcher-mit-anmeldung) auf `codex/feature/ri-proton-pass-zugang` abgeschlossen (0.5.76). CLI 2.7.0, getrennte geschützte Tokenablage, feste RI-Eintragsbindung und ausschließlich lesender Zugangsdienst sind unter Windows und WSL eingerichtet. Gezielter Zugangsfeldabruf, RI-Anmeldung, RI-Abmeldung und erneute Zugangssperre sind auf beiden Systemen real bestätigt. 47 gezielte Tests je System, sechs betroffene Integrationstests und 690 reguläre Tests bestehen. Hilfsskripte und Bedienung sind dokumentiert. Der Nutzer stellt Neustart-/Ablaufprüfungen, unbeaufsichtigten Betrieb und die Untersuchung des Windows-Proton-Abmeldehinweises zurück; diese Punkte sind nicht als geprüft abgenommen. Die Fetcher-Anbindung bleibt ein späterer Schritt des RI-Hauptplans.
 
+Seit 0.6.0 ist der Zugang auf eine lokale Token-Datei und temporäre CLI-Dateisitzungen ohne separate Eintragsbindung umgestellt. Synthetische Checks bestehen; die genannten realen Abnahmen bis 0.5.76 gelten für den vorherigen Ablauf. Die aktuelle Bedienung steht in der [RI-Zugangsanleitung](../ri/zugang.md).
+
 ## RI-Vorhaben
 
 #### Konkrete Aufgaben
+
+- [ ] Neuen Dateifluss (0.6.0) mit den beiden Check-Skripten unter Windows und WSL real abnehmen; Proton-Abmeldung und erneuten Aufruf prüfen.
 
 - [ ] Als nächsten fachlichen Schritt den RI-Bereich erkunden: tatsächlichen Aufbau und Unterschiede zu BI feststellen, zunächst nur anhand von Seitenstruktur und Dokumentmetadaten. Auf Nutzerwunsch jetzt noch nicht durchführen.
 - [ ] Vor Downloadimplementierung festlegen, welche RI-Dokumentarten benötigt, optional oder nicht benötigt sind; Auswahlregeln und Umgang mit Sammelunterlagen/Anlagen/Dubletten im [Hauptplan](ri_ratsbereich_plan.md#2-vorprüfung-und-verbindliche-entscheidungen) dokumentieren. Kein pauschaler Gesamtdownload.

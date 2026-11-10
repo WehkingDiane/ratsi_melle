@@ -22,6 +22,14 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 - Ältere Änderungen als Stichpunkte nachgetragen und absteigend geordnet. Die Anwendungsversion bleibt bei 0.5.76.
 - Versionsregeln präzisiert: Versionen pro Änderungspaket, Minor für größere Funktionsausbauten, kein Versionswechsel für reine Dokumentationsänderungen. Historische Nummern bleiben erhalten.
 
+## 0.6.0 – 10.11.2026
+
+- RI-Token aus der lokalen Datei `.env/ri_token.txt` lesen; gesamter Ordner von Git ausgeschlossen. Die unverschlüsselte Datei ersetzt die bisherige RI-Tokenablage im Betriebssystemspeicher.
+- Proton- und RI-Check verwenden temporäre CLI-Dateisitzungen ohne Keyring-Passwort. Windows-CLI auch am offiziellen Benutzer-Installationsort finden.
+- Separate Eintragsbindung und `--configure` abgelöst; vor jedem Passwortabruf genau einen freigegebenen Tresor mit genau einem aktiven Login prüfen.
+- Alte RI-Speicherhilfen und ihre Tests nach bytegleicher lokaler Archivierung entfernt. Vorhandene OS-Geheimnisse und Referenzdateien bleiben unverändert und werden nicht mehr verwendet.
+- Anleitung und RI-Plan angepasst; synthetische Checks bestehen, echte Abnahme des Dateiflusses unter Windows und WSL steht aus.
+
 ## 0.5.76 – 2026-11-06
 
 - Beobachtete RI-Anmeldeschritte berücksichtigt und echten RI-Zugriff unter Windows und WSL bestätigt. (`1272464`).
