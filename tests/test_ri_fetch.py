@@ -63,7 +63,7 @@ def test_main_uses_login_and_download_flow(monkeypatch, tmp_path):
         assert actual is client and actual.persist_raw
         assert (year, months, force_download) == (2026, (11, 12), True)
         events.append('download')
-        return []
+        return fetch.FetchResult()
 
     monkeypatch.setattr(fetch, 'login', fake_login)
     monkeypatch.setattr(fetch, 'fetch_months', fake_fetch)
@@ -108,9 +108,10 @@ def test_unavailable_detail_does_not_stop_following_sessions(caplog):
 
     client = SimpleNamespace(fetch_month=lambda **kw: references, fetch_session=detail,
                              download_documents=download)
-    skipped = fetch.fetch_months(client, 2026, [11], force_download=True)
+    result = fetch.fetch_months(client, 2026, [11], force_download=True)
     assert downloaded == ['9489', '9509']
-    assert skipped == ['7167']
+    assert result.skipped_sessions == ['7167']
+    assert result.failed_documents == []
     assert '7167' in caplog.text and 'übersprungen' in caplog.text
 
 
@@ -142,7 +143,7 @@ def test_main_reports_incomplete_run_after_logout(monkeypatch, capsys, tmp_path)
             events.append('logout')
 
     monkeypatch.setattr(fetch, 'login', fake_login)
-    monkeypatch.setattr(fetch, 'fetch_months', lambda *args, **kwargs: ['7167'])
+    monkeypatch.setattr(fetch, 'fetch_months', lambda *args, **kwargs: fetch.FetchResult(skipped_sessions=['7167']))
     monkeypatch.setattr(fetch, 'configure_file_logging', lambda *args: None)
     assert fetch.main(['2026', '--months', '11']) == 2
     assert events == ['logout']
@@ -267,3 +268,95 @@ def test_public_comparison_reads_only_html_with_separate_session(visibility_clie
     monkeypatch.setattr(fetch, 'SessionNetClient', lambda **kwargs: public)
     assert fetch.fetch_public_document_ids(detail.reference) == {'145203'}
     assert len(calls) == 1
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize('failure_mode', ['size', 'stream'])
+@pytest.mark.parametrize('retain_old_entry', [False, True])
+def test_download_failures_reach_exit_status_after_later_success(
+    visibility_client, monkeypatch, tmp_path, capsys, caplog, failure_mode, retain_old_entry
+):
+    from contextlib import contextmanager
+    from dataclasses import replace
+    import logging
+    import requests
+    from src.fetching import sessionnet_client
+
+    client, detail = visibility_client
+    monkeypatch.setattr('src.config.ri.RI_ROOT', tmp_path)
+    monkeypatch.setattr(fetch, 'fetch_public_document_ids', lambda ref: set())
+    if retain_old_entry:
+        client.download_documents(detail)
+        previous = next(entry for entry in read_visibility_manifest(client, detail)
+                        if entry['document_id'] == '145203')
+    client.max_document_bytes = 16
+    client.max_retries = 2
+    client.ri_cleanup_warning = client.proton_cleanup_warning = False
+    monkeypatch.setattr(client, '_fetch_document_payload',
+                        sessionnet_client.SessionNetClient._fetch_document_payload.__get__(client))
+    monkeypatch.setattr(sessionnet_client.time, 'sleep', lambda seconds: None)
+    later = replace(detail, reference=replace(detail.reference, session_id='9999'))
+    visited = []
+    attempts = []
+    failure_enabled = True
+
+    def fetch_detail(reference):
+        visited.append(reference.session_id)
+        return detail if reference.session_id == detail.reference.session_id else later
+
+    class Response:
+        def __init__(self, failed):
+            self.failed = failed
+            self.headers = {'Content-Type': 'application/pdf',
+                            'Content-Length': '99' if failed and failure_mode == 'size' else '9'}
+
+        def iter_content(self, chunk_size):
+            if self.failed and failure_mode == 'stream':
+                raise requests.RequestException('Synthetic stream failure')
+            yield b'%PDF-test'
+
+        def close(self):
+            pass
+
+    def request(method, url, **kwargs):
+        assert method == 'GET'
+        failed = (failure_enabled and visited[-1] == detail.reference.session_id
+                  and fetch.document_id(url) == '145203')
+        if failed:
+            attempts.append(url)
+        return Response(failed)
+
+    @contextmanager
+    def fake_login(**kwargs):
+        try:
+            yield client
+        finally:
+            visited.append('logout')
+
+    monkeypatch.setattr(client, 'fetch_month', lambda **kwargs: [detail.reference, later.reference])
+    monkeypatch.setattr(client, 'fetch_session', fetch_detail)
+    monkeypatch.setattr(client, '_request', request)
+    monkeypatch.setattr(fetch, 'login', fake_login)
+    monkeypatch.setattr(fetch, 'configure_file_logging', lambda *args: None)
+    caplog.set_level(logging.INFO)
+
+    assert fetch.main(['2026', '--months', '11', '--force-download']) == 2
+
+    assert visited == [detail.reference.session_id, later.reference.session_id, 'logout']
+    assert len(attempts) == (1 if failure_mode == 'size' else client.max_retries)
+    output = capsys.readouterr().out
+    assert f'{detail.reference.session_id}/145203' in output
+    assert 'https://' not in output
+    assert 'vollständige_sitzungen=1' in caplog.text
+    entries = read_visibility_manifest(client, detail)
+    failed_entries = [entry for entry in entries if entry['document_id'] == '145203']
+    if retain_old_entry:
+        assert failed_entries[0]['path'] == previous['path']
+        assert failed_entries[0]['verified_at'] == previous['verified_at']
+    else:
+        assert failed_entries == []
+    assert len(read_visibility_manifest(client, later)) == len(detail.agenda_items[0].documents)
+
+    # A subsequent successful run must not retain the previous incomplete status.
+    failure_enabled = False
+    assert fetch.main(['2026', '--months', '11', '--force-download']) == 0

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import replace
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 import logging
 from pathlib import Path
@@ -78,7 +78,7 @@ class RiFetchClient(RiOnlineClient):
             logging.warning('BI-Abgleich Sitzung %s fehlgeschlagen; alle Dokumente als nicht öffentlich kennzeichnen.',
                             detail.reference.session_id)
         self._visibility_checked_at = datetime.now(timezone.utc).isoformat()
-        super().download_documents(detail, force_download=force_download)
+        return super().download_documents(detail, force_download=force_download)
 
     def _write_manifest(self, session_dir, detail, documents, *, completion_detected_at=None):
         """Persist IDs and visibility also for reused files and retained error entries."""
@@ -125,10 +125,18 @@ class RiFetchClient(RiOnlineClient):
         raise RiAccessError('Zu viele RI-Dokumentweiterleitungen.')
 
 
+@dataclass
+class FetchResult:
+    """Incomplete session views and document downloads encountered during a run."""
+
+    skipped_sessions: list[str] = field(default_factory=list)
+    failed_documents: list[tuple[str, str]] = field(default_factory=list)
+
+
 def fetch_months(client, year, months, *, force_download=False):
     """Download available details and report unsupported views without losing progress."""
     months = tuple(months)
-    skipped = []
+    result = FetchResult()
     completed = 0
     for month_index, month in enumerate(months, start=1):
         logging.info('Fetching %04d month %02d (%d/%d)', year, month, month_index, len(months))
@@ -140,17 +148,24 @@ def fetch_months(client, year, months, *, force_download=False):
             try:
                 detail = client.fetch_session(reference)
             except RiPageUnavailable:
-                skipped.append(reference.session_id)
+                result.skipped_sessions.append(reference.session_id)
                 logging.warning('Sitzung %s: Detailansicht ungeprüft; übersprungen, keine Dokumente geladen.',
                                 reference.session_id)
                 continue
-            client.download_documents(detail, force_download=force_download)
-            completed += 1
-    logging.info('RI-Abruf beendet: Sitzungen=%d Monate=%d übersprungen=%d',
-                 completed, len(months), len(skipped))
-    if skipped:
-        logging.warning('Ungeprüfte Sitzungen: %s', ', '.join(skipped))
-    return skipped
+            failures = client.download_documents(detail, force_download=force_download) or []
+            if failures:
+                identifiers = dict.fromkeys(document_id(doc.url) or 'unbekannt' for doc in failures)
+                for identifier in identifiers:
+                    result.failed_documents.append((reference.session_id, identifier))
+                    logging.warning('Sitzung %s: Dokument %s nicht vollständig heruntergeladen.',
+                                    reference.session_id, identifier)
+            else:
+                completed += 1
+    logging.info('RI-Abruf beendet: vollständige_sitzungen=%d Monate=%d übersprungen=%d dokumentfehler=%d',
+                 completed, len(months), len(result.skipped_sessions), len(result.failed_documents))
+    if result.skipped_sessions:
+        logging.warning('Ungeprüfte Sitzungen: %s', ', '.join(result.skipped_sessions))
+    return result
 
 
 def main(argv=None):
@@ -168,10 +183,14 @@ def main(argv=None):
             logging.info('Monatsauswahl auf zugängliche Monate begrenzt: %s', months)
         with login(client_class=RiFetchClient) as client:
             client.persist_raw = True
-            skipped = fetch_months(client, args.year, months, force_download=args.force_download)
-        if skipped:
-            print(f'Hinweis: {len(skipped)} Sitzungen übersprungen; IDs siehe Abrufprotokoll.')
-        return 2 if skipped or client.ri_cleanup_warning or client.proton_cleanup_warning else 0
+            result = fetch_months(client, args.year, months, force_download=args.force_download)
+        if result.skipped_sessions:
+            print(f'Hinweis: {len(result.skipped_sessions)} Sitzungen übersprungen; IDs siehe Abrufprotokoll.')
+        if result.failed_documents:
+            identifiers = ', '.join(f'{session_id}/{identifier}' for session_id, identifier in result.failed_documents)
+            print(f'Hinweis: Dokumentdownloads unvollständig (Sitzung/Dokument): {identifiers}')
+        return 2 if (result.skipped_sessions or result.failed_documents
+                     or client.ri_cleanup_warning or client.proton_cleanup_warning) else 0
     except RiAccessError as error:
         print(f'Abbruch: {error}', file=sys.stderr)
         return 1

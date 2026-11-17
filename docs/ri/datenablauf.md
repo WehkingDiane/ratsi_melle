@@ -128,8 +128,14 @@ wird nicht als Sitzung oder Dokument gespeichert. Dokumentziele sind auf HTTPS
 und `/ri/getfile.asp` auf `session.melle.info` begrenzt; unbekannte Ziele werden
 abgewiesen. Downloadmeldungen zeigen die Dokument-ID statt der URL.
 
-Exitcodes der Online-Aufrufe: `0` erfolgreich, `1` Abbruch, `2` ungeprüfte Sitzungen
-oder unbestätigte Abmeldung. Ein fehlgeschlagener BI-Abgleich wird als Warnung im
+Exitcodes der Online-Aufrufe: `0` erfolgreich, `1` Abbruch, `2` ungeprüfte Sitzungen,
+fehlgeschlagene Dokumentdownloads oder unbestätigte Abmeldung. Dokumentfehler, etwa
+wegen Größenüberschreitung oder erschöpfter Stream-Wiederholungen, stoppen die
+übrigen Downloads nicht. Die betroffene Sitzung zählt als unvollständig; Protokoll
+und Abschlussmeldung nennen Sitzungs- und Dokument-ID. Ein vorhandener alter
+Manifest-Eintrag bleibt bei einem fehlgeschlagenen Download erhalten; ein neues
+Dokument wird erst nach erfolgreichem Download eingetragen. Der Teilstatus gilt
+für den aktuellen Lauf und wird bei einem erfolgreichen Wiederholungslauf aufgehoben. Ein fehlgeschlagener BI-Abgleich wird als Warnung im
 Protokoll und im Manifest festgehalten. Der lokale Build liefert `0` bei Erfolg
 und `1` bei Abbruch; fehlende oder unzulässige Dateien werden mit Warnung
 übersprungen. Teilstände können mit demselben Aufruf erneut verarbeitet werden.

@@ -46,6 +46,8 @@ python -m pytest -q tests/test_ri_config.py tests/test_ri_online_index.py tests/
 
 Die Tests prüfen Anmeldung und Abmeldung mit simulierten Antworten, erlaubte Ziele,
 Abrufgrenze und Konfigurationsfehler, BI-/RI-Dokumentkennzeichnung, wiederholte Builds,
-getrennte Datenbankpfade und den Ausschluss fehlender lokaler Dateien. Integrationstests
+getrennte Datenbankpfade und den Ausschluss fehlender lokaler Dateien. Größen- und
+Streamfehler werden bis zum RI-Exitcode geprüft, einschließlich alter Manifest-Einträge,
+Fortsetzung mit nachfolgenden Sitzungen und erfolgreichem Wiederholungslauf. Integrationstests
 verwenden ausschließlich pytest-Temporärverzeichnisse. Der [RI-Datenablauf](../ri/datenablauf.md)
 ist der verbindliche Ort für Bedienung und Dateiverträge.

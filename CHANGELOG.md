@@ -26,6 +26,7 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 
 ## 0.7.0 – 17.11.2026
 
+- Fehlgeschlagene Dokumentdownloads im RI-Abschlussstatus berücksichtigen: übrige Downloads fortsetzen, betroffene IDs melden und Exitcode `2` liefern.
 - Erprobten RI-CLI-Ablauf ins Projekt übernehmen: Anmeldung, Onlineindex, Dokumentabruf und lokaler Dokumentindex.
 - RI-Daten unter `data/ri/`, Logs unter `logs/ri/`; öffentliche Datenpfade bleiben getrennt.
 - Abrufgrenze ab November 2026 konfigurierbar; Dokumente per BI-Abgleich als `öffentlich` oder `nicht öffentlich` kennzeichnen.
