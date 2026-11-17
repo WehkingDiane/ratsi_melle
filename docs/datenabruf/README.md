@@ -7,4 +7,4 @@
 - [SessionNet / Bürgerinformation](sessionnet.md)
 - [Landkreis Osnabrück](landkreis.md)
 
-Ein RI-Dokumentabruf ist noch nicht aktiv; siehe [RI-Status](../ri/README.md).
+Der getrennte RI-Abruf und lokale Dokumentindex sind per CLI verfügbar; Bedienung und Pfade stehen im [RI-Datenablauf](../ri/datenablauf.md), der weitere Umfang im [RI-Status](../ri/README.md).
