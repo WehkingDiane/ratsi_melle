@@ -9,7 +9,7 @@
 | Suche nutzen und Indizes pflegen | [Suche](suche/README.md) |
 | Sitzungen ansehen und Datenjobs starten | [Weboberfläche](oberflaeche/README.md) |
 | Analysen vorbereiten und Ergebnisse lesen | [Analyse](analyse/README.md) |
-| RI-Zugang einrichten | [Zugangsanleitung](ri/zugang.md) und [Umsetzungsstand](ri/README.md) |
+| Ratsbereich einrichten und Daten abrufen | [Zugangsanleitung](ri/zugang.md), [CLI-Datenablauf](ri/datenablauf.md) und [Umsetzungsstand](ri/README.md) |
 | Datenpfade oder Fehler untersuchen | [Datenpflege](betrieb/datenpflege.md) und [Fehlerbehebung](betrieb/fehlerbehebung.md) |
 | Am Projekt entwickeln | [Repository-Regeln](entwicklung/repository_guidelines.md), [Tests](entwicklung/tests.md), [UI-Regeln](entwicklung/ui_guidelines.md) |
 

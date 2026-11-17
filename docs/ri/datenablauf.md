@@ -37,16 +37,15 @@ Es werden keine dauerhaften HTTP-Cookies gespeichert.
 
 | Inhalt | Standardpfad |
 | --- | --- |
-| RI-Bestand | `data/private/ri/` |
-| Kalender, Sitzungsseiten, TOPs, Manifeste und Dokumente | `data/private/ri/raw/YYYY/MM/` |
-| Onlineindex | `data/private/ri/db/online_session_index.sqlite` |
-| Lokaler Dokumentindex | `data/private/ri/db/local_index.sqlite` |
+| RI-Bestand | `data/ri/` |
+| Kalender, Sitzungsseiten, TOPs, Manifeste und Dokumente | `data/ri/raw/YYYY/MM/` |
+| Onlineindex | `data/ri/db/online_session_index.sqlite` |
+| Lokaler Dokumentindex | `data/ri/db/local_index.sqlite` |
 | RI-Protokolle | `logs/ri/<skriptname>.log` |
 | Standard-Abrufgrenze | `src/config/ri.json` |
-| Optionale lokale Konfiguration | `data/private/ri/config.json` |
+| Optionale lokale Konfiguration | `data/ri/config.json` |
 
-Die RI-Wurzel liegt unter `PRIVATE_DATA_DIR/ri`; bei gesetztem
-`RATSI_PRIVATE_DATA_DIR` folgt sie dessen privater Datenwurzel. RI-Laufzeitdaten,
+Die RI-Wurzel liegt unter `data/ri/`. RI-Laufzeitdaten,
 Zugangsdaten und Protokolle werden nicht versioniert. Sie liegen außerhalb der
 öffentlichen Rohdaten- und Datenbankpfade und werden nicht in öffentliche Suche,
 Exporte oder Oberfläche eingebunden. Auch als öffentlich gekennzeichnete RI-Dateien
@@ -88,7 +87,9 @@ Auswahl nach Dokumentart ist noch nicht umgesetzt.
 Der lokale Index übernimmt diese Felder aus dem Manifest und führt keinen neuen
 BI-Abgleich aus. Fehlende Kennzeichnungen ergeben `nicht öffentlich`. Die interne
 SQLite-Spalte `id` bleibt vom SessionNet-Feld `document_id` getrennt.
-`local_path` ist relativ zum `session_path` aufzulösen. Für die Datenbank dürfen
+`session_path` wird für den regulären Bestand relativ zum Repository-Stamm gespeichert,
+damit Windows und WSL denselben Index verwenden können. `local_path` ist relativ
+zu diesem Sitzungsordner aufzulösen. Für die Datenbank dürfen
 veraltete Metadaten aus gespeichertem Sitzungs-HTML neu geparst werden; bestehende
 Dateizuordnungen und Kennzeichnungen bleiben dabei erhalten. Rohdateien und
 Manifeste werden durch den Build nicht verändert.
@@ -143,7 +144,7 @@ keine Betriebssystem-Zugriffsrechte.
 
 ## Übernahme des bisherigen Testbestands
 
-Der zuvor unter `tmp/ri/` erprobte Bestand wurde lokal in die private RI-Wurzel
+Der zuvor unter `tmp/ri/` erprobte Bestand wurde lokal in die RI-Wurzel
 kopiert. Rohdateien und Manifeste wurden bytegleich geprüft, der Onlineindex per
 SQLite-Backup übernommen und der lokale Index am neuen Ort neu aufgebaut.
 Die bisherigen Dateien unter `tmp/` bleiben als Rückfallebene bestehen und werden

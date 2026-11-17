@@ -42,7 +42,9 @@ def test_document_target_checked_before_request(url, tmp_path):
         client._request('GET', url, stream=True)
 
 
-def test_main_uses_login_and_download_flow(monkeypatch):
+@pytest.mark.integration
+def test_main_uses_login_and_download_flow(monkeypatch, tmp_path):
+    monkeypatch.setattr("src.config.ri.RI_ROOT", tmp_path)
     from contextlib import contextmanager
     from types import SimpleNamespace
     events = []
@@ -124,7 +126,9 @@ def test_access_failure_still_aborts():
         fetch.fetch_months(client, 2026, [11])
 
 
-def test_main_reports_incomplete_run_after_logout(monkeypatch, capsys):
+@pytest.mark.integration
+def test_main_reports_incomplete_run_after_logout(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("src.config.ri.RI_ROOT", tmp_path)
     from contextlib import contextmanager
     from types import SimpleNamespace
     events = []

@@ -1,4 +1,4 @@
-"""Lokalen RI-Sitzungs- und Dokumentindex unter data/private/ri bauen; ohne Anmeldung oder Downloads."""
+"""Lokalen RI-Sitzungs- und Dokumentindex unter data/ri bauen; ohne Anmeldung oder Downloads."""
 
 from __future__ import annotations
 
@@ -277,7 +277,7 @@ def _populate(
                 None,
                 session_info.get("location"),
                 session_info.get("detail_url"),
-                str(session.path),
+                portable_session_path(session.path),
             ),
         )
         conn.execute("UPDATE sessions SET source_state = ? WHERE session_id = ?",
@@ -602,12 +602,20 @@ def checked_paths(data_root: Path, output_path: Path) -> tuple[Path, Path]:
     data_root = (REPO_ROOT / data_root).resolve()
     output_path = (REPO_ROOT / output_path).resolve()
     if not data_root.is_relative_to((RI_ROOT / "raw").resolve()) or not data_root.is_dir():
-        raise ValueError("Datenquelle muss ein vorhandener Ordner unter data/private/ri/raw sein.")
+        raise ValueError("Datenquelle muss ein vorhandener Ordner unter data/ri/raw sein.")
     if (not output_path.is_relative_to((RI_ROOT / "db").resolve())
             or output_path.suffix != ".sqlite"
             or output_path == (RI_ROOT / "db/online_session_index.sqlite").resolve()):
-        raise ValueError("Ausgabe muss eine separate .sqlite-Datei unter data/private/ri/db sein.")
+        raise ValueError("Ausgabe muss eine separate .sqlite-Datei unter data/ri/db sein.")
     return data_root, output_path
+
+
+def portable_session_path(path: Path) -> str:
+    """Store repository-relative paths so Windows and WSL can share the index."""
+    resolved = path.resolve()
+    if resolved.is_relative_to(REPO_ROOT):
+        return resolved.relative_to(REPO_ROOT).as_posix()
+    return str(resolved)
 
 
 def local_document_path(session_path: Path, document: dict) -> Path | None:

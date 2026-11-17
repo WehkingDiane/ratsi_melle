@@ -10,7 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 DATA_ROOT = REPO_ROOT / "data"
 PRIVATE_DATA_DIR = Path(os.environ.get("RATSI_PRIVATE_DATA_DIR", DATA_ROOT / "private")).expanduser()
-RI_DATA_DIR = PRIVATE_DATA_DIR / "ri"
+RI_DATA_DIR = DATA_ROOT / "ri"
 RI_RAW_DATA_DIR = RI_DATA_DIR / "raw"
 RI_DB_DIR = RI_DATA_DIR / "db"
 RI_LOCAL_INDEX_DB = RI_DB_DIR / "local_index.sqlite"

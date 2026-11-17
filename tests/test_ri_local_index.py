@@ -105,3 +105,14 @@ def test_public_and_online_outputs_rejected(setup):
     with pytest.raises(ValueError):
         builder.build_index(raw.parent, output, False, False)
     assert not output.exists()
+
+
+def test_repository_session_paths_are_portable(setup, monkeypatch):
+    raw, output = setup
+    monkeypatch.setattr(builder, 'REPO_ROOT', raw.parent.parent)
+    seed(raw)
+    builder.build_index(raw, output, False, False)
+    with sqlite3.connect(output) as conn:
+        path = conn.execute('SELECT session_path FROM sessions').fetchone()[0]
+    assert path == 'ri/raw/2026/11/2026-11-19-Ausschuss-8174'
+    assert (builder.REPO_ROOT / path).is_dir()

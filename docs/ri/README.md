@@ -2,25 +2,46 @@
 
 [Dokumentation](../README.md)
 
-Der RI-Zugang verwendet ab 0.6.0 eine lokale Token-Datei `.env/ri_token.txt`. Unter Windows und Linux/WSL gibt es dieselben zwei Checks für Proton-Anmeldung und RI-Zugriff. Speicherpasswörter, Token-Speicherhilfen und separate Eintragsbindung entfallen. Die [RI-Zugangsanleitung](zugang.md) ist der verbindliche Ort für Einrichtung, Befehle und Fehlerbehebung.
+Seit 0.7.0 steht der im lokalen Testbereich erprobte RI-Datenablauf als reguläres
+CLI-Paket bereit. Der Bestand liegt getrennt unter `data/ri/` und wird nicht von
+öffentlichen Datenjobs oder der öffentlichen Oberfläche eingelesen.
 
-- [Einrichtung und Checks](zugang.md)
-- [Weiterer Ausbau](../plans/ri_ratsbereich_plan.md)
+- [Zugang einrichten und prüfen](zugang.md)
+- [Onlineindex, Dokumentabruf und lokalen Index bedienen](datenablauf.md)
+- [Weiterer Ausbau und offene Entscheidungen](../plans/ri_ratsbereich_plan.md)
 
-## Implementierung
+## Vorhandene Implementierung
 
-`src/config/ri_proton.py` liest den Token aus der von Git ausgeschlossenen Datei, unabhängig vom Arbeitsverzeichnis. Fehlende, leere oder ungültige Dateien erzeugen feste Hinweise ohne Tokeninhalt. Proton-CLI-Sitzungen verwenden ein neues temporäres Verzeichnis mit Dateischlüssel statt Betriebssystem-Keyring; nach dem Check wird dieses entfernt. Der Token gelangt ausschließlich in die Umgebung des Login-Unterprozesses. Zugangsdaten werden in Darstellungen maskiert.
+`src/config/ri_proton.py` liest den Token aus `.env/ri_token.txt` und stellt genau
+die Zugangsdaten des freigegebenen Proton-Logins bereit. Temporäre CLI-Dateisitzungen
+ersetzen den OS-Keyring; Zugangsdaten werden nicht versioniert oder ausgegeben.
+Die Check-Skripte unter `scripts/setup/` bleiben für die Einrichtung verfügbar.
 
-`scripts/setup/check_ri_proton_login.py` prüft Proton-Anmeldung und zeigt die sichtbaren Tresore. `scripts/setup/check_ri_access.py` akzeptiert genau einen sichtbaren Tresor mit genau einem aktiven Login, liest dessen Zugangsfelder intern und prüft die RI-Anmeldung samt Abmeldung. Eine dauerhafte Bindung an frühere IDs wird nicht mehr geprüft. Die Freigabe des Tokens bestimmt, welcher einzelne RI-Eintrag zugänglich ist. Tresor-, Eintrags- und Rechteänderungen sind im Anwendungscode nicht vorgesehen.
+`src/fetching/ri_login.py` prüft den Anmeldeablauf. `src/fetching/ri_session.py`
+verbindet ihn mit dem SessionNet-Metadatentransport und der automatischen Abmeldung.
+Die regulären Einstiege sind `scripts/login_ri.py`,
+`scripts/build_ri_online_index_db.py`, `scripts/fetch_ri_sessions.py` und
+`scripts/build_ri_local_index.py`.
 
-`src/fetching/ri_login.py` verwendet feste HTTPS-Ziele, begrenzte HTML-Antworten und flüchtige HTTP-Cookies. Das Passwort wird höchstens einmal an den geprüften Anmeldeendpunkt gesendet; Hostwechsel und Wiederholung des Passwort-POST bei Weiterleitungen werden abgewiesen. Geschützte Seiten und RI-Unterlagen werden nicht gespeichert.
+Der Onlineindex enthält sichtbare Metadaten; der lokale Index erfasst tatsächlich
+vorhandene Dokumentdateien. Der Abruf übernimmt Dokument-ID und BI-Verlinkung als
+Kennzeichnung `öffentlich` oder `nicht öffentlich`. Fehlende oder fehlgeschlagene
+BI-Nachweise ergeben `nicht öffentlich`. Ein solcher Eintrag bleibt trotzdem im
+RI-Bestand; es gibt keine automatische Übernahme in öffentliche Indizes.
+Pfade, Konfiguration, Befehle und Fehlerbehandlung stehen verbindlich in der
+[CLI-Anleitung](datenablauf.md).
 
 ## Abnahme und Grenzen
 
-Die frühere Umsetzung bis 0.5.76 mit OS-Tokenablage und fester Eintragsbindung wurde auf beiden Betriebssystemen real bestätigt. Der Dateifluss ab 0.6.0 ist mit synthetischen Dateien, CLI-Antworten und RI-Antworten geprüft; Windows-Nutzerläufe bestätigen beide Checks einschließlich RI-Abmeldung; die entfernte Proton-Abmeldung bleibt dort unbestätigt. Begrenzte WSL-Erkundungsläufe bestätigten RI- und normale Proton-Abmeldung. Eine nicht bestätigte entfernte Proton-Abmeldung bleibt als Warnstatus sichtbar. Neustart-/Ablaufverhalten und unbeaufsichtigter Betrieb sind nicht abgenommen.
+Der Prototyp wurde mit echten RI-Abrufen unter Windows und lokalen Builds unter
+Windows und WSL geprüft. Bei der Übernahme ins Projekt wurden Rohdateien bytegleich
+kopiert, der Onlineindex geprüft und der lokale Index am neuen Ort neu aufgebaut.
+Die regulären Skripte sind mit gezielten Offline-Tests geprüft; ein neuer Live-Abruf
+mit den verschobenen Skripten wurde bei der Übernahme nicht ausgeführt.
 
-RI-Dokumentabruf, Datenhaltung, Index und geschützter Webzugang sind noch nicht aktiviert. Historische Änderungen stehen im [Changelog](../../CHANGELOG.md).
-
-## Vorläufige Richtung der ersten Ausbaustufe
-
-Geplant ist ein temporärer RI-Arbeitsbestand für kommende Sitzungen mit einer kleinen Datenbank ausschließlich lokal vorhandener Dokumente. Eine RI-Volltext-/Vektorindexierung ist zunächst nicht vorgesehen. Die Bewertung, offenen Zeit-/Löschregeln und die vorrangige noch fehlende Stichprobe des Verwaltungsausschusses stehen im [Hauptplan](../plans/ri_ratsbereich_plan.md#bewertung-und-offene-regeln-des-temporären-arbeitsbestands). Abrufzeitfilter und regelmäßige Bereinigung sind noch nicht implementiert.
+Die entfernte Proton-Abmeldung bleibt unter Windows teilweise unbestätigt und wird
+als eigener Warnstatus angezeigt. Neustart-/Ablaufverhalten und unbeaufsichtigter
+Betrieb sind nicht abgenommen. Geschützte Webanbindung, Bestandsbereinigung und die
+Bedarfsstichprobe des Verwaltungsausschusses sind offen. RI-Volltext- und
+Vektorindexierung sind nicht Teil dieser Ausbaustufe. Historische Änderungen stehen
+im [Changelog](../../CHANGELOG.md).
