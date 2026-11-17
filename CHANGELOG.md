@@ -24,6 +24,11 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 - Ältere Änderungen als Stichpunkte nachgetragen und absteigend geordnet. Die Anwendungsversion bleibt bei 0.5.76.
 - Versionsregeln präzisiert: Versionen pro Änderungspaket, Minor für größere Funktionsausbauten, kein Versionswechsel für reine Dokumentationsänderungen. Historische Nummern bleiben erhalten.
 
+## 0.6.1 – 17.11.2026
+
+- Downloadmeldungen zeigen die Dokument-ID statt der vollständigen URL; ohne eindeutige ID erscheint `unbekannt`.
+- SessionNet-Manifest um `document_id` ergänzen; URL beibehalten und vorhandene Einträge beim nächsten Abruf aktualisieren.
+
 ## 0.6.0 – 10.11.2026
 
 - RI-Token aus der lokalen Datei `.env/ri_token.txt` lesen; gesamter Ordner von Git ausgeschlossen. Die unverschlüsselte Datei ersetzt die bisherige RI-Tokenablage im Betriebssystemspeicher.
