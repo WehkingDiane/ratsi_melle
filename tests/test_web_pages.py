@@ -1765,7 +1765,7 @@ def test_answer_reader_only_lists_jobs_with_readable_answers(client, monkeypatch
     assert soup.select_one('.answer-document a[href="/analyse/jobs/1/"]') is not None
 
 
-@pytest.mark.parametrize("suffix", ["", "zugang/", "sitzungen/", "suche/", "daten/", "daten/fetch/", "daten/build/", "daten/vektor/"])
+@pytest.mark.parametrize("suffix", ["sitzungen/", "suche/", "daten/vektor/"])
 def test_ri_placeholders_are_informational_only(client, monkeypatch, suffix):
     from core import service_jobs
     def unexpected(*args, **kwargs):

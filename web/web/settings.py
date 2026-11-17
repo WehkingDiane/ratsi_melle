@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import secrets
 import sys
 from pathlib import Path
 
@@ -13,11 +15,13 @@ if str(REPO_ROOT) not in sys.path:
 
 from src.observability import django_logging_config
 
-SECRET_KEY = "local-development-only"
+SECRET_KEY = os.environ.get("RATSI_WEB_SECRET_KEY") or secrets.token_urlsafe(50)
 DEBUG = True
 ALLOWED_HOSTS = ["127.0.0.1", "localhost", "testserver"]
 
 INSTALLED_APPS = [
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.staticfiles",
     "core",
@@ -31,6 +35,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -71,3 +76,9 @@ STATICFILES_DIRS = [BASE_DIR / "core" / "static"]
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LOGGING = django_logging_config("web")
+
+LOGIN_URL = "ri:login"
+LOGIN_REDIRECT_URL = "ri:status"
+LOGOUT_REDIRECT_URL = "ri:login"
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_COOKIE_AGE = 3600

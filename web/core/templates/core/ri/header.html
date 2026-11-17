@@ -1,0 +1,11 @@
+<header class="page-heading">
+  <p class="eyebrow">Ratsbereich</p><h1>{{ title }}</h1>
+  <p>Angemeldet als {{ request.user.get_username }}.</p>
+  <form method="post" action="{% url 'ri:logout' %}">{% csrf_token %}<button class="button utility small" type="submit">Abmelden</button></form>
+</header>
+<nav class="panel" aria-label="RI-Datenpflege">
+  <a class="button secondary" href="{% url 'ri:access' %}">Zugang</a>
+  <a class="button secondary" href="{% url 'ri:fetch' %}">Unterlagen herunterladen</a>
+  <a class="button secondary" href="{% url 'ri:build' %}">Datenbank aktualisieren</a>
+  <a class="button secondary" href="{% url 'ri:status' %}">Datenstatus und Jobs</a>
+</nav>

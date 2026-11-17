@@ -24,6 +24,13 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 - Ältere Änderungen als Stichpunkte nachgetragen und absteigend geordnet. Die Anwendungsversion bleibt bei 0.5.76.
 - Versionsregeln präzisiert: Versionen pro Änderungspaket, Minor für größere Funktionsausbauten, kein Versionswechsel für reine Dokumentationsänderungen. Historische Nummern bleiben erhalten.
 
+## 0.8.0 – 17.11.2026
+
+- RI-Skripte über geschützte Webformulare für Zugang, Download und Datenbankaufbau starten.
+- Lokale Django-Anmeldung für aktive Mitarbeiterkonten ergänzen; Portalzugang bleibt separat.
+- RI-Aufträge mit eigenem Status, geschützter Ausgabe und Parallelitätsschutz unter `data/ri/db/ri_jobs.sqlite` ablegen; Exitcode `2` als Abschluss mit Hinweisen anzeigen.
+- Öffentliche Joblisten und Datenpflege bleiben von RI-Aufträgen getrennt. Sitzungsanzeige, Dateiauslieferung und Bereinigung bleiben offen.
+
 ## 0.7.0 – 17.11.2026
 
 - Fehlgeschlagene Dokumentdownloads im RI-Abschlussstatus berücksichtigen: übrige Downloads fortsetzen, betroffene IDs melden und Exitcode `2` liefern.

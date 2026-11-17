@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Anmelden – Ratsbereich{% endblock %}
+{% block content %}
+<header class="page-heading"><p class="eyebrow">Ratsbereich</p><h1>Anmelden</h1><p>Mit dem lokalen Benutzerkonto für die RI-Datenpflege anmelden.</p></header>
+<section class="panel"><h2>Lokaler Webzugang</h2>
+<form method="post" class="form-stack">{% csrf_token %}{{ form.as_div }}<input type="hidden" name="next" value="{{ next }}"><button class="button primary" type="submit">Anmelden</button></form>
+<p>Dieser Zugang ist unabhängig vom Portalzugang. Benutzerkonten werden lokal eingerichtet; Portalpasswort und Token werden hier nicht eingegeben.</p>
+</section>
+{% endblock %}
