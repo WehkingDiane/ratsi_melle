@@ -204,6 +204,7 @@ class SessionNetClient:
                     manifest_entries.append({
                         **existing_entry, "title": document.title, "category": document.category,
                         "agenda_item": document.on_agenda_item, "url": document.url,
+                        "document_id": self._extract_document_id(document.url),
                     })
                 return
 
@@ -726,6 +727,21 @@ class SessionNetClient:
 
         return False
 
+    @staticmethod
+    def _extract_document_id(url: str) -> str | None:
+        """Return the unique numeric ID from a SessionNet document link."""
+        try:
+            parsed = urlparse(url)
+            values = parse_qs(parsed.query, keep_blank_values=True).get("id", [])
+        except ValueError:
+            return None
+        if (
+            not parsed.path.lower().endswith("/getfile.asp")
+            or len(values) != 1 or not values[0].isascii() or not values[0].isdigit()
+        ):
+            return None
+        return values[0]
+
     def _build_manifest_entry(
         self,
         *,
@@ -745,6 +761,7 @@ class SessionNetClient:
             "category": document.category,
             "agenda_item": document.on_agenda_item,
             "url": document.url,
+            "document_id": self._extract_document_id(document.url),
             "path": resolved_path.relative_to(resolved_target_dir).as_posix(),
             "sha1": sha1,
             "content_type": headers.get("Content-Type"),
@@ -1001,6 +1018,7 @@ class SessionNetClient:
                         "category": document.category,
                         "agenda_item": document.on_agenda_item,
                         "url": document.url,
+                        "document_id": self._extract_document_id(document.url),
                         "path": None,
                         "sha1": None,
                         "content_type": None,

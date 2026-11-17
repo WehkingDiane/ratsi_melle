@@ -16,3 +16,9 @@ python scripts/fetch_bi_session_from_index.py --session-id 7128
 ```
 
 Jahr, Monate und Sitzungs-ID sind Beispiele und müssen zum gewünschten Bestand passen. Der Online-Index ermöglicht die Auswahl einzelner Sitzungen; der direkte Monatsabruf ist ein weiterer Einstieg. Anschließend die [lokalen Indizes](../suche/indizes.md) aufbauen. Die Datenjobs sind auch in der [Weboberfläche](../oberflaeche/README.md) erreichbar.
+
+## Dokument-ID im Manifest
+
+Dokumenteinträge in `manifest.json` enthalten neben `url` die `document_id` als Zeichenfolge, beispielsweise `"document_id": "145474"`. Sie stammt aus dem Parameter `id` des `getfile.asp`-Links. Fehlt eine eindeutige numerische ID, steht dort `null`.
+
+Neue und beim erneuten Abruf geschriebene Manifeste erhalten das Feld auch für wiederverwendete Dateien. Bestehende Manifeste werden nicht automatisch im gesamten Datenbestand umgeschrieben; ein Löschen vorhandener Dokumente ist nicht erforderlich.
