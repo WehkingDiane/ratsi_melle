@@ -6,6 +6,10 @@ Seit 0.8.0 lassen sich die RI-Skripte in der lokalen Django-Oberfläche starten.
 Der Ratsbereich ist wie die übrige Oberfläche direkt ohne Web-Anmeldung und ohne
 Benutzerkonto nutzbar. Die RI-Jobhistorie bleibt von den öffentlichen Datenjobs getrennt.
 
+Der aktuelle RI-Webstand ist ein Prototyp. Die Angleichung an den BI-Bereich und
+die gemeinsame Nutzung geeigneter Frontend- und Backendkomponenten folgen gemäß
+[Aufgabenliste](../plans/project_tasks.md).
+
 ## Einrichtung
 
 Beim erstmaligen Einrichten aus dem Repository-Stamm mit der passenden Python-Umgebung:

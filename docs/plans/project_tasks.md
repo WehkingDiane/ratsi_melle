@@ -18,14 +18,18 @@ ohne RI-Volltext-/Vektorindex. Ein Zeitfilter für heutige/künftige Sitzungen,
 Nachlauf und Löschfristen sind noch offen. Die einzelne entfernte
 Proton-Abmeldewarnung bleibt sichtbar; unbeaufsichtigter Betrieb ist nicht abgenommen.
 
+Der Stand der RI-Webanbindung wird als erster funktionsfähiger Prototyp übernommen. Die Vereinheitlichung mit dem BI-Bereich ist eine anschließende Aufgabe für Frontend und Backend.
+
 ## RI-Vorhaben
 
 #### Konkrete Aufgaben
 
+- [ ] BI und RI systematisch auf fachlich identische Teile prüfen: im Frontend Seitenaufbau, Templates, Formulare, Status- und Ausgabeansichten; im Backend Skripte, Befehlsaufbau, Abruf-/Build-Logik und Jobverwaltung. Gemeinsamkeiten und notwendige Bereichsunterschiede festhalten.
+- [ ] Geeignete gemeinsame Teile schrittweise in wiederverwendbare Objekte, Funktionen, Module oder Skripte überführen und beide Bereiche darauf umstellen. Getrennte Daten-/Jobablagen, RI-Portalzugang und Öffentlichkeitskennzeichnung erhalten; Frontend und Backend mit gezielten Regressionstests absichern.
 - [ ] Verwaltungsausschuss anhand von HTML-Struktur und Dokumentmetadaten als priorisierte Bedarfsstichprobe prüfen; bisherige Sitzungen ersetzen diese Prüfung nicht.
 - [ ] Dokumentartauswahl für die weitere Nutzung präzisieren; der aktuelle CLI-Abruf übernimmt verlinkte Sitzungs- und TOP-Dokumente einschließlich Einladungen. Umgang mit Sammelunterlagen, Anlagen und Dubletten entscheiden.
 - [ ] Zeitgrenze für heutige/laufende, abgesagte und verschobene Sitzungen sowie Nachlauf, Aufbewahrung und Löschfristen verbindlich festlegen.
 - [ ] Kontrollierte RI-Bereinigung mit Vorschau und konsistentem Datenbankabgleich umsetzen; entfernte Sitzungen und Nebenartefakte berücksichtigen, BI-Dateien ausschließen.
 - [ ] Betriebsmodell und Betriebssystem-Zugriffsrechte einschließlich Sicherung und Wiederherstellung für den regulären RI-Bestand abnehmen; zurückgestellte Neustart-/Ablauf- und Proton-Abmeldeprüfungen bei erweitertem Betrieb nachholen.
 - [ ] Lokalen Dokumentbestand mit Sitzungsansichten und Dateiauslieferung mit Pfadprüfung in die RI-Oberfläche integrieren; die Skriptsteuerung ist bereits angebunden.
-- [ ] Web- und Exporttrennung für die spätere Sitzungs-/Dateianbindung mit Negativtests und einer begrenzten lokalen RI-Stichprobe abnehmen; den echten Skriptablauf über die vorhandenen Webformulare nach Kontoeinrichtung prüfen.
+- [ ] Web- und Exporttrennung für die spätere Sitzungs-/Dateianbindung mit Negativtests und einer begrenzten lokalen RI-Stichprobe abnehmen; den echten Skriptablauf über die vorhandenen Webformulare im lokalen Betrieb prüfen.

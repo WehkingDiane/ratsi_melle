@@ -1,6 +1,6 @@
 # Plan: RI-Skripte in die Oberfläche einbinden
 
-Stand: 17.11.2026. Status: implementiert und offline sowie im Browser mit synthetischen Daten geprüft. Arbeitsbranch: `codex/feature/ri-ui-scripts`.
+Stand: 17.11.2026. Status: erster funktionsfähiger Prototyp, offline und im Browser mit synthetischen Daten geprüft. Arbeitsbranch: `codex/feature/ri-ui-scripts`.
 
 ## Umfang und Entscheidungen
 
@@ -29,6 +29,8 @@ Exitcode 2 wird als abgeschlossener Auftrag mit Hinweisen angezeigt.
 - [x] Gezielte Tests für Direktzugriff ohne Anmeldung, alte Login-Links, CSRF, Befehlsparameter, Datenisolation und Jobzustände ergänzen; betroffene bisherige Platzhaltertests aktualisieren.
 - [x] Neue RI-Seiten mit synthetischen Daten im Browser prüfen, ohne reale Downloads oder Portalprüfungen zu starten.
 - [x] Zugangseinrichtung, Bedienung, Ist-Stand und offene Aufgaben nachführen; Version und Changelog gemeinsam aktualisieren.
+
+Die anschließende Prüfung und Wiederverwendung gemeinsamer BI-/RI-Teile in Frontend und Backend wird in der [Aufgabenliste](project_tasks.md) geführt.
 
 ## Abnahme
 

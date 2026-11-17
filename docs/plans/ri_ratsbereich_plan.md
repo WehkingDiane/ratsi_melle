@@ -107,6 +107,16 @@ Die [Navigationsübersicht](navigation.md) beschreibt den ursprünglichen Entwur
 Jobmeldungen dürfen keine unberechtigten RI-Metadaten anzeigen.
 Für eine spätere Netzwerkbereitstellung sind Debug-Modus, stabiler Secret-Key, HTTPS und Sitzungsverhalten gesondert abzustimmen; die aktuelle Konfiguration bleibt lokal. Kennzeichnung und Herkunft bleiben auf den RI-Seiten sichtbar.
 
+## Wiederverwendung zwischen BI und RI
+
+Der erste RI-Webstand wird als funktionsfähiger Prototyp übernommen. Danach werden
+Frontend und Backend beider Bereiche auf fachlich identische Abläufe und Strukturen
+geprüft. Geeignete Teile sollen gemeinsame Objekte, Funktionen, Module oder Skripte
+verwenden. Dazu gehören insbesondere Formulare, Seiten-/Ausgabebausteine,
+Befehlsaufbau sowie Abruf-, Build- und Joblogik. Bereichsabhängige Konfiguration und
+Verhalten bleiben ausdrücklich erhalten. Die konkreten offenen Arbeiten stehen
+verbindlich in der [Aufgabenliste](project_tasks.md).
+
 ## Nächste Schritte und Abnahme
 
 Die [Aufgabenliste](project_tasks.md) enthält ausschließlich die offenen Arbeitspakete.

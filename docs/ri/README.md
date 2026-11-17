@@ -11,6 +11,11 @@ CLI-Paket bereit. Der Bestand liegt getrennt unter `data/ri/` und wird nicht von
 - [RI-Skripte über die Oberfläche starten](oberflaeche.md)
 - [Weiterer Ausbau und offene Entscheidungen](../plans/ri_ratsbereich_plan.md)
 
+Der RI-Webbereich ist ein erster funktionsfähiger Prototyp für den lokalen Betrieb.
+Seiten und Ausgaben sind noch nicht vollständig mit dem BI-Bereich vereinheitlicht.
+Die Prüfung gemeinsamer Frontend- und Backendteile und ihre Überführung in
+wiederverwendbare Komponenten stehen in der [Aufgabenliste](../plans/project_tasks.md).
+
 ## Vorhandene Implementierung
 
 `src/config/ri_proton.py` liest den Token aus `.env/ri_token.txt` und stellt genau
