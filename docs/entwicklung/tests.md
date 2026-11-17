@@ -25,3 +25,13 @@ RATSI_PDF_STRESS=1 python -m pytest tests/test_pdf_fixtures.py::test_pdf_stress_
 ```
 
 Unter PowerShell vor dem gezielten pytest-Aufruf `$env:RATSI_PDF_STRESS = "1"` setzen und anschließend mit `Remove-Item Env:RATSI_PDF_STRESS` entfernen. Herkunft und Pflege der Dateien stehen in der [Fixture-Dokumentation](../../tests/fixtures/pdf/README.md).
+
+## Dokument-IDs und Downloadmeldungen
+
+Gezielte Offline-Prüfung der SessionNet-Manifest- und Downloadänderungen:
+
+```bash
+python -m pytest -q tests/test_sessionnet_client_documents.py tests/test_sessionnet_completed_downloads.py tests/test_sessionnet_detail_parser.py tests/test_sessionnet_incremental_downloads.py
+```
+
+Die Tests prüfen eindeutige und fehlende Dokument-IDs, Metadaten ohne lokale Datei, die Ergänzung alter Manifest-Einträge auch bei Wiederverwendung oder fehlgeschlagenem Download sowie Downloadmeldungen mit ID bei unveränderter Abruf-URL. Netzwerkantworten sind simuliert; vorhandene Laufzeitdaten werden nicht verändert. Die einmalige lokale Nachpflege ist in der [Abrufanleitung](../datenabruf/sessionnet.md#dokument-id-im-manifest) dokumentiert.

@@ -127,6 +127,7 @@ def test_manifest_entries_recover_existing_document_by_url_hash_without_writing(
     assert len(manifest_entries) == 1
     assert manifest_entries[0]["path"] == document_path.relative_to(session_dir).as_posix()
     assert manifest_entries[0]["content_length"] == 3
+    assert manifest_entries[0]["document_id"] == "3001"
     assert not (session_dir / "manifest.json").exists()
 
 
@@ -309,3 +310,24 @@ def test_download_documents_reuses_cache(tmp_path, monkeypatch):
     manifest = (client._build_session_directory(reference) / "manifest.json").read_text(encoding="utf-8")
     entries = json.loads(manifest)["documents"]
     assert len(entries) == 3
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(("query", "expected_id"), [("id=3001&type=do", "3001"), ("type=do", None)])
+def test_metadata_only_entries_include_document_id_without_creating_manifest(tmp_path, query, expected_id):
+    document = DocumentReference("Vorlage", "https://session.melle.info/bi/getfile.asp?" + query)
+    detail = SessionDetail(
+        reference=_sample_reference(), agenda_items=[], session_documents=[document],
+        retrieved_at=datetime(2025, 10, 1, 12, 0, 0), raw_html="",
+    )
+    client = SessionNetClient(storage_root=tmp_path, persist_raw=False)
+    session_dir = tmp_path / "not_downloaded"
+
+    entries = client.manifest_entries_from_detail(session_dir, detail)
+
+    assert len(entries) == 1
+    assert "document_id" in entries[0]
+    assert entries[0]["document_id"] == expected_id
+    assert entries[0]["url"] == document.url
+    assert entries[0]["path"] is None
+    assert not session_dir.exists()

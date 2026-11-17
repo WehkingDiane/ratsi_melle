@@ -248,6 +248,10 @@ def test_failed_completion_check_retains_metadata_and_retries_without_stale_cach
     detail = _detail()
     client = SessionNetClient(storage_root=tmp_path)
     path = _seed(client, detail, checked=False)
+    manifest_path = path.parent / "manifest.json"
+    legacy = json.loads(manifest_path.read_text(encoding="utf-8"))
+    del legacy["documents"][0]["document_id"]
+    manifest_path.write_text(json.dumps(legacy), encoding="utf-8")
     calls = []
 
     def failing_request(self, method, url, **kwargs):
@@ -261,6 +265,7 @@ def test_failed_completion_check_retains_metadata_and_retries_without_stale_cach
     assert failed["documents"][0]["downloaded_at"] == "2020-01-01T10:00:00Z"
     assert failed["documents"][0]["document_id"] == "123"
     assert failed["documents"][0]["verified_at"] is None
+    assert {key: value for key, value in failed["documents"][0].items() if key != "document_id"} == legacy["documents"][0]
     assert path.read_bytes() == b"%PDF-existing"
 
     def successful_request(self, method, url, **kwargs):
