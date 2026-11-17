@@ -46,7 +46,8 @@ def script_page(request, page):
     errors = []
     for key in actions:
         label, _, form_class = ACTIONS[key]
-        form = form_class(request.POST if action == key else None, initial={'year': timezone.localdate().year})
+        form = form_class(request.POST if action == key else None, initial={'year': timezone.localdate().year},
+                          auto_id=f'id_{key}_%s')
         if action == key and form.is_valid():
             try:
                 job_id = ri_jobs.start_job(key, request.POST)
@@ -63,14 +64,14 @@ def script_page(request, page):
 
 def _database_status(path):
     if not Path(path).is_file():
-        return {'state': 'noch nicht aufgebaut'}
+        return {'state': 'noch nicht aufgebaut', 'sessions': None, 'agenda_items': None, 'documents': None}
     try:
         with sqlite3.connect(f'{Path(path).resolve().as_uri()}?mode=ro', uri=True) as connection:
             values = {table: connection.execute('SELECT COUNT(*) FROM ' + table).fetchone()[0]
                       for table in ('sessions', 'agenda_items', 'documents')}
         return {'state': 'vorhanden', **values}
     except sqlite3.Error:
-        return {'state': 'nicht lesbar; Datenbank prüfen'}
+        return {'state': 'nicht lesbar; Datenbank prüfen', 'sessions': None, 'agenda_items': None, 'documents': None}
 
 
 @ri_required

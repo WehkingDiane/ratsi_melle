@@ -23,8 +23,10 @@ def web_auth(tmp_path_factory):
     database = old.__class__({**old.settings_dict, 'NAME': tmp_path_factory.mktemp('ri_auth') / 'auth.sqlite3'}, 'default')
     connections['default'] = database
     try:
-        call_command('migrate', verbosity=0, interactive=False)
-        yield
+        from django.test.utils import override_settings
+        with override_settings(PASSWORD_HASHERS=['django.contrib.auth.hashers.MD5PasswordHasher']):
+            call_command('migrate', verbosity=0, interactive=False)
+            yield
     finally:
         database.close()
         connections['default'] = old
@@ -193,3 +195,46 @@ def test_abandoned_job_is_marked_interrupted(ri_env, monkeypatch):
     monkeypatch.setattr(ri_env, '_pid_alive', lambda pid: False)
     assert ri_env.get_job(job_id)['status'] == 'error'
     assert 'unterbrochen' in ri_env.get_job(job_id)['output']
+
+
+def test_build_forms_have_unique_control_ids(client, staff):
+    from bs4 import BeautifulSoup
+    client.force_login(staff)
+    soup = BeautifulSoup(client.get('/ratsbereich/daten/build/').content, 'html.parser')
+    ids = [node['id'] for node in soup.select('[id]')]
+    assert len(ids) == len(set(ids))
+
+
+def test_repeated_parameters_are_rejected(client, staff, ri_env, monkeypatch):
+    client.force_login(staff)
+    monkeypatch.setattr(ri_env, 'start_job', lambda *args: pytest.fail('Duplicate input started job'))
+    response = client.post('/ratsbereich/daten/fetch/',
+                           'action=ri_fetch&year=2026&months=11&months=12',
+                           content_type='application/x-www-form-urlencoded')
+    assert response.status_code == 200
+    assert 'nur einmal' in response.content.decode()
+
+
+def test_public_fetch_endpoint_rejects_ri_actions(client, staff, ri_env, monkeypatch):
+    from core import service_jobs
+    client.force_login(staff)
+    monkeypatch.setattr(service_jobs, 'start_service_job', lambda *args: pytest.fail('Public RI command'))
+    response = client.post('/buergerinformation/daten/fetch/', {'action': 'ri_login'})
+    assert response.status_code == 400
+    assert not ri_env.JOBS_DB.exists()
+
+
+def test_worker_launch_failure_releases_reservation(ri_env, monkeypatch):
+    class Thread:
+        def __init__(self, **kwargs): pass
+        def start(self): pass
+    monkeypatch.setattr(ri_env.threading, 'Thread', Thread)
+    job_id = ri_env.start_job('ri_login', {'action': 'ri_login'})
+    def fail(*args, **kwargs):
+        raise OSError('synthetic-private-launch-detail')
+    monkeypatch.setattr(ri_env.subprocess, 'Popen', fail)
+    ri_env._run_job(job_id, [sys.executable, 'scripts/login_ri.py'])
+    job = ri_env.get_job(job_id)
+    assert job['status'] == 'error'
+    assert 'synthetic-private-launch-detail' not in job['output']
+    assert ri_env.start_job('ri_local', {'action': 'ri_local'})

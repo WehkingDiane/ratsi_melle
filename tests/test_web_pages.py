@@ -1774,7 +1774,7 @@ def test_ri_placeholders_are_informational_only(client, monkeypatch, suffix):
     response = client.get("/ratsbereich/" + suffix)
     assert response.status_code == 200
     soup = BeautifulSoup(response.content, "html.parser")
-    assert "Ratsbereich noch nicht eingerichtet" in soup.get_text()
+    assert "Funktion noch nicht verfügbar" in soup.get_text()
     assert soup.select_one(".nav-menu-label.active").get_text() == "Ratsbereich"
     assert not soup.select("form")
     assert client.post("/ratsbereich/" + suffix, {"action": "fetch_sessions"}).status_code == 405
