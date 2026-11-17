@@ -18,6 +18,7 @@
 - [Ist-Stand](ist_stand.md): aktueller Funktionsumfang
 - [RI-Plan](plans/ri_ratsbereich_plan.md) und [aktuelle Aufgaben](plans/project_tasks.md): laufendes Ausbauvorhaben
 - [Navigationsentwurf](plans/navigation.md): aktuelle und geplante Navigation
+- [Aufräumplanung](plans/aufraeumen.md): zurückgestellte Einordnung temporärer Prüfartefakte und Diagnoseskripte
 - [Changelog](../CHANGELOG.md): ausgewählte Versionsänderungen
 - [Glossar](glossar.md): zentrale Begriffe
 
