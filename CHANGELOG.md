@@ -26,6 +26,7 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 
 ## 0.6.1 – 17.11.2026
 
+- Downloadmeldungen zeigen die Dokument-ID statt der vollständigen URL; ohne eindeutige ID erscheint `unbekannt`.
 - SessionNet-Manifest um `document_id` ergänzen; URL beibehalten und vorhandene Einträge beim nächsten Abruf aktualisieren.
 
 ## 0.6.0 – 10.11.2026

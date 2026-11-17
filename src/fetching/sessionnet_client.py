@@ -525,7 +525,7 @@ class SessionNetClient:
             LOGGER.debug("Reusing cached document %s", document.url)
             return cached
 
-        LOGGER.info("Downloading document %s", document.url)
+        LOGGER.info("Downloading document %s", self._extract_document_id(document.url) or "unbekannt")
         backoff = 1.0
         last_error: requests.RequestException | None = None
         for attempt in range(1, self.max_retries + 1):

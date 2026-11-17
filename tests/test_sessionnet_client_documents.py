@@ -1,5 +1,6 @@
 from pathlib import Path
 import sys
+import logging
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -246,3 +247,22 @@ def test_fetch_document_payload_retries_stream_errors(tmp_path: Path, monkeypatc
 ])
 def test_extract_document_id(url, expected):
     assert SessionNetClient._extract_document_id(url) == expected
+
+
+@pytest.mark.parametrize(("query", "label"), [("id=145474&type=do", "145474"), ("type=do", "unbekannt")])
+def test_download_log_uses_id_while_request_keeps_url(tmp_path, monkeypatch, caplog, query, label):
+    client = SessionNetClient(storage_root=tmp_path)
+    document = DocumentReference("Vorlage", "https://session.melle.info/bi/getfile.asp?" + query)
+    response = Mock()
+    response.headers.copy.return_value = {"Content-Type": "application/pdf"}
+    response.iter_content.return_value = [b"%PDF-test"]
+    request = Mock(return_value=response)
+    monkeypatch.setattr(SessionNetClient, "_request", request)
+    caplog.set_level(logging.INFO, logger=sessionnet_client.__name__)
+
+    payload, _ = client._fetch_document_payload(document)
+
+    assert payload == b"%PDF-test"
+    request.assert_called_once_with("GET", document.url, stream=True)
+    assert caplog.messages == ["Downloading document " + label]
+    assert document.url not in caplog.text

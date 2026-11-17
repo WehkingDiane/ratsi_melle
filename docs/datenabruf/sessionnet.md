@@ -22,3 +22,5 @@ Jahr, Monate und Sitzungs-ID sind Beispiele und müssen zum gewünschten Bestand
 Dokumenteinträge in `manifest.json` enthalten neben `url` die `document_id` als Zeichenfolge, beispielsweise `"document_id": "145474"`. Sie stammt aus dem Parameter `id` des `getfile.asp`-Links. Fehlt eine eindeutige numerische ID, steht dort `null`.
 
 Neue und beim erneuten Abruf geschriebene Manifeste erhalten das Feld auch für wiederverwendete Dateien. Bestehende Manifeste werden nicht automatisch im gesamten Datenbestand umgeschrieben; ein Löschen vorhandener Dokumente ist nicht erforderlich.
+
+Die Downloadmeldung zeigt ebenfalls die Dokument-ID, etwa `Downloading document 145474`; ohne eindeutige ID erscheint `Downloading document unbekannt`. Die vollständige URL bleibt für den Abruf und im Manifest erhalten.
