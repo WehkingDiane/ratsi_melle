@@ -1,0 +1,656 @@
+"""Lokalen RI-Sitzungs- und Dokumentindex unter data/private/ri bauen; ohne Anmeldung oder Downloads."""
+
+from __future__ import annotations
+
+import argparse
+from datetime import UTC, date, datetime
+import json
+import logging
+import re
+import sqlite3
+from hashlib import sha256
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Iterable, Iterator
+import sys
+from time import perf_counter
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:  # pragma: no branch - defensive
+    sys.path.insert(0, str(REPO_ROOT))
+
+from src.fetching.models import SessionDetail, SessionReference
+from src.fetching.sessionnet_client import SessionNetClient
+from src.fetching.ri_session import BASE_URL, RI_ROOT
+from src.config.ri import configure_file_logging
+
+LOCAL_INDEX_DB = RI_ROOT / "db" / "local_index.sqlite"
+
+
+@dataclass(frozen=True)
+class SessionFolder:
+    session_id: str
+    date: str
+    committee: str
+    path: Path
+
+
+def parse_args(argv=None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--data-root",
+        default=RI_ROOT / "raw",
+        type=Path,
+        help="Root folder that contains raw sessions.",
+    )
+    parser.add_argument(
+        "--output",
+        default=LOCAL_INDEX_DB,
+        type=Path,
+        help="SQLite output path.",
+    )
+    parser.add_argument(
+        "--refresh-existing",
+        action="store_true",
+        help="Rebuild entries for sessions that already exist in the database.",
+    )
+    parser.add_argument(
+        "--only-refresh",
+        action="store_true",
+        help="Only refresh existing sessions; do not insert new ones.",
+    )
+    parser.add_argument("--log-level", default=None, help="Python logging level.")
+    return parser.parse_args(argv)
+
+
+def iter_session_folders(data_root: Path) -> Iterator[SessionFolder]:
+    if not data_root.exists():
+        return
+
+    for year_path in data_root.iterdir():
+        if not year_path.is_dir() or not re.fullmatch(r"\d{4}", year_path.name):
+            continue
+        for month_path in year_path.iterdir():
+            if not month_path.is_dir() or not re.fullmatch(r"\d{2}", month_path.name):
+                continue
+            for path in month_path.iterdir():
+                if (not path.is_dir() or not path.resolve().is_relative_to(data_root.resolve())
+                        or not _is_session_folder(path)):
+                    continue
+                session_info = _parse_session_folder(path)
+                if session_info:
+                    yield session_info
+
+
+def _is_session_folder(path: Path) -> bool:
+    return any(
+        (path / name).exists()
+        for name in ("session_detail.html", "agenda_summary.json", "manifest.json")
+    )
+
+
+def _parse_session_folder(path: Path) -> SessionFolder | None:
+    match = re.match(r"^(\d{4}-\d{2}-\d{2})[-_](.+)[-_](\d+)$", path.name)
+    if not match:
+        return None
+    date_str, committee, session_id = match.groups()
+    return SessionFolder(
+        session_id=session_id,
+        date=date_str,
+        committee=committee,
+        path=path,
+    )
+
+
+def load_json(path: Path) -> object | None:
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+
+
+def build_index(data_root: Path, output_path: Path, refresh_existing: bool, only_refresh: bool) -> None:
+    data_root, output_path = checked_paths(data_root, output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    agenda_client = SessionNetClient(base_url=BASE_URL, storage_root=data_root, persist_raw=False)
+    try:
+        with sqlite3.connect(output_path) as conn:
+            conn.execute("PRAGMA journal_mode=WAL;")
+            _create_tables(conn)
+            _populate(conn, data_root, refresh_existing, only_refresh, agenda_client)
+    finally:
+        agenda_client.session.close()
+
+
+def _create_tables(conn: sqlite3.Connection) -> None:
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS sessions (
+            session_id TEXT PRIMARY KEY,
+            date TEXT,
+            year INTEGER,
+            month INTEGER,
+            committee TEXT,
+            meeting_name TEXT,
+            start_time TEXT,
+            location TEXT,
+            detail_url TEXT,
+            session_path TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS agenda_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT,
+            number TEXT,
+            title TEXT,
+            reporter TEXT,
+            status TEXT,
+            decision TEXT,
+            documents_present INTEGER
+        );
+
+        CREATE TABLE IF NOT EXISTS documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT,
+            title TEXT,
+            category TEXT,
+            document_type TEXT,
+            agenda_item TEXT,
+            url TEXT,
+            local_path TEXT,
+            sha1 TEXT,
+            retrieved_at TEXT,
+            content_type TEXT,
+            content_length INTEGER
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_sessions_date ON sessions(date);
+        CREATE INDEX IF NOT EXISTS idx_sessions_committee ON sessions(committee);
+        CREATE INDEX IF NOT EXISTS idx_agenda_session ON agenda_items(session_id);
+        CREATE INDEX IF NOT EXISTS idx_docs_session ON documents(session_id);
+        """
+    )
+    if "source_state" not in {row[1] for row in conn.execute("PRAGMA table_info(sessions)")}:
+        conn.execute("ALTER TABLE sessions ADD COLUMN source_state TEXT")
+    _ensure_documents_columns(conn)
+    _migrate_legacy_document_types(conn)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_docs_type ON documents(document_type);")
+    _backfill_document_types(conn)
+
+
+def _populate(
+    conn: sqlite3.Connection,
+    data_root: Path,
+    refresh_existing: bool,
+    only_refresh: bool,
+    agenda_client: SessionNetClient,
+) -> None:
+    sessions = list(iter_session_folders(data_root))
+    _remove_non_sessionnet_rows(conn, data_root)
+    session_count = 0
+    agenda_count = 0
+    doc_count = 0
+    existing = dict(conn.execute("SELECT session_id, source_state FROM sessions"))
+    # Sessions already in DB but with 0 documents are treated as incomplete and
+    # refreshed automatically, regardless of --refresh-existing, so that a
+    # partial fetch followed by a full fetch is corrected on the next index build.
+    incomplete = {
+        row[0]
+        for row in conn.execute(
+            "SELECT session_id FROM sessions WHERE session_id NOT IN "
+            "(SELECT DISTINCT session_id FROM documents)"
+        ).fetchall()
+        if row and row[0]
+    }
+
+    for session_index, session in enumerate(sessions, start=1):
+        is_existing = session.session_id in existing
+        is_incomplete = session.session_id in incomplete
+        has_stale_agenda = _agenda_summary_is_outdated(session.path)
+        has_stale_manifest = _manifest_is_outdated(session.path)
+        source_state = session_source_state(session.path)
+        needs_refresh = refresh_existing or is_incomplete or source_state != existing.get(session.session_id)
+        if is_existing and not needs_refresh:
+            logging.info("Build progress: %d/%d sessions; skipped up-to-date session %s", session_index, len(sessions), session.session_id)
+            continue
+        if not is_existing and only_refresh:
+            logging.info("Build progress: %d/%d sessions; skipped new session %s (--only-refresh)", session_index, len(sessions), session.session_id)
+            continue
+        logging.info("Build progress: %d/%d sessions; indexing session %s", session_index, len(sessions), session.session_id)
+        year, month = _split_date(session.date)
+        manifest = load_json(session.path / "manifest.json")
+        agenda_summary = load_json(session.path / "agenda_summary.json")
+        agenda_items = _extract_list(agenda_summary, "agenda_items")
+        documents = _extract_list(manifest, "documents")
+        retrieved_at = manifest.get("retrieved_at") if isinstance(manifest, dict) else None
+        detail = None
+        if has_stale_agenda or has_stale_manifest:
+            detail = _parse_stored_session_detail(session, manifest, agenda_client)
+            if detail is not None:
+                agenda_items = agenda_client.agenda_entries_from_detail(detail)
+                original_documents = documents or []
+                documents = agenda_client.manifest_entries_from_detail(
+                    session.path,
+                    detail,
+                    existing_manifest=documents or [],
+                )
+                for document in documents:
+                    original = next((entry for entry in original_documents
+                                     if entry.get("url") == document.get("url")), {})
+                    if document.get("path") is None and local_document_path(session.path, original):
+                        for key, value in original.items():
+                            if document.get(key) is None:
+                                document[key] = value
+                    for key in ("visibility", "visibility_checked_at", "bi_comparison_status"):
+                        if key in original:
+                            document[key] = original[key]
+                retrieved_at = _format_timestamp(detail.retrieved_at)
+        session_info = manifest.get("session") if isinstance(manifest, dict) else {}
+        if not isinstance(session_info, dict):
+            session_info = {}
+        if detail is not None:
+            session_info = {
+                **session_info,
+                "meeting_name": detail.reference.meeting_name,
+                "location": detail.reference.location,
+                "detail_url": detail.reference.detail_url,
+            }
+        if is_existing and needs_refresh:
+            conn.execute("DELETE FROM agenda_items WHERE session_id = ?", (session.session_id,))
+            conn.execute("DELETE FROM documents WHERE session_id = ?", (session.session_id,))
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO sessions
+            (session_id, date, year, month, committee, meeting_name, start_time, location, detail_url, session_path)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                session.session_id,
+                session.date,
+                year,
+                month,
+                session.committee,
+                session_info.get("meeting_name"),
+                None,
+                session_info.get("location"),
+                session_info.get("detail_url"),
+                str(session.path),
+            ),
+        )
+        conn.execute("UPDATE sessions SET source_state = ? WHERE session_id = ?",
+                     (source_state, session.session_id))
+        session_count += 1
+
+        if agenda_items is not None:
+            agenda_count += _insert_agenda_items(conn, session.session_id, agenda_items)
+
+        if documents is not None:
+            doc_count += _insert_documents(conn, session.session_id, documents, retrieved_at, session.path)
+
+    conn.commit()
+    logging.info("Build complete: indexed_sessions=%d agenda_items=%d documents=%d", session_count, agenda_count, doc_count)
+    print(
+        "Indexed sessions={0} agenda_items={1} documents={2}".format(
+            session_count, agenda_count, doc_count
+        )
+    )
+
+
+def _remove_non_sessionnet_rows(conn: sqlite3.Connection, data_root: Path) -> None:
+    excluded_root = (data_root / "landkreis").resolve(strict=False)
+    invalid_session_ids = []
+    for session_id, stored_path in conn.execute(
+        "SELECT session_id, session_path FROM sessions"
+    ).fetchall():
+        if not isinstance(stored_path, str) or not stored_path.strip():
+            continue
+        try:
+            session_path = Path(stored_path.replace("\\", "/")).resolve(strict=False)
+            session_path.relative_to(excluded_root)
+        except (OSError, RuntimeError, ValueError):
+            continue
+        invalid_session_ids.append(session_id)
+    for session_id in invalid_session_ids:
+        conn.execute("DELETE FROM agenda_items WHERE session_id = ?", (session_id,))
+        conn.execute("DELETE FROM documents WHERE session_id = ?", (session_id,))
+        conn.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
+
+
+def _agenda_summary_is_outdated(session_path: Path) -> bool:
+    return _derived_file_is_outdated(session_path, "agenda_summary.json")
+
+
+def _manifest_is_outdated(session_path: Path) -> bool:
+    return _derived_file_is_outdated(session_path, "manifest.json")
+
+
+def _derived_file_is_outdated(session_path: Path, filename: str) -> bool:
+    detail_path = session_path / "session_detail.html"
+    derived_path = session_path / filename
+    if not detail_path.exists():
+        return False
+    if not derived_path.exists() or detail_path.stat().st_mtime_ns > derived_path.stat().st_mtime_ns:
+        return True
+    derived_payload = load_json(derived_path)
+    stored_html_sha1 = derived_payload.get("source_html_sha1") if isinstance(derived_payload, dict) else None
+    if not isinstance(stored_html_sha1, str) or not stored_html_sha1:
+        return False
+    try:
+        html = detail_path.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    return stored_html_sha1 != SessionNetClient.source_html_sha1(html)
+
+
+def _parse_stored_session_detail(
+    session: SessionFolder,
+    manifest: object | None,
+    client: SessionNetClient,
+) -> SessionDetail | None:
+    detail_path = session.path / "session_detail.html"
+    try:
+        html = detail_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        logging.warning("Could not read %s: %s", detail_path, exc)
+        return None
+
+    if not client.contains_agenda_table(html):
+        logging.warning("Session HTML for %s has no recognized agenda table; keeping existing derived metadata", session.session_id)
+        return None
+
+    session_info = manifest.get("session") if isinstance(manifest, dict) else {}
+    if not isinstance(session_info, dict):
+        session_info = {}
+    reference = SessionReference(
+        committee=str(session_info.get("committee") or session.committee),
+        meeting_name=str(session_info.get("meeting_name") or session.committee),
+        session_id=session.session_id,
+        date=date.fromisoformat(session.date),
+        start_time=None,
+        detail_url=str(
+            session_info.get("detail_url")
+            or f"https://session.melle.info/ri/si0057.asp?__ksinr={session.session_id}"
+        ),
+        location=session_info.get("location"),
+    )
+    retrieved_at = datetime.fromtimestamp(detail_path.stat().st_mtime, tz=UTC)
+    return client.parse_session_detail(reference, html, retrieved_at=retrieved_at)
+
+
+def _format_timestamp(value: datetime) -> str:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC)
+    else:
+        value = value.astimezone(UTC)
+    return value.isoformat().replace("+00:00", "Z")
+
+
+def _insert_agenda_items(
+    conn: sqlite3.Connection, session_id: str, agenda_summary: Iterable[dict]
+) -> int:
+    inserted = 0
+    for item in agenda_summary:
+        if not isinstance(item, dict):
+            continue
+        conn.execute(
+            """
+            INSERT INTO agenda_items
+            (session_id, number, title, reporter, status, decision, documents_present)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                session_id,
+                str(item.get("number") or item.get("top") or ""),
+                item.get("title"),
+                item.get("reporter"),
+                item.get("status"),
+                item.get("decision"),
+                1 if item.get("documents_present") else 0,
+            ),
+        )
+        inserted += 1
+    return inserted
+
+
+def _insert_documents(
+    conn: sqlite3.Connection,
+    session_id: str,
+    manifest: Iterable[dict],
+    default_retrieved_at: str | None,
+    session_path: Path,
+) -> int:
+    inserted = 0
+    for doc in manifest:
+        if not isinstance(doc, dict):
+            continue
+        if local_document_path(session_path, doc) is None:
+            logging.warning("Sitzung %s: fehlende oder unzulässige lokale Dokumentdatei übersprungen", session_id)
+            continue
+        document_type = _infer_document_type(
+            title=doc.get("title"),
+            category=doc.get("category"),
+            content_type=doc.get("content_type"),
+            url=doc.get("url"),
+            local_path=doc.get("path"),
+        )
+        conn.execute(
+            """
+            INSERT INTO documents
+            (
+                session_id,
+                title,
+                category,
+                document_type,
+                agenda_item,
+                url,
+                local_path,
+                sha1,
+                retrieved_at,
+                content_type,
+                content_length,
+                document_id,
+                visibility,
+                visibility_checked_at,
+                bi_comparison_status
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                session_id,
+                doc.get("title"),
+                doc.get("category"),
+                document_type,
+                doc.get("agenda_item"),
+                doc.get("url"),
+                doc.get("path"),
+                doc.get("sha1"),
+                doc.get("retrieved_at") or default_retrieved_at,
+                doc.get("content_type"),
+                doc.get("content_length"),
+                SessionNetClient._extract_document_id(doc.get("url") or ""),
+                "öffentlich" if doc.get("visibility") == "öffentlich" else "nicht öffentlich",
+                doc.get("visibility_checked_at"),
+                doc.get("bi_comparison_status"),
+            ),
+        )
+        inserted += 1
+    return inserted
+
+
+def _ensure_documents_columns(conn: sqlite3.Connection) -> None:
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(documents)").fetchall()}
+    for column_name, column_type in (
+        ("document_id", "TEXT"),
+        ("visibility", "TEXT NOT NULL DEFAULT 'nicht öffentlich'"),
+        ("visibility_checked_at", "TEXT"),
+        ("bi_comparison_status", "TEXT"),
+        ("document_type", "TEXT"),
+        ("sha1", "TEXT"),
+        ("retrieved_at", "TEXT"),
+    ):
+        if column_name in columns:
+            continue
+        conn.execute(f"ALTER TABLE documents ADD COLUMN {column_name} {column_type}")
+
+
+def _backfill_document_types(conn: sqlite3.Connection) -> None:
+    rows = conn.execute(
+        """
+        SELECT id, title, category, content_type, url, local_path
+        FROM documents
+        WHERE document_type IS NULL OR TRIM(document_type) = ''
+        """
+    ).fetchall()
+    if not rows:
+        return
+    updates = []
+    for row in rows:
+        doc_id, title, category, content_type, url, local_path = row
+        updates.append(
+            (
+                _infer_document_type(
+                    title=title,
+                    category=category,
+                    content_type=content_type,
+                    url=url,
+                    local_path=local_path,
+                ),
+                doc_id,
+            )
+        )
+    conn.executemany("UPDATE documents SET document_type = ? WHERE id = ?", updates)
+
+
+def _migrate_legacy_document_types(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        UPDATE documents
+        SET document_type = 'protokoll'
+        WHERE LOWER(COALESCE(document_type, '')) = 'niederschrift'
+        """
+    )
+
+
+def _infer_document_type(
+    *,
+    title: str | None,
+    category: str | None,
+    content_type: str | None,
+    url: str | None,
+    local_path: str | None,
+) -> str:
+    normalized_title = (title or "").lower()
+    normalized_category = (category or "").lower()
+    normalized_content_type = (content_type or "").lower()
+    normalized_url = (url or "").lower()
+    normalized_path = (local_path or "").lower()
+
+    if normalized_category in {"pr", "ni"}:
+        return "protokoll"
+    if normalized_category in {"bm", "be", "bek"}:
+        return "bekanntmachung"
+    if normalized_category in {"bv"}:
+        return "beschlussvorlage"
+    if normalized_category in {"vo", "vl"}:
+        return "vorlage"
+
+    search_blob = " ".join(
+        (
+            normalized_title,
+            normalized_category,
+            normalized_content_type,
+            normalized_url,
+            normalized_path,
+        )
+    )
+    if any(keyword in search_blob for keyword in ("niederschrift", "protokoll", "sitzungsprotokoll")):
+        return "protokoll"
+    if any(keyword in search_blob for keyword in ("bekanntmachung", "einladung", "tagesordnung")):
+        return "bekanntmachung"
+    if any(keyword in search_blob for keyword in ("beschlussvorlage", "beschlussvorschlag", "beschluss")):
+        return "beschlussvorlage"
+    if any(keyword in search_blob for keyword in ("vorlage", "antrag")):
+        return "vorlage"
+    return "sonstiges"
+
+
+def _extract_list(payload: object | None, key: str) -> list[dict] | None:
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    if isinstance(payload, dict):
+        data = payload.get(key)
+        if isinstance(data, list):
+            return [item for item in data if isinstance(item, dict)]
+    return None
+
+
+def _split_date(date_str: str) -> tuple[int | None, int | None]:
+    parts = date_str.split("-")
+    if len(parts) != 3:
+        return None, None
+    try:
+        return int(parts[0]), int(parts[1])
+    except ValueError:
+        return None, None
+
+
+def checked_paths(data_root: Path, output_path: Path) -> tuple[Path, Path]:
+    """Confine input to RI raw data and output to its separate database directory."""
+    data_root = (REPO_ROOT / data_root).resolve()
+    output_path = (REPO_ROOT / output_path).resolve()
+    if not data_root.is_relative_to((RI_ROOT / "raw").resolve()) or not data_root.is_dir():
+        raise ValueError("Datenquelle muss ein vorhandener Ordner unter data/private/ri/raw sein.")
+    if (not output_path.is_relative_to((RI_ROOT / "db").resolve())
+            or output_path.suffix != ".sqlite"
+            or output_path == (RI_ROOT / "db/online_session_index.sqlite").resolve()):
+        raise ValueError("Ausgabe muss eine separate .sqlite-Datei unter data/private/ri/db sein.")
+    return data_root, output_path
+
+
+def local_document_path(session_path: Path, document: dict) -> Path | None:
+    """Accept only nonempty files contained in the RI session folder."""
+    value = document.get("path")
+    if not isinstance(value, str) or not value or Path(value).is_absolute() or "\\" in value:
+        return None
+    try:
+        path = (session_path / value).resolve()
+        if path.is_relative_to(session_path.resolve()) and path.is_file() and path.stat().st_size > 0:
+            return path
+    except (OSError, RuntimeError, ValueError):
+        pass
+    return None
+
+
+def session_source_state(session_path: Path) -> str:
+    """Detect changed metadata and removed local files on subsequent builds."""
+    digest = sha256()
+    for name in ("manifest.json", "agenda_summary.json", "session_detail.html"):
+        path = session_path / name
+        payload = path.read_bytes() if path.is_file() else b""
+        digest.update(name.encode() + str(len(payload)).encode() + b":" + payload)
+    manifest = load_json(session_path / "manifest.json")
+    for document in _extract_list(manifest, "documents") or []:
+        digest.update(b"1" if local_document_path(session_path, document) else b"0")
+    return digest.hexdigest()
+
+
+def main(argv=None) -> int:
+    args = parse_args(argv)
+    try:
+        data_root, output = checked_paths(args.data_root, args.output)
+        configure_file_logging(Path(__file__).stem, args.log_level)
+        started = perf_counter()
+        build_index(data_root, output, args.refresh_existing or args.only_refresh, args.only_refresh)
+        logging.info("RI local index build runtime: %.2f seconds", perf_counter() - started)
+        print(f"RI-Datenbank: {output}")
+        return 0
+    except Exception:
+        print("Abbruch: RI-Local-Build fehlgeschlagen; Datenquelle und Ausgabepfad prüfen.", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
