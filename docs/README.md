@@ -17,6 +17,7 @@
 
 - [Ist-Stand](ist_stand.md): aktueller Funktionsumfang
 - [RI-Plan](plans/ri_ratsbereich_plan.md) und [aktuelle Aufgaben](plans/project_tasks.md): laufendes Ausbauvorhaben
+- [RI-Skriptanbindung](plans/ri_ui_scripts.md): Umsetzung der geschützten Datenpflege
 - [Navigationsentwurf](plans/navigation.md): aktuelle und geplante Navigation
 - [Aufräumplanung](plans/aufraeumen.md): zurückgestellte Einordnung temporärer Prüfartefakte und Diagnoseskripte
 - [Changelog](../CHANGELOG.md): ausgewählte Versionsänderungen
