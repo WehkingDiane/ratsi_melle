@@ -1,6 +1,6 @@
 # RI-Zugang einrichten und prüfen
 
-Unter Windows und Linux/WSL gilt derselbe Ablauf: Token in einer lokalen Textdatei hinterlegen und die Check-Skripte starten. Eine Speicherpasswort-Abfrage oder separate Eintragsbindung gibt es für diesen Ablauf nicht. Die Schritte laden keine RI-Unterlagen herunter. Der weitere Ausbau steht im [RI-Plan](../plans/ri_ratsbereich_plan.md).
+Unter Windows und Linux/WSL gilt derselbe Ablauf: Token in einer lokalen Textdatei hinterlegen und die Check-Skripte starten. Eine Speicherpasswort-Abfrage oder separate Eintragsbindung gibt es für diesen Ablauf nicht. Die Schritte laden keine RI-Unterlagen herunter. Die regulären Datenjobs beschreibt die [RI-CLI-Anleitung](datenablauf.md); weitere Arbeiten stehen im [RI-Plan](../plans/ri_ratsbereich_plan.md).
 
 ## Voraussetzungen
 
@@ -71,4 +71,4 @@ Der beobachtete Ablauf nutzt nach dem POST `ylogonstart.asp` und kann HTML-Meta-
 
 Eine HTTP-200-Antwort allein gilt nicht als Erfolg: Die geschützte Einstiegsseite muss einen erkannten Abmeldelink enthalten. Danach wird die RI-Abmeldung über erneute Prüfung des geschützten Einstiegs bestätigt. Der Test lädt keine Sitzungen oder Dokumente herunter und schreibt weder HTML noch HTTP-Cookies auf Platte. Eine möglicherweise notwendige zusätzliche Anmeldung, Passwortänderung oder ein verändertes Formular führt zum Abbruch. Bei einem Abbruch nach dem Passwortversand kann eine entfernte RI-Sitzung bis zu ihrem Ablauf bestehen bleiben; lokale Cookies werden verworfen. Der BI-Abruf und die öffentliche Datenhaltung werden nicht verwendet.
 
-Die frühere Variante mit OS-Tokenablage und fester Eintragsbindung wurde bis 0.5.76 unter Windows und WSL real geprüft. Der neue Dateifluss ist synthetisch getestet; die echte Abnahme auf beiden Betriebssystemen steht noch aus. RI-Dokumentabruf, RI-Index und Webzugang sind nicht Bestandteil dieser Umstellung.
+Die frühere Variante mit OS-Tokenablage und fester Eintragsbindung wurde bis 0.5.76 unter Windows und WSL real geprüft. Der Dateifluss wurde anschließend im RI-Prototyp praktisch genutzt. Seit 0.7.0 sind RI-Dokumentabruf und lokaler Index als [reguläre CLI-Skripte](datenablauf.md) vorhanden; geschützter Webzugang bleibt offen.

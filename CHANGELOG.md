@@ -24,6 +24,14 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 - Ältere Änderungen als Stichpunkte nachgetragen und absteigend geordnet. Die Anwendungsversion bleibt bei 0.5.76.
 - Versionsregeln präzisiert: Versionen pro Änderungspaket, Minor für größere Funktionsausbauten, kein Versionswechsel für reine Dokumentationsänderungen. Historische Nummern bleiben erhalten.
 
+## 0.7.0 – 17.11.2026
+
+- Fehlgeschlagene Dokumentdownloads im RI-Abschlussstatus berücksichtigen: übrige Downloads fortsetzen, betroffene IDs melden und Exitcode `2` liefern.
+- Erprobten RI-CLI-Ablauf ins Projekt übernehmen: Anmeldung, Onlineindex, Dokumentabruf und lokaler Dokumentindex.
+- RI-Daten unter `data/ri/`, Logs unter `logs/ri/`; öffentliche Datenpfade bleiben getrennt.
+- Abrufgrenze ab November 2026 konfigurierbar; Dokumente per BI-Abgleich als `öffentlich` oder `nicht öffentlich` kennzeichnen.
+- Lokaler Index erfasst vorhandene Dateien samt Dokument-ID und Kennzeichnung; gezielte Offline-Tests begleiten die Übernahme.
+
 ## 0.6.1 – 17.11.2026
 
 - Downloadmeldungen zeigen die Dokument-ID statt der vollständigen URL; ohne eindeutige ID erscheint `unbekannt`.

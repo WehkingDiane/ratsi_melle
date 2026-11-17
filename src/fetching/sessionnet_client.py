@@ -117,13 +117,14 @@ class SessionNetClient:
 
         return self._find_agenda_table(BeautifulSoup(html, "html.parser")) is not None
 
-    def download_documents(self, detail: SessionDetail, *, force_download: bool = False) -> None:
-        """Fetch missing documents, reusing completed-session files unless forced."""
+    def download_documents(self, detail: SessionDetail, *, force_download: bool = False) -> List[DocumentReference]:
+        """Fetch/reuse documents and return references whose payload download failed."""
 
         target_dir = self._build_session_directory(detail.reference)
         target_dir.mkdir(parents=True, exist_ok=True)
         existing_manifest = self._load_manifest(target_dir)
         manifest_entries = []
+        failed_documents: List[DocumentReference] = []
         sequence = count(1)
         download_times: dict[str, str] = {}
         now = datetime.now(UTC)
@@ -199,6 +200,7 @@ class SessionNetClient:
             try:
                 content, headers = self._fetch_document_payload(document)
             except FetchingError:
+                failed_documents.append(document)
                 LOGGER.exception("Failed to download document %s", document.url)
                 if existing_entry is not None:
                     manifest_entries.append({
@@ -247,6 +249,7 @@ class SessionNetClient:
             target_dir, detail, manifest_entries, completion_detected_at=completion_detected_at,
         )
         self.write_agenda_summary(target_dir, detail)
+        return failed_documents
 
     @staticmethod
     def _has_published_results(detail: SessionDetail) -> bool:
