@@ -1,16 +1,13 @@
-"""Routes for protected RI script controls and the local web login."""
-from django.contrib.auth import views as auth_views
+"""Routes for the local RI script controls without web authentication."""
 from django.urls import path
 
 from . import ri_views
-from .ri_forms import RiAuthenticationForm
 
 app_name = 'ri'
 urlpatterns = [
     path('', ri_views.status, name='index'),
-    path('anmelden/', auth_views.LoginView.as_view(template_name='core/ri/login.html',
-         authentication_form=RiAuthenticationForm, extra_context={'active_nav': 'ri'}), name='login'),
-    path('abmelden/', auth_views.LogoutView.as_view(next_page='ri:login'), name='logout'),
+    path('anmelden/', ri_views.access_redirect),
+    path('abmelden/', ri_views.access_redirect),
     path('zugang/', ri_views.script_page, {'page': 'zugang'}, name='access'),
     path('daten/', ri_views.status, name='status'),
     path('daten/fetch/', ri_views.script_page, {'page': 'fetch'}, name='fetch'),

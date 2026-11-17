@@ -1,19 +1,10 @@
 """Strict input forms for the fixed RI script actions."""
 from django import forms
-from django.contrib.auth.forms import AuthenticationForm
 from django.core.exceptions import ValidationError
 
 from src.config.ri import select_months
 from src.config.ri_proton import RiAccessError
 
-
-class RiAuthenticationForm(AuthenticationForm):
-    """Allow active staff accounts to enter the local RI interface."""
-
-    def confirm_login_allowed(self, user):
-        super().confirm_login_allowed(user)
-        if not user.is_staff:
-            raise ValidationError("Dieses Benutzerkonto hat keinen Zugang zum Ratsbereich.", code="no_ri_access")
 
 
 class RiActionForm(forms.Form):

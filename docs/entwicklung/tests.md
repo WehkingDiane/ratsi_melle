@@ -54,14 +54,14 @@ ist der verbindliche Ort für Bedienung und Dateiverträge.
 
 ## RI-Web-Datenpflege
 
-Gezielte Prüfung mit temporärer Django-Authentifizierungsdatenbank und simulierten
-Hintergrundprozessen:
+Gezielte Prüfung des lokalen Direktzugriffs ohne Benutzerkonto mit temporären
+Jobdatenbanken und simulierten Hintergrundprozessen:
 
 ```bash
 python -m pytest -q tests/test_ri_web.py
 ```
 
-Geprüft werden anonyme und unberechtigte Zugriffe, Anmeldung/Abmeldung, CSRF,
+Geprüft werden direkter Zugriff ohne Anmeldung, Weiterleitung alter Login-Links, CSRF,
 Formularparameter, erlaubte Skripte, eindeutige Formular-IDs, RI-eigene Jobablage,
 Parallelitätsschutz, Teilstatus und Prozessstartfehler. Die Tests verwenden keine
 Portalzugangsdaten und starten keine echten RI-Skripte. Betroffene bisherige

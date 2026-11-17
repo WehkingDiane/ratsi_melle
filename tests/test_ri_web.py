@@ -3,7 +3,6 @@ import io
 import os
 from pathlib import Path
 import sys
-from uuid import uuid4
 
 import pytest
 
@@ -14,26 +13,13 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.fixture(scope='module')
-def web_auth(tmp_path_factory):
+def web_runtime():
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'web.settings')
     django.setup()
-    from django.core.management import call_command
-    from django.db import connections
-    old = connections['default']
-    database = old.__class__({**old.settings_dict, 'NAME': tmp_path_factory.mktemp('ri_auth') / 'auth.sqlite3'}, 'default')
-    connections['default'] = database
-    try:
-        from django.test.utils import override_settings
-        with override_settings(PASSWORD_HASHERS=['django.contrib.auth.hashers.MD5PasswordHasher']):
-            call_command('migrate', verbosity=0, interactive=False)
-            yield
-    finally:
-        database.close()
-        connections['default'] = old
 
 
 @pytest.fixture
-def ri_env(web_auth, tmp_path, monkeypatch):
+def ri_env(web_runtime, tmp_path, monkeypatch):
     from core import ri_jobs, ri_views, service_jobs
     monkeypatch.setattr(ri_jobs, 'JOBS_DB', tmp_path / 'ri/ri_jobs.sqlite')
     monkeypatch.setattr(ri_views, 'RI_LOCAL_INDEX_DB', tmp_path / 'ri/local.sqlite')
@@ -44,55 +30,33 @@ def ri_env(web_auth, tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def staff(ri_env):
-    from django.contrib.auth import get_user_model
-    return get_user_model().objects.create_user('ri-' + uuid4().hex, password='synthetic-password', is_staff=True)
-
-
-@pytest.fixture
 def client(ri_env):
     from django.test import Client
     return Client()
 
 
-@pytest.mark.parametrize('path', ['', 'zugang/', 'daten/', 'daten/fetch/', 'daten/build/',
-                                  'daten/jobs/unknown/', 'daten/jobs/unknown/status/'])
-def test_anonymous_ri_requests_cannot_read_or_start_jobs(client, ri_env, monkeypatch, path):
-    monkeypatch.setattr(ri_env, 'start_job', lambda *args: pytest.fail('Unexpected worker'))
+@pytest.mark.parametrize('path', ['', 'zugang/', 'daten/', 'daten/fetch/', 'daten/build/'])
+def test_local_ri_pages_are_accessible_without_login(client, ri_env, monkeypatch, path):
+    monkeypatch.setattr(ri_env, 'start_job', lambda *args: pytest.fail('GET started a job'))
     response = client.get('/ratsbereich/' + path)
-    assert response.status_code == 302
-    assert response['Location'].startswith('/ratsbereich/anmelden/')
+    assert response.status_code == 200
     assert 'no-store' in response['Cache-Control']
-    assert client.post('/ratsbereich/' + path, {'action': 'ri_login'}).status_code == 302
+    assert 'Angemeldet als' not in response.content.decode()
+    assert b'type="password"' not in response.content
     assert not ri_env.JOBS_DB.exists()
 
 
-def test_nonstaff_cannot_access_ri(client, ri_env):
-    from django.contrib.auth import get_user_model
-    user = get_user_model().objects.create_user('normal-' + uuid4().hex, password='synthetic-password')
-    client.force_login(user)
-    assert client.get('/ratsbereich/daten/').status_code == 403
-    client.logout()
-    response = client.post('/ratsbereich/anmelden/', {'username': user.username, 'password': 'synthetic-password'})
-    assert response.status_code == 200
-    assert 'keinen Zugang' in response.content.decode()
-    assert '_auth_user_id' not in client.session
-
-
-def test_real_web_login_and_post_logout(client, staff):
-    response = client.post('/ratsbereich/anmelden/', {'username': staff.username, 'password': 'synthetic-password'})
+@pytest.mark.parametrize('path', ['anmelden/', 'abmelden/'])
+def test_old_login_links_open_ri_status_without_login(client, path):
+    response = client.get('/ratsbereich/' + path)
     assert response.status_code == 302
-    assert client.get('/ratsbereich/daten/').status_code == 200
-    assert client.get('/ratsbereich/abmelden/').status_code == 405
-    assert client.post('/ratsbereich/abmelden/').status_code == 302
-    assert client.get('/ratsbereich/daten/').status_code == 302
+    assert response['Location'] == '/ratsbereich/daten/'
 
 
 @pytest.mark.parametrize('path,expected', [('zugang/', ['ri_login']), ('daten/fetch/', ['ri_fetch']),
                                           ('daten/build/', ['ri_online', 'ri_local'])])
-def test_staff_forms_do_not_execute_on_get(client, staff, ri_env, monkeypatch, path, expected):
+def test_local_forms_do_not_execute_on_get(client, ri_env, monkeypatch, path, expected):
     from bs4 import BeautifulSoup
-    client.force_login(staff)
     monkeypatch.setattr(ri_env, 'start_job', lambda *args: pytest.fail('GET started a job'))
     response = client.get('/ratsbereich/' + path)
     assert response.status_code == 200
@@ -109,13 +73,12 @@ def test_staff_forms_do_not_execute_on_get(client, staff, ri_env, monkeypatch, p
      ['scripts/build_ri_online_index_db.py', '2026', '--months', '11', '--only-refresh']),
     ('ri_local', 'daten/build/', {'refresh_existing': 'on'}, ['scripts/build_ri_local_index.py', '--refresh-existing']),
 ])
-def test_valid_ri_forms_start_only_fixed_commands(client, staff, ri_env, monkeypatch, action, path, extra, expected):
+def test_valid_ri_forms_start_only_fixed_commands(client, ri_env, monkeypatch, action, path, extra, expected):
     calls = []
     class Thread:
         def __init__(self, **kwargs): calls.append(kwargs)
         def start(self): pass
     monkeypatch.setattr(ri_env.threading, 'Thread', Thread)
-    client.force_login(staff)
     response = client.post('/ratsbereich/' + path, {'action': action, **extra})
     assert response.status_code == 302
     assert '/ratsbereich/daten/jobs/' in response['Location']
@@ -130,22 +93,20 @@ def test_valid_ri_forms_start_only_fixed_commands(client, staff, ri_env, monkeyp
     {'action': 'ri_fetch', 'year': '2026', 'months': '11', 'output': 'data/db/local_index.sqlite'},
     {'action': 'ri_fetch', 'year': '2026', 'months': '11', 'token': 'synthetic-token'},
 ])
-def test_wrong_actions_and_parameters_do_not_start_jobs(client, staff, ri_env, monkeypatch, payload):
-    client.force_login(staff)
+def test_wrong_actions_and_parameters_do_not_start_jobs(client, ri_env, monkeypatch, payload):
     monkeypatch.setattr(ri_env, 'start_job', lambda *args: pytest.fail('Invalid action started'))
     assert client.post('/ratsbereich/daten/fetch/', payload).status_code in {200, 400}
     assert not ri_env.JOBS_DB.exists()
 
 
-def test_csrf_is_required_for_ri_actions(staff, ri_env, monkeypatch):
+def test_csrf_is_required_for_ri_actions(ri_env, monkeypatch):
     from django.test import Client
     client = Client(enforce_csrf_checks=True)
-    client.force_login(staff)
     monkeypatch.setattr(ri_env, 'start_job', lambda *args: pytest.fail('CSRF bypass'))
     assert client.post('/ratsbereich/zugang/', {'action': 'ri_login'}).status_code == 403
 
 
-def test_parallel_ri_jobs_are_rejected_and_never_public(client, staff, ri_env, monkeypatch):
+def test_parallel_ri_jobs_are_rejected_and_never_public(client, ri_env, monkeypatch):
     class Thread:
         def __init__(self, **kwargs): pass
         def start(self): pass
@@ -158,7 +119,6 @@ def test_parallel_ri_jobs_are_rejected_and_never_public(client, staff, ri_env, m
     assert job_id not in public.content.decode()
     assert 'synthetic-private-output' not in public.content.decode()
     assert client.get(f'/daten/jobs/{job_id}/status/').status_code == 404
-    client.force_login(staff)
     response = client.get(f'/ratsbereich/daten/jobs/{job_id}/')
     assert response.status_code == 200
     assert b'&lt;script&gt;' in response.content
@@ -197,16 +157,14 @@ def test_abandoned_job_is_marked_interrupted(ri_env, monkeypatch):
     assert 'unterbrochen' in ri_env.get_job(job_id)['output']
 
 
-def test_build_forms_have_unique_control_ids(client, staff):
+def test_build_forms_have_unique_control_ids(client):
     from bs4 import BeautifulSoup
-    client.force_login(staff)
     soup = BeautifulSoup(client.get('/ratsbereich/daten/build/').content, 'html.parser')
     ids = [node['id'] for node in soup.select('[id]')]
     assert len(ids) == len(set(ids))
 
 
-def test_repeated_parameters_are_rejected(client, staff, ri_env, monkeypatch):
-    client.force_login(staff)
+def test_repeated_parameters_are_rejected(client, ri_env, monkeypatch):
     monkeypatch.setattr(ri_env, 'start_job', lambda *args: pytest.fail('Duplicate input started job'))
     response = client.post('/ratsbereich/daten/fetch/',
                            'action=ri_fetch&year=2026&months=11&months=12',
@@ -215,9 +173,8 @@ def test_repeated_parameters_are_rejected(client, staff, ri_env, monkeypatch):
     assert 'nur einmal' in response.content.decode()
 
 
-def test_public_fetch_endpoint_rejects_ri_actions(client, staff, ri_env, monkeypatch):
+def test_public_fetch_endpoint_rejects_ri_actions(client, ri_env, monkeypatch):
     from core import service_jobs
-    client.force_login(staff)
     monkeypatch.setattr(service_jobs, 'start_service_job', lambda *args: pytest.fail('Public RI command'))
     response = client.post('/buergerinformation/daten/fetch/', {'action': 'ri_login'})
     assert response.status_code == 400

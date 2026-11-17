@@ -2,7 +2,7 @@
 
 Die Anwendung sammelt öffentliche Sitzungs- und Dokumentdaten aus dem Bürgerinformationssystem der Stadt Melle (`/bi/`) und Veröffentlichungen des Landkreises Osnabrück. Sie erstellt lokale SQLite-Indizes und bietet semantische Suche sowie eine Django-Oberfläche für Datenpflege und Analyse.
 
-Für den Ratsbereich (`/ri/`) sind Anmeldung, Onlineindex, Dokumentabruf und lokaler Dokumentindex per CLI verfügbar. Die [RI-Anleitung](docs/ri/datenablauf.md) beschreibt den getrennten Bestand unter `data/ri/`. Die [geschützte RI-Datenpflege](docs/ri/oberflaeche.md) bindet diese Skripte in die Oberfläche ein; Sitzungsansichten und Bestandsbereinigung bleiben im Ausbau.
+Für den Ratsbereich (`/ri/`) sind Anmeldung, Onlineindex, Dokumentabruf und lokaler Dokumentindex per CLI verfügbar. Die [RI-Anleitung](docs/ri/datenablauf.md) beschreibt den getrennten Bestand unter `data/ri/`. Die [lokale RI-Datenpflege](docs/ri/oberflaeche.md) bindet diese Skripte in die Oberfläche ein; Sitzungsansichten und Bestandsbereinigung bleiben im Ausbau.
 
 ## Schnellstart
 
@@ -13,7 +13,7 @@ pip install -r requirements.txt
 python scripts/run_web.py
 ```
 
-Die lokale Entwicklungsoberfläche ist unter `http://127.0.0.1:8000/` erreichbar. Die RI-Datenpflege erfordert ein lokales Webkonto; öffentliche Bereiche bleiben ohne Anmeldung erreichbar. Voraussetzungen und Hinweise für Windows/WSL stehen unter [Einrichtung](docs/betrieb/einrichtung.md).
+Die lokale Entwicklungsoberfläche ist unter `http://127.0.0.1:8000/` erreichbar. Alle Bereiche einschließlich RI-Datenpflege sind im lokalen Betrieb ohne Web-Anmeldung erreichbar. Voraussetzungen und Hinweise für Windows/WSL stehen unter [Einrichtung](docs/betrieb/einrichtung.md).
 
 ## Dokumentation
 

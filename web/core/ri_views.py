@@ -1,10 +1,7 @@
-"""Protected UI controls for the RI command-line workflow."""
-from functools import wraps
+"""Local UI controls for the RI command-line workflow."""
 from pathlib import Path
 import sqlite3
 
-from django.contrib.auth.decorators import login_required
-from django.core.exceptions import PermissionDenied
 from django.http import Http404, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -24,18 +21,14 @@ PAGE_ACTIONS = {'zugang': ('ri_login',), 'fetch': ('ri_fetch',), 'build': ('ri_o
 TITLES = {'zugang': 'Zugang', 'fetch': 'Unterlagen herunterladen', 'build': 'Datenbank aktualisieren'}
 
 
-def ri_required(view):
-    """Require a local active staff account for every RI data response."""
-    @wraps(view)
-    @login_required(login_url='ri:login')
-    def protected(request, *args, **kwargs):
-        if not request.user.is_active or not request.user.is_staff:
-            raise PermissionDenied('Kein Zugang zum Ratsbereich.')
-        return view(request, *args, **kwargs)
-    return never_cache(protected)
+@never_cache
+@require_safe
+def access_redirect(request):
+    """Keep old login bookmarks usable without displaying an authentication page."""
+    return redirect('ri:status')
 
 
-@ri_required
+@never_cache
 @require_http_methods(['GET', 'HEAD', 'POST'])
 def script_page(request, page):
     actions = PAGE_ACTIONS[page]
@@ -74,7 +67,7 @@ def _database_status(path):
         return {'state': 'nicht lesbar; Datenbank prüfen', 'sessions': None, 'agenda_items': None, 'documents': None}
 
 
-@ri_required
+@never_cache
 @require_safe
 def status(request):
     errors = []
@@ -89,7 +82,7 @@ def status(request):
     })
 
 
-@ri_required
+@never_cache
 @require_safe
 def job_detail(request, job_id):
     job = ri_jobs.get_job(job_id)
@@ -98,7 +91,7 @@ def job_detail(request, job_id):
     return render(request, 'core/ri/job.html', {'active_nav': 'ri', 'title': job['label'], 'job': job})
 
 
-@ri_required
+@never_cache
 @require_safe
 def job_status(request, job_id):
     job = ri_jobs.get_job(job_id)
