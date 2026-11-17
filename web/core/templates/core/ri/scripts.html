@@ -1,16 +1,21 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}{{ title }} – Ratsbereich{% endblock %}
 {% block content %}
 {% include "core/ri/header.html" %}
 {% include "core/partials/messages.html" with errors=errors only %}
+<section class="running-banner" data-ri-active-job {% if not active_job %}hidden{% endif %} role="status">
+<p>Ein RI-Auftrag ist aktiv. <a data-ri-active-job-link {% if active_job %}href="{% url 'ri:job' active_job.job_id %}"{% endif %}>Laufenden Auftrag öffnen</a></p>
+</section>
 {% if access_page %}<section class="panel"><h2>Portalzugang</h2><p>Die Prüfung verwendet den bereits lokal hinterlegten Token und meldet die Portalsitzung anschließend wieder ab. Sie lädt keine Dokumente herunter.</p></section>{% endif %}
 {% for item in forms %}
 <section class="panel"><h2>{{ item.label }}</h2>
-<form method="post" class="form-stack">{% csrf_token %}<input type="hidden" name="action" value="{{ item.action }}">{{ item.form.non_field_errors }}
+<form method="post" class="form-stack" data-ri-script-form>{% csrf_token %}<input type="hidden" name="action" value="{{ item.action }}">{{ item.form.non_field_errors }}
 {% for field in item.form %}
 <div>{% if field.field.widget.input_type == 'checkbox' %}<label class="checkbox-inline">{{ field }} {{ field.label }}</label>{% else %}<label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% endif %}{{ field.errors }}{% if field.help_text %}<p>{{ field.help_text }}</p>{% endif %}</div>
 {% endfor %}<button class="button primary" type="submit">{{ item.label }}</button></form>
 </section>
 {% endfor %}
 <section class="panel"><h2>Ablauf</h2><p>Nach dem Start öffnet sich der Jobstatus mit der Ausgabe. Ein Auftrag mit Hinweisen kann fehlende Dokumente, ungeprüfte Sitzungen oder eine unbestätigte Abmeldung bedeuten. Gleichzeitig läuft höchstens ein RI-Webauftrag.</p></section>
+<script src="{% static 'core/js/ri_forms.js' %}"></script>
 {% endblock %}

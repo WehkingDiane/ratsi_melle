@@ -195,3 +195,60 @@ def test_worker_launch_failure_releases_reservation(ri_env, monkeypatch):
     assert job['status'] == 'error'
     assert 'synthetic-private-launch-detail' not in job['output']
     assert ri_env.start_job('ri_local', {'action': 'ri_local'})
+
+
+def test_repeated_start_opens_existing_job_and_completed_job_does_not_block(client, ri_env, monkeypatch):
+    launches = []
+    class Thread:
+        def __init__(self, **kwargs): launches.append(kwargs)
+        def start(self): pass
+    monkeypatch.setattr(ri_env.threading, 'Thread', Thread)
+    payload = {'action': 'ri_fetch', 'year': '2026', 'months': '12'}
+    first = client.post('/ratsbereich/daten/fetch/', payload)
+    job = ri_env.list_jobs()[0]
+    second = client.post('/ratsbereich/daten/fetch/', payload)
+    assert first.status_code == second.status_code == 302
+    assert second['Location'].split('?')[0] == first['Location']
+    assert 'already_running=1' in second['Location']
+    assert len(launches) == 1
+    assert len(ri_env.list_jobs()) == 1
+    response = client.get(second['Location'])
+    assert 'kein weiterer Auftrag gestartet' in response.content.decode()
+    ri_env._update(job['job_id'], status='partial', exit_code=2)
+    completed = client.get(second['Location'])
+    assert 'mit Hinweisen abgeschlossen' in completed.content.decode()
+    third = client.post('/ratsbereich/daten/fetch/', payload)
+    assert third.status_code == 302
+    assert third['Location'] != first['Location']
+    assert len(launches) == 2
+
+
+def test_ri_job_indicator_and_form_banner_follow_active_job_only(client, ri_env, monkeypatch):
+    from bs4 import BeautifulSoup
+    class Thread:
+        def __init__(self, **kwargs): pass
+        def start(self): pass
+    monkeypatch.setattr(ri_env.threading, 'Thread', Thread)
+    job_id = ri_env.start_job('ri_login', {'action': 'ri_login'})
+    ri_env._update(job_id, output='synthetic-private-output')
+    response = client.get('/ratsbereich/daten/fetch/')
+    soup = BeautifulSoup(response.content, 'html.parser')
+    assert soup.select_one('#job-indicator')['data-status-url'] == '/ratsbereich/daten/jobs/status/'
+    banner = soup.select_one('[data-ri-active-job]')
+    assert not banner.has_attr('hidden')
+    assert job_id in banner.select_one('a')['href']
+    assert soup.select_one('script[src="/static/core/js/ri_forms.js"]')
+    api = client.get('/ratsbereich/daten/jobs/status/')
+    assert api.status_code == 200
+    assert 'no-store' in api['Cache-Control']
+    active = api.json()['active']
+    assert [job['job_id'] for job in active] == [job_id]
+    assert active[0]['area'] == 'ri'
+    assert 'output' not in active[0]
+    assert 'synthetic-private-output' not in api.content.decode()
+    public = client.get('/daten/jobs/status/')
+    assert job_id not in public.content.decode()
+    ri_env._update(job_id, status='partial', exit_code=2)
+    assert client.get('/ratsbereich/daten/jobs/status/').json()['active'] == []
+    soup = BeautifulSoup(client.get('/ratsbereich/daten/fetch/').content, 'html.parser')
+    assert soup.select_one('[data-ri-active-job]').has_attr('hidden')

@@ -70,8 +70,16 @@ Vorhandene RI-Jobdaten bleiben nach einem Serverneustart lesbar. Nicht mehr lauf
 Aufträge werden als unterbrochen erkannt, sobald weder ihr Serverprozess noch ihr
 Kindprozess existiert.
 
-Gleichzeitig ist höchstens ein RI-Webauftrag erlaubt. Ein weiterer Start wird mit
-einem Hinweis abgewiesen. Dieser Slot koordiniert die Weboberfläche; während eines
+Laufende RI-Webaufträge erscheinen oben in derselben Jobanzeige wie die Datenjobs
+der anderen Bereiche. Im Ratsbereich fragt diese Anzeige ausschließlich die separate
+RI-Status-API ab; die BI-Anzeige bleibt auf BI-/Wartungsjobs begrenzt. Die Formularseite
+zeigt zusätzlich einen Link zum aktiven RI-Auftrag.
+
+Gleichzeitig ist höchstens ein RI-Webauftrag erlaubt. Beim Absenden werden die
+Start-Schaltflächen gegen Doppelabsenden gesperrt. Solange ein Auftrag läuft, bleiben
+sie gesperrt und werden nach dessen Abschluss automatisch wieder freigegeben. Falls
+trotzdem ein weiterer Start übermittelt wird, öffnet sich der bereits vorhandene
+Jobstatus mit dem Hinweis, dass kein zusätzlicher Auftrag gestartet wurde. Dieser Slot koordiniert die Weboberfläche; während eines
 Webauftrags keine zusätzlichen RI-Skripte manuell per CLI starten.
 
 ## Grenzen und Prüfung

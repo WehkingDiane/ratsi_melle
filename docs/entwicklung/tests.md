@@ -63,7 +63,8 @@ python -m pytest -q tests/test_ri_web.py
 
 Geprüft werden direkter Zugriff ohne Anmeldung, Weiterleitung alter Login-Links, CSRF,
 Formularparameter, erlaubte Skripte, eindeutige Formular-IDs, RI-eigene Jobablage,
-Parallelitätsschutz, Teilstatus und Prozessstartfehler. Die Tests verwenden keine
+Parallelitätsschutz, Weiterleitung wiederholter Starts zum bestehenden Job,
+Freigabe nach einem Teilabschluss, bereichsgebundene Jobanzeige und Prozessstartfehler. Die Tests verwenden keine
 Portalzugangsdaten und starten keine echten RI-Skripte. Betroffene bisherige
 Platzhalter- und Navigationsprüfungen stehen in `tests/test_web_pages.py` und können
 über die jeweiligen Testnamen gezielt ausgeführt werden. Der vollständige

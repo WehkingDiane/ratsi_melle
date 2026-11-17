@@ -263,7 +263,7 @@ def test_nested_pages_use_absolute_static_urls(client) -> None:
     content = response.content.decode("utf-8")
 
     assert 'href="/static/core/css/base.css?v=' in content
-    assert 'src="/static/core/js/service_status.js"' in content
+    assert 'src="/static/core/js/service_status.js?v=ri-status"' in content
     assert 'src="/static/core/js/navigation.js"' in content
     assert 'href="static/' not in content
     assert 'src="static/' not in content

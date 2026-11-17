@@ -26,6 +26,7 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 
 ## 0.8.0 – 17.11.2026
 
+- Laufende RI-Aufträge in der gemeinsamen Jobanzeige und auf Formularseiten sichtbar machen; Doppelabsenden verhindern, erneute Starts zum aktiven Jobstatus führen und Startschaltflächen nach Abschluss wieder freigeben.
 - RI-Skripte über lokale Webformulare für Zugang, Download und Datenbankaufbau starten.
 - RI-Datenpflege für den lokalen Einzelplatzbetrieb direkt ohne Web-Anmeldung zugänglich machen; Portalzugang bleibt separat.
 - RI-Aufträge mit eigenem Status, separater Ausgabe und Parallelitätsschutz unter `data/ri/db/ri_jobs.sqlite` ablegen; Exitcode `2` als Abschluss mit Hinweisen anzeigen.

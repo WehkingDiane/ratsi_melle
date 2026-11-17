@@ -24,6 +24,14 @@ class RiJobError(ValueError):
     """A RI task cannot be reserved or started."""
 
 
+class RiJobBusyError(RiJobError):
+    """A new request can open the already active RI job instead."""
+
+    def __init__(self, job_id):
+        super().__init__('Ein RI-Auftrag läuft bereits. Bitte dessen Abschluss abwarten.')
+        self.job_id = job_id
+
+
 def _now():
     return datetime.now(timezone.utc).isoformat()
 
@@ -102,8 +110,9 @@ def start_job(action, data):
         with _connect(create=True) as connection:
             connection.execute('BEGIN IMMEDIATE')
             _recover(connection)
-            if connection.execute("SELECT 1 FROM ri_jobs WHERE status IN ('queued','running')").fetchone():
-                raise RiJobError('Ein RI-Auftrag läuft bereits. Bitte dessen Abschluss abwarten.')
+            active = connection.execute("SELECT job_id FROM ri_jobs WHERE status IN ('queued','running')").fetchone()
+            if active:
+                raise RiJobBusyError(active['job_id'])
             connection.execute('INSERT INTO ri_jobs(job_id,action,status,created_at,owner_pid) VALUES(?,?,?,?,?)',
                                (job_id, action, 'queued', _now(), os.getpid()))
             connection.execute("DELETE FROM ri_jobs WHERE status NOT IN ('queued','running') AND job_id NOT IN "

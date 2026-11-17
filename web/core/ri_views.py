@@ -4,6 +4,7 @@ import sqlite3
 
 from django.http import Http404, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_safe
@@ -44,6 +45,8 @@ def script_page(request, page):
         if action == key and form.is_valid():
             try:
                 job_id = ri_jobs.start_job(key, request.POST)
+            except ri_jobs.RiJobBusyError as error:
+                return redirect(reverse('ri:job', kwargs={'job_id': error.job_id}) + '?already_running=1')
             except (ri_jobs.RiJobError, ValueError) as error:
                 errors.append(str(error))
             else:
@@ -51,7 +54,7 @@ def script_page(request, page):
         forms.append({'action': key, 'label': label, 'form': form})
     return render(request, 'core/ri/scripts.html', {
         'active_nav': 'ri', 'title': TITLES[page], 'forms': forms, 'errors': errors,
-        'access_page': page == 'zugang',
+        'access_page': page == 'zugang', 'active_job': _active_job(),
     })
 
 
@@ -88,7 +91,8 @@ def job_detail(request, job_id):
     job = ri_jobs.get_job(job_id)
     if job is None:
         raise Http404
-    return render(request, 'core/ri/job.html', {'active_nav': 'ri', 'title': job['label'], 'job': job})
+    return render(request, 'core/ri/job.html', {'active_nav': 'ri', 'title': job['label'], 'job': job,
+                                                           'already_running': request.GET.get('already_running') == '1'})
 
 
 @never_cache
@@ -98,6 +102,29 @@ def job_status(request, job_id):
     if job is None:
         raise Http404
     return JsonResponse({'job': job})
+
+
+def _active_job():
+    try:
+        return next((job for job in ri_jobs.list_jobs() if job['running']), None)
+    except (OSError, sqlite3.Error):
+        return None
+
+
+@never_cache
+@require_safe
+def jobs_status(request):
+    """Expose RI lifecycle metadata to the RI area's shared job indicator."""
+    try:
+        jobs = ri_jobs.list_jobs()
+    except (OSError, sqlite3.Error):
+        return JsonResponse({'error': 'RI-Status nicht verfügbar.'}, status=503)
+    active = []
+    for job in jobs:
+        if job['running']:
+            active.append({key: job[key] for key in ('job_id', 'action', 'label', 'status', 'status_label')})
+            active[-1].update(area='ri', detail_url=reverse('ri:job', kwargs={'job_id': job['job_id']}))
+    return JsonResponse({'active': active})
 
 
 @require_safe

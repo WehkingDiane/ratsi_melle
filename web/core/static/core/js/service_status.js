@@ -4,7 +4,8 @@
 
   async function refreshServiceStatus() {
     try {
-      const response = await fetch("/daten/jobs/status/", {
+      const response = await fetch(indicator.dataset.statusUrl || "/daten/jobs/status/", {
+        cache: "no-store",
         headers: { "Accept": "application/json" },
       });
       if (!response.ok) {
@@ -12,6 +13,7 @@
       }
       const payload = await response.json();
       const active = payload.active || [];
+      document.dispatchEvent(new CustomEvent("servicejobs:status", {detail: {active}}));
       if (active.length === 0) {
         indicator.hidden = true;
         return;
@@ -23,7 +25,7 @@
       const jobsLabel = maintenanceCount === 0 ? "Datenjobs"
         : maintenanceCount === active.length ? "Wartungsjobs" : "Jobs";
       text.textContent = active.length === 1
-        ? (job.area === "service" ? "Wartungsjob" : "Datenjob") + " läuft: " + job.action
+        ? (job.area === "ri" ? "RI-Auftrag" : job.area === "service" ? "Wartungsjob" : "Datenjob") + " läuft: " + (job.label || job.action)
         : active.length + " " + jobsLabel + " laufen";
     } catch (_error) {
       return;

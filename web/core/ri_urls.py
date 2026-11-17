@@ -12,6 +12,7 @@ urlpatterns = [
     path('daten/', ri_views.status, name='status'),
     path('daten/fetch/', ri_views.script_page, {'page': 'fetch'}, name='fetch'),
     path('daten/build/', ri_views.script_page, {'page': 'build'}, name='build'),
+    path('daten/jobs/status/', ri_views.jobs_status, name='jobs_status'),
     path('daten/jobs/<str:job_id>/', ri_views.job_detail, name='job'),
     path('daten/jobs/<str:job_id>/status/', ri_views.job_status, name='job_status'),
     path('sitzungen/', ri_views.placeholder, {'page': 'sitzungen'}),
