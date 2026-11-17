@@ -141,7 +141,7 @@ und `1` bei Abbruch; fehlende oder unzulässige Dateien werden mit Warnung
 übersprungen. Teilstände können mit demselben Aufruf erneut verarbeitet werden.
 Die bekannte unbestätigte entfernte Proton-Abmeldung bleibt ein eigener Warnstatus.
 
-Der CLI-Ablauf stellt noch keinen geschützten Webzugang bereit. Oberfläche,
+Die [geschützte Web-Datenpflege](oberflaeche.md) steuert diese Skripte seit 0.8.0. Sitzungs- und Dateiansichten,
 Aufbewahrung und Bestandsbereinigung sowie ein Bedarfstest des Verwaltungsausschusses
 bleiben Teil des [RI-Plans](../plans/ri_ratsbereich_plan.md). Eine RI-Volltext- oder
 Vektorindexierung ist nicht vorgesehen. Lokale Dateien und Sicherungen bleiben

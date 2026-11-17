@@ -1,6 +1,6 @@
 # Plan: RI-Skripte in die Oberfläche einbinden
 
-Stand: 17.11.2026. Arbeitsbranch: `codex/feature/ri-ui-scripts`.
+Stand: 17.11.2026. Status: implementiert und offline sowie im Browser mit synthetischen Daten geprüft. Arbeitsbranch: `codex/feature/ri-ui-scripts`.
 
 ## Umfang und Entscheidungen
 
@@ -25,14 +25,14 @@ Exitcode 2 wird als abgeschlossener Auftrag mit Hinweisen angezeigt.
 
 ## Umsetzung
 
-- [ ] Django-Authentifizierung einrichten und RI-Views, Jobdetails und Statusabfragen serverseitig schützen.
-- [ ] Bestehende RI-Einstiege für Zugang, Download, Build und Datenstatus mit Formularen und Ergebnissen verbinden.
-- [ ] Eigene RI-Jobablage und begrenzte Hintergrundausführung einschließlich Parallelitätsschutz und Wiederanlauferkennung ergänzen.
-- [ ] Öffentliche Joblisten und APIs auf Trennung prüfen; RI-Aktionen dort weiterhin ablehnen.
-- [ ] Formularfehler, fehlenden Datenbestand, laufende Jobs, Teilstatus und Fehler verständlich darstellen.
-- [ ] Gezielte Tests für Anmeldung, Berechtigungen, CSRF, Befehlsparameter, Datenisolation und Jobzustände ergänzen; betroffene bisherige Platzhaltertests aktualisieren.
-- [ ] Neue RI-Seiten mit synthetischen Daten im Browser prüfen, ohne reale Downloads oder Portalprüfungen zu starten.
-- [ ] Zugangseinrichtung, Bedienung, Ist-Stand und offene Aufgaben nachführen; Version und Changelog gemeinsam aktualisieren.
+- [x] Django-Authentifizierung einrichten und RI-Views, Jobdetails und Statusabfragen serverseitig schützen.
+- [x] Bestehende RI-Einstiege für Zugang, Download, Build und Datenstatus mit Formularen und Ergebnissen verbinden.
+- [x] Eigene RI-Jobablage und begrenzte Hintergrundausführung einschließlich Parallelitätsschutz und Wiederanlauferkennung ergänzen.
+- [x] Öffentliche Joblisten und APIs auf Trennung prüfen; RI-Aktionen dort weiterhin ablehnen.
+- [x] Formularfehler, fehlenden Datenbestand, laufende Jobs, Teilstatus und Fehler verständlich darstellen.
+- [x] Gezielte Tests für Anmeldung, Berechtigungen, CSRF, Befehlsparameter, Datenisolation und Jobzustände ergänzen; betroffene bisherige Platzhaltertests aktualisieren.
+- [x] Neue RI-Seiten mit synthetischen Daten im Browser prüfen, ohne reale Downloads oder Portalprüfungen zu starten.
+- [x] Zugangseinrichtung, Bedienung, Ist-Stand und offene Aufgaben nachführen; Version und Changelog gemeinsam aktualisieren.
 
 ## Abnahme
 

@@ -13,7 +13,8 @@ Teilpakete sind im [Changelog](../../CHANGELOG.md) dokumentiert.
 - [x] Getrennte RI-Datenwurzel `data/ri/`, Dokument-ID und Öffentlichkeitskennzeichnung sowie gezielte Offline-Tests umgesetzt.
 - [ ] Verwaltungsausschuss, feinere Dokumentartauswahl und weitere Betriebsverträge abnehmen.
 - [ ] Regeln für Sitzungszeitraum, Nachlauf und Aufbewahrung entscheiden; kontrollierte Bestandsbereinigung umsetzen.
-- [ ] Geschützte RI-Funktionen in die Django-Oberfläche integrieren und Web-/Exporttrennung abnehmen.
+- [x] Geschützte Webformulare für RI-Skripte, separate Jobablage und Jobausgaben umgesetzt (0.8.0).
+- [ ] Geschützte Sitzungs-/Dateiansichten ergänzen und deren Web-/Exporttrennung abnehmen.
 
 RI-Volltext-/Vektorindexierung und RI-Suche bleiben für die erste Ausbaustufe
 zurückgestellt. Der komplette Vorhaben-Branch ist mit dem CLI-Paket noch nicht fertig.
@@ -45,10 +46,7 @@ Eine neue Volltext- oder Vektorsuche wäre gesondert zu entscheiden.
 
 ## 1. Navigation und Skriptnamen
 
-Die regulären CLI-Namen unterscheiden BI und RI. Die vorbereitete Bereichsnavigation
-und RI-Platzhalter aus PR #90 bleiben bestehen. Sie starten keine RI-Jobs und lesen
-keine internen Daten ein. Erst mit serverseitigem Zugriffsschutz werden sie durch
-funktionsfähige RI-Seiten ersetzt.
+Die regulären CLI-Namen unterscheiden BI und RI. Seit 0.8.0 sind die RI-Einstiege für Zugang, Download, Build und Datenstatus geschützt mit den Skripten verbunden. Sitzungs- und Suchansichten bleiben Platzhalter.
 
 ## 2. Vorprüfung und verbindliche Entscheidungen
 
@@ -105,12 +103,9 @@ aufgebaut. Öffentliche Suche und öffentliche Analyseauswahl erhalten keine RI-
 
 ## 6. Geschützte Oberfläche
 
-Die [Navigationsübersicht](navigation.md) bleibt das Zielbild. Als Nächstes sind
-Benutzeranmeldung, serverseitige Berechtigungen, geschützte Jobausführung und
-Dateiauslieferung zu implementieren. Kalender, Dashboard, Exporte und öffentliche
+Die [Navigationsübersicht](navigation.md) beschreibt den ursprünglichen Entwurf. Die [Web-Skriptsteuerung](../ri/oberflaeche.md) mit Anmeldung, Mitarbeiterstatus und getrennten RI-Jobs ist umgesetzt. Als Nächstes sind Sitzungsansichten und geschützte Dateiauslieferung zu implementieren. Kalender, Dashboard, Exporte und öffentliche
 Jobmeldungen dürfen keine unberechtigten RI-Metadaten anzeigen.
-Debug-Modus, Secret-Key und Sitzungsverhalten sind vor einer Webnutzung mit echten
-RI-Daten abzustimmen. Kennzeichnung und Herkunft bleiben auf den RI-Seiten sichtbar.
+Für eine spätere Netzwerkbereitstellung sind Debug-Modus, stabiler Secret-Key, HTTPS und Sitzungsverhalten gesondert abzustimmen; die aktuelle Konfiguration bleibt lokal. Kennzeichnung und Herkunft bleiben auf den RI-Seiten sichtbar.
 
 ## Nächste Schritte und Abnahme
 
