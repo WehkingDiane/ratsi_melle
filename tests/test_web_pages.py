@@ -263,7 +263,7 @@ def test_nested_pages_use_absolute_static_urls(client) -> None:
     content = response.content.decode("utf-8")
 
     assert 'href="/static/core/css/base.css?v=' in content
-    assert 'src="/static/core/js/service_status.js"' in content
+    assert 'src="/static/core/js/service_status.js?v=ri-status"' in content
     assert 'src="/static/core/js/navigation.js"' in content
     assert 'href="static/' not in content
     assert 'src="static/' not in content
@@ -1765,7 +1765,7 @@ def test_answer_reader_only_lists_jobs_with_readable_answers(client, monkeypatch
     assert soup.select_one('.answer-document a[href="/analyse/jobs/1/"]') is not None
 
 
-@pytest.mark.parametrize("suffix", ["", "zugang/", "sitzungen/", "suche/", "daten/", "daten/fetch/", "daten/build/", "daten/vektor/"])
+@pytest.mark.parametrize("suffix", ["sitzungen/", "suche/", "daten/vektor/"])
 def test_ri_placeholders_are_informational_only(client, monkeypatch, suffix):
     from core import service_jobs
     def unexpected(*args, **kwargs):
@@ -1774,7 +1774,7 @@ def test_ri_placeholders_are_informational_only(client, monkeypatch, suffix):
     response = client.get("/ratsbereich/" + suffix)
     assert response.status_code == 200
     soup = BeautifulSoup(response.content, "html.parser")
-    assert "Ratsbereich noch nicht eingerichtet" in soup.get_text()
+    assert "Funktion noch nicht verfügbar" in soup.get_text()
     assert soup.select_one(".nav-menu-label.active").get_text() == "Ratsbereich"
     assert not soup.select("form")
     assert client.post("/ratsbereich/" + suffix, {"action": "fetch_sessions"}).status_code == 405

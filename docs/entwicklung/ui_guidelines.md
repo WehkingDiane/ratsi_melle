@@ -10,7 +10,7 @@ Spalte mit kommenden Sitzungen, vergangenen Sitzungen und anschließendem Status
 
 Bürgerinformation und Landkreis enthalten ihre jeweiligen Such- und Datenpflege-Einstiege.
 „Erweiterungen“ bündelt Analyse; „Einstellungen“ bündelt Wartung und Konfiguration.
-Der Ratsbereich enthält bis zur RI-Anbindung informative Platzhalter. Modellvorbereitung, Prüfungen und
+Der Ratsbereich enthält lokal direkt zugängliche Formulare für die RI-Skripte und eine getrennte Jobhistorie. Sitzungs- und Suchansichten bleiben informative Platzhalter. Modellvorbereitung, Prüfungen und
 Modell-/Legacy-Jobhistorie stehen auf `/service/wartung/`, Einstellungen auf
 `/service/einstellungen/`. Wartungsjobs verwenden auch beim Öffnen älterer
 Datenjob-Links die Service-Navigation. Die Vektorseite zeigt nur normale Builds
@@ -91,6 +91,7 @@ Bestätigungen bleiben erhalten.
 
 Links auf ein Startformular sind Navigation; erst dessen Absenden ist die
 auslösende Hauptaktion. Buttons und Links verwenden dieselbe Schrift.
+Mehrere Formulare einer Seite erhalten eindeutige IDs für ihre Eingabefelder; Bezeichnungen dürfen keine fremden Checkboxen umschalten.
 Deaktivierte Aktionen bleiben als solche erkennbar. Datums-, Uhrzeit- und
 Datum/Uhrzeit-Zellen verwenden `date-value`, `time-value` oder `datetime-value`.
 Der fachliche Inhalt und die Datenformatierung bleiben Aufgabe der Services.

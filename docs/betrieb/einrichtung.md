@@ -8,7 +8,8 @@ Aus dem Repository-Stamm in der aktivierten Umgebung:
 
 ```bash
 pip install -r requirements.txt
+python web/manage.py migrate
 python scripts/run_web.py
 ```
 
-Danach ist die lokale Entwicklungsoberfläche unter `http://127.0.0.1:8000/` erreichbar. Sie besitzt keine Benutzeranmeldung. Für Daten und Suchmodelle folgen [Datenabruf](../datenabruf/README.md) und [Indexaufbau](../suche/indizes.md). Der [RI-Zugang](../ri/zugang.md) wird separat pro System eingerichtet.
+Danach ist die lokale Entwicklungsoberfläche unter `http://127.0.0.1:8000/` erreichbar. Alle lokalen Bereiche sind ohne Web-Anmeldung nutzbar. Die [RI-Webanleitung](../ri/oberflaeche.md) beschreibt die Skriptsteuerung. Für Daten und Suchmodelle folgen [Datenabruf](../datenabruf/README.md) und [Indexaufbau](../suche/indizes.md). Der [RI-Zugang](../ri/zugang.md) wird separat pro System eingerichtet.

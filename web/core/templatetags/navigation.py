@@ -1,4 +1,4 @@
-"""Shared navigation for public areas and the future council area."""
+"""Shared navigation for public areas and the protected council area."""
 from django import template
 from django.urls import reverse
 
@@ -29,7 +29,12 @@ def main_navigation(context):
             links.append((prefix + "zugang/", "Zugang"))
         if source != "landkreis":
             links.append((reverse("analysis:session_list") if source == "ratsinfo" else prefix + "sitzungen/", "Sitzungen"))
-        links += [(prefix + "suche/", "Dokumentensuche"), (prefix + "daten/fetch/", "Unterlagen herunterladen"), (prefix + "daten/build/", "Datenbank aktualisieren"), (prefix + "daten/vektor/", "Suchindex aktualisieren"), (prefix + "daten/", "Datenstatus und Jobs")]
+        if source == "ri":
+            links += [(prefix + "daten/fetch/", "Unterlagen herunterladen"),
+                      (prefix + "daten/build/", "Datenbank aktualisieren"),
+                      (prefix + "daten/", "Datenstatus und Jobs")]
+        else:
+            links += [(prefix + "suche/", "Dokumentensuche"), (prefix + "daten/fetch/", "Unterlagen herunterladen"), (prefix + "daten/build/", "Datenbank aktualisieren"), (prefix + "daten/vektor/", "Suchindex aktualisieren"), (prefix + "daten/", "Datenstatus und Jobs")]
         if source == "ratsinfo":
             links.append((reverse("data_tools:service_status_detail"), "Datenstatus nach Jahr"))
         add(source, label, links)

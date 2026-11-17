@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ title }} – Ratsbereich{% endblock %}
+{% block content %}
+{% include "core/ri/header.html" %}
+{% if already_running %}<section class="notice status-warning" role="status">Es wurde kein weiterer Auftrag gestartet. Hier ist der aktuelle Status des bereits vorhandenen Auftrags.</section>{% endif %}
+<section class="panel" id="ri-job" data-status-url="{% url 'ri:job_status' job.job_id %}">
+<h2>Auftragsstatus</h2><p id="ri-job-status" role="status" aria-live="polite">{{ job.status_label }}</p>
+<p>Exitcode: <span id="ri-job-exit">{{ job.exit_code|default_if_none:"–" }}</span></p>
+<a class="button utility" href="{% url 'ri:job' job.job_id %}">Status aktualisieren</a>
+</section>
+<section class="panel"><h2>Ausgabe</h2><pre id="ri-job-output">{{ job.output }}</pre></section>
+<script src="{% static 'core/js/ri_job.js' %}"></script>
+{% endblock %}

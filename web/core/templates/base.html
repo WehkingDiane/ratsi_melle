@@ -29,7 +29,7 @@
       <nav class="main-nav" id="main-navigation" aria-label="Hauptnavigation">
         {% main_navigation %}
       </nav>
-      <a class="job-indicator" id="job-indicator" href="{% url 'data_tools:index' %}" hidden>
+      <a class="job-indicator" id="job-indicator" href="{% if active_nav == 'ri' %}{% url 'ri:status' %}{% else %}{% url 'data_tools:index' %}{% endif %}" hidden data-status-url="{% if active_nav == 'ri' %}{% url 'ri:jobs_status' %}{% else %}{% url 'data_tools:service_job_status' %}{% endif %}">
         <span class="job-spinner" aria-hidden="true"></span>
         <span id="job-indicator-text">Datenjob läuft</span>
       </a>
@@ -43,7 +43,7 @@
   <footer class="site-footer">
     <div class="site-footer-inner">Lokale Entwicklungsoberfläche</div>
   </footer>
-  <script src="{% static 'core/js/service_status.js' %}"></script>
+  <script src="{% static 'core/js/service_status.js' %}?v=ri-status"></script>
   <script src="{% static 'core/js/navigation.js' %}"></script>
 </body>
 </html>

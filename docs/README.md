@@ -9,7 +9,7 @@
 | Suche nutzen und Indizes pflegen | [Suche](suche/README.md) |
 | Sitzungen ansehen und Datenjobs starten | [Weboberfläche](oberflaeche/README.md) |
 | Analysen vorbereiten und Ergebnisse lesen | [Analyse](analyse/README.md) |
-| Ratsbereich einrichten und Daten abrufen | [Zugangsanleitung](ri/zugang.md), [CLI-Datenablauf](ri/datenablauf.md) und [Umsetzungsstand](ri/README.md) |
+| Ratsbereich einrichten und Daten abrufen | [Zugangsanleitung](ri/zugang.md), [CLI-Datenablauf](ri/datenablauf.md), [Web-Datenpflege](ri/oberflaeche.md) und [Umsetzungsstand](ri/README.md) |
 | Datenpfade oder Fehler untersuchen | [Datenpflege](betrieb/datenpflege.md) und [Fehlerbehebung](betrieb/fehlerbehebung.md) |
 | Am Projekt entwickeln | [Repository-Regeln](entwicklung/repository_guidelines.md), [Tests](entwicklung/tests.md), [UI-Regeln](entwicklung/ui_guidelines.md) |
 
@@ -17,6 +17,7 @@
 
 - [Ist-Stand](ist_stand.md): aktueller Funktionsumfang
 - [RI-Plan](plans/ri_ratsbereich_plan.md) und [aktuelle Aufgaben](plans/project_tasks.md): laufendes Ausbauvorhaben
+- [RI-Skriptanbindung](plans/ri_ui_scripts.md): Umsetzung der geschützten Datenpflege
 - [Navigationsentwurf](plans/navigation.md): aktuelle und geplante Navigation
 - [Aufräumplanung](plans/aufraeumen.md): zurückgestellte Einordnung temporärer Prüfartefakte und Diagnoseskripte
 - [Changelog](../CHANGELOG.md): ausgewählte Versionsänderungen

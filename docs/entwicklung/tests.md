@@ -51,3 +51,21 @@ Streamfehler werden bis zum RI-Exitcode geprüft, einschließlich alter Manifest
 Fortsetzung mit nachfolgenden Sitzungen und erfolgreichem Wiederholungslauf. Integrationstests
 verwenden ausschließlich pytest-Temporärverzeichnisse. Der [RI-Datenablauf](../ri/datenablauf.md)
 ist der verbindliche Ort für Bedienung und Dateiverträge.
+
+## RI-Web-Datenpflege
+
+Gezielte Prüfung des lokalen Direktzugriffs ohne Benutzerkonto mit temporären
+Jobdatenbanken und simulierten Hintergrundprozessen:
+
+```bash
+python -m pytest -q tests/test_ri_web.py
+```
+
+Geprüft werden direkter Zugriff ohne Anmeldung, Weiterleitung alter Login-Links, CSRF,
+Formularparameter, erlaubte Skripte, eindeutige Formular-IDs, RI-eigene Jobablage,
+Parallelitätsschutz, Weiterleitung wiederholter Starts zum bestehenden Job,
+Freigabe nach einem Teilabschluss, bereichsgebundene Jobanzeige und Prozessstartfehler. Die Tests verwenden keine
+Portalzugangsdaten und starten keine echten RI-Skripte. Betroffene bisherige
+Platzhalter- und Navigationsprüfungen stehen in `tests/test_web_pages.py` und können
+über die jeweiligen Testnamen gezielt ausgeführt werden. Der vollständige
+PR-Testlauf bleibt beim Nutzer.

@@ -13,7 +13,8 @@ Teilpakete sind im [Changelog](../../CHANGELOG.md) dokumentiert.
 - [x] Getrennte RI-Datenwurzel `data/ri/`, Dokument-ID und Öffentlichkeitskennzeichnung sowie gezielte Offline-Tests umgesetzt.
 - [ ] Verwaltungsausschuss, feinere Dokumentartauswahl und weitere Betriebsverträge abnehmen.
 - [ ] Regeln für Sitzungszeitraum, Nachlauf und Aufbewahrung entscheiden; kontrollierte Bestandsbereinigung umsetzen.
-- [ ] Geschützte RI-Funktionen in die Django-Oberfläche integrieren und Web-/Exporttrennung abnehmen.
+- [x] Lokale Webformulare ohne Anmeldung für RI-Skripte, separate Jobablage und Jobausgaben umgesetzt (0.8.0).
+- [ ] Geschützte Sitzungs-/Dateiansichten ergänzen und deren Web-/Exporttrennung abnehmen.
 
 RI-Volltext-/Vektorindexierung und RI-Suche bleiben für die erste Ausbaustufe
 zurückgestellt. Der komplette Vorhaben-Branch ist mit dem CLI-Paket noch nicht fertig.
@@ -45,10 +46,7 @@ Eine neue Volltext- oder Vektorsuche wäre gesondert zu entscheiden.
 
 ## 1. Navigation und Skriptnamen
 
-Die regulären CLI-Namen unterscheiden BI und RI. Die vorbereitete Bereichsnavigation
-und RI-Platzhalter aus PR #90 bleiben bestehen. Sie starten keine RI-Jobs und lesen
-keine internen Daten ein. Erst mit serverseitigem Zugriffsschutz werden sie durch
-funktionsfähige RI-Seiten ersetzt.
+Die regulären CLI-Namen unterscheiden BI und RI. Seit 0.8.0 sind die RI-Einstiege für Zugang, Download, Build und Datenstatus direkt mit den Skripten verbunden. Der lokale Einzelplatzbetrieb verwendet keine Web-Anmeldung. Sitzungs- und Suchansichten bleiben Platzhalter.
 
 ## 2. Vorprüfung und verbindliche Entscheidungen
 
@@ -105,12 +103,19 @@ aufgebaut. Öffentliche Suche und öffentliche Analyseauswahl erhalten keine RI-
 
 ## 6. Geschützte Oberfläche
 
-Die [Navigationsübersicht](navigation.md) bleibt das Zielbild. Als Nächstes sind
-Benutzeranmeldung, serverseitige Berechtigungen, geschützte Jobausführung und
-Dateiauslieferung zu implementieren. Kalender, Dashboard, Exporte und öffentliche
+Die [Navigationsübersicht](navigation.md) beschreibt den ursprünglichen Entwurf. Die [Web-Skriptsteuerung](../ri/oberflaeche.md) ohne Anmeldung und mit getrennten RI-Jobs ist umgesetzt. Als Nächstes sind Sitzungsansichten und Dateiauslieferung mit Pfadprüfung zu implementieren. Kalender, Dashboard, Exporte und öffentliche
 Jobmeldungen dürfen keine unberechtigten RI-Metadaten anzeigen.
-Debug-Modus, Secret-Key und Sitzungsverhalten sind vor einer Webnutzung mit echten
-RI-Daten abzustimmen. Kennzeichnung und Herkunft bleiben auf den RI-Seiten sichtbar.
+Für eine spätere Netzwerkbereitstellung sind Debug-Modus, stabiler Secret-Key, HTTPS und Sitzungsverhalten gesondert abzustimmen; die aktuelle Konfiguration bleibt lokal. Kennzeichnung und Herkunft bleiben auf den RI-Seiten sichtbar.
+
+## Wiederverwendung zwischen BI und RI
+
+Der erste RI-Webstand wird als funktionsfähiger Prototyp übernommen. Danach werden
+Frontend und Backend beider Bereiche auf fachlich identische Abläufe und Strukturen
+geprüft. Geeignete Teile sollen gemeinsame Objekte, Funktionen, Module oder Skripte
+verwenden. Dazu gehören insbesondere Formulare, Seiten-/Ausgabebausteine,
+Befehlsaufbau sowie Abruf-, Build- und Joblogik. Bereichsabhängige Konfiguration und
+Verhalten bleiben ausdrücklich erhalten. Die konkreten offenen Arbeiten stehen
+verbindlich in der [Aufgabenliste](project_tasks.md).
 
 ## Nächste Schritte und Abnahme
 
