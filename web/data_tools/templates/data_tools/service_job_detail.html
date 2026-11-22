@@ -13,28 +13,8 @@
 {% include "core/partials/messages.html" with errors=errors only %}
 
 {% if job %}
-<section class="panel" data-service-job-id="{{ job_id }}" data-job-label="{{ job_label }}" data-legacy-job="{% if job.action == 'inspect_legacy_index' or job.action == 'apply_legacy_index' %}true{% else %}false{% endif %}" data-service-job-running="{% if job.status == 'running' or job.status == 'queued' %}true{% else %}false{% endif %}">
-  <h2>{{ job.action }}</h2>
-  <dl class="facts inline">
-    <div><dt>Status</dt><dd id="job-status" class="{% if job.status == 'ok' %}status-ok{% elif job.status == 'running' or job.status == 'queued' %}status-warning{% else %}status-error{% endif %}">{{ job.status_label|default:job.status }}</dd></div>
-    <div><dt>Exit-Code</dt><dd id="job-exit-code">{{ job.exit_code|default:"-" }}</dd></div>
-    <div><dt>Start</dt><dd id="job-started-at" class="datetime-value">{{ job.started_at|default:"-" }}</dd></div>
-    <div><dt>Ende</dt><dd id="job-finished-at" class="datetime-value">{{ job.finished_at|default:"-" }}</dd></div>
-  </dl>
-  {% if job.status == "running" or job.status == "queued" %}
-  <div class="running-banner" id="job-running-banner">
-    <span class="job-spinner" aria-hidden="true"></span>
-    <span>Script wird ausgeführt. Die Logausgabe wird automatisch aktualisiert.</span>
-  </div>
-  {% endif %}
-  <p id="job-completion-message" class="{% if job.status == 'ok' %}status-ok{% else %}status-error{% endif %}" aria-live="polite"{% if job.status == "running" or job.status == "queued" %} hidden{% endif %}>
-    {% if job.status == "ok" %}{{ job_label }} wurde erfolgreich abgeschlossen.{% elif job.status != "running" and job.status != "queued" %}{{ job_label }} ist fehlgeschlagen.{% endif %}
-  </p>
-  <pre class="text-block compact">{{ job.command_text }}</pre>
-  <p id="job-progress-text" aria-live="polite">{{ job.progress.message }}</p>
-  <progress id="job-progress" aria-label="Ausführung läuft, Prozentfortschritt unbekannt"{% if job.status != "running" %} hidden{% endif %}></progress>
-  <pre class="text-block" id="job-output">{{ job.output|default:"Noch keine Ausgabe." }}</pre>
-</section>
+{% url 'data_tools:service_job_detail_status' job_id as job_status_url %}
+{% include "core/partials/job_panel.html" %}
 {% if model_job_evidence %}
 <section class="panel" id="model-job-evidence">
   <h2>Zuordnung des Jobergebnisses</h2>

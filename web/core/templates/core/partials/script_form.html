@@ -1,0 +1,12 @@
+<article class="panel">
+  <h2>{{ item.label }}</h2>
+  <form method="post" class="form-stack"{% if ri_script_form %} data-ri-script-form{% endif %}>
+    {% csrf_token %}
+    <input type="hidden" name="action" value="{{ item.action }}">
+    {{ item.form.non_field_errors }}
+    {% for field in item.form %}
+      {% include "core/partials/form_field.html" with field=field only %}
+    {% endfor %}
+    <button class="button primary" type="submit">{{ item.submit_label|default:item.label }}</button>
+  </form>
+</article>

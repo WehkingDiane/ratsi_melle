@@ -14,6 +14,7 @@ from django.views.decorators.http import require_safe
 from core import service_jobs
 
 from . import services
+from .forms import script_forms
 
 
 SOURCE_ACTIONS = {
@@ -96,6 +97,7 @@ def service_fetch(request, source=None):
             "status": services.service_status(),
             "errors": errors,
             "current_year": current_year,
+            "forms": script_forms("fetch", source, current_year),
         },
     )
 
@@ -128,6 +130,7 @@ def service_build(request, source=None):
             "status": services.service_status(),
             "errors": errors,
             "current_year": current_year,
+            "forms": script_forms("build", source, current_year),
         },
     )
 

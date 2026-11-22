@@ -1,1 +1,1 @@
-{% if job.status == 'ok' %}status-ok{% elif job.running or job.status == 'partial' %}status-warning{% else %}status-error{% endif %}
+{% include "core/partials/job_status_class.html" %}

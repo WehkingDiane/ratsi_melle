@@ -129,11 +129,24 @@ Vorhandene Live-Regionen und JavaScript-Selektoren bleiben bestehen.
 
 ## Wiederverwendung zwischen BI und RI
 
-Die Bestandsprüfung vom 22.11.2026 zeigt: Sitzungslisten, Details und Filter werden
-bereits geteilt. Fetch-/Build-Formulare, Statuspanels und Auftragsausgabe haben
-noch getrennte Darstellungsimplementierungen bei weitgehend identischer Struktur.
-Im nächsten Schritt werden Formularrahmen und Feldrendering, der Statuspanelrahmen
-sowie Auftragspanel und Live-Aktualisierung gemeinsam umgesetzt.
+Die Bestandsprüfung und Umsetzung vom 22.11.2026 teilen seit 0.9.3 folgende Bausteine:
+
+| Bereich | Gemeinsame Implementierung |
+| --- | --- |
+| Sitzungslisten/-details | `analysis/session_list.html`, `analysis/session_detail.html`, `core/services/session_catalogue.py` |
+| Fetch-/Build-Formulare | `core/partials/script_form.html` und `form_field.html`; öffentliche Präsentationsformulare unter `web/data_tools/forms.py`, RI-Formulare unter `web/core/ri_forms.py` |
+| Datenstatus | `core/partials/data_status_panel.html` und `panel_header.html`; bereichsspezifische Fakten und Details in den bestehenden Status-Templates |
+| Auftragsstatus/-ausgabe | `core/partials/job_panel.html`, `job_status_class.html` und `core/js/service_job_detail.js` |
+
+BI-/Landkreis-Präsentationsformulare ersetzen die bisher handgeschriebenen Felder;
+die öffentliche Befehlsprüfung bleibt beim Service. RI rendert dieselben Bausteine
+mit seinen gebundenen, strikt validierten Formularen. Der RI-Formularschutz gegen
+Doppelabsenden und parallele Aufträge ergänzt den gemeinsamen Renderer.
+BI-Statuspanels aktualisieren ihre API-Felder, RI-Statuspanels laden weiterhin die
+Seite neu und zeigen zusätzlich TOP-Zahlen. Beide verwenden denselben Rahmen.
+Auftragspanels beziehen ihre Status-URL aus dem jeweiligen Seitenkontext statt
+aus einer fest eingebauten Bereichsadresse. Verbindungsfehler überschreiben den
+letzten Auftragsstatus nicht; der gemeinsame Poller versucht es erneut.
 
 Bereichsunterschiede bleiben erhalten: BI-/Landkreis-Befehlsprüfung und strikte
 RI-Formulare, separate Status-APIs und Daten-/Jobablagen, RI-Portalzugang und

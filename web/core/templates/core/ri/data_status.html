@@ -1,12 +1,10 @@
-<section class="panel service-status">
-  <div class="panel-header">
-    <h2>Aktueller Status</h2>
-    <a class="button utility small" href="{{ request.path }}">Status aktualisieren</a>
-  </div>
-  <dl class="facts inline">
+{% extends "core/partials/data_status_panel.html" %}
+{% block status_header %}{% include "core/partials/panel_header.html" with heading="Aktueller Status" refresh_label="Status aktualisieren" refresh_url=request.path only %}{% endblock %}
+{% block status_facts %}
     <div><dt>Lokaler Index</dt><dd class="{% if local.state == 'vorhanden' %}status-ok{% elif local.state == 'noch nicht aufgebaut' %}status-muted{% else %}status-error{% endif %}">{{ local.state }}{% if local.sessions != None %} · {{ local.sessions }} Sitzungen · {{ local.documents }} Dokumente{% endif %}</dd></div>
     <div><dt>Online-Index</dt><dd class="{% if online.state == 'vorhanden' %}status-ok{% elif online.state == 'noch nicht aufgebaut' %}status-muted{% else %}status-error{% endif %}">{{ online.state }}{% if online.sessions != None %} · {{ online.sessions }} Sitzungen · {{ online.documents }} Dokumente{% endif %}</dd></div>
-  </dl>
+{% endblock %}
+{% block status_body %}
   <p class="muted">Der Onlinebestand beschreibt sichtbare Portalmetadaten. Der lokale Bestand erfasst heruntergeladene Dateien.</p>
   {% if status_page %}
   <div class="table-wrap">
@@ -21,4 +19,5 @@
   </div>
   {% endif %}
   {% if not status_page %}<p><a href="{% url 'ri:status' %}">Datenstatus und Jobs öffnen</a></p>{% endif %}
-</section>
+{% endblock %}
+{% block status_feedback %}{% endblock %}

@@ -8,8 +8,11 @@ Benutzerkonto nutzbar. Die RI-Jobhistorie bleibt von den öffentlichen Datenjobs
 
 Der aktuelle RI-Webstand ist ein Prototyp. Formulare, Datenstatus, Jobhistorie und
 Auftragsausgabe verwenden seit 0.8.1 die Gestaltungselemente des BI-Bereichs.
-Die weitere gemeinsame Nutzung geeigneter Frontend- und Backendkomponenten folgt
-gemäß [Aufgabenliste](../plans/project_tasks.md).
+Seit 0.9.3 verwenden BI und RI gemeinsame Formular-/Feldrenderer, Statuspanelrahmen
+und Auftragsanzeigen einschließlich Live-Aktualisierung. Bereichsspezifische Fakten,
+Formularprüfung und Jobablagen bleiben getrennt. Die Bausteine und Unterschiede
+stehen in den [UI-Regeln](../entwicklung/ui_guidelines.md#wiederverwendung-zwischen-bi-und-ri);
+weitere Backendarbeit folgt gemäß [Aufgabenliste](../plans/project_tasks.md).
 
 ## Einrichtung
 
@@ -98,7 +101,9 @@ auf schmalen Bildschirmen horizontal scrollbaren Tabelle.
 Die Auftragsansicht zeigt Status, Exit-Code, Start und Ende sowie eine Laufanzeige.
 Erfolgreiche Aufträge erscheinen grün, laufende und mit Hinweisen abgeschlossene
 Aufträge als Warnung, fehlgeschlagene als Fehler. Status und Ausgabe aktualisieren
-sich dort automatisch.
+sich dort automatisch. Bei vorübergehenden Verbindungsfehlern bleibt der letzte
+Auftragsstatus sichtbar; eine separate Fehlermeldung erscheint und die Aktualisierung
+wird automatisch erneut versucht.
 
 RI-Aufträge liegen ausschließlich unter `data/ri/db/ri_jobs.sqlite`. Die Jobliste
 und Status-API der Bürgerinformation verwenden weiterhin ihre eigene Ablage und

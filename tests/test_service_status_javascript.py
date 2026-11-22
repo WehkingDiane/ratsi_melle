@@ -17,15 +17,16 @@ def test_global_job_indicator_classifies_maintenance_data_and_mixed_jobs():
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const indicator = {hidden: true, href: ''};
+const indicator = {hidden: true, href: '', dataset: {statusUrl: '/daten/jobs/status/'}};
 const text = {textContent: ''};
 let payload = {active: []};
 let poll;
 vm.runInNewContext(fs.readFileSync(process.argv[1], 'utf8'), {
   document: {
     getElementById: id => id === 'job-indicator' ? indicator : text,
-    querySelectorAll: () => [], addEventListener: () => {},
+    querySelectorAll: () => [], addEventListener: () => {}, dispatchEvent: () => {},
   },
+  CustomEvent: class {constructor(name, init) {this.type = name; this.detail = init.detail;}},
   window: {setInterval: callback => { poll = callback; }},
   fetch: async () => ({ok: true, json: async () => payload}),
 });

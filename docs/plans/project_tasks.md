@@ -18,14 +18,14 @@ ohne RI-Volltext-/Vektorindex. Ein Zeitfilter für heutige/künftige Sitzungen,
 Nachlauf und Löschfristen sind noch offen. Die einzelne entfernte
 Proton-Abmeldewarnung bleibt sichtbar; unbeaufsichtigter Betrieb ist nicht abgenommen.
 
-Der Stand der RI-Webanbindung wird als erster funktionsfähiger Prototyp übernommen. Formularraster, Statuspanels und Jobausgabe sind gestalterisch an BI angeglichen. Die weitere gemeinsame Nutzung geeigneter Komponenten bleibt eine Aufgabe für Frontend und Backend.
+Der Stand der RI-Webanbindung wird als erster funktionsfähiger Prototyp übernommen. Formularraster, Statuspanels und Jobausgabe sind gestalterisch an BI angeglichen. Seit 0.9.3 werden auch Formular-/Feldrenderer, Statuspanelrahmen sowie Auftragspanel und Live-Aktualisierung gemeinsam verwendet. Die verbleibende Vereinheitlichung betrifft das Backend.
 
 ## RI-Vorhaben
 
 #### Konkrete Aufgaben
 
-- [ ] BI und RI systematisch auf fachlich identische Teile prüfen: im Frontend Seitenaufbau, Templates, Formulare, Status- und Ausgabeansichten; im Backend Skripte, Befehlsaufbau, Abruf-/Build-Logik und Jobverwaltung. Gemeinsamkeiten und notwendige Bereichsunterschiede festhalten.
-- [ ] Geeignete gemeinsame Teile schrittweise in wiederverwendbare Objekte, Funktionen, Module oder Skripte überführen und beide Bereiche darauf umstellen. Getrennte Daten-/Jobablagen, RI-Portalzugang und Öffentlichkeitskennzeichnung erhalten; Frontend und Backend mit gezielten Regressionstests absichern.
+- [ ] BI und RI im Backend auf weitere fachlich identische Teile prüfen: Skripte, Befehlsaufbau, Abruf-/Build-Logik und Jobverwaltung. Gemeinsamkeiten und notwendige Bereichsunterschiede festhalten; die UI-Prüfung und gemeinsame Darstellung sind umgesetzt.
+- [ ] Weitere geeignete Backendteile schrittweise in wiederverwendbare Funktionen, Module oder Skripte überführen und beide Bereiche darauf umstellen. Getrennte Daten-/Jobablagen, RI-Portalzugang und Öffentlichkeitskennzeichnung erhalten und mit gezielten Regressionstests absichern.
 - [ ] Verwaltungsausschuss anhand von HTML-Struktur und Dokumentmetadaten als priorisierte Bedarfsstichprobe prüfen; bisherige Sitzungen ersetzen diese Prüfung nicht.
 - [ ] Dokumentartauswahl für die weitere Nutzung präzisieren; der aktuelle CLI-Abruf übernimmt verlinkte Sitzungs- und TOP-Dokumente einschließlich Einladungen. Umgang mit Sammelunterlagen, Anlagen und Dubletten entscheiden.
 - [ ] Zeitgrenze für heutige/laufende, abgesagte und verschobene Sitzungen sowie Nachlauf, Aufbewahrung und Löschfristen verbindlich festlegen.

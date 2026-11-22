@@ -24,6 +24,12 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 - Ältere Änderungen als Stichpunkte nachgetragen und absteigend geordnet. Die Anwendungsversion bleibt bei 0.5.76.
 - Versionsregeln präzisiert: Versionen pro Änderungspaket, Minor für größere Funktionsausbauten, kein Versionswechsel für reine Dokumentationsänderungen. Historische Nummern bleiben erhalten.
 
+## 0.9.3 – 22.11.2026
+
+- BI-/Landkreis- und RI-Fetch-/Build-Formulare mit gemeinsamem Formular- und Feldrenderer einschließlich eindeutiger Feld-IDs darstellen; Befehlsprüfung und RI-Parametergrenzen beibehalten.
+- Statuspanelrahmen sowie Auftragspanel, Statusfarben, Ausgabe und Live-Aktualisierung für BI und RI teilen; Warnabschluss, Fortschritt, Modellnachweise und Legacy-Neuladen erhalten.
+- Bei vorübergehenden Statusfehlern den letzten Auftragsstatus erhalten, Fehler anzeigen und automatisch erneut versuchen; Exitcode 0 auch initial sichtbar anzeigen.
+
 ## 0.9.2 – 22.11.2026
 
 - Zusätzliche Navigationsleiste auf den RI-Datenpflege- und Jobseiten entfernt; die Seiten bleiben über das Hauptmenü „Ratsbereich“ erreichbar.

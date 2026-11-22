@@ -291,65 +291,91 @@ def test_ri_job_presentation_preserves_result_and_running_state(client, ri_env, 
     job_id = ri_env.start_job('ri_login', {'action': 'ri_login'})
     ri_env._update(job_id, status=state, exit_code=code)
     soup = BeautifulSoup(client.get(f'/ratsbereich/daten/jobs/{job_id}/').content, 'html.parser')
-    assert css in soup.select_one('#ri-job-status')['class']
-    assert soup.select_one('#ri-job-exit').text == ('–' if code is None else str(code))
-    assert soup.select_one('#ri-job-running').has_attr('hidden') == (state != 'queued')
+    assert css in soup.select_one('#job-status')['class']
+    assert soup.select_one('#job-exit-code').text == ('–' if code is None else str(code))
+    assert soup.select_one('#job-running-banner').has_attr('hidden') == (state != 'queued')
 
 
-def test_ri_job_polling_updates_completion_and_preserves_status_on_network_error():
+@pytest.mark.parametrize('area', ['ri', 'bi', 'legacy'])
+def test_shared_job_polling_updates_completion_and_preserves_status_on_network_error(area):
     import shutil
     import subprocess
 
     node = shutil.which('node')
     if node is None:
         pytest.skip('Node.js is required for JavaScript execution')
-    script = ROOT / 'web/core/static/core/js/ri_job.js'
+    script = ROOT / 'web/core/static/core/js/service_job_detail.js'
     harness = r"""
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const ids = ['ri-job', 'ri-job-status', 'ri-job-exit', 'ri-job-output', 'ri-job-start',
-             'ri-job-end', 'ri-job-running', 'ri-job-feedback'];
+const ids = ['job-panel', 'job-completion-message', 'job-status', 'job-exit-code', 'job-output', 'job-started-at',
+             'job-finished-at', 'job-running-banner', 'job-feedback'];
 const elements = Object.fromEntries(ids.map(id => [id, {textContent: '', hidden: false}]));
-elements['ri-job'].dataset = {statusUrl: '/ri/job/status/'};
+const legacy = process.argv[2] === 'legacy';
+const area = legacy ? 'bi' : process.argv[2];
+const attrs = {'data-status-url': '/' + area + '/job/status/', 'data-job-area': area,
+               'data-service-job-running': 'true', 'data-job-label': 'Testauftrag',
+               'data-legacy-job': legacy ? 'true' : 'false'};
+elements['job-panel'].getAttribute = key => attrs[key] || null;
+const events = [];
+let reloads = 0;
+const evidence = {textContent: '', getAttribute: () => 'association_label'};
+if (area === 'bi') {
+  elements['job-progress'] = {hidden: false};
+  elements['job-progress-text'] = {textContent: ''};
+  elements['model-job-evidence'] = {querySelectorAll: () => [evidence]};
+}
 let job = {status: 'running', status_label: 'läuft', running: true};
 let poll;
 let fail = false;
 vm.runInNewContext(fs.readFileSync(process.argv[1], 'utf8'), {
-  document: {getElementById: id => elements[id]},
-  window: {setTimeout: callback => { poll = callback; }},
-  fetch: async () => {
+  document: {getElementById: id => elements[id], querySelector: () => elements['job-panel'],
+             dispatchEvent: event => events.push(event)},
+  CustomEvent: class {constructor(name, init) {this.type = name; this.detail = init.detail;}},
+  window: {setTimeout: callback => { poll = callback; }, location: {reload: () => reloads++}},
+  fetch: async (url, options) => {
+    assert.equal(url, '/' + area + '/job/status/');
+    assert.equal(options.cache, 'no-store');
     if (fail) throw Error('offline');
-    return {ok: true, json: async () => ({job})};
+    return {ok: true, json: async () => ({job, model_job_evidence: {association_label: 'Belegt'}})};
   },
 });
 const settle = () => new Promise(resolve => setImmediate(resolve));
 (async () => {
   await settle();
-  assert.equal(elements['ri-job-status'].className, 'status-warning');
-  assert.equal(elements['ri-job-running'].hidden, false);
+  assert.equal(elements['job-status'].className, 'status-warning');
+  assert.equal(elements['job-running-banner'].hidden, false);
   job = {status: 'partial', status_label: 'mit Hinweisen abgeschlossen', running: false,
          exit_code: 2, finished_at: '2026-11-22', output: '<script>text</script>'};
   await poll();
-  assert.equal(elements['ri-job-status'].className, 'status-warning');
-  assert.equal(elements['ri-job-running'].hidden, true);
-  assert.equal(elements['ri-job-exit'].textContent, 2);
-  assert.equal(elements['ri-job-output'].textContent, job.output);
-  assert.equal(elements['ri-job-end'].textContent, job.finished_at);
+  assert.equal(elements['job-status'].className, 'status-warning');
+  assert.equal(elements['job-running-banner'].hidden, true);
+  assert.equal(elements['job-exit-code'].textContent, 2);
+  assert.equal(elements['job-output'].textContent, job.output);
+  assert.equal(elements['job-finished-at'].textContent, job.finished_at);
+  assert.equal(elements['job-completion-message'].textContent, 'Testauftrag wurde mit Hinweisen abgeschlossen.');
+  assert.equal(events.length, 1);
+  assert.equal(events[0].detail.area, area);
+  assert.equal(reloads, legacy ? 1 : 0);
+  if (area === 'bi') {
+    assert.equal(evidence.textContent, 'Belegt');
+    assert.equal(elements['job-progress'].hidden, true);
+  }
   job = {...job, status: 'ok', status_label: 'erfolgreich', exit_code: 0};
   await poll();
-  assert.equal(elements['ri-job-status'].className, 'status-ok');
-  assert.equal(elements['ri-job-exit'].textContent, 0);
+  assert.equal(elements['job-status'].className, 'status-ok');
+  assert.equal(elements['job-exit-code'].textContent, 0);
   job = {...job, status: 'error', status_label: 'fehlgeschlagen', exit_code: 1};
   await poll();
-  assert.equal(elements['ri-job-status'].className, 'status-error');
+  assert.equal(elements['job-status'].className, 'status-error');
   fail = true;
   await poll();
-  assert.equal(elements['ri-job-status'].textContent, 'fehlgeschlagen');
-  assert.equal(elements['ri-job-feedback'].hidden, false);
+  assert.equal(elements['job-status'].textContent, 'fehlgeschlagen');
+  assert.equal(elements['job-feedback'].hidden, false);
 })().catch(error => { console.error(error); process.exitCode = 1; });
 """
-    result = subprocess.run([node, '-e', harness, str(script)], capture_output=True, text=True)
+    result = subprocess.run([node, '-e', harness, str(script), area], capture_output=True, text=True)
     assert result.returncode == 0, result.stdout + result.stderr
 
 
@@ -524,3 +550,24 @@ def test_ri_catalogue_pages_are_read_only(client, ri_catalogue):
     for path in ('/ratsbereich/sitzungen/', '/ratsbereich/sitzungen/8179/',
                  '/ratsbereich/sitzungen/8179/dokumente/1/pdf/'):
         assert client.post(path, {'action': 'fetch_sessions'}).status_code == 405
+
+
+@pytest.mark.parametrize('page', ['fetch', 'build'])
+def test_shared_script_forms_keep_action_scope_and_accessible_unique_ids(client, monkeypatch, page):
+    from bs4 import BeautifulSoup
+    from data_tools import views
+
+    monkeypatch.setattr(views.services, 'service_status', lambda: {})
+    for area in ('buergerinformation', 'ratsbereich', 'landkreis'):
+        soup = BeautifulSoup(client.get(f'/{area}/daten/{page}/').content, 'html.parser')
+        forms = soup.select('form.form-stack')
+        assert forms
+        ids = [element['id'] for element in soup.select('[id]')]
+        assert len(ids) == len(set(ids))
+        for form in forms:
+            assert form.select_one('input[name="csrfmiddlewaretoken"]')
+            assert form.has_attr('data-ri-script-form') == (area == 'ratsbereich')
+            action = form.select_one('input[name="action"]')['value']
+            assert action.startswith('ri_') == (area == 'ratsbereich')
+            for label in form.select('label[for]'):
+                assert soup.find(id=label['for']) is not None

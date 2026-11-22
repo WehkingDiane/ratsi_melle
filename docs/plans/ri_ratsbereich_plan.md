@@ -110,11 +110,12 @@ Für eine spätere Netzwerkbereitstellung sind Debug-Modus, stabiler Secret-Key,
 
 ## Wiederverwendung zwischen BI und RI
 
-Der erste RI-Webstand wird als funktionsfähiger Prototyp übernommen. Danach werden
-Frontend und Backend beider Bereiche auf fachlich identische Abläufe und Strukturen
-geprüft. Geeignete Teile sollen gemeinsame Objekte, Funktionen, Module oder Skripte
-verwenden. Dazu gehören insbesondere Formulare, Seiten-/Ausgabebausteine,
-Befehlsaufbau sowie Abruf-, Build- und Joblogik. Bereichsabhängige Konfiguration und
+Der erste RI-Webstand wird als funktionsfähiger Prototyp übernommen. Die UI-Prüfung
+ist seit 0.9.3 umgesetzt: Sitzungsansichten und Filter, Formular-/Feldrenderer,
+Statuspanelrahmen sowie Auftragspanel und Live-Aktualisierung werden gemeinsam
+verwendet. Die [UI-Regeln](../entwicklung/ui_guidelines.md#wiederverwendung-zwischen-bi-und-ri)
+führen Bausteine und erhaltene Unterschiede auf. Weitere Wiederverwendung im
+Backend betrifft Befehlsaufbau sowie Abruf-, Build- und Joblogik. Bereichsabhängige Konfiguration und
 Verhalten bleiben ausdrücklich erhalten. Die konkreten offenen Arbeiten stehen
 verbindlich in der [Aufgabenliste](project_tasks.md).
 

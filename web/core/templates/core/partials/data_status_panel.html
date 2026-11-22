@@ -1,0 +1,8 @@
+<section class="panel service-status"{% block status_attributes %}{% endblock %}>
+  {% block status_header %}{% include "core/partials/panel_header.html" with heading="Aktueller Status" refresh_label="Status aktualisieren" only %}{% endblock %}
+  <dl class="facts inline" aria-live="polite">
+    {% block status_facts %}{% endblock %}
+  </dl>
+  {% block status_body %}{% endblock %}
+  {% block status_feedback %}<p class="muted service-status-feedback" data-service-status-feedback aria-live="polite" hidden></p>{% endblock %}
+</section>

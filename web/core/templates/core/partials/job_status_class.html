@@ -1,0 +1,1 @@
+{% if job.status == 'ok' %}status-ok{% elif job.status == 'running' or job.status == 'queued' or job.status == 'partial' %}status-warning{% else %}status-error{% endif %}
