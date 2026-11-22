@@ -12,7 +12,7 @@ CLI-Paket bereit. Der Bestand liegt getrennt unter `data/ri/` und wird nicht von
 - [Weiterer Ausbau und offene Entscheidungen](../plans/ri_ratsbereich_plan.md)
 
 Der RI-Webbereich ist ein erster funktionsfähiger Prototyp für den lokalen Betrieb.
-Seiten und Ausgaben sind noch nicht vollständig mit dem BI-Bereich vereinheitlicht.
+Formulare, Status und Jobausgaben nutzen seit 0.8.1 die BI-Gestaltungselemente; die weitere gemeinsame Nutzung geeigneter Komponenten bleibt offen.
 Die Prüfung gemeinsamer Frontend- und Backendteile und ihre Überführung in
 wiederverwendbare Komponenten stehen in der [Aufgabenliste](../plans/project_tasks.md).
 

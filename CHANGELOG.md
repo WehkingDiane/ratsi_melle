@@ -24,6 +24,11 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 - Ältere Änderungen als Stichpunkte nachgetragen und absteigend geordnet. Die Anwendungsversion bleibt bei 0.5.76.
 - Versionsregeln präzisiert: Versionen pro Änderungspaket, Minor für größere Funktionsausbauten, kein Versionswechsel für reine Dokumentationsänderungen. Historische Nummern bleiben erhalten.
 
+## 0.8.1 – 22.11.2026
+
+- RI-Formulare, Statuspanels, Jobhistorie und Auftragsausgabe gestalterisch an BI angeglichen; Datenstatus auch auf Formularseiten anzeigen.
+- RI-Aufträge mit Statusfarben, Laufanzeige und Start-/Endzeit darstellen; Warnabschluss und Exitcode 0 auch bei automatischer Aktualisierung korrekt anzeigen.
+
 ## 0.8.0 – 17.11.2026
 
 - RI-Webstand als ersten funktionsfähigen Prototyp einordnen; gemeinsame Frontend- und Backendkomponenten mit BI als Folgeaufgabe erfassen.

@@ -1,6 +1,6 @@
 # Aktuelle Projektaufgabe
 
-Stand: 17.11.2026. Aktuelles Vorhaben ist der geschützte Ratsbereich für SessionNet
+Stand: 22.11.2026. Aktuelles Vorhaben ist der geschützte Ratsbereich für SessionNet
 `/ri/`. Der [Hauptplan](ri_ratsbereich_plan.md) führt Schutzgrenzen und offene
 Entscheidungen; die [RI-Übersicht](../ri/README.md) beschreibt den vorhandenen Umfang.
 
@@ -18,7 +18,7 @@ ohne RI-Volltext-/Vektorindex. Ein Zeitfilter für heutige/künftige Sitzungen,
 Nachlauf und Löschfristen sind noch offen. Die einzelne entfernte
 Proton-Abmeldewarnung bleibt sichtbar; unbeaufsichtigter Betrieb ist nicht abgenommen.
 
-Der Stand der RI-Webanbindung wird als erster funktionsfähiger Prototyp übernommen. Die Vereinheitlichung mit dem BI-Bereich ist eine anschließende Aufgabe für Frontend und Backend.
+Der Stand der RI-Webanbindung wird als erster funktionsfähiger Prototyp übernommen. Formularraster, Statuspanels und Jobausgabe sind gestalterisch an BI angeglichen. Die weitere gemeinsame Nutzung geeigneter Komponenten bleibt eine Aufgabe für Frontend und Backend.
 
 ## RI-Vorhaben
 

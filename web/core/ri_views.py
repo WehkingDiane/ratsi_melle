@@ -55,6 +55,7 @@ def script_page(request, page):
     return render(request, 'core/ri/scripts.html', {
         'active_nav': 'ri', 'title': TITLES[page], 'forms': forms, 'errors': errors,
         'access_page': page == 'zugang', 'active_job': _active_job(),
+        'online': _database_status(RI_ONLINE_INDEX_DB), 'local': _database_status(RI_LOCAL_INDEX_DB),
     })
 
 

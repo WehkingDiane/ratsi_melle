@@ -3,13 +3,9 @@
 {% block content %}
 {% include "core/ri/header.html" %}
 {% include "core/partials/messages.html" with errors=errors only %}
-<section class="panel"><h2>Datenbanken</h2>
-<table><thead><tr><th>Bestand</th><th>Status</th><th>Sitzungen</th><th>TOPs</th><th>Dokumente</th></tr></thead><tbody>
-<tr><th>Online-Datenbank</th><td>{{ online.state }}</td><td>{{ online.sessions|default_if_none:"–" }}</td><td>{{ online.agenda_items|default_if_none:"–" }}</td><td>{{ online.documents|default_if_none:"–" }}</td></tr>
-<tr><th>Lokale Datenbank</th><td>{{ local.state }}</td><td>{{ local.sessions|default_if_none:"–" }}</td><td>{{ local.agenda_items|default_if_none:"–" }}</td><td>{{ local.documents|default_if_none:"–" }}</td></tr>
-</tbody></table><p>Der Onlinebestand beschreibt sichtbare Portalmetadaten. Der lokale Bestand erfasst heruntergeladene Dateien.</p></section>
-<section class="panel"><h2>RI-Aufträge</h2><a class="button utility" href="{% url 'ri:status' %}">Status aktualisieren</a>
-{% if jobs %}<table><thead><tr><th>Auftrag</th><th>Status</th><th>Erstellt</th></tr></thead><tbody>
-{% for job in jobs %}<tr><td><a href="{% url 'ri:job' job.job_id %}">{{ job.label }}</a></td><td>{{ job.status_label }}</td><td>{{ job.created_at }}</td></tr>{% endfor %}
-</tbody></table>{% else %}<p class="empty-state">Noch keine RI-Aufträge vorhanden.</p>{% endif %}</section>
+{% include "core/ri/data_status.html" with status_page=True %}
+<section class="panel service-status"><h2>Letzte RI-Aufträge</h2>
+{% if jobs %}<div class="table-wrap"><table class="compact-table"><thead><tr><th>Auftrag</th><th>Status</th><th>Start</th></tr></thead><tbody>
+{% for job in jobs %}<tr><td><a href="{% url 'ri:job' job.job_id %}">{{ job.label }}</a></td><td class="{% include 'core/ri/status_class.html' %}">{{ job.status_label }}</td><td class="datetime-value">{{ job.started_at|default:job.created_at }}</td></tr>{% endfor %}
+</tbody></table></div>{% else %}<p class="empty-state">Noch keine RI-Aufträge vorhanden.</p>{% endif %}</section>
 {% endblock %}

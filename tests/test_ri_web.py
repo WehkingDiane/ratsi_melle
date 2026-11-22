@@ -252,3 +252,102 @@ def test_ri_job_indicator_and_form_banner_follow_active_job_only(client, ri_env,
     assert client.get('/ratsbereich/daten/jobs/status/').json()['active'] == []
     soup = BeautifulSoup(client.get('/ratsbereich/daten/fetch/').content, 'html.parser')
     assert soup.select_one('[data-ri-active-job]').has_attr('hidden')
+
+
+@pytest.mark.parametrize('path', ['daten/', 'daten/fetch/', 'daten/build/', 'zugang/'])
+def test_ri_data_status_distinguishes_empty_available_and_unreadable(client, monkeypatch, tmp_path, path):
+    import sqlite3
+    from bs4 import BeautifulSoup
+    from core import ri_views
+
+    online = tmp_path / 'online.sqlite'
+    local = tmp_path / 'local.sqlite'
+    monkeypatch.setattr(ri_views, 'RI_ONLINE_INDEX_DB', online)
+    monkeypatch.setattr(ri_views, 'RI_LOCAL_INDEX_DB', local)
+    with sqlite3.connect(online) as db:
+        for table in ('sessions', 'agenda_items', 'documents'):
+            db.execute(f'CREATE TABLE {table} (id INTEGER)')
+    soup = BeautifulSoup(client.get('/ratsbereich/' + path).content, 'html.parser')
+    panel = soup.select_one('.service-status')
+    assert 'noch nicht aufgebaut' in panel.select_one('dd.status-muted').text
+    assert '0 Sitzungen' in panel.select_one('dd.status-ok').text
+    local.write_bytes(b'not a database')
+    soup = BeautifulSoup(client.get('/ratsbereich/' + path).content, 'html.parser')
+    assert 'nicht lesbar' in soup.select_one('.service-status dd.status-error').text
+
+
+@pytest.mark.parametrize('state,code,css', [('queued', None, 'status-warning'),
+                                          ('ok', 0, 'status-ok'),
+                                          ('partial', 2, 'status-warning'),
+                                          ('error', 1, 'status-error')])
+def test_ri_job_presentation_preserves_result_and_running_state(client, ri_env, monkeypatch, state, code, css):
+    from bs4 import BeautifulSoup
+
+    class Thread:
+        def __init__(self, **kwargs): pass
+        def start(self): pass
+
+    monkeypatch.setattr(ri_env.threading, 'Thread', Thread)
+    job_id = ri_env.start_job('ri_login', {'action': 'ri_login'})
+    ri_env._update(job_id, status=state, exit_code=code)
+    soup = BeautifulSoup(client.get(f'/ratsbereich/daten/jobs/{job_id}/').content, 'html.parser')
+    assert css in soup.select_one('#ri-job-status')['class']
+    assert soup.select_one('#ri-job-exit').text == ('–' if code is None else str(code))
+    assert soup.select_one('#ri-job-running').has_attr('hidden') == (state != 'queued')
+
+
+def test_ri_job_polling_updates_completion_and_preserves_status_on_network_error():
+    import shutil
+    import subprocess
+
+    node = shutil.which('node')
+    if node is None:
+        pytest.skip('Node.js is required for JavaScript execution')
+    script = ROOT / 'web/core/static/core/js/ri_job.js'
+    harness = r"""
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const ids = ['ri-job', 'ri-job-status', 'ri-job-exit', 'ri-job-output', 'ri-job-start',
+             'ri-job-end', 'ri-job-running', 'ri-job-feedback'];
+const elements = Object.fromEntries(ids.map(id => [id, {textContent: '', hidden: false}]));
+elements['ri-job'].dataset = {statusUrl: '/ri/job/status/'};
+let job = {status: 'running', status_label: 'läuft', running: true};
+let poll;
+let fail = false;
+vm.runInNewContext(fs.readFileSync(process.argv[1], 'utf8'), {
+  document: {getElementById: id => elements[id]},
+  window: {setTimeout: callback => { poll = callback; }},
+  fetch: async () => {
+    if (fail) throw Error('offline');
+    return {ok: true, json: async () => ({job})};
+  },
+});
+const settle = () => new Promise(resolve => setImmediate(resolve));
+(async () => {
+  await settle();
+  assert.equal(elements['ri-job-status'].className, 'status-warning');
+  assert.equal(elements['ri-job-running'].hidden, false);
+  job = {status: 'partial', status_label: 'mit Hinweisen abgeschlossen', running: false,
+         exit_code: 2, finished_at: '2026-11-22', output: '<script>text</script>'};
+  await poll();
+  assert.equal(elements['ri-job-status'].className, 'status-warning');
+  assert.equal(elements['ri-job-running'].hidden, true);
+  assert.equal(elements['ri-job-exit'].textContent, 2);
+  assert.equal(elements['ri-job-output'].textContent, job.output);
+  assert.equal(elements['ri-job-end'].textContent, job.finished_at);
+  job = {...job, status: 'ok', status_label: 'erfolgreich', exit_code: 0};
+  await poll();
+  assert.equal(elements['ri-job-status'].className, 'status-ok');
+  assert.equal(elements['ri-job-exit'].textContent, 0);
+  job = {...job, status: 'error', status_label: 'fehlgeschlagen', exit_code: 1};
+  await poll();
+  assert.equal(elements['ri-job-status'].className, 'status-error');
+  fail = true;
+  await poll();
+  assert.equal(elements['ri-job-status'].textContent, 'fehlgeschlagen');
+  assert.equal(elements['ri-job-feedback'].hidden, false);
+})().catch(error => { console.error(error); process.exitCode = 1; });
+"""
+    result = subprocess.run([node, '-e', harness, str(script)], capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr

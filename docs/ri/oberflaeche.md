@@ -6,9 +6,10 @@ Seit 0.8.0 lassen sich die RI-Skripte in der lokalen Django-Oberfläche starten.
 Der Ratsbereich ist wie die übrige Oberfläche direkt ohne Web-Anmeldung und ohne
 Benutzerkonto nutzbar. Die RI-Jobhistorie bleibt von den öffentlichen Datenjobs getrennt.
 
-Der aktuelle RI-Webstand ist ein Prototyp. Die Angleichung an den BI-Bereich und
-die gemeinsame Nutzung geeigneter Frontend- und Backendkomponenten folgen gemäß
-[Aufgabenliste](../plans/project_tasks.md).
+Der aktuelle RI-Webstand ist ein Prototyp. Formulare, Datenstatus, Jobhistorie und
+Auftragsausgabe verwenden seit 0.8.1 die Gestaltungselemente des BI-Bereichs.
+Die weitere gemeinsame Nutzung geeigneter Frontend- und Backendkomponenten folgt
+gemäß [Aufgabenliste](../plans/project_tasks.md).
 
 ## Einrichtung
 
@@ -53,6 +54,16 @@ beendet den Hintergrundauftrag nicht. Der Webserver muss dafür weiterlaufen.
 Formulare behalten CSRF-Schutz und strikte Parameterprüfung.
 
 ## Status und Jobablage
+
+Auf den Formularseiten und der Statusseite zeigt „Aktueller Status“ den lokalen
+und den Online-Index mit Sitzungs- und Dokumentzahlen. Fehlende Bestände erscheinen
+gedämpft, lesbare grün und unlesbare als Fehler. „Status aktualisieren“ lädt die
+Seite neu. Die Statusseite ergänzt TOP-Zahlen und die Jobhistorie in einer
+auf schmalen Bildschirmen horizontal scrollbaren Tabelle.
+Die Auftragsansicht zeigt Status, Exit-Code, Start und Ende sowie eine Laufanzeige.
+Erfolgreiche Aufträge erscheinen grün, laufende und mit Hinweisen abgeschlossene
+Aufträge als Warnung, fehlgeschlagene als Fehler. Status und Ausgabe aktualisieren
+sich dort automatisch.
 
 RI-Aufträge liegen ausschließlich unter `data/ri/db/ri_jobs.sqlite`. Die Jobliste
 und Status-API der Bürgerinformation verwenden weiterhin ihre eigene Ablage und

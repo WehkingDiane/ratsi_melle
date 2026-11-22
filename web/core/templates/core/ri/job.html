@@ -5,10 +5,20 @@
 {% include "core/ri/header.html" %}
 {% if already_running %}<section class="notice status-warning" role="status">Es wurde kein weiterer Auftrag gestartet. Hier ist der aktuelle Status des bereits vorhandenen Auftrags.</section>{% endif %}
 <section class="panel" id="ri-job" data-status-url="{% url 'ri:job_status' job.job_id %}">
-<h2>Auftragsstatus</h2><p id="ri-job-status" role="status" aria-live="polite">{{ job.status_label }}</p>
-<p>Exitcode: <span id="ri-job-exit">{{ job.exit_code|default_if_none:"–" }}</span></p>
-<a class="button utility" href="{% url 'ri:job' job.job_id %}">Status aktualisieren</a>
+<div class="panel-header"><h2>Auftragsstatus</h2><a class="button utility small" href="{% url 'ri:job' job.job_id %}">Status aktualisieren</a></div>
+<dl class="facts inline">
+  <div><dt>Status</dt><dd id="ri-job-status" class="{% include 'core/ri/status_class.html' %}" role="status" aria-live="polite">{{ job.status_label }}</dd></div>
+  <div><dt>Exit-Code</dt><dd id="ri-job-exit">{{ job.exit_code|default_if_none:"–" }}</dd></div>
+  <div><dt>Start</dt><dd id="ri-job-start" class="datetime-value">{{ job.started_at|default:"–" }}</dd></div>
+  <div><dt>Ende</dt><dd id="ri-job-end" class="datetime-value">{{ job.finished_at|default:"–" }}</dd></div>
+</dl>
+<div class="running-banner" id="ri-job-running" role="status"{% if not job.running %} hidden{% endif %}>
+  <span class="job-spinner" aria-hidden="true"></span>
+  <span>Script wird ausgeführt. Die Logausgabe wird automatisch aktualisiert.</span>
+</div>
+<p class="muted">Der Auftrag läuft im Hintergrund weiter, auch wenn du die Seite wechselst.</p>
+<p id="ri-job-feedback" class="status-error" role="status" hidden></p>
+<h3>Ausgabe</h3><pre class="text-block" id="ri-job-output">{{ job.output|default:"Noch keine Ausgabe." }}</pre>
 </section>
-<section class="panel"><h2>Ausgabe</h2><pre id="ri-job-output">{{ job.output }}</pre></section>
 <script src="{% static 'core/js/ri_job.js' %}"></script>
 {% endblock %}
