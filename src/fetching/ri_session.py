@@ -111,7 +111,6 @@ def login(*, client_class=RiOnlineClient):
     client.session.headers['User-Agent'] = 'ratsi-melle-ri-online-build/0.1'
     client.ri_cleanup_warning = False
     client.proton_cleanup_warning = False
-    probe = RiLoginProbe(client.session)
     logout_url = None
     submitted = False
     proton = None
@@ -119,6 +118,7 @@ def login(*, client_class=RiOnlineClient):
         with ProtonRiSession(read_token()) as proton:
             credentials = proton.credentials()
             try:
+                probe = RiLoginProbe(client.session)
                 url, body = probe.get(LOGIN)
                 action, data = login_payload(body, url, credentials)
             finally:
