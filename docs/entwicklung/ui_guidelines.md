@@ -126,3 +126,17 @@ Vorhandene Live-Regionen und JavaScript-Selektoren bleiben bestehen.
   aktualisieren. Alle Stylesheets erhalten denselben Cache-Parameter.
 - Bestehende Seiten- und Workflowtests ausführen und diese Dokumentation bei
   geänderten Regeln aktualisieren.
+
+## Wiederverwendung zwischen BI und RI
+
+Die Bestandsprüfung vom 22.11.2026 zeigt: Sitzungslisten, Details und Filter werden
+bereits geteilt. Fetch-/Build-Formulare, Statuspanels und Auftragsausgabe haben
+noch getrennte Darstellungsimplementierungen bei weitgehend identischer Struktur.
+Im nächsten Schritt werden Formularrahmen und Feldrendering, der Statuspanelrahmen
+sowie Auftragspanel und Live-Aktualisierung gemeinsam umgesetzt.
+
+Bereichsunterschiede bleiben erhalten: BI-/Landkreis-Befehlsprüfung und strikte
+RI-Formulare, separate Status-APIs und Daten-/Jobablagen, RI-Portalzugang und
+RI-Warnabschluss. Fortschritt, Modellnachweise und Legacy-Protokolle ergänzen
+nur die entsprechenden BI-/Wartungsaufträge. Gemeinsame Darstellung erfordert
+keine gemeinsame Jobdatenbank und keinen gemeinsamen Portalzugang.
