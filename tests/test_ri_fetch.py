@@ -271,7 +271,7 @@ def test_public_comparison_reads_only_html_with_separate_session(visibility_clie
 
 
 @pytest.mark.integration
-@pytest.mark.parametrize('failure_mode', ['size', 'stream'])
+@pytest.mark.parametrize('failure_mode', ['size', 'stream', 'http404', 'http503'])
 @pytest.mark.parametrize('retain_old_entry', [False, True])
 def test_download_failures_reach_exit_status_after_later_success(
     visibility_client, monkeypatch, tmp_path, capsys, caplog, failure_mode, retain_old_entry
@@ -307,8 +307,11 @@ def test_download_failures_reach_exit_status_after_later_success(
     class Response:
         def __init__(self, failed):
             self.failed = failed
+            self.status_code = int(failure_mode[4:]) if failed and failure_mode.startswith('http') else 200
             self.headers = {'Content-Type': 'application/pdf',
                             'Content-Length': '99' if failed and failure_mode == 'size' else '9'}
+            if self.status_code != 200:
+                self.headers['Content-Type'] = 'text/html'
 
         def iter_content(self, chunk_size):
             if self.failed and failure_mode == 'stream':
@@ -335,7 +338,8 @@ def test_download_failures_reach_exit_status_after_later_success(
 
     monkeypatch.setattr(client, 'fetch_month', lambda **kwargs: [detail.reference, later.reference])
     monkeypatch.setattr(client, 'fetch_session', fetch_detail)
-    monkeypatch.setattr(client, '_request', request)
+    monkeypatch.setattr(client.session, 'request', request)
+    client.min_request_interval = 0
     monkeypatch.setattr(fetch, 'login', fake_login)
     monkeypatch.setattr(fetch, 'configure_file_logging', lambda *args: None)
     caplog.set_level(logging.INFO)
@@ -343,12 +347,13 @@ def test_download_failures_reach_exit_status_after_later_success(
     assert fetch.main(['2026', '--months', '11', '--force-download']) == 2
 
     assert visited == [detail.reference.session_id, later.reference.session_id, 'logout']
-    assert len(attempts) == (1 if failure_mode == 'size' else client.max_retries)
+    assert len(attempts) == (client.max_retries if failure_mode == 'stream' else 1)
     output = capsys.readouterr().out
     assert f'{detail.reference.session_id}/145203' in output
     assert 'https://' not in output
     assert 'vollständige_sitzungen=1' in caplog.text
     entries = read_visibility_manifest(client, detail)
+    assert len(entries) == len(detail.agenda_items[0].documents) - (0 if retain_old_entry else 1)
     failed_entries = [entry for entry in entries if entry['document_id'] == '145203']
     if retain_old_entry:
         assert failed_entries[0]['path'] == previous['path']
@@ -360,3 +365,21 @@ def test_download_failures_reach_exit_status_after_later_success(
     # A subsequent successful run must not retain the previous incomplete status.
     failure_enabled = False
     assert fetch.main(['2026', '--months', '11', '--force-download']) == 0
+
+
+@pytest.mark.parametrize('status', [401, 403, 200])
+@pytest.mark.parametrize('method', ['GET', 'HEAD'])
+def test_document_access_failure_closes_response_and_aborts(monkeypatch, tmp_path, status, method):
+    from types import SimpleNamespace
+
+    client = fetch.RiFetchClient(base_url=fetch.BASE_URL, storage_root=tmp_path, persist_raw=False)
+    closed = []
+    response = SimpleNamespace(status_code=status, headers={'Content-Type': 'text/html'},
+                               close=lambda: closed.append(True))
+    monkeypatch.setattr(client.session, 'request', lambda *args, **kwargs: response)
+    try:
+        with pytest.raises(fetch.RiAccessError):
+            client._request(method, fetch.BASE_URL + '/getfile.asp?id=1', stream=True)
+        assert closed == [True]
+    finally:
+        client.session.close()
