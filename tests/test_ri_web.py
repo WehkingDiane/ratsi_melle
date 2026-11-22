@@ -351,3 +351,176 @@ const settle = () => new Promise(resolve => setImmediate(resolve));
 """
     result = subprocess.run([node, '-e', harness, str(script)], capture_output=True, text=True)
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.fixture
+def ri_catalogue(ri_env, tmp_path, monkeypatch):
+    import sqlite3
+    from core.services import ri_sessions
+
+    raw = tmp_path / 'ri/raw'
+    session = raw / '2026/12/2026-12-02-Ausschuss-8179'
+    session.mkdir(parents=True)
+    (session / 'private.pdf').write_bytes(b'%PDF-1.4\nsynthetic-ri-private')
+    db_path = tmp_path / 'catalogue.sqlite'
+    monkeypatch.setattr(ri_sessions, 'RI_LOCAL_INDEX_DB', db_path)
+    monkeypatch.setattr(ri_sessions, 'RI_RAW_DATA_DIR', raw)
+    with sqlite3.connect(db_path) as db:
+        db.executescript('''
+            CREATE TABLE sessions (session_id TEXT PRIMARY KEY, date TEXT, committee TEXT,
+                meeting_name TEXT, start_time TEXT, location TEXT, detail_url TEXT, session_path TEXT);
+            CREATE TABLE agenda_items (id INTEGER PRIMARY KEY, session_id TEXT, number TEXT,
+                title TEXT, reporter TEXT, status TEXT, decision TEXT, documents_present INTEGER);
+            CREATE TABLE documents (id INTEGER PRIMARY KEY, session_id TEXT, title TEXT,
+                agenda_item TEXT, document_type TEXT, content_type TEXT, local_path TEXT,
+                visibility TEXT);
+        ''')
+        db.execute('INSERT INTO sessions VALUES (?,?,?,?,?,?,?,?)',
+                   ('8179', '2026-12-02', 'Ausschuss', 'Interne Beispielsitzung', '16:00', 'Rathaus',
+                    'https://session.melle.info/ri/si0057.asp?__ksinr=8179', str(session)))
+        for identifier, number in enumerate(('Ö 1', 'N 1', 'N 1.1', '2'), 1):
+            db.execute('INSERT INTO agenda_items VALUES (?,?,?,?,?,?,?,?)',
+                       (identifier, '8179', number, 'TOP ' + number, '', '', '', 1))
+        for identifier, top, path, visibility in [(1, 'Ö 1', 'private.pdf', 'nicht öffentlich'),
+                                                   (2, 'N 1', 'missing.pdf', 'nicht öffentlich'),
+                                                   (3, 'N 1.1', 'private.pdf', 'öffentlich')]:
+            db.execute('INSERT INTO documents VALUES (?,?,?,?,?,?,?,?)',
+                       (identifier, '8179', 'Anlage ' + str(identifier), top, 'Vorlage',
+                        'application/pdf', path, visibility))
+    return db_path, session
+
+
+def test_ri_session_details_separate_top_labels_from_document_visibility(client, ri_catalogue):
+    from bs4 import BeautifulSoup
+
+    response = client.get('/ratsbereich/sitzungen/8179/')
+    assert response.status_code == 200
+    assert 'private' in response['Cache-Control'] and 'no-store' in response['Cache-Control']
+    soup = BeautifulSoup(response.content, 'html.parser')
+    tops = soup.select('.list-item')
+    assert ['öffentlich' in tops[0].select_one('.item-main').text,
+            'nicht öffentlich' in tops[1].select_one('.item-main').text,
+            'nicht öffentlich' in tops[2].select_one('.item-main').text,
+            'nicht gekennzeichnet' in tops[3].select_one('.item-main').text] == [True] * 4
+    assert 'nicht öffentlich (BI-Abgleich)' in tops[0].text
+    assert 'öffentlich (BI-Abgleich)' in tops[2].text
+    assert tops[0].select_one('a')['href'] == '/ratsbereich/sitzungen/8179/dokumente/1/pdf/'
+    assert not tops[1].select('a')
+    assert not soup.select('.page-actions a[href*="analyse/starten"]')
+    assert '3' in soup.select_one('.facts').text
+
+
+def test_ri_session_list_filters_and_paginates_using_ri_links(client, ri_catalogue):
+    import sqlite3
+    from bs4 import BeautifulSoup
+
+    db_path, session = ri_catalogue
+    with sqlite3.connect(db_path) as db:
+        for index in range(25):
+            db.execute('INSERT INTO sessions VALUES (?,?,?,?,?,?,?,?)',
+                       (str(index), '2027-01-01', 'Verwaltungsausschuss', 'Weitere Sitzung',
+                        '', 'Rathaus', '', str(session)))
+    response = client.get('/ratsbereich/sitzungen/?q=Rathaus&year=2027&committee=Verwaltungsausschuss&page=2')
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.content, 'html.parser')
+    assert '25 Sitzungen gefunden' in soup.text
+    assert len(soup.select('tbody tr')) == 5
+    assert all(link['href'].startswith('/ratsbereich/sitzungen/') for link in soup.select('tbody a'))
+    assert 'year=2027' in soup.select_one('.pagination a')['href']
+    assert not soup.select('tbody a[href*="analyse/starten"]')
+    assert '1 Sitzungen gefunden' in client.get('/ratsbereich/sitzungen/?q=8179').content.decode()
+    assert '0 Sitzungen gefunden' in client.get('/ratsbereich/sitzungen/?year=1999').content.decode()
+
+
+def test_ri_pdf_is_session_bound_private_and_not_available_from_bi(client, ri_catalogue, monkeypatch, tmp_path):
+    import shutil
+    import sqlite3
+    from analysis import services as bi_services
+
+    ri_db, _ = ri_catalogue
+    public_db = tmp_path / 'public.sqlite'
+    shutil.copyfile(ri_db, public_db)
+    public_session = tmp_path / 'data/raw/2026/12/public-session'
+    public_session.mkdir(parents=True)
+    (public_session / 'private.pdf').write_bytes(b'%PDF-1.4\nsynthetic-public')
+    with sqlite3.connect(public_db) as db:
+        db.execute("UPDATE sessions SET meeting_name='Public example', session_path=?", (str(public_session),))
+    monkeypatch.setattr(bi_services, 'LOCAL_INDEX_DB', public_db)
+    response = client.get('/ratsbereich/sitzungen/8179/dokumente/1/pdf/')
+    assert response.status_code == 200
+    assert response['Content-Type'] == 'application/pdf'
+    assert response['Content-Disposition'].startswith('inline;')
+    assert 'no-store' in response['Cache-Control']
+    assert b'synthetic-ri-private' in b''.join(response.streaming_content)
+    response.close()
+    for path in ['/ratsbereich/sitzungen/other/dokumente/1/pdf/',
+                 '/ratsbereich/sitzungen/8179/dokumente/2/pdf/']:
+        assert client.get(path).status_code == 404
+    public_response = client.get('/analyse/sitzungen/8179/dokumente/1/pdf/')
+    assert public_response.status_code == 200
+    public_bytes = b''.join(public_response.streaming_content)
+    public_response.close()
+    assert b'synthetic-public' in public_bytes and b'synthetic-ri-private' not in public_bytes
+    public_list = client.get('/analyse/sitzungen/').content.decode()
+    assert 'Public example' in public_list and 'Interne Beispielsitzung' not in public_list
+
+
+@pytest.mark.parametrize('kind', ['absolute', 'traversal', 'symlink', 'other_session', 'empty', 'non_pdf', 'session_outside'])
+def test_ri_pdf_rejects_paths_outside_its_session_and_invalid_files(client, ri_catalogue, tmp_path, kind):
+    import sqlite3
+
+    db_path, session = ri_catalogue
+    outside = tmp_path / 'outside.pdf'
+    outside.write_bytes(b'%PDF-outside')
+    if kind == 'absolute':
+        path = str(outside)
+    elif kind == 'traversal':
+        path = '../../../../outside.pdf'
+    elif kind == 'symlink':
+        link = session / 'link.pdf'
+        try:
+            link.symlink_to(outside)
+        except OSError:
+            pytest.skip('Symbolic links are unavailable on this platform')
+        path = 'link.pdf'
+    elif kind == 'other_session':
+        other = session.parent / 'another-session'
+        other.mkdir()
+        (other / 'other.pdf').write_bytes(b'%PDF-other')
+        path = '../another-session/other.pdf'
+    elif kind == 'empty':
+        (session / 'empty.pdf').touch()
+        path = 'empty.pdf'
+    elif kind == 'non_pdf':
+        (session / 'page.html').write_text('<script>test</script>')
+        path = 'page.html'
+    else:
+        path = str(outside)
+    with sqlite3.connect(db_path) as db:
+        db.execute('UPDATE documents SET local_path=? WHERE id=1', (path,))
+        if kind == 'session_outside':
+            db.execute('UPDATE sessions SET session_path=?', (str(tmp_path),))
+    assert client.get('/ratsbereich/sitzungen/8179/dokumente/1/pdf/').status_code == 404
+    assert '/dokumente/1/pdf/' not in client.get('/ratsbereich/sitzungen/8179/').content.decode()
+
+
+def test_ri_catalogue_missing_and_corrupt_never_falls_back_to_bi(client, ri_catalogue, monkeypatch, tmp_path):
+    from core.services import ri_sessions
+
+    path = tmp_path / 'missing.sqlite'
+    monkeypatch.setattr(ri_sessions, 'RI_LOCAL_INDEX_DB', path)
+    response = client.get('/ratsbereich/sitzungen/')
+    assert response.status_code == 200
+    assert 'Keine RI-Sitzungen gefunden' in response.content.decode()
+    assert not path.exists()
+    assert client.get('/ratsbereich/sitzungen/8179/').status_code == 404
+    path.write_bytes(b'invalid-sqlite')
+    assert 'RI-Index nicht lesbar' in client.get('/ratsbereich/sitzungen/').content.decode()
+    assert client.get('/ratsbereich/sitzungen/8179/').status_code == 503
+    assert client.get('/ratsbereich/sitzungen/8179/dokumente/1/pdf/').status_code == 503
+
+
+def test_ri_catalogue_pages_are_read_only(client, ri_catalogue):
+    for path in ('/ratsbereich/sitzungen/', '/ratsbereich/sitzungen/8179/',
+                 '/ratsbereich/sitzungen/8179/dokumente/1/pdf/'):
+        assert client.post(path, {'action': 'fetch_sessions'}).status_code == 405

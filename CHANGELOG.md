@@ -4,10 +4,6 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 
 ## Unveröffentlicht
 
-### RI-Sitzungsbereich
-
-- Lesenden RI-Katalogzugriff mit auf die jeweilige Sitzung begrenzten Dateipfaden und gemeinsame Filter-/Seitennavigation für Sitzungslisten vorbereitet.
-
 ### Testdaten – 10.11.2026
 
 - Namen und geschäftliche Kontaktangaben in der Windkraft-Testfixture durch Platzhalter ersetzt; Quellenhinweis entsprechend ergänzt.
@@ -27,6 +23,12 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 - Agentenregeln auf die neue Dokumentationsstruktur abgestimmt und veraltete Hinweise korrigiert (`a23d853`).
 - Ältere Änderungen als Stichpunkte nachgetragen und absteigend geordnet. Die Anwendungsversion bleibt bei 0.5.76.
 - Versionsregeln präzisiert: Versionen pro Änderungspaket, Minor für größere Funktionsausbauten, kein Versionswechsel für reine Dokumentationsänderungen. Historische Nummern bleiben erhalten.
+
+## 0.9.0 – 22.11.2026
+
+- RI-Sitzungsbereich mit Suche, Gremien-/Jahresfilter und Seitennavigation aus dem separaten lokalen RI-Index aufgebaut; BI und RI verwenden gemeinsame Listen-/Detailtemplates und Filterlogik.
+- Sitzungsdetails mit Quellenstatus, Tagesordnung, Ö-/N-Kennzeichnung und Dokumentstatus aus dem BI-Abgleich ergänzen; TOP- und Dokumentöffentlichkeit getrennt anzeigen.
+- Lokale RI-PDFs über sitzungsgebundene Dateipfade ausliefern; Pfadgrenzen einschließlich Symlinks prüfen und RI-Antworten ohne Zwischenspeicherung liefern. Fehlende oder unlesbare RI-Indizes fallen nicht auf BI zurück.
 
 ## 0.8.1 – 22.11.2026
 

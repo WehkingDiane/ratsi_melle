@@ -1,6 +1,6 @@
 # Plan: Geschützter Ratsbereich für SessionNet `/ri/`
 
-Stand: 17.11.2026. Dieser Plan beschreibt die noch offenen Arbeiten. Der aktuelle
+Stand: 22.11.2026. Dieser Plan beschreibt die noch offenen Arbeiten. Der aktuelle
 Funktionsumfang steht in der [RI-Übersicht](../ri/README.md), die Bedienung in der
 [CLI-Anleitung](../ri/datenablauf.md). Historische Versionsangaben und frühere
 Teilpakete sind im [Changelog](../../CHANGELOG.md) dokumentiert.
@@ -14,7 +14,8 @@ Teilpakete sind im [Changelog](../../CHANGELOG.md) dokumentiert.
 - [ ] Verwaltungsausschuss, feinere Dokumentartauswahl und weitere Betriebsverträge abnehmen.
 - [ ] Regeln für Sitzungszeitraum, Nachlauf und Aufbewahrung entscheiden; kontrollierte Bestandsbereinigung umsetzen.
 - [x] Lokale Webformulare ohne Anmeldung für RI-Skripte, separate Jobablage und Jobausgaben umgesetzt (0.8.0).
-- [ ] Geschützte Sitzungs-/Dateiansichten ergänzen und deren Web-/Exporttrennung abnehmen.
+- [x] Lokale RI-Sitzungs-/Dateiansichten mit Pfadprüfung und Offline-Negativtests ergänzt (0.9.0).
+- [ ] Web-/Exporttrennung und Betrieb mit einer begrenzten lokalen RI-Stichprobe abnehmen.
 
 RI-Volltext-/Vektorindexierung und RI-Suche bleiben für die erste Ausbaustufe
 zurückgestellt. Der komplette Vorhaben-Branch ist mit dem CLI-Paket noch nicht fertig.
@@ -46,7 +47,7 @@ Eine neue Volltext- oder Vektorsuche wäre gesondert zu entscheiden.
 
 ## 1. Navigation und Skriptnamen
 
-Die regulären CLI-Namen unterscheiden BI und RI. Seit 0.8.0 sind die RI-Einstiege für Zugang, Download, Build und Datenstatus direkt mit den Skripten verbunden. Der lokale Einzelplatzbetrieb verwendet keine Web-Anmeldung. Sitzungs- und Suchansichten bleiben Platzhalter.
+Die regulären CLI-Namen unterscheiden BI und RI. Seit 0.8.0 sind die RI-Einstiege für Zugang, Download, Build und Datenstatus direkt mit den Skripten verbunden. Der lokale Einzelplatzbetrieb verwendet keine Web-Anmeldung. Seit 0.9.0 sind Sitzungslisten, Details und lokale PDFs angebunden; die Suchansicht bleibt ein Platzhalter.
 
 ## 2. Vorprüfung und verbindliche Entscheidungen
 
@@ -103,7 +104,7 @@ aufgebaut. Öffentliche Suche und öffentliche Analyseauswahl erhalten keine RI-
 
 ## 6. Geschützte Oberfläche
 
-Die [Navigationsübersicht](navigation.md) beschreibt den ursprünglichen Entwurf. Die [Web-Skriptsteuerung](../ri/oberflaeche.md) ohne Anmeldung und mit getrennten RI-Jobs ist umgesetzt. Als Nächstes sind Sitzungsansichten und Dateiauslieferung mit Pfadprüfung zu implementieren. Kalender, Dashboard, Exporte und öffentliche
+Die [Navigationsübersicht](navigation.md) beschreibt den ursprünglichen Entwurf. Die [Web-Skriptsteuerung](../ri/oberflaeche.md) ohne Anmeldung und mit getrennten RI-Jobs ist umgesetzt. Seit 0.9.0 sind lokale Sitzungsansichten und PDF-Auslieferung mit Pfadprüfung implementiert; Listen-/Detailtemplates und Filterlogik werden mit BI geteilt. Kalender, Dashboard, Exporte und öffentliche
 Jobmeldungen dürfen keine unberechtigten RI-Metadaten anzeigen.
 Für eine spätere Netzwerkbereitstellung sind Debug-Modus, stabiler Secret-Key, HTTPS und Sitzungsverhalten gesondert abzustimmen; die aktuelle Konfiguration bleibt lokal. Kennzeichnung und Herkunft bleiben auf den RI-Seiten sichtbar.
 

@@ -15,8 +15,9 @@ urlpatterns = [
     path('daten/jobs/status/', ri_views.jobs_status, name='jobs_status'),
     path('daten/jobs/<str:job_id>/', ri_views.job_detail, name='job'),
     path('daten/jobs/<str:job_id>/status/', ri_views.job_status, name='job_status'),
-    path('sitzungen/', ri_views.placeholder, {'page': 'sitzungen'}),
+    path('sitzungen/', ri_views.session_list, name='session_list'),
     path('suche/', ri_views.placeholder, {'page': 'suche'}),
     path('daten/vektor/', ri_views.placeholder, {'page': 'vektor'}),
-    path('sitzungen/<str:session_id>/', ri_views.session_detail),
+    path('sitzungen/<str:session_id>/', ri_views.session_detail, name='session_detail'),
+    path('sitzungen/<str:session_id>/dokumente/<int:document_id>/pdf/', ri_views.document_pdf, name='document_pdf'),
 ]

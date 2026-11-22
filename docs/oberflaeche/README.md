@@ -12,6 +12,6 @@
 Die Hauptnavigation enthält Übersicht, Bürgerinformation, Ratsbereich, Landkreis,
 Erweiterungen und Einstellungen. `/buergerinformation/` und `/landkreis/` bieten
 quellengebundene Such- und Datenpflege-Einstiege; die bisherigen URLs bleiben
-verfügbar. Der Ratsbereich unter `/ratsbereich/` enthält die [lokale Skriptsteuerung](../ri/oberflaeche.md) für Zugang, Download und Datenbankaufbau sowie eine eigene Jobhistorie. Sitzungs- und Suchansichten bleiben informative Platzhalter; unbekannte Sitzungsdetails liefern 404.
+verfügbar. Der Ratsbereich unter `/ratsbereich/` enthält die [lokale Skriptsteuerung](../ri/oberflaeche.md) für Zugang, Download und Datenbankaufbau sowie eine eigene Jobhistorie. Sitzungsübersicht, TOP-Details und lokale PDF-Auslieferung sind angebunden; die Suchansicht bleibt ein Platzhalter. Die Bedienung beschreibt die [RI-Oberflächenanleitung](../ri/oberflaeche.md#sitzungen-und-dokumente).
 
 Analyse ist unter [Erweiterungen](../analyse/README.md) erreichbar. Die [Sitzungsübersicht](sitzungen.md) bietet Gremienfilter. Einrichtung und Start stehen unter [Betrieb](../betrieb/einrichtung.md).

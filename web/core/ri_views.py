@@ -2,7 +2,7 @@
 from pathlib import Path
 import sqlite3
 
-from django.http import Http404, HttpResponseBadRequest, JsonResponse
+from django.http import FileResponse, Http404, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -11,10 +11,11 @@ from django.views.decorators.http import require_http_methods, require_safe
 
 from src.paths import RI_LOCAL_INDEX_DB, RI_ONLINE_INDEX_DB
 from . import ri_jobs
+from .services import ri_sessions
+from .services.session_catalogue import session_list_context
 from .ri_forms import ACTIONS
 
 PAGES = {
-    "sitzungen": ("Sitzungen", "Die Anzeige der lokalen Ratssitzungen wird noch umgesetzt."),
     "suche": ("Interne Dokumentensuche", "Eine RI-Volltext- oder Vektorsuche ist derzeit nicht vorgesehen."),
     "vektor": ("Suchindex", "Für den Ratsbereich wird derzeit kein Suchindex aufgebaut."),
 }
@@ -135,6 +136,56 @@ def placeholder(request, page):
     return render(request, 'core/ri_placeholder.html', {'active_nav': 'ri', 'title': title, 'description': description})
 
 
+def _catalogue_context():
+    return {
+        'active_nav': 'ri', 'ri_area': True, 'area_label': 'Ratsbereich',
+        'session_list_route': 'ri:session_list', 'session_detail_route': 'ri:session_detail',
+        'document_pdf_route': 'ri:document_pdf',
+    }
+
+
+@never_cache
+@require_safe
+def session_list(request):
+    """Show the local RI catalogue using the shared BI list layout."""
+    errors = []
+    try:
+        sessions = ri_sessions.list_sessions()
+    except ri_sessions.RiCatalogueError as error:
+        sessions = []
+        errors.append(str(error))
+    return render(request, 'analysis/session_list.html', {
+        **_catalogue_context(), **session_list_context(request, sessions), 'errors': errors,
+    })
+
+
+@never_cache
 @require_safe
 def session_detail(request, session_id):
-    raise Http404('Noch keine Sitzungsansicht verfügbar.')
+    """Show one RI session, its TOP labels and locally available documents."""
+    try:
+        session = ri_sessions.get_session(session_id)
+    except ri_sessions.RiCatalogueError:
+        return render(request, 'core/ri/catalogue_error.html', _catalogue_context(), status=503)
+    if session is None:
+        raise Http404('RI-Sitzung nicht gefunden.')
+    return render(request, 'analysis/session_detail.html', {
+        **_catalogue_context(), 'session': session, 'session_id': session_id,
+    })
+
+
+@never_cache
+@require_safe
+def document_pdf(request, session_id, document_id):
+    """Deliver a PDF belonging to this RI session without allowing caching."""
+    try:
+        path = ri_sessions.get_local_pdf_document(session_id, document_id)
+    except ri_sessions.RiCatalogueError:
+        return render(request, 'core/ri/catalogue_error.html', _catalogue_context(), status=503)
+    if path is None:
+        raise Http404('RI-PDF nicht gefunden.')
+    try:
+        document = path.open('rb')
+    except OSError:
+        raise Http404('RI-PDF nicht gefunden.') from None
+    return FileResponse(document, content_type='application/pdf', filename=path.name)

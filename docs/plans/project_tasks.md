@@ -11,7 +11,7 @@ Testbereich praktisch erprobt und mit 0.7.0 ins Projekt übernommen. Der regulä
 Bestand liegt unter `data/ri/`. Die CLI-Bedienung steht in der
 [CLI-Anleitung](../ri/datenablauf.md). Die Untergrenze November 2026 ist konfiguriert;
 BI-Verlinkung bestimmt `öffentlich` oder `nicht öffentlich`. Ein fehlender Nachweis
-ergibt `nicht öffentlich`. Seit 0.8.0 steuert die [lokale Web-Datenpflege](../ri/oberflaeche.md) die Skripte und zeigt eigene Jobausgaben. Der lokale Einzelplatzbetrieb benötigt keine Web-Anmeldung. Sitzungs- und Dateiansichten bleiben offen.
+ergibt `nicht öffentlich`. Seit 0.8.0 steuert die [lokale Web-Datenpflege](../ri/oberflaeche.md) die Skripte und zeigt eigene Jobausgaben. Der lokale Einzelplatzbetrieb benötigt keine Web-Anmeldung. Seit 0.9.0 sind Sitzungslisten, TOP-Details und sitzungsgebundene lokale PDFs angebunden; Listen-/Detailtemplates und Filterlogik werden mit BI geteilt.
 
 Die weitere Richtung ist ein temporärer Arbeitsbestand zur Sitzungsvorbereitung
 ohne RI-Volltext-/Vektorindex. Ein Zeitfilter für heutige/künftige Sitzungen,
@@ -31,5 +31,4 @@ Der Stand der RI-Webanbindung wird als erster funktionsfähiger Prototyp überno
 - [ ] Zeitgrenze für heutige/laufende, abgesagte und verschobene Sitzungen sowie Nachlauf, Aufbewahrung und Löschfristen verbindlich festlegen.
 - [ ] Kontrollierte RI-Bereinigung mit Vorschau und konsistentem Datenbankabgleich umsetzen; entfernte Sitzungen und Nebenartefakte berücksichtigen, BI-Dateien ausschließen.
 - [ ] Betriebsmodell und Betriebssystem-Zugriffsrechte einschließlich Sicherung und Wiederherstellung für den regulären RI-Bestand abnehmen; zurückgestellte Neustart-/Ablauf- und Proton-Abmeldeprüfungen bei erweitertem Betrieb nachholen.
-- [ ] Lokalen Dokumentbestand mit Sitzungsansichten und Dateiauslieferung mit Pfadprüfung in die RI-Oberfläche integrieren; die Skriptsteuerung ist bereits angebunden.
-- [ ] Web- und Exporttrennung für die spätere Sitzungs-/Dateianbindung mit Negativtests und einer begrenzten lokalen RI-Stichprobe abnehmen; den echten Skriptablauf über die vorhandenen Webformulare im lokalen Betrieb prüfen.
+- [ ] Web- und Exporttrennung der angebundenen Sitzungs-/Dateiansichten mit einer begrenzten lokalen RI-Stichprobe abnehmen; Offline-Negativtests für Daten-/Pfadtrennung sind vorhanden. Den echten Skriptablauf über die vorhandenen Webformulare im lokalen Betrieb prüfen.

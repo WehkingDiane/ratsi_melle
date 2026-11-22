@@ -4,6 +4,10 @@
 
 Das Dashboard zeigt kommende und vergangene Termine aus den gespeicherten Indizes.
 
+Die RI-Sitzungsübersicht verwendet dieselben Filter und Darstellungsbausteine mit
+eigenem lokalem Bestand. TOP-Kennzeichnung und PDF-Bedienung beschreibt die
+[RI-Oberflächenanleitung](../ri/oberflaeche.md#sitzungen-und-dokumente).
+
 ## Gremienfilter
 
 Die Sitzungsübersicht fasst Gremiennamen zusammen, die sich nur durch Bindestriche,

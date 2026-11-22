@@ -4,11 +4,11 @@
 
 Seit 0.7.0 steht der im lokalen Testbereich erprobte RI-Datenablauf als reguläres
 CLI-Paket bereit. Der Bestand liegt getrennt unter `data/ri/` und wird nicht von
-öffentlichen Datenjobs eingelesen. Seit 0.8.0 lassen sich die Skripte außerdem über die lokale RI-Datenpflege starten.
+öffentlichen Datenjobs eingelesen. Seit 0.8.0 lassen sich die Skripte außerdem über die lokale RI-Datenpflege starten. Seit 0.9.0 sind Sitzungsübersicht, TOPs und lokale PDFs im Ratsbereich verfügbar.
 
 - [Zugang einrichten und prüfen](zugang.md)
 - [Onlineindex, Dokumentabruf und lokalen Index bedienen](datenablauf.md)
-- [RI-Skripte über die Oberfläche starten](oberflaeche.md)
+- [Ratsbereich über die Oberfläche bedienen](oberflaeche.md)
 - [Weiterer Ausbau und offene Entscheidungen](../plans/ri_ratsbereich_plan.md)
 
 Der RI-Webbereich ist ein erster funktionsfähiger Prototyp für den lokalen Betrieb.
@@ -47,7 +47,8 @@ mit den verschobenen Skripten wurde bei der Übernahme nicht ausgeführt.
 
 Die entfernte Proton-Abmeldung bleibt unter Windows teilweise unbestätigt und wird
 als eigener Warnstatus angezeigt. Neustart-/Ablaufverhalten und unbeaufsichtigter
-Betrieb sind nicht abgenommen. Die Web-Skriptsteuerung ist mit synthetischen Daten geprüft. Sitzungs- und Dateiansichten, Bestandsbereinigung und die
-Bedarfsstichprobe des Verwaltungsausschusses sind offen. RI-Volltext- und
+Betrieb sind nicht abgenommen. Web-Skriptsteuerung sowie Sitzungs- und Dateiansichten
+sind mit synthetischen Daten geprüft. Bestandsbereinigung und die vollständige
+Bedarfsabnahme des Verwaltungsausschusses bleiben offen. RI-Volltext- und
 Vektorindexierung sind nicht Teil dieser Ausbaustufe. Historische Änderungen stehen
 im [Changelog](../../CHANGELOG.md).

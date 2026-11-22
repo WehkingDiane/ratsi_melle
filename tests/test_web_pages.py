@@ -1765,7 +1765,7 @@ def test_answer_reader_only_lists_jobs_with_readable_answers(client, monkeypatch
     assert soup.select_one('.answer-document a[href="/analyse/jobs/1/"]') is not None
 
 
-@pytest.mark.parametrize("suffix", ["sitzungen/", "suche/", "daten/vektor/"])
+@pytest.mark.parametrize("suffix", ["suche/", "daten/vektor/"])
 def test_ri_placeholders_are_informational_only(client, monkeypatch, suffix):
     from core import service_jobs
     def unexpected(*args, **kwargs):
@@ -1780,7 +1780,9 @@ def test_ri_placeholders_are_informational_only(client, monkeypatch, suffix):
     assert client.post("/ratsbereich/" + suffix, {"action": "fetch_sessions"}).status_code == 405
 
 
-def test_ri_unknown_session_has_no_fabricated_detail(client):
+def test_ri_unknown_session_has_no_fabricated_detail(client, monkeypatch, tmp_path):
+    from core.services import ri_sessions
+    monkeypatch.setattr(ri_sessions, "RI_LOCAL_INDEX_DB", tmp_path / "missing-ri.sqlite")
     assert client.get("/ratsbereich/sitzungen/123/").status_code == 404
 
 

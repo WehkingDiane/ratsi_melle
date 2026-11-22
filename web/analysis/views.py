@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import re
-
 from django.core.paginator import Paginator
 from django.http import FileResponse
 from django.http import Http404
@@ -11,6 +9,8 @@ from django.shortcuts import redirect
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils.http import content_disposition_header
+
+from core.services.session_catalogue import session_list_context
 
 from . import services
 from .markdown_preview import render_markdown_preview
@@ -36,39 +36,10 @@ def analysis_home(request):
 
 
 def session_list(request):
-    all_sessions = services.list_sessions()
-    names = sorted({str(item.get("committee") or "").strip() for item in all_sessions} - {""},
-                   key=lambda name: (not any(char in name for char in "-‐‑‒–—−"), name.casefold(), name))
-    labels = {}
-    for name in names:
-        labels.setdefault(_committee_key(name), name)
-    all_sessions = [{**item, "committee": labels.get(_committee_key(str(item.get("committee") or "")), "")}
-                    for item in all_sessions]
-    query = request.GET.get("q", "").strip()
-    committee = request.GET.get("committee", "").strip()
-    committee = labels.get(_committee_key(committee), committee)
-    year = request.GET.get("year", "").strip()
-    sessions = [
-        session for session in all_sessions
-        if _matches_session_filters(session, query=query, committee=committee, year=year)
-    ]
-    page_obj = Paginator(sessions, LIST_PAGE_SIZE).get_page(request.GET.get("page"))
-    return render(
-        request,
-        "analysis/session_list.html",
-        {
-            "active_nav": "analysis",
-            "sessions": list(page_obj.object_list),
-            "page_obj": page_obj,
-            "result_count": len(sessions),
-            "query": query,
-            "selected_committee": committee,
-            "selected_year": year,
-            "committees": sorted({str(item.get("committee") or "") for item in all_sessions if item.get("committee")}),
-            "years": sorted({_session_year(item) for item in all_sessions if _session_year(item)}, reverse=True),
-            "filter_query": _query_without_page(request),
-        },
-    )
+    return render(request, "analysis/session_list.html", {
+        "active_nav": "analysis",
+        **session_list_context(request, services.list_sessions(), LIST_PAGE_SIZE),
+    })
 
 
 def session_detail(request, session_id: str):
@@ -344,27 +315,6 @@ def _job_markdown_preview(job: dict | None) -> tuple[str, bool]:
     if analysis.strip():
         return analysis.strip(), True
     return markdown, False
-
-
-def _committee_key(value: str) -> str:
-    """Match committee spelling variants without changing stored source data."""
-    return re.sub(r"[\s_\-‐‑‒–—−]+", " ", value).strip().casefold()
-
-
-def _matches_session_filters(session: dict, *, query: str, committee: str, year: str) -> bool:
-    searchable = " ".join(
-        str(session.get(key) or "")
-        for key in ("session_id", "meeting_name", "committee", "location")
-    ).casefold()
-    return (
-        (not query or query.casefold() in searchable)
-        and (not committee or str(session.get("committee") or "") == committee)
-        and (not year or _session_year(session) == year)
-    )
-
-
-def _session_year(session: dict) -> str:
-    return str(session.get("date") or "")[:4]
 
 
 def _matches_job_filters(job: dict, *, query: str, status: str) -> bool:

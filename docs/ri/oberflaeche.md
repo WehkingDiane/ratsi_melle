@@ -1,4 +1,4 @@
-# RI-Skripte über die Oberfläche bedienen
+# Ratsbereich über die Oberfläche bedienen
 
 [RI-Übersicht](README.md) · [CLI-Datenablauf](datenablauf.md)
 
@@ -53,6 +53,38 @@ Alternativ kann der Status manuell aktualisiert werden. Das Schließen der Seite
 beendet den Hintergrundauftrag nicht. Der Webserver muss dafür weiterlaufen.
 Formulare behalten CSRF-Schutz und strikte Parameterprüfung.
 
+## Sitzungen und Dokumente
+
+Seit 0.9.0 öffnet **Ratsbereich → Sitzungen** unter `/ratsbereich/sitzungen/`
+den lokalen RI-Bestand im gleichen Listen- und Detailaufbau wie BI. Voraussetzung
+ist ein aufgebauter lokaler RI-Index unter `data/ri/db/local_index.sqlite`;
+der Onlineindex allein genügt nicht. Nach einem Download unter **Datenbank
+aktualisieren** den lokalen Index aktualisieren, damit neue Dateien und TOPs erscheinen.
+
+Die Liste bietet Suche nach Sitzung, ID, Gremium oder Ort, Filter nach Gremium
+und Jahr sowie 20 Sitzungen pro Seite. Ein Klick auf die Sitzung öffnet Datum,
+Ort, Quellenstatus, Tagesordnung und die vollständige Dokumentliste.
+
+Die TOP-Nummer stammt aus dem Portal: `Ö` bedeutet öffentlich, `N` nicht öffentlich.
+Fehlt das Präfix, erscheint „nicht gekennzeichnet“. Diese Angabe betrifft den TOP.
+Der separat angezeigte Dokumentstatus stammt weiterhin aus dem gespeicherten
+[BI-Abgleich](datenablauf.md#dokument-id-und-öffentlichkeitskennzeichnung): Auch
+unter einem öffentlichen TOP können interne Anlagen liegen. Beim Öffnen einer
+Sitzung wird kein neuer Online-Abgleich gestartet.
+
+**PDF öffnen** erscheint für vorhandene, nicht leere PDF-Dateien innerhalb des
+zugehörigen RI-Sitzungsordners. Fehlende Dateien zählen im Quellenstatus als
+fehlend; andere Dateiformate werden aufgelistet, aber nicht im PDF-Endpunkt ausgeliefert.
+Dateipfade außerhalb der RI-Rohdatenwurzel oder des Sitzungsordners, auch über
+Symlinks, werden abgelehnt. PDF-Links sind an Sitzung und lokalen Dokumenteintrag
+gebunden. Listen, Details und PDFs werden mit privaten No-Store-Headern geliefert.
+Die Ansichten bleiben wie die übrige lokale Oberfläche ohne Web-Anmeldung nutzbar.
+
+Bei leerer Liste zunächst Filter zurücksetzen und den lokalen RI-Index prüfen.
+Ein unlesbarer Index wird als Fehler gemeldet; es gibt keinen Rückgriff auf BI.
+Unbekannte Sitzungen und fehlende PDFs liefern HTTP 404. BI-Suche, BI-Analyseauswahl
+und öffentliche Sitzungslisten beziehen weiterhin ausschließlich ihren eigenen Bestand.
+
 ## Status und Jobablage
 
 Auf den Formularseiten und der Statusseite zeigt „Aktueller Status“ den lokalen
@@ -99,9 +131,9 @@ Webauftrags keine zusätzlichen RI-Skripte manuell per CLI starten.
 
 ## Grenzen und Prüfung
 
-Die Webanbindung umfasst die Skriptsteuerung, Datenbankstatus und Jobausgaben.
-Sitzungslisten, interne Dateiauslieferung und Bestandsbereinigung sind noch nicht
-angebunden. RI-Suche und Vektorindex sind für diese Ausbaustufe nicht vorgesehen;
+Die Webanbindung umfasst Skriptsteuerung, Datenbankstatus, Jobausgaben sowie
+Sitzungslisten, Sitzungsdetails und lokale PDF-Auslieferung. Bestandsbereinigung
+ist noch nicht angebunden. RI-Suche und Vektorindex sind für diese Ausbaustufe nicht vorgesehen;
 die entsprechenden alten Platzhalter starten keine Aufträge.
 
 Gezielte Offline-Tests stehen in der [Testdokumentation](../entwicklung/tests.md).

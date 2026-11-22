@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}Sitzung {{ session_id }} - Ratsi Melle{% endblock %}
+{% block title %}Sitzung {{ session_id }}{% if ri_area %} – Ratsbereich{% endif %} - Ratsi Melle{% endblock %}
 
 {% block content %}
+{% if ri_area %}<p class="eyebrow">Ratsbereich</p>{% endif %}
 {% if session %}
 <section class="page-heading">
   <p class="eyebrow"><span class="date-value">{{ session.display_date|default:session.date|default:"Ohne Datum" }}</span>{% if session.start_time %} · <span class="time-value">{{ session.start_time }}</span>{% endif %} · {{ session.committee|default:"Unbekanntes Gremium" }}</p>
@@ -11,7 +12,8 @@
 </section>
 
 <section class="actions page-actions">
-  <a class="button secondary" href="{% url 'analysis:analysis_start' %}?session_id={{ session.session_id }}">KI-Analyse starten</a>
+  {% if ri_area %}<a class="button secondary" href="{% url 'ri:session_list' %}">Zu den RI-Sitzungen</a>{% else %}
+  <a class="button secondary" href="{% url 'analysis:analysis_start' %}?session_id={{ session.session_id }}">KI-Analyse starten</a>{% endif %}
 </section>
 
 <section class="panel">
@@ -33,6 +35,7 @@
     <article class="list-item">
       <div class="item-main">
         <span class="badge">{{ item.number|default:"TOP" }}</span>
+        {% if ri_area %}<span class="{% if item.visibility == 'nicht öffentlich' %}status-warning{% else %}muted{% endif %}">{{ item.visibility }}</span>{% endif %}
         <h3>{{ item.title|default:"Ohne Titel" }}</h3>
         {% if item.decision %}<p>{{ item.decision }}</p>{% endif %}
       </div>
@@ -45,9 +48,9 @@
         {% for document in item.documents %}
         <li>
           <span>{{ document.title|default:"Dokument" }}</span>
-          <small>{{ document.document_type|default:document.content_type|default:"Typ unbekannt" }}</small>
+          <small>{{ document.document_type|default:document.content_type|default:"Typ unbekannt" }}{% if ri_area %} · {{ document.visibility }} (BI-Abgleich){% endif %}</small>
           {% if document.pdf_view_available %}
-          <a class="button secondary small" href="{% url 'analysis:document_pdf' session.session_id document.id %}" target="_blank" rel="noopener">PDF öffnen</a>
+          <a class="button secondary small" href="{% url document_pdf_route|default:'analysis:document_pdf' session.session_id document.id %}" target="_blank" rel="noopener">PDF öffnen</a>
           {% endif %}
         </li>
         {% endfor %}
@@ -68,7 +71,7 @@
   {% if session.documents %}
   <div class="table-wrap">
     <table>
-      <thead><tr><th>TOP</th><th>Titel</th><th>Typ</th><th>Quelle</th><th>Ansicht</th></tr></thead>
+      <thead><tr><th>TOP</th><th>Titel</th><th>Typ</th><th>Quelle</th>{% if ri_area %}<th>Dokumentstatus (BI-Abgleich)</th>{% endif %}<th>Ansicht</th></tr></thead>
       <tbody>
       {% for document in session.documents %}
         <tr>
@@ -76,9 +79,10 @@
           <td>{{ document.title|default:"Dokument" }}</td>
           <td>{{ document.display_type|default:"-" }}</td>
           <td>{% if session.detail_url %}<a href="{{ session.detail_url }}">Sitzung</a>{% else %}-{% endif %}</td>
+          {% if ri_area %}<td>{{ document.visibility }}</td>{% endif %}
           <td>
             {% if document.pdf_view_available %}
-            <a class="button secondary small" href="{% url 'analysis:document_pdf' session.session_id document.id %}" target="_blank" rel="noopener">PDF öffnen</a>
+            <a class="button secondary small" href="{% url document_pdf_route|default:'analysis:document_pdf' session.session_id document.id %}" target="_blank" rel="noopener">PDF öffnen</a>
             {% else %}
             -
             {% endif %}

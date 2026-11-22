@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}RI-Index nicht verfügbar – Ratsbereich{% endblock %}
+{% block content %}
+<section class="page-heading"><p class="eyebrow">Ratsbereich</p><h1>RI-Index nicht verfügbar</h1></section>
+<section class="panel"><p class="status-error">Der lokale RI-Index ist nicht lesbar. Bitte die lokale RI-Datenbank aktualisieren.</p><a class="button secondary" href="{% url 'ri:build' %}">Datenbank aktualisieren</a></section>
+{% endblock %}
