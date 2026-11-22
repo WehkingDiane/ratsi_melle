@@ -30,6 +30,8 @@ def _database(path, sessions, documents=()):
 
 @pytest.fixture
 def inventory_workspace(tmp_path, monkeypatch):
+    from core.services import ri_sessions
+    monkeypatch.setattr(ri_sessions, "list_sessions", lambda: [])
     from data_tools import services as data_services
     from analysis import services as analysis_services
     raw = tmp_path / 'raw'
@@ -273,3 +275,74 @@ def test_dashboard_links_public_details_for_online_only_past_meeting(inventory_w
     assert past.select_one('a')['href'] == 'https://session.melle.info/bi/si0057.asp?__ksinr=1'
     assert not past.select('a[href*="/sitzungen/"]')
     assert not past.select('a[href^="javascript:"]')
+
+
+def test_dashboard_merges_bi_ri_by_id_and_keeps_online_date_precedence(inventory_workspace):
+    _, _, online = inventory_workspace
+    _database(online, [('1', '2026-12-03', 'Online-Termin')])
+    bi = [{'session_id': '1', 'date': '2026-12-01', 'meeting_name': 'BI-Termin'}]
+    ri = [{'session_id': '1', 'date': '2026-12-02', 'meeting_name': 'RI-Termin'},
+          {'session_id': '2', 'date': '2026-12-02', 'meeting_name': 'Nur RI',
+           'detail_url': 'https://session.melle.info/ri/si0057.asp?__ksinr=2'}]
+    result = dashboard_session_groups(bi, date(2026, 12, 1), ri_sessions=ri)
+    only_ri, both = result['upcoming_sessions']
+    assert only_ri['session_id'] == '2'
+    assert only_ri['ri_present'] and not only_ri['local_present']
+    assert only_ri['public_url'] == ''
+    assert both['session_id'] == '1'
+    assert both['ri_present'] and both['local_present']
+    assert both['date'] == '2026-12-03'
+    assert both['meeting_name'] == 'Online-Termin'
+    assert bi[0]['date'] == '2026-12-01' and ri[0]['date'] == '2026-12-02'
+
+
+def test_dashboard_renders_only_available_area_links(inventory_workspace, monkeypatch):
+    from core import views
+    from core.services import ri_sessions
+    _, _, online = inventory_workspace
+    _database(online, [('4', '2026-12-04', 'Nur online')])
+    with sqlite3.connect(online) as db:
+        db.execute('ALTER TABLE sessions ADD COLUMN detail_url TEXT')
+        db.execute('UPDATE sessions SET detail_url=?', ('https://session.melle.info/bi/si0057.asp?__ksinr=4',))
+    monkeypatch.setattr(views.timezone, 'localdate', lambda: date(2026, 12, 1))
+    monkeypatch.setattr(views.analysis_services, 'source_overview', lambda: {'session_count': 2})
+    monkeypatch.setattr(views.analysis_services, 'list_sessions', lambda: [
+        {'session_id': '1', 'date': '2026-12-01', 'meeting_name': 'Beide'},
+        {'session_id': '2', 'date': '2026-12-02', 'meeting_name': 'Nur BI'}])
+    monkeypatch.setattr(ri_sessions, 'list_sessions', lambda: [
+        {'session_id': '1', 'date': '2026-12-01', 'meeting_name': 'Beide RI'},
+        {'session_id': '3', 'date': '2026-12-03', 'meeting_name': 'Nur RI'}])
+    response = _client().get('/')
+    assert response.status_code == 200
+    assert 'private' in response['Cache-Control'] and 'no-store' in response['Cache-Control']
+    soup = BeautifulSoup(response.content, 'html.parser')
+    rows = soup.select('.dashboard-session-table tbody tr')
+    assert len(rows) == 4
+    assert [(a.text, a['href']) for a in rows[0].select('a')] == [
+        ('BI öffnen', '/analyse/sitzungen/1/'), ('RI öffnen', '/ratsbereich/sitzungen/1/')]
+    assert [(a.text, a['href']) for a in rows[1].select('a')] == [('BI öffnen', '/analyse/sitzungen/2/')]
+    assert [(a.text, a['href']) for a in rows[2].select('a')] == [('RI öffnen', '/ratsbereich/sitzungen/3/')]
+    assert [(a.text, a['href']) for a in rows[3].select('a')] == [
+        ('Im Ratsinfo ansehen', 'https://session.melle.info/bi/si0057.asp?__ksinr=4')]
+    assert 'Unterlagen öffnen' not in soup.text
+    assert 'Sitzung öffnen' in soup.text
+
+
+def test_dashboard_keeps_bi_usable_when_ri_index_is_unreadable(inventory_workspace, monkeypatch):
+    from core import views
+    from core.services import ri_sessions
+
+    def unreadable():
+        raise ri_sessions.RiCatalogueError('synthetic-error')
+
+    monkeypatch.setattr(ri_sessions, 'list_sessions', unreadable)
+    monkeypatch.setattr(views.timezone, 'localdate', lambda: date(2026, 12, 1))
+    monkeypatch.setattr(views.analysis_services, 'source_overview', lambda: {})
+    monkeypatch.setattr(views.analysis_services, 'list_sessions', lambda: [
+        {'session_id': '1', 'date': '2026-12-01', 'meeting_name': 'BI-Termin'}])
+    response = _client().get('/')
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.content, 'html.parser')
+    assert 'RI-Index nicht lesbar' in soup.text
+    assert soup.select_one('.dashboard-session-table a')['href'] == '/analyse/sitzungen/1/'
+    assert not soup.select('.dashboard-session-table a[href^="/ratsbereich/"]')

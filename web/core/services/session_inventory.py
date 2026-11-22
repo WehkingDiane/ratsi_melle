@@ -166,12 +166,19 @@ def yearly_session_inventory() -> dict:
     return {"years": result, "warnings": warnings}
 
 
-def dashboard_session_groups(local_sessions: list[dict], today: date, limit: int = 5) -> dict:
+def dashboard_session_groups(local_sessions: list[dict], today: date, limit: int = 5,
+                             *, ri_sessions: list[dict] | None = None) -> dict:
     """Split known calendar dates at today, preferring online dates over local copies."""
     warnings: list[str] = []
     online = _read_index(paths.ONLINE_INDEX_DB, "Online-Index", warnings)
     local_ids = {str(s['session_id']) for s in local_sessions}
-    merged = {str(s['session_id']): dict(s) for s in local_sessions}
+    ri_ids = {str(s['session_id']) for s in ri_sessions or []}
+    public_ids = local_ids | {str(s['session_id']) for s in online or []}
+    merged = {str(s['session_id']): {k: v for k, v in s.items() if k != 'detail_url'}
+              for s in ri_sessions or []}
+    for session in local_sessions:
+        sid = str(session['session_id'])
+        merged[sid] = {**merged.get(sid, {}), **session}
     for session in online or []:
         sid = str(session['session_id'])
         merged[sid] = {
@@ -187,13 +194,14 @@ def dashboard_session_groups(local_sessions: list[dict], today: date, limit: int
         session['meeting_name'] = session.get('meeting_name') or session.get('committee') or str(session['session_id'])
         session['display_date'] = parsed.strftime('%d.%m.%Y')
         session['local_present'] = str(session['session_id']) in local_ids
+        session['ri_present'] = str(session['session_id']) in ri_ids
         days = (parsed - today).days
         session['is_today'] = days == 0
         session['relative_date'] = (
             'Heute' if days == 0 else 'Morgen' if days == 1 else 'Gestern' if days == -1
             else f'in {days} Tagen' if days > 0 else f'vor {-days} Tagen'
         )
-        url = str(session.get('detail_url') or '')
+        url = str(session.get('detail_url') or '') if str(session['session_id']) in public_ids else ''
         try:
             parsed_url = urlsplit(url)
             session['public_url'] = url if parsed_url.scheme in {'http', 'https'} and parsed_url.netloc else ''

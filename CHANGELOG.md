@@ -24,6 +24,11 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 - Ältere Änderungen als Stichpunkte nachgetragen und absteigend geordnet. Die Anwendungsversion bleibt bei 0.5.76.
 - Versionsregeln präzisiert: Versionen pro Änderungspaket, Minor für größere Funktionsausbauten, kein Versionswechsel für reine Dokumentationsänderungen. Historische Nummern bleiben erhalten.
 
+## 0.9.1 – 22.11.2026
+
+- Dashboard mit getrennten Direktlinks „BI öffnen“ und „RI öffnen“ ergänzen; lokale RI-only-Sitzungen aufnehmen und gemeinsame Sitzungs-IDs in einer Zeile darstellen.
+- Dashboard wegen der RI-Termine ohne Zwischenspeicherung ausliefern; nicht lesbaren RI-Index melden und die BI-Terminanzeige weiter anzeigen; lokale BI-/RI-Sitzungszahlen getrennt ausweisen.
+
 ## 0.9.0 – 22.11.2026
 
 - RI-Sitzungsbereich mit Suche, Gremien-/Jahresfilter und Seitennavigation aus dem separaten lokalen RI-Index aufgebaut; BI und RI verwenden gemeinsame Listen-/Detailtemplates und Filterlogik.

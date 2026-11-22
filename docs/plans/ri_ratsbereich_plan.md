@@ -104,8 +104,8 @@ aufgebaut. Öffentliche Suche und öffentliche Analyseauswahl erhalten keine RI-
 
 ## 6. Geschützte Oberfläche
 
-Die [Navigationsübersicht](navigation.md) beschreibt den ursprünglichen Entwurf. Die [Web-Skriptsteuerung](../ri/oberflaeche.md) ohne Anmeldung und mit getrennten RI-Jobs ist umgesetzt. Seit 0.9.0 sind lokale Sitzungsansichten und PDF-Auslieferung mit Pfadprüfung implementiert; Listen-/Detailtemplates und Filterlogik werden mit BI geteilt. Kalender, Dashboard, Exporte und öffentliche
-Jobmeldungen dürfen keine unberechtigten RI-Metadaten anzeigen.
+Die [Navigationsübersicht](navigation.md) beschreibt den ursprünglichen Entwurf. Die [Web-Skriptsteuerung](../ri/oberflaeche.md) ohne Anmeldung und mit getrennten RI-Jobs ist umgesetzt. Seit 0.9.0 sind lokale Sitzungsansichten und PDF-Auslieferung mit Pfadprüfung implementiert; Listen-/Detailtemplates und Filterlogik werden mit BI geteilt. Die lokale Startseite führt seit 0.9.1 BI-/RI-Termine mit getrennten Direktlinks zusammen und wird ohne Zwischenspeicherung ausgeliefert. Öffentliche Indizes, Suche, Exporte und öffentliche
+Jobmeldungen erhalten weiterhin keine RI-Metadaten.
 Für eine spätere Netzwerkbereitstellung sind Debug-Modus, stabiler Secret-Key, HTTPS und Sitzungsverhalten gesondert abzustimmen; die aktuelle Konfiguration bleibt lokal. Kennzeichnung und Herkunft bleiben auf den RI-Seiten sichtbar.
 
 ## Wiederverwendung zwischen BI und RI

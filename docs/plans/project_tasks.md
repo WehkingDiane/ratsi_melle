@@ -11,7 +11,7 @@ Testbereich praktisch erprobt und mit 0.7.0 ins Projekt übernommen. Der regulä
 Bestand liegt unter `data/ri/`. Die CLI-Bedienung steht in der
 [CLI-Anleitung](../ri/datenablauf.md). Die Untergrenze November 2026 ist konfiguriert;
 BI-Verlinkung bestimmt `öffentlich` oder `nicht öffentlich`. Ein fehlender Nachweis
-ergibt `nicht öffentlich`. Seit 0.8.0 steuert die [lokale Web-Datenpflege](../ri/oberflaeche.md) die Skripte und zeigt eigene Jobausgaben. Der lokale Einzelplatzbetrieb benötigt keine Web-Anmeldung. Seit 0.9.0 sind Sitzungslisten, TOP-Details und sitzungsgebundene lokale PDFs angebunden; Listen-/Detailtemplates und Filterlogik werden mit BI geteilt.
+ergibt `nicht öffentlich`. Seit 0.8.0 steuert die [lokale Web-Datenpflege](../ri/oberflaeche.md) die Skripte und zeigt eigene Jobausgaben. Der lokale Einzelplatzbetrieb benötigt keine Web-Anmeldung. Seit 0.9.0 sind Sitzungslisten, TOP-Details und sitzungsgebundene lokale PDFs angebunden; Listen-/Detailtemplates und Filterlogik werden mit BI geteilt. Seit 0.9.1 enthält die lokale Startseite gemeinsame BI-/RI-Termine mit getrennten Direktlinks.
 
 Die weitere Richtung ist ein temporärer Arbeitsbestand zur Sitzungsvorbereitung
 ohne RI-Volltext-/Vektorindex. Ein Zeitfilter für heutige/künftige Sitzungen,

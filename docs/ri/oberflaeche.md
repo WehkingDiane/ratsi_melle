@@ -56,7 +56,9 @@ Formulare behalten CSRF-Schutz und strikte Parameterprüfung.
 ## Sitzungen und Dokumente
 
 Seit 0.9.0 öffnet **Ratsbereich → Sitzungen** unter `/ratsbereich/sitzungen/`
-den lokalen RI-Bestand im gleichen Listen- und Detailaufbau wie BI. Voraussetzung
+den lokalen RI-Bestand im gleichen Listen- und Detailaufbau wie BI. Seit 0.9.1
+führt auch „RI öffnen“ auf der Startseite direkt zur Sitzung; die gemeinsamen
+Dashboard-Regeln stehen in der [Sitzungsübersicht](../oberflaeche/sitzungen.md). Voraussetzung
 ist ein aufgebauter lokaler RI-Index unter `data/ri/db/local_index.sqlite`;
 der Onlineindex allein genügt nicht. Nach einem Download unter **Datenbank
 aktualisieren** den lokalen Index aktualisieren, damit neue Dateien und TOPs erscheinen.
