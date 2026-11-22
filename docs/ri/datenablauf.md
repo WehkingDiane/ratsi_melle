@@ -123,7 +123,8 @@ Alle drei Datenskripte unterstützen `--log-level`.
 
 Nicht unterstützte Sitzungsdetailansichten, etwa bei verschobenen Terminen, werden
 als ungeprüft protokolliert und übersprungen. Die übrigen Sitzungen werden weiter
-verarbeitet. Login-/Berechtigungsfehler führen zum Abbruch. Ein HTML-Loginformular
+verarbeitet. Login-/Berechtigungsfehler führen zum Abbruch. Die 90-Sekunden-Frist für die
+RI-Anmeldung beginnt erst, wenn die Zugangsdaten aus Proton vorliegen. Ein HTML-Loginformular
 wird nicht als Sitzung oder Dokument gespeichert. Dokumentziele sind auf HTTPS
 und `/ri/getfile.asp` auf `session.melle.info` begrenzt; unbekannte Ziele werden
 abgewiesen. Downloadmeldungen zeigen die Dokument-ID statt der URL.
