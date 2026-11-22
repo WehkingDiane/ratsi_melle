@@ -128,6 +128,11 @@ wird nicht als Sitzung oder Dokument gespeichert. Dokumentziele sind auf HTTPS
 und `/ri/getfile.asp` auf `session.melle.info` begrenzt; unbekannte Ziele werden
 abgewiesen. Downloadmeldungen zeigen die Dokument-ID statt der URL.
 
+Gewöhnliche HTTP-Fehler beim Dokumentabruf (z. B. 404 oder 503, auch mit
+HTML-Fehlerseite) werden als Dokumentfehler behandelt. HTTP 401/403, HTML statt
+eines Dokuments bei HTTP 200 und unzulässige Weiterleitungen führen weiterhin
+zum Abbruch wegen fehlender oder ungeklärter Zugriffsberechtigung.
+
 Exitcodes der Online-Aufrufe: `0` erfolgreich, `1` Abbruch, `2` ungeprüfte Sitzungen,
 fehlgeschlagene Dokumentdownloads oder unbestätigte Abmeldung. Dokumentfehler, etwa
 wegen Größenüberschreitung oder erschöpfter Stream-Wiederholungen, stoppen die
