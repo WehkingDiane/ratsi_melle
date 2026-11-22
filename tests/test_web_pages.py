@@ -279,15 +279,27 @@ def test_templates_are_kept_in_their_feature_apps() -> None:
     data_templates = {path.name for path in DATA_TOOLS_TEMPLATE_ROOT.glob("*.html")}
 
     assert core_templates == {
-        "core/ri_placeholder.html",
-        "core/partials/navigation.html",
         "base.html",
         "core/dashboard.html",
         "core/partials/dashboard_sessions.html",
+        "core/partials/data_status_panel.html",
+        "core/partials/form_field.html",
+        "core/partials/job_panel.html",
+        "core/partials/job_status_class.html",
         "core/partials/messages.html",
+        "core/partials/navigation.html",
         "core/partials/panel_header.html",
+        "core/partials/script_form.html",
         "core/partials/service_result.html",
         "core/partials/service_status.html",
+        "core/ri/catalogue_error.html",
+        "core/ri/data_status.html",
+        "core/ri/header.html",
+        "core/ri/job.html",
+        "core/ri/scripts.html",
+        "core/ri/status.html",
+        "core/ri/status_class.html",
+        "core/ri_placeholder.html",
     }
     assert {
         "analysis_start.html",
