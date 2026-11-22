@@ -135,17 +135,24 @@ def test_login_form_is_not_returned_as_metadata():
         client._get('si0057.asp?__ksinr=9509')
 
 
-def test_login_logs_out_after_builder_failure(monkeypatch,capsys):
+@pytest.mark.parametrize('credential_delay', [0, 120])
+def test_login_logs_out_after_builder_failure(monkeypatch, capsys, credential_delay):
     calls=[]
+    clock = [1000.0]
+    monkeypatch.setattr(auth.time, 'monotonic', lambda: clock[0])
     class Proton:
         cleanup_warning=False
         def __init__(self,token): pass
         def __enter__(self): return self
         def __exit__(self,*args): calls.append('proton_logout')
-        def credentials(self): return SimpleNamespace(username='private-user',password='private-password')
-    class Probe:
-        def __init__(self,session): pass
+        def credentials(self):
+            clock[0] += credential_delay
+            return SimpleNamespace(username='private-user', password='private-password')
+    class Probe(auth.RiLoginProbe):
         def get(self,url):
+            if not calls:
+                assert self.deadline == clock[0] + 90
+            assert clock[0] < self.deadline
             if 'ri_logout' in calls: return auth.BASE_URL+'/ylogon.asp',b'<form id="smclogon"><input type="password"></form>'
             return auth.PROTECTED,b'<h1>Authenticated</h1>'
         def _request(self,method,url,data=None):
