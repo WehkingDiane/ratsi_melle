@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT))
 from src.fetching.ri_session import BASE_URL, RI_ROOT, RiOnlineClient, RiPageUnavailable, login
 from src.config.ri import configure_file_logging
 from src.config.ri_proton import RiAccessError
-from src.fetching import SessionNetClient
+from src.fetching import FetchingError, SessionNetClient
 
 from src.config.ri import select_months
 
@@ -118,7 +118,14 @@ class RiFetchClient(RiOnlineClient):
                     raise RiAccessError('RI-Dokumentweiterleitung ohne Ziel.')
                 url = urljoin(url, target)
                 continue
-            if response.status_code != 200 or 'text/html' in response.headers.get('Content-Type', '').lower():
+            if response.status_code in {401, 403}:
+                response.close()
+                raise RiAccessError('RI-Dokument nicht verfügbar; Anmeldung/Berechtigung prüfen.')
+            if response.status_code != 200:
+                status = response.status_code
+                response.close()
+                raise FetchingError(f'RI-Dokumentdownload fehlgeschlagen (HTTP {status}).')
+            if 'text/html' in response.headers.get('Content-Type', '').lower():
                 response.close()
                 raise RiAccessError('RI-Dokument nicht verfügbar; Anmeldung/Berechtigung prüfen.')
             return response
