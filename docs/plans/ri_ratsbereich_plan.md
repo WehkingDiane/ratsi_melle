@@ -11,11 +11,13 @@ Teilpakete sind im [Changelog](../../CHANGELOG.md) dokumentiert.
 - [x] Token-Datei und temporäre Proton-CLI-Sitzungen ohne Betriebssystem-Keyring umgesetzt (0.6.0).
 - [x] RI-Anmeldung, Onlineindex, Dokumentabruf und lokaler Index praktisch im Testbereich erprobt und als reguläres CLI-Paket übernommen (0.7.0).
 - [x] Getrennte RI-Datenwurzel `data/ri/`, Dokument-ID und Öffentlichkeitskennzeichnung sowie gezielte Offline-Tests umgesetzt.
-- [ ] Verwaltungsausschuss, feinere Dokumentartauswahl und weitere Betriebsverträge abnehmen.
+- [x] Verwaltungsausschuss 8178 anhand echter HTML-/Dokumentmetadaten und der UI-Kette geprüft (22.11.2026).
+- [ ] Feinere Dokumentartauswahl und weitere Betriebsverträge abnehmen.
 - [ ] Regeln für Sitzungszeitraum, Nachlauf und Aufbewahrung entscheiden; kontrollierte Bestandsbereinigung umsetzen.
 - [x] Lokale Webformulare ohne Anmeldung für RI-Skripte, separate Jobablage und Jobausgaben umgesetzt (0.8.0).
 - [x] Lokale RI-Sitzungs-/Dateiansichten mit Pfadprüfung und Offline-Negativtests ergänzt (0.9.0).
-- [ ] Web-/Exporttrennung und Betrieb mit einer begrenzten lokalen RI-Stichprobe abnehmen.
+- [x] Echte UI-Kette für 8178/8179 einschließlich PDF und BI-Endpunkttrennung geprüft; Hinweise dokumentiert.
+- [ ] Export-/Betriebsabnahme sowie verbleibende Abruf-/Altbestandshinweise abschließen.
 
 RI-Volltext-/Vektorindexierung und RI-Suche bleiben für die erste Ausbaustufe
 zurückgestellt. Der komplette Vorhaben-Branch ist mit dem CLI-Paket noch nicht fertig.
@@ -54,8 +56,10 @@ Die regulären CLI-Namen unterscheiden BI und RI. Seit 0.8.0 sind die RI-Einstie
 Die bisherigen Stichproben belegen wiederverwendbare SessionNet-Tabellenstrukturen
 und zusätzliche RI-Dokumente bei einzelnen öffentlichen TOPs. Der CLI-Abruf wurde
 am realen Bestand erprobt. Eine allgemeine Parsergleichheit oder Vollständigkeit
-aller Gremien wird daraus nicht abgeleitet; der Verwaltungsausschuss bleibt die
-priorisierte fehlende Bedarfsstichprobe.
+aller Gremien wird daraus nicht abgeleitet. Der Verwaltungsausschuss 8178 wurde
+am 22.11.2026 als begrenzte reale Bedarfsstichprobe geprüft: 23 N-TOP-Einträge und
+43 Dokumente mit konsistenten Metadaten und PDF-Auslieferung. Ergebnisse und
+Grenzen stehen in der [UI-Abnahme](../ri/oberflaeche.md#reale-ui-abnahme-vom-22112026).
 
 Der Nutzer hat die Kennzeichnungsregel festgelegt: im BI verlinkte Dokument-IDs
 sind `öffentlich`, alle anderen `nicht öffentlich`. Bei fehlgeschlagenem BI-Abgleich
@@ -93,9 +97,11 @@ offen; ein einzelner erfolgreicher Login ist keine Abnahme unbeaufsichtigten Bet
 
 Der prototypische Abruf ist real geprüft; die Projektübernahme wurde offline
 validiert und der lokale Index am neuen Ort neu aufgebaut. Ein frischer Live-Abruf
-mit den regulären Skripten wurde dabei nicht gestartet. Weitere reale Prüfungen
-bleiben begrenzte, bewusst gestartete Nutzerläufe; reguläre Tests verwenden
-synthetische Antworten und keine produktiven Geheimnisse.
+mit den regulären Skripten wurde bei dieser früheren Übernahme nicht gestartet.
+Am 22.11.2026 folgte ein ausdrücklich beauftragter realer Dezember-Abruf über das
+Webformular mit anschließendem lokalem Build und PDF-Prüfung für 8178/8179.
+Weitere reale Prüfungen bleiben begrenzte, bewusst gestartete Läufe; reguläre
+Tests verwenden synthetische Antworten und keine produktiven Geheimnisse.
 
 ## 5. Separate Suche (zurückgestellt)
 

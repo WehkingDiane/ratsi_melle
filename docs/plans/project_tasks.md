@@ -18,17 +18,17 @@ ohne RI-Volltext-/Vektorindex. Ein Zeitfilter für heutige/künftige Sitzungen,
 Nachlauf und Löschfristen sind noch offen. Die einzelne entfernte
 Proton-Abmeldewarnung bleibt sichtbar; unbeaufsichtigter Betrieb ist nicht abgenommen.
 
-Der Stand der RI-Webanbindung wird als erster funktionsfähiger Prototyp übernommen. Formularraster, Statuspanels und Jobausgabe sind gestalterisch an BI angeglichen. Seit 0.9.3 werden auch Formular-/Feldrenderer, Statuspanelrahmen sowie Auftragspanel und Live-Aktualisierung gemeinsam verwendet. Die verbleibende Vereinheitlichung betrifft das Backend.
+Der Stand der RI-Webanbindung wird als erster funktionsfähiger Prototyp übernommen. Formularraster, Statuspanels und Jobausgabe sind gestalterisch an BI angeglichen. Seit 0.9.3 werden auch Formular-/Feldrenderer, Statuspanelrahmen sowie Auftragspanel und Live-Aktualisierung gemeinsam verwendet. Die verbleibende Vereinheitlichung betrifft das Backend. Die reguläre UI-Kette wurde am 22.11.2026 mit Verwaltungsausschuss 8178 und Betriebsausschuss 8179 real geprüft; Ergebnis und verbleibende Hinweise stehen in der [UI-Abnahme](../ri/oberflaeche.md#reale-ui-abnahme-vom-22112026).
 
 ## RI-Vorhaben
 
 #### Konkrete Aufgaben
 
-- [ ] BI und RI im Backend auf weitere fachlich identische Teile prüfen: Skripte, Befehlsaufbau, Abruf-/Build-Logik und Jobverwaltung. Gemeinsamkeiten und notwendige Bereichsunterschiede festhalten; die UI-Prüfung und gemeinsame Darstellung sind umgesetzt.
+- [ ] BI und RI im Backend auf weitere fachlich identische Teile prüfen: Skripte, Befehlsaufbau, Abruf-/Build-Logik und Jobverwaltung. Gemeinsamkeiten und notwendige Bereichsunterschiede festhalten.
 - [ ] Weitere geeignete Backendteile schrittweise in wiederverwendbare Funktionen, Module oder Skripte überführen und beide Bereiche darauf umstellen. Getrennte Daten-/Jobablagen, RI-Portalzugang und Öffentlichkeitskennzeichnung erhalten und mit gezielten Regressionstests absichern.
-- [ ] Verwaltungsausschuss anhand von HTML-Struktur und Dokumentmetadaten als priorisierte Bedarfsstichprobe prüfen; bisherige Sitzungen ersetzen diese Prüfung nicht.
 - [ ] Dokumentartauswahl für die weitere Nutzung präzisieren; der aktuelle CLI-Abruf übernimmt verlinkte Sitzungs- und TOP-Dokumente einschließlich Einladungen. Umgang mit Sammelunterlagen, Anlagen und Dubletten entscheiden.
 - [ ] Zeitgrenze für heutige/laufende, abgesagte und verschobene Sitzungen sowie Nachlauf, Aufbewahrung und Löschfristen verbindlich festlegen.
 - [ ] Kontrollierte RI-Bereinigung mit Vorschau und konsistentem Datenbankabgleich umsetzen; entfernte Sitzungen und Nebenartefakte berücksichtigen, BI-Dateien ausschließen.
 - [ ] Betriebsmodell und Betriebssystem-Zugriffsrechte einschließlich Sicherung und Wiederherstellung für den regulären RI-Bestand abnehmen; zurückgestellte Neustart-/Ablauf- und Proton-Abmeldeprüfungen bei erweitertem Betrieb nachholen.
-- [ ] Web- und Exporttrennung der angebundenen Sitzungs-/Dateiansichten mit einer begrenzten lokalen RI-Stichprobe abnehmen; Offline-Negativtests für Daten-/Pfadtrennung sind vorhanden. Den echten Skriptablauf über die vorhandenen Webformulare im lokalen Betrieb prüfen.
+- [ ] Ungeprüfte RI-Detailansichten 9516 und 8181 sowie die drei fehlenden oder unzulässigen Altdateien der Sitzung 8176 aus der realen UI-Stichprobe untersuchen; erforderliche Nachabrufe gezielt festlegen.
+- [ ] Verbleibende Export- und Betriebsabnahme durchführen; die RI-Abgrenzung vorhandener öffentlicher Exporte prüfen und bei späteren Exportfunktionen erneut absichern.

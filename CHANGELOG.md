@@ -29,6 +29,7 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 - BI-/Landkreis- und RI-Fetch-/Build-Formulare mit gemeinsamem Formular- und Feldrenderer einschließlich eindeutiger Feld-IDs darstellen; Befehlsprüfung und RI-Parametergrenzen beibehalten.
 - Statuspanelrahmen sowie Auftragspanel, Statusfarben, Ausgabe und Live-Aktualisierung für BI und RI teilen; Warnabschluss, Fortschritt, Modellnachweise und Legacy-Neuladen erhalten.
 - Bei vorübergehenden Statusfehlern den letzten Auftragsstatus erhalten, Fehler anzeigen und automatisch erneut versuchen; Exitcode 0 auch initial sichtbar anzeigen.
+- Echte UI-Kette mit Dezember-Download, lokalem Indexaufbau und PDF-Prüfung für Verwaltungsausschuss 8178 und Betriebsausschuss 8179 durchgeführt; Warnabschluss, ungeprüfte Detailansichten und Altbestandshinweise dokumentiert.
 
 ## 0.9.2 – 22.11.2026
 

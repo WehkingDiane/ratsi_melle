@@ -48,7 +48,9 @@ mit den verschobenen Skripten wurde bei der Übernahme nicht ausgeführt.
 Die entfernte Proton-Abmeldung bleibt unter Windows teilweise unbestätigt und wird
 als eigener Warnstatus angezeigt. Neustart-/Ablaufverhalten und unbeaufsichtigter
 Betrieb sind nicht abgenommen. Web-Skriptsteuerung sowie Sitzungs- und Dateiansichten
-sind mit synthetischen Daten geprüft. Bestandsbereinigung und die vollständige
-Bedarfsabnahme des Verwaltungsausschusses bleiben offen. RI-Volltext- und
+sind offline und seit 22.11.2026 zusätzlich mit einem echten Dezember-Download,
+lokalem Build und PDF-Prüfung für 8178/8179 geprüft. Ergebnisse und verbleibende
+Abruf-/Altbestandshinweise stehen in der [UI-Abnahme](oberflaeche.md#reale-ui-abnahme-vom-22112026).
+Bestandsbereinigung und die weitere Betriebsabnahme bleiben offen. RI-Volltext- und
 Vektorindexierung sind nicht Teil dieser Ausbaustufe. Historische Änderungen stehen
 im [Changelog](../../CHANGELOG.md).

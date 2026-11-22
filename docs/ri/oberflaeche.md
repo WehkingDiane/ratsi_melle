@@ -144,6 +144,46 @@ Sitzungslisten, Sitzungsdetails und lokale PDF-Auslieferung. Bestandsbereinigung
 ist noch nicht angebunden. RI-Suche und Vektorindex sind für diese Ausbaustufe nicht vorgesehen;
 die entsprechenden alten Platzhalter starten keine Aufträge.
 
+## Reale UI-Abnahme vom 22.11.2026
+
+Unter Windows mit Python 3.14 wurde die Kette **Webformular → Download → lokaler
+Indexaufbau → gefilterte Sitzungsliste → Detailansicht → PDF im neuen Tab** mit
+dem regulären RI-Bestand durchgeführt. Datenbanken und vorhandene Dezemberdateien
+wurden vorher lokal unter `data/ri/ui_acceptance/` gesichert; Dateikopien wurden
+per SHA-256 geprüft. Dieser Ordner gehört zum ignorierten RI-Laufzeitbestand.
+
+| Sitzung | TOPs | Dokumente nach Download und Indexaufbau | PDF-Prüfung |
+| --- | --- | --- | --- |
+| Verwaltungsausschuss 8178, 01.12.2026 | 23 N-Einträge einschließlich Unterpunkten | 43 vorhanden, 0 fehlend | Über UI geöffnet, HTTP 200 und PDF-Inhalt |
+| Betriebsausschuss 8179, 02.12.2026 | 10 Ö- und 2 N-Einträge | 14 vorhanden, 0 fehlend | Über UI geöffnet, HTTP 200 und PDF-Inhalt |
+
+Die erneute lokale HTML-Analyse stimmt für beide Sitzungen mit den gespeicherten
+TOP-Nummern überein. Dokument-IDs und TOP-Zuordnungen sind vollständig; alle 57
+Dateien stimmen mit den SHA-1-Prüfsummen ihrer Manifeste überein. Der BI-Abgleich
+weist für 8179 zehn öffentliche und vier nicht öffentliche Dokumente aus. Für
+8178 schlug der BI-Abgleich fehl; alle 43 Dokumente bleiben entsprechend der
+bestehenden Regel nicht öffentlich. Das ist kein Nachweis einer öffentlichen
+Erreichbarkeit dieser Dokumente.
+
+Der Dezember-Download (`09f8df1a26364587b4e23970bb07d45c`) führte 57 echte
+Dokumentdownloads aus und endete mit **Exitcode 2 / mit Hinweisen abgeschlossen**:
+Die Detailansichten 9516 und 8181 wurden als ungeprüft übersprungen. Die RI-Abmeldung
+ist bestätigt, die entfernte Proton-Abmeldung blieb unbestätigt. Der Hinweisstatus,
+die Abschlussmeldung und das Ausblenden der Laufanzeige wurden im Browser geprüft.
+
+Der anschließend über das Webformular gestartete lokale Indexaufbau mit
+„Bestehende Sitzungen aktualisieren“ (`7c0a2536712949638e4a66e936844ea9`) endete
+mit **Exitcode 0**: 17 Sitzungen, 255 TOP-Einträge und 220 Dokumente. Dabei wurden
+drei fehlende oder unzulässige Altdateien der Sitzung 8176 gemeldet und ausgelassen;
+die beiden Dezember-Beispielsitzungen sind vollständig. Diese Altbestandshinweise
+und die beiden ungeprüften Detailansichten bleiben gesondert zu untersuchen.
+
+Die Details passen bei 1440 und 390 Pixel Breite ohne seitlichen Seitenüberlauf.
+Die geöffneten RI-PDFs tragen private No-Store-Header. Die geprüfte RI-PDF-Kennung
+und der RI-Downloadauftrag liefern über die entsprechenden BI-Endpunkte HTTP 404.
+Die Abnahme gilt für diese begrenzte UI-Stichprobe; Exportfunktionen,
+unbeaufsichtigter Betrieb und allgemeine Parser-Vollständigkeit sind damit nicht abgenommen.
+
 Gezielte Offline-Tests stehen in der [Testdokumentation](../entwicklung/tests.md).
 Sie prüfen den lokalen Zugriff ohne Anmeldung, die Formulare und simulierte
 Auftragsabläufe. Reale Portalprüfungen oder Downloads werden dabei nicht gestartet.

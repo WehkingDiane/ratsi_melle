@@ -69,7 +69,9 @@ Der Sitzungsbereich wird mit synthetischen Katalogen geprüft: Filter/Seitennavi
 getrennte TOP-/Dokumentkennzeichnung, Quellenstatus, lokale PDF-Auslieferung,
 falsche Sitzungszuordnung, Pfadausbruch einschließlich Symlinks und BI-Trennung.
 Fehlende und beschädigte RI-Indizes sowie No-Store-Header sind ebenfalls abgedeckt. Die Tests verwenden keine
-Portalzugangsdaten und starten keine echten RI-Skripte. Betroffene bisherige
+Portalzugangsdaten und starten keine echten RI-Skripte. Die ausdrücklich beauftragte
+reale UI-Stichprobe vom 22.11.2026 ist separat in der
+[UI-Abnahme](../ri/oberflaeche.md#reale-ui-abnahme-vom-22112026) dokumentiert. Betroffene bisherige
 Platzhalter- und Navigationsprüfungen stehen in `tests/test_web_pages.py` und können
 über die jeweiligen Testnamen gezielt ausgeführt werden. Der vollständige
 PR-Testlauf bleibt beim Nutzer.
