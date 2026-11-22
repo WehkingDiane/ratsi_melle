@@ -20,7 +20,8 @@ python web/manage.py migrate
 python scripts/run_web.py
 ```
 
-Anschließend über **Ratsbereich** die gewünschte Seite öffnen. Die bisherigen
+Anschließend über das Hauptmenü **Ratsbereich** die gewünschte Seite öffnen.
+Eine zusätzliche Navigationsleiste innerhalb der RI-Seiten entfällt seit 0.9.2. Die bisherigen
 Adressen `/ratsbereich/anmelden/` und `/ratsbereich/abmelden/` führen direkt zum
 RI-Datenstatus; ein Anmeldeformular wird nicht mehr angezeigt.
 

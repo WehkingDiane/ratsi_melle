@@ -24,6 +24,10 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 - Ältere Änderungen als Stichpunkte nachgetragen und absteigend geordnet. Die Anwendungsversion bleibt bei 0.5.76.
 - Versionsregeln präzisiert: Versionen pro Änderungspaket, Minor für größere Funktionsausbauten, kein Versionswechsel für reine Dokumentationsänderungen. Historische Nummern bleiben erhalten.
 
+## 0.9.2 – 22.11.2026
+
+- Zusätzliche Navigationsleiste auf den RI-Datenpflege- und Jobseiten entfernt; die Seiten bleiben über das Hauptmenü „Ratsbereich“ erreichbar.
+
 ## 0.9.1 – 22.11.2026
 
 - Dashboard mit getrennten Direktlinks „BI öffnen“ und „RI öffnen“ ergänzen; lokale RI-only-Sitzungen aufnehmen und gemeinsame Sitzungs-IDs in einer Zeile darstellen.
