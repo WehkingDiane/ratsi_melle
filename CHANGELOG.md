@@ -4,6 +4,10 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 
 ## Unveröffentlicht
 
+### RI-Sitzungsbereich
+
+- Lesenden RI-Katalogzugriff mit auf die jeweilige Sitzung begrenzten Dateipfaden und gemeinsame Filter-/Seitennavigation für Sitzungslisten vorbereitet.
+
 ### Testdaten – 10.11.2026
 
 - Namen und geschäftliche Kontaktangaben in der Windkraft-Testfixture durch Platzhalter ersetzt; Quellenhinweis entsprechend ergänzt.
