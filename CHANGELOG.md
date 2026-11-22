@@ -2,6 +2,10 @@
 
 Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Historie und vorhandener Dokumentation zusammengefasst; sie bilden keine vollständige Liste aller Commits. Versionsdaten bezeichnen das Datum des zugehörigen Versionscommits, nicht einen gesondert belegten Veröffentlichungstermin. Commit-Kürzel ermöglichen die Prüfung mit `git show <kürzel>`. Der aktuelle Funktionsumfang steht im [Ist-Stand](docs/ist_stand.md).
 
+## 0.9.5 – 22.11.2026
+
+- RI-Anmeldung: die 90-Sekunden-Frist erst nach dem Abruf der Proton-Zugangsdaten starten, damit langsame Proton-Aufrufe keinen vorzeitigen Abbruch auslösen.
+
 ## 0.9.4 – 22.11.2026
 
 - RI-Dokumentabruf: gewöhnliche HTTP-Fehler wie 404 und 503 als unvollständige Downloads behandeln; weitere Dokumente und Sitzungen verarbeiten und das Manifest schreiben. Zugriffsfehler bleiben Abbruchgründe.
