@@ -271,7 +271,7 @@ def test_public_comparison_reads_only_html_with_separate_session(visibility_clie
 
 
 @pytest.mark.integration
-@pytest.mark.parametrize('failure_mode', ['size', 'stream', 'http404', 'http503'])
+@pytest.mark.parametrize('failure_mode', ['size', 'stream', 'http404', 'http503', 'connect_timeout'])
 @pytest.mark.parametrize('retain_old_entry', [False, True])
 def test_download_failures_reach_exit_status_after_later_success(
     visibility_client, monkeypatch, tmp_path, capsys, caplog, failure_mode, retain_old_entry
@@ -327,6 +327,8 @@ def test_download_failures_reach_exit_status_after_later_success(
                   and fetch.document_id(url) == '145203')
         if failed:
             attempts.append(url)
+            if failure_mode == 'connect_timeout':
+                raise requests.ConnectTimeout('Private connection details')
         return Response(failed)
 
     @contextmanager
@@ -351,6 +353,7 @@ def test_download_failures_reach_exit_status_after_later_success(
     output = capsys.readouterr().out
     assert f'{detail.reference.session_id}/145203' in output
     assert 'https://' not in output
+    assert 'Private connection details' not in caplog.text
     assert 'vollständige_sitzungen=1' in caplog.text
     entries = read_visibility_manifest(client, detail)
     assert len(entries) == len(detail.agenda_items[0].documents) - (0 if retain_old_entry else 1)
@@ -383,3 +386,37 @@ def test_document_access_failure_closes_response_and_aborts(monkeypatch, tmp_pat
         assert closed == [True]
     finally:
         client.session.close()
+
+
+@pytest.mark.integration
+def test_failed_document_head_falls_back_to_get(visibility_client, monkeypatch):
+    import requests
+    from src.fetching import SessionNetClient
+
+    client, detail = visibility_client
+    detail.agenda_items[0].documents = detail.agenda_items[0].documents[:1]
+    monkeypatch.setattr(fetch, 'fetch_public_document_ids', lambda ref: set())
+    client.download_documents(detail)
+
+    for name in ('_head_document', '_fetch_document_payload'):
+        monkeypatch.setattr(client, name, getattr(SessionNetClient, name).__get__(client))
+    client.min_request_interval = 0
+    calls = []
+
+    def request(method, url, **kwargs):
+        calls.append(method)
+        if method == 'HEAD':
+            raise requests.ConnectionError('Synthetic connection failure')
+        response = requests.Response()
+        response.status_code = 200
+        response.headers['Content-Type'] = 'application/pdf'
+        response._content = b'%PDF-updated'
+        response._content_consumed = True
+        return response
+
+    monkeypatch.setattr(client.session, 'request', request)
+    assert client.download_documents(detail) == []
+    assert calls == ['HEAD', 'GET']
+    entry, = read_visibility_manifest(client, detail)
+    path = client._build_session_directory(detail.reference) / entry['path']
+    assert path.read_bytes() == b'%PDF-updated'
