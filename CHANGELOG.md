@@ -2,6 +2,10 @@
 
 Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Historie und vorhandener Dokumentation zusammengefasst; sie bilden keine vollständige Liste aller Commits. Versionsdaten bezeichnen das Datum des zugehörigen Versionscommits, nicht einen gesondert belegten Veröffentlichungstermin. Commit-Kürzel ermöglichen die Prüfung mit `git show <kürzel>`. Der aktuelle Funktionsumfang steht im [Ist-Stand](docs/ist_stand.md).
 
+## 0.9.6 – 23.11.2026
+
+- RI-Dokumentabruf: Nach einem Verbindungsfehler bei HEAD direkt herunterladen. Scheitert die Downloadverbindung, die übrigen Dokumente und Sitzungen weiter verarbeiten.
+
 ## 0.9.5 – 22.11.2026
 
 - RI-Anmeldung: die 90-Sekunden-Frist erst nach dem Abruf der Proton-Zugangsdaten starten, damit langsame Proton-Aufrufe keinen vorzeitigen Abbruch auslösen.
