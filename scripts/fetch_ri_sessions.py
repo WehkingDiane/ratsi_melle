@@ -10,6 +10,8 @@ import sys
 import time
 from urllib.parse import parse_qs, urljoin, urlsplit
 
+from requests import RequestException
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
@@ -108,9 +110,13 @@ class RiFetchClient(RiOnlineClient):
                     or any(c in url for c in '\r\n\\')):
                 raise RiAccessError('Nicht freigegebenes RI-Dokumentziel oder abgelaufene Anmeldung.')
             self._respect_rate_limit()
-            response = self.session.request(method, url, timeout=(10, 30),
-                                            allow_redirects=False, stream=True, verify=True)
-            self._last_request_ts = time.monotonic()
+            try:
+                response = self.session.request(method, url, timeout=(10, 30),
+                                                allow_redirects=False, stream=True, verify=True)
+            except RequestException:
+                raise FetchingError('RI-Dokumentanfrage wegen eines Verbindungsfehlers fehlgeschlagen.') from None
+            finally:
+                self._last_request_ts = time.monotonic()
             if response.status_code in {301, 302, 303, 307, 308}:
                 target = response.headers.get('Location')
                 response.close()
