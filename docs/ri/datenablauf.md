@@ -130,7 +130,9 @@ und `/ri/getfile.asp` auf `session.melle.info` begrenzt; unbekannte Ziele werden
 abgewiesen. Downloadmeldungen zeigen die Dokument-ID statt der URL.
 
 Gewöhnliche HTTP-Fehler beim Dokumentabruf (z. B. 404 oder 503, auch mit
-HTML-Fehlerseite) werden als Dokumentfehler behandelt. HTTP 401/403, HTML statt
+HTML-Fehlerseite) und Verbindungsfehler beim Download werden als Dokumentfehler
+behandelt. Scheitert die Abfrage der Dateiinformationen (HEAD) an der Verbindung,
+wird der Download direkt versucht. HTTP 401/403, HTML statt
 eines Dokuments bei HTTP 200 und unzulässige Weiterleitungen führen weiterhin
 zum Abbruch wegen fehlender oder ungeklärter Zugriffsberechtigung.
 
