@@ -16,6 +16,10 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 
 ## Unveröffentlicht
 
+### Dokumentation – 27.11.2026
+
+- RI-Hinweise zu 9516/8181 als verschobene Termine mit Weiterleitung auf `si0050.asp` eingegrenzt; für 8176 vollständigen Dateibestand und veralteten lokalen Index nachgewiesen. Aufgaben auf Statusbehandlung und Indexaktualisierung konkretisiert.
+
 ### Testdaten – 10.11.2026
 
 - Namen und geschäftliche Kontaktangaben in der Windkraft-Testfixture durch Platzhalter ersetzt; Quellenhinweis entsprechend ergänzt.

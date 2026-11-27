@@ -1,6 +1,6 @@
 # Aktuelle Projektaufgabe
 
-Stand: 22.11.2026. Aktuelles Vorhaben ist der geschützte Ratsbereich für SessionNet
+Stand: 27.11.2026. Aktuelles Vorhaben ist der geschützte Ratsbereich für SessionNet
 `/ri/`. Der [Hauptplan](ri_ratsbereich_plan.md) führt Schutzgrenzen und offene
 Entscheidungen; die [RI-Übersicht](../ri/README.md) beschreibt den vorhandenen Umfang.
 
@@ -12,6 +12,9 @@ Bestand liegt unter `data/ri/`. Die CLI-Bedienung steht in der
 [CLI-Anleitung](../ri/datenablauf.md). Die Untergrenze November 2026 ist konfiguriert;
 BI-Verlinkung bestimmt `öffentlich` oder `nicht öffentlich`. Ein fehlender Nachweis
 ergibt `nicht öffentlich`. Seit 0.8.0 steuert die [lokale Web-Datenpflege](../ri/oberflaeche.md) die Skripte und zeigt eigene Jobausgaben. Der lokale Einzelplatzbetrieb benötigt keine Web-Anmeldung. Seit 0.9.0 sind Sitzungslisten, TOP-Details und sitzungsgebundene lokale PDFs angebunden; Listen-/Detailtemplates und Filterlogik werden mit BI geteilt. Seit 0.9.1 enthält die lokale Startseite gemeinsame BI-/RI-Termine mit getrennten Direktlinks.
+
+Die Hinweise zu verschobenen Terminen und zum veralteten Index von 8176 sind in der
+[Nachprüfung vom 27.11.2026](../ri/oberflaeche.md#nachprüfung-der-hinweise-vom-27112026) eingegrenzt.
 
 Die weitere Richtung ist ein temporärer Arbeitsbestand zur Sitzungsvorbereitung
 ohne RI-Volltext-/Vektorindex. Ein Zeitfilter für heutige/künftige Sitzungen,
@@ -30,5 +33,6 @@ Der Stand der RI-Webanbindung wird als erster funktionsfähiger Prototyp überno
 - [ ] Zeitgrenze für heutige/laufende, abgesagte und verschobene Sitzungen sowie Nachlauf, Aufbewahrung und Löschfristen verbindlich festlegen.
 - [ ] Kontrollierte RI-Bereinigung mit Vorschau und konsistentem Datenbankabgleich umsetzen; entfernte Sitzungen und Nebenartefakte berücksichtigen, BI-Dateien ausschließen.
 - [ ] Betriebsmodell und Betriebssystem-Zugriffsrechte einschließlich Sicherung und Wiederherstellung für den regulären RI-Bestand abnehmen; zurückgestellte Neustart-/Ablauf- und Proton-Abmeldeprüfungen bei erweitertem Betrieb nachholen.
-- [ ] Ungeprüfte RI-Detailansichten 9516 und 8181 sowie die drei fehlenden oder unzulässigen Altdateien der Sitzung 8176 aus der realen UI-Stichprobe untersuchen; erforderliche Nachabrufe gezielt festlegen.
+- [ ] Verschobene/abgesagte Termine als Kalenderstatus erfassen statt als Uhrzeittext; die alternative Terminansicht `si0050.asp` für 9516/8181 gezielt behandeln und alte/neue Terminzuordnung einschließlich Jahreswechsel prüfen. Den Ersatztermin für 9516 im Januar später erneut abgleichen.
+- [ ] Den lokalen RI-Index nach dem inzwischen vollständigen Download von 8176 aktualisieren und 14 indexierte Dokumente verifizieren; aktuell fehlen im Index noch 146339, 146340 und 146087, ein weiterer Dateidownload ist nach der Nachprüfung nicht erforderlich.
 - [ ] Verbleibende Export- und Betriebsabnahme durchführen; die RI-Abgrenzung vorhandener öffentlicher Exporte prüfen und bei späteren Exportfunktionen erneut absichern.

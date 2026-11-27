@@ -1,6 +1,6 @@
 # Plan: Geschützter Ratsbereich für SessionNet `/ri/`
 
-Stand: 22.11.2026. Dieser Plan beschreibt die noch offenen Arbeiten. Der aktuelle
+Stand: 27.11.2026. Dieser Plan beschreibt die noch offenen Arbeiten. Der aktuelle
 Funktionsumfang steht in der [RI-Übersicht](../ri/README.md), die Bedienung in der
 [CLI-Anleitung](../ri/datenablauf.md). Historische Versionsangaben und frühere
 Teilpakete sind im [Changelog](../../CHANGELOG.md) dokumentiert.
@@ -17,7 +17,7 @@ Teilpakete sind im [Changelog](../../CHANGELOG.md) dokumentiert.
 - [x] Lokale Webformulare ohne Anmeldung für RI-Skripte, separate Jobablage und Jobausgaben umgesetzt (0.8.0).
 - [x] Lokale RI-Sitzungs-/Dateiansichten mit Pfadprüfung und Offline-Negativtests ergänzt (0.9.0).
 - [x] Echte UI-Kette für 8178/8179 einschließlich PDF und BI-Endpunkttrennung geprüft; Hinweise dokumentiert.
-- [ ] Export-/Betriebsabnahme sowie verbleibende Abruf-/Altbestandshinweise abschließen.
+- [ ] Export-/Betriebsabnahme, Behandlung verschobener Termine und lokalen Indexnachlauf abschließen; die Ursachenprüfung für 9516/8181 und den aktuellen Bestand von 8176 ist dokumentiert.
 
 RI-Volltext-/Vektorindexierung und RI-Suche bleiben für die erste Ausbaustufe
 zurückgestellt. Der komplette Vorhaben-Branch ist mit dem CLI-Paket noch nicht fertig.

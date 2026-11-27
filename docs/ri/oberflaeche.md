@@ -184,6 +184,38 @@ und der RI-Downloadauftrag liefern über die entsprechenden BI-Endpunkte HTTP 40
 Die Abnahme gilt für diese begrenzte UI-Stichprobe; Exportfunktionen,
 unbeaufsichtigter Betrieb und allgemeine Parser-Vollständigkeit sind damit nicht abgenommen.
 
+## Nachprüfung der Hinweise vom 27.11.2026
+
+Die gespeicherte Dezember-Kalenderseite nennt für 9516 (Feuerwehr und Ordnung)
+„verschoben auf den 12.01.2027“, für 8181 (Finanzen und Beteiligungen)
+„verschoben auf den 07.12.2026“. Der neue Dezembertermin ist als 9514 eingetragen.
+Eine neue Januar-Sitzungs-ID wurde bei dieser Prüfung nicht nachgewiesen.
+
+Ein gezielter authentifizierter Abruf der HTML-Metadaten bestätigt: 9516 und 8181
+antworten jeweils mit HTTP 302 auf `/ri/si0050.asp` mit derselben Sitzungs-ID.
+`checked_metadata_url()` erlaubt derzeit nur Kalender und `si0057.asp`-Details;
+daher wird diese alternative Terminansicht als `RiPageUnavailable` ausgelassen.
+9514 antwortet dagegen mit HTTP 200, datierter Überschrift und erkannter Tagesordnung.
+Die Warnungen sind bei diesen beiden alten Terminen somit durch Verschiebung und
+die nicht unterstützte Terminansicht erklärbar, nicht durch einen lokalen Indexfehler.
+Kalenderhinweise werden bisher noch nicht als eigener Verschiebungsstatus erfasst;
+der gemeinsame Kalenderparser ordnet den ersten Hinweistext dem Uhrzeitfeld zu.
+
+Bei 8176 enthält das am 27.11.2026 erneuerte Manifest 14 vorhandene, nicht leere
+Dateien mit korrekten SHA-1-Prüfsummen. Auch die langen Pfade lassen sich unter
+Windows normal öffnen; ein aktuelles Pfadlängenproblem wurde nicht reproduziert.
+Der reguläre RI-Index enthält weiterhin 11 Dokumente. Darin fehlen die inzwischen
+vorhandenen Dokument-IDs 146339, 146340 und 146087. Alle elf indexierten Pfade sind
+vorhanden. Ein Probeimport mit den unveränderten Builderfunktionen in eine reine
+Arbeitsspeicher-Datenbank übernimmt alle 14 Einträge ohne Warnung.
+
+Für 8176 ist deshalb aktuell ein erneuter **lokaler Indexaufbau** erforderlich,
+kein weiterer Dokumentdownload. Die genaue damalige Ursache der drei Warnungen
+vom 22.11. lässt sich aus deren allgemeinen Logmeldungen nicht mehr eindeutig
+rekonstruieren; die heutigen Befunde ersetzen keinen historischen Dateischnappschuss.
+Bei der Nachprüfung wurden keine regulären Indizes oder Rohdateien verändert und
+keine PDFs heruntergeladen. Diagnoseergebnisse liegen lokal unter `data/ri/diagnostics/`.
+
 Gezielte Offline-Tests stehen in der [Testdokumentation](../entwicklung/tests.md).
 Sie prüfen den lokalen Zugriff ohne Anmeldung, die Formulare und simulierte
 Auftragsabläufe. Reale Portalprüfungen oder Downloads werden dabei nicht gestartet.
