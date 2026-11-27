@@ -1,9 +1,11 @@
 from pathlib import Path
 import sys
+import logging
 from unittest.mock import Mock
 from unittest.mock import patch
 
 import requests
+import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -79,6 +81,8 @@ def test_build_manifest_entry_accepts_absolute_path_with_relative_target_dir(tmp
 
     assert entry["path"] == "session-documents/Amtliche-Bekanntmachung.pdf"
     assert entry["content_length"] == len(b"payload")
+    assert entry["document_id"] == "138838"
+    assert entry["url"] == "https://session.melle.info/bi/getfile.asp?id=138838&type=do"
 
 
 def test_resolve_existing_document_path_returns_none_when_resolve_fails(tmp_path: Path) -> None:
@@ -230,3 +234,35 @@ def test_fetch_document_payload_retries_stream_errors(tmp_path: Path, monkeypatc
     assert sleep_calls == [1.0]
     failing_response.close.assert_called_once()
     success_response.close.assert_called_once()
+
+
+@pytest.mark.parametrize(("url", "expected"), [
+    ("https://session.melle.info/bi/getfile.asp?id=145474&type=do", "145474"),
+    ("https://session.melle.info/ri/getfile.asp?type=do&id=145474", "145474"),
+    ("https://session.melle.info/bi/getfile.asp?id=1&id=2", None),
+    ("https://session.melle.info/bi/getfile.asp?id=", None),
+    ("https://session.melle.info/bi/getfile.asp?id=abc", None),
+    ("https://session.melle.info/bi/getfile.asp", None),
+    ("https://session.melle.info/bi/vo0050.asp?__kvonr=145474", None),
+])
+def test_extract_document_id(url, expected):
+    assert SessionNetClient._extract_document_id(url) == expected
+
+
+@pytest.mark.parametrize(("query", "label"), [("id=145474&type=do", "145474"), ("type=do", "unbekannt")])
+def test_download_log_uses_id_while_request_keeps_url(tmp_path, monkeypatch, caplog, query, label):
+    client = SessionNetClient(storage_root=tmp_path)
+    document = DocumentReference("Vorlage", "https://session.melle.info/bi/getfile.asp?" + query)
+    response = Mock()
+    response.headers.copy.return_value = {"Content-Type": "application/pdf"}
+    response.iter_content.return_value = [b"%PDF-test"]
+    request = Mock(return_value=response)
+    monkeypatch.setattr(SessionNetClient, "_request", request)
+    caplog.set_level(logging.INFO, logger=sessionnet_client.__name__)
+
+    payload, _ = client._fetch_document_payload(document)
+
+    assert payload == b"%PDF-test"
+    request.assert_called_once_with("GET", document.url, stream=True)
+    assert caplog.messages == ["Downloading document " + label]
+    assert document.url not in caplog.text

@@ -1,0 +1,48 @@
+@startwbs
+' Stand: 30.10.2026. Navigation nach Schritt 1a.
+' Hauptcontainer stehen untereinander; WBS beschreibt die inhaltliche Hierarchie.
+' Blau = Seite; Grün = Container; Grau = Menügruppe; Gelb = Link.
+* Ratsi Melle – aktuelle Navigation und Seitenaufbau
+**[#E5E7E9] [Menügruppe] Übersicht
+***[#D6EAF8] [Seite] Übersicht öffnen
+****[#D5F5E3] [Container] Kommende Sitzungen
+*****[#FCF3CF] [Link] Öffentliche Unterlagen – lokal oder öffentliche Quelle
+****[#D5F5E3] [Container] Vergangene Sitzungen
+*****[#FCF3CF] [Link] Öffentliche Unterlagen – lokal oder öffentliche Quelle
+****[#D5F5E3] [Container] Datenstatus
+**[#E5E7E9] [Menügruppe] Bürgerinformation
+***[#D6EAF8] [Seite] Sitzungen
+****[#FCF3CF] [Link] Sitzungsdetails und öffentliche Dokumente
+***[#D6EAF8] [Seite] Dokumentensuche – BI
+***[#D6EAF8] [Seite] Unterlagen herunterladen – BI
+***[#D6EAF8] [Seite] Datenbank aktualisieren – BI
+***[#D6EAF8] [Seite] Suchindex aktualisieren – BI
+***[#D6EAF8] [Seite] Datenstatus und Jobs – BI
+***[#D6EAF8] [Seite] Datenstatus nach Jahr
+**[#E5E7E9] [Menügruppe] Ratsbereich – noch nicht eingerichtet
+***[#D6EAF8] [Platzhalter] Zugang
+***[#D6EAF8] [Platzhalter] Sitzungen
+***[#D6EAF8] [Platzhalter] Dokumentensuche
+***[#D6EAF8] [Platzhalter] Unterlagen herunterladen
+***[#D6EAF8] [Platzhalter] Datenbank aktualisieren
+***[#D6EAF8] [Platzhalter] Suchindex aktualisieren
+***[#D6EAF8] [Platzhalter] Datenstatus und Jobs
+**[#E5E7E9] [Menügruppe] Landkreis
+***[#D6EAF8] [Seite] Dokumentensuche – Landkreis
+***[#D6EAF8] [Seite] Unterlagen herunterladen – Landkreis
+***[#D6EAF8] [Seite] Datenbank aktualisieren – Landkreis
+***[#D6EAF8] [Seite] Suchindex aktualisieren – Landkreis
+***[#D6EAF8] [Seite] Datenstatus und Jobs – Landkreis
+**[#E5E7E9] [Menügruppe] Erweiterungen
+***[#D6EAF8] [Seite] Analyse-Übersicht
+***[#D6EAF8] [Seite] KI-Analyse starten
+***[#D6EAF8] [Seite] Antworten lesen
+****[#D5F5E3] [Container] Antwortauswahl
+****[#D5F5E3] [Container] Antwortinhalt
+***[#D6EAF8] [Seite] Prompt-Vorlagen
+***[#D6EAF8] [Seite] Analysejobs
+**[#E5E7E9] [Menügruppe] Einstellungen
+***[#D6EAF8] [Seite] Allgemeine Einstellungen und Zugänge
+***[#D6EAF8] [Seite] Wartung und Suchmodelle
+***[#D6EAF8] [Seite] Wartungsjobs
+@endwbs

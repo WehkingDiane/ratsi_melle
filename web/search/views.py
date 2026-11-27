@@ -7,9 +7,10 @@ from django.shortcuts import render
 from . import services
 
 
-def index(request):
+def index(request, source=None):
+    scoped_source = source
     query = request.GET.get("q", "").strip()
-    source = "landkreis" if request.GET.get("source") == "landkreis" else "ratsinfo"
+    source = source or ("landkreis" if request.GET.get("source") == "landkreis" else "ratsinfo")
     date_from = request.GET.get("date_from", "").strip()
     date_to = request.GET.get("date_to", "").strip()
     committee = request.GET.get("committee", "").strip()
@@ -32,6 +33,7 @@ def index(request):
         "search/index.html",
         {
             "active_nav": "search",
+            "scoped_source": scoped_source,
             "query": query,
             "selected_source": source,
             "results": results,

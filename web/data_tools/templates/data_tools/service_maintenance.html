@@ -5,7 +5,7 @@
 
 {% block content %}
 <section class="page-heading">
-  <p class="eyebrow"><a href="{% url 'service:index' %}">Service</a></p>
+  <p class="eyebrow"><a href="{% url 'service:index' %}">Einstellungen</a></p>
   <h1>Wartung</h1>
   <p>Modelle verwalten, bestehende Indexe prüfen und Wartungsjobs nachverfolgen.</p>
   <p>Diese Aufgaben werden gezielt bei Einrichtung oder Wartung gestartet. Für den normalen Vektor-Build ist keine zusätzliche Legacy-Prüfung erforderlich.</p>
@@ -40,7 +40,7 @@
   {% else %}
   <p class="status-warning">Modellvorbereitung nicht verfügbar. Modellverzeichnis und Konfiguration prüfen.</p>
   {% endif %}
-  <div class="grid three-columns" aria-live="polite">
+  <div class="content-stack" aria-live="polite">
     {% for name, component in models.components.items %}
     <article data-model-component="{{ name }}">
       <h3>{{ component.label }}</h3>

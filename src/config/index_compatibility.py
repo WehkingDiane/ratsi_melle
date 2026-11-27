@@ -72,6 +72,35 @@ def with_index_compatibility(payload: dict, compatibility: IndexCompatibility) -
     return {**payload, INDEX_COMPATIBILITY_PAYLOAD_KEY: compatibility.as_dict()}
 
 
+# Explicit operating decision, 2026-11-03: retain the existing passage index
+# after the Windows/XPU comparison (128 passages). This is not a blanket waiver
+# for library upgrades. Keep complete contracts so future model changes cannot
+# accidentally inherit this exception through updated model constants.
+_ACCEPTED_PASSAGE_CONTRACTS = frozenset(
+    IndexCompatibility(
+        dense_model_id="microsoft/harrier-oss-v1-0.6b",
+        dense_revision="f9b9dc8d367d443f2479d27aa5d8d2850c0774ee",
+        sparse_model_id="Qdrant/bm25",
+        sparse_revision="22b8d2af71a76161e18dd432d2cee0eefa66e412",
+        tokenizer_model_id="microsoft/harrier-oss-v1-0.6b",
+        tokenizer_revision="f9b9dc8d367d443f2479d27aa5d8d2850c0774ee",
+        manifest_sha256=manifest_hash, vector_dimension=1024, pipeline_version="passages-1",
+    ) for manifest_hash in (
+        "478077ff73fbf75e6e4e1660de2c9c6d8cbbbab6d9864c7ffe06ee87d34314c9",
+        "b126904ecc150d7c7a72490a8cb0fcee969ad925db0d21f75d8b6bd67261176d",
+    )
+)
+
+
+def index_contracts_compatible(stored: IndexCompatibility | None, active: IndexCompatibility,
+                               collection: str) -> bool:
+    """Accept exact contracts or the explicitly approved Ratsinfo library pair."""
+    if stored == active:
+        return True
+    return (collection == "ratsi_passages" and stored in _ACCEPTED_PASSAGE_CONTRACTS
+            and active in _ACCEPTED_PASSAGE_CONTRACTS)
+
+
 def current_index_compatibility(models_dir: Path | None = None, *, deep: bool = False) -> IndexCompatibility:
     """Build the active contract only after offline inventory validation."""
 

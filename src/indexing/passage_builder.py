@@ -14,6 +14,7 @@ from src.fetching.storage_layout import resolve_local_file_path
 from src.indexing.id_strategy import stable_document_id
 from src.indexing.payload_builder import build_document_payload
 from src.indexing.passage_inventory import complete_document_ids, stale_partial_point_ids
+from src.indexing.passage_coverage import database_stamp, write_coverage
 from src.indexing.passages import COLLECTION, MODEL, PIPELINE_VERSION, chunk_pages, extract_pages, file_digest
 from src.indexing.vectorizer import HybridVectorizer
 from src.paths import LOCAL_INDEX_DB, QDRANT_DIR
@@ -46,7 +47,7 @@ def build_passage_index(documents, store, tokenizer, vectorizer_factory, *, limi
     if not 32 <= tokens <= 8192 or not 0 <= overlap < tokens or batch_size < 1:
         raise ValueError("Require 32..8192 chunk tokens, smaller nonnegative overlap and positive batch size")
     if refresh and not update_existing:
-        raise ValueError("Forced refresh belongs to scripts/update_vector_index.py")
+        raise ValueError("Forced refresh belongs to scripts/update_bi_vector_index.py")
     indexed = store.get_point_payloads() if indexed_payloads is None else indexed_payloads
     complete_ids = complete_document_ids(indexed)
     stale_by_parent = {}
@@ -165,7 +166,7 @@ def build_passage_index(documents, store, tokenizer, vectorizer_factory, *, limi
 
 def main(argv=None, *, maintenance=False):
     """Add missing documents, or explicitly run the separate update service."""
-    from scripts.build_vector_index import _load_documents, _positive_int
+    from scripts.build_bi_vector_index import _load_documents, _positive_int
     from src.analysis.vector_store import DocumentVectorStore
     from src.analysis.embeddings import HarrierEmbedder
     from src.analysis.bm25_sparse import BM25Encoder
@@ -200,6 +201,7 @@ def main(argv=None, *, maintenance=False):
         compatibility = current_index_compatibility()
         check_build_compatibility(store.connection, store._get_client(), COLLECTION,
                                   compatibility, validate_vectors=False)
+        source_stamp = database_stamp(args.db)
         documents = _load_documents(args.db)
         expected = {stable_document_id(str(d.get("session_id") or ""), str(d.get("url") or ""),
                                        str(d.get("agenda_item") or "")) for d in documents}
@@ -234,6 +236,10 @@ def main(argv=None, *, maintenance=False):
                 and all(p.get("committed") is True for p in final_inventory.values())):
             store.finish_build(compatibility)
         result["ready"] = store.connection.passages_ready(store._get_client())
+        try:
+            write_coverage(store.connection, args.db, source_stamp, expected, final_inventory)
+        except OSError:
+            LOGGER.warning("event=coverage_cache_write_failed", exc_info=True)
         print(json.dumps(result, ensure_ascii=False))
         if result["failures"]:
             raise SystemExit(1)

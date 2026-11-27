@@ -13,7 +13,7 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 from src import paths
-from src.config.index_compatibility import IndexCompatibility
+from src.config.index_compatibility import IndexCompatibility, index_contracts_compatible
 from src.config.settings import load_qdrant_settings
 
 
@@ -98,9 +98,10 @@ class QdrantConnection:
                         return None
                     seen.add(record.id)
                     if check_contract:
-                        if not isinstance(record.payload, dict) or IndexCompatibility.from_dict(
-                            record.payload.get("index_compatibility")
-                        ) != compatibility:
+                        if not isinstance(record.payload, dict) or not index_contracts_compatible(
+                            IndexCompatibility.from_dict(record.payload.get("index_compatibility")),
+                            compatibility, collection,
+                        ):
                             return None
                     point = record.model_dump(mode="json", include={"id", "vector" if with_vectors else "payload"})
                     digest.update(json.dumps(point, sort_keys=True, separators=(",", ":")).encode())
@@ -139,7 +140,7 @@ class QdrantConnection:
         from src.config.index_compatibility import current_index_compatibility
 
         active = current_index_compatibility()
-        if self.read_index_compatibility(collection, require_ready=True) != active:
+        if not index_contracts_compatible(self.read_index_compatibility(collection, require_ready=True), active, collection):
             raise RuntimeError(
                 f"Index {collection} inkompatibel oder nicht freigegeben: "
                 "Modell- oder Pipelinevertrag fehlt, weicht ab oder ist noch im Aufbau. "
@@ -158,7 +159,7 @@ class QdrantConnection:
                     and marker.get("ready") is True
                     and marker.get("collection") == collection
                     and (not self.url or marker.get("url_sha256") == sha256(self.url.encode()).hexdigest())
-                    and IndexCompatibility.from_dict(marker.get("compatibility")) == active
+                    and index_contracts_compatible(IndexCompatibility.from_dict(marker.get("compatibility")), active, collection)
                 )
             except (UnicodeError, ValueError, TypeError):
                 released = False
@@ -285,8 +286,11 @@ def collection_state(connection: QdrantConnection, client, collection: str = "ra
     """Resolve the searchable collection using the same readiness rule everywhere."""
     names = {item.name for item in client.get_collections().collections}
     incomplete = False
+    passage_count = None
+    incomplete_message = "Noch nicht vollständig."
     if prefer_passages and collection == "ratsi_documents" and "ratsi_passages" in names:
-        if connection.passages_ready(client) and client.get_collection("ratsi_passages").points_count:
+        passage_count = client.get_collection("ratsi_passages").points_count
+        if connection.passages_ready(client) and passage_count:
             collection = "ratsi_passages"
         else:
             incomplete = True
@@ -296,8 +300,9 @@ def collection_state(connection: QdrantConnection, client, collection: str = "ra
         incomplete = True
     state = "incomplete" if incomplete else "ready" if exists else "missing_collection"
     return {"state": state, "collection_name": collection, "collection_exists": exists,
+            "passage_points": passage_count,
             "searchable": searchable,
-            "message": {"incomplete": "Index unvollständig: Collection leer oder Abschnittsindex noch nicht freigegeben.",
+            "message": {"incomplete": incomplete_message,
                         "ready": "bereit", "missing_collection": f"Collection fehlt: {collection}"}[state]}
 
 

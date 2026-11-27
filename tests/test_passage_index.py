@@ -237,10 +237,10 @@ def test_benchmark_has_30_evidence_backed_questions():
 
 
 def test_default_cli_dispatches_to_passages(monkeypatch):
-    from scripts import build_vector_index
+    from scripts import build_bi_vector_index
     calls = []
     monkeypatch.setattr("src.indexing.passage_builder.main", lambda argv: calls.append(argv))
-    build_vector_index.main(["--limit", "2"])
+    build_bi_vector_index.main(["--limit", "2"])
     assert calls == [["--limit", "2"]]
 
 

@@ -7,16 +7,16 @@ from pathlib import Path
 
 import pytest
 
-from scripts.fetch_session_from_index import list_sessions, load_session_from_index, validate_index_db
+from scripts.fetch_bi_session_from_index import list_sessions, load_session_from_index, validate_index_db
 
 
-@pytest.mark.parametrize("script", ["fetch_sessions", "fetch_session_from_index"])
+@pytest.mark.parametrize("script", ["fetch_bi_sessions", "fetch_bi_session_from_index"])
 def test_force_download_cli_option(monkeypatch, script):
     from importlib import import_module
 
     module = import_module(f"scripts.{script}")
     arguments = [f"{script}.py", "--force-download"]
-    if script == "fetch_sessions":
+    if script == "fetch_bi_sessions":
         arguments.append("2026")
     monkeypatch.setattr(sys, "argv", arguments)
     assert module.parse_args().force_download is True

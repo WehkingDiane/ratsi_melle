@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import secrets
 import sys
 from pathlib import Path
 
@@ -13,7 +15,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from src.observability import django_logging_config
 
-SECRET_KEY = "local-development-only"
+SECRET_KEY = os.environ.get("RATSI_WEB_SECRET_KEY") or secrets.token_urlsafe(50)
 DEBUG = True
 ALLOWED_HOSTS = ["127.0.0.1", "localhost", "testserver"]
 

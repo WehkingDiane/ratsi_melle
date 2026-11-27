@@ -1,13 +1,15 @@
 {% extends "base.html" %}
 
-{% block title %}Sitzungen - Ratsi Melle{% endblock %}
+{% block title %}Sitzungen{% if ri_area %} – Ratsbereich{% endif %} - Ratsi Melle{% endblock %}
 
 {% block content %}
 <section class="page-heading">
-  <p class="eyebrow">Analyse</p>
+  <p class="eyebrow">{{ area_label|default:"Bürgerinformation" }}</p>
   <h1>Sitzungen</h1>
   <p>Vorhandene Sitzungen aus dem lokalen Index.</p>
 </section>
+
+{% include "core/partials/messages.html" with errors=errors only %}
 
 <section class="panel filter-panel">
   <form method="get" class="form-stack">
@@ -30,7 +32,7 @@
     </div>
     <div class="actions">
       <button class="button primary" type="submit">Filtern</button>
-      <a class="button utility" href="{% url 'analysis:session_list' %}">Zurücksetzen</a>
+      <a class="button utility" href="{% url session_list_route|default:'analysis:session_list' %}">Zurücksetzen</a>
     </div>
   </form>
 </section>

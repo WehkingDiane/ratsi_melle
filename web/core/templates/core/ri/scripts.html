@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ title }} – Ratsbereich{% endblock %}
+{% block content %}
+{% include "core/ri/header.html" %}
+{% include "core/partials/messages.html" with errors=errors only %}
+<section class="running-banner" data-ri-active-job {% if not active_job %}hidden{% endif %} role="status">
+<p>Ein RI-Auftrag ist aktiv. <a data-ri-active-job-link {% if active_job %}href="{% url 'ri:job' active_job.job_id %}"{% endif %}>Laufenden Auftrag öffnen</a></p>
+</section>
+{% if access_page %}<section class="panel"><h2>Portalzugang</h2><p>Die Prüfung verwendet den bereits lokal hinterlegten Token und meldet die Portalsitzung anschließend wieder ab. Sie lädt keine Dokumente herunter.</p></section>{% endif %}
+<section class="grid two-columns">
+{% for item in forms %}
+  {% include "core/partials/script_form.html" with item=item ri_script_form=True %}
+{% endfor %}
+</section>
+<section class="panel"><h2>Ablauf</h2><p>Nach dem Start öffnet sich der Jobstatus mit der Ausgabe. Ein Auftrag mit Hinweisen kann fehlende Dokumente, ungeprüfte Sitzungen oder eine unbestätigte Abmeldung bedeuten. Gleichzeitig läuft höchstens ein RI-Webauftrag.</p></section>
+{% include "core/ri/data_status.html" %}
+<script src="{% static 'core/js/ri_forms.js' %}"></script>
+{% endblock %}

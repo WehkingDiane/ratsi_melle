@@ -69,7 +69,7 @@
   display: none;
 }
 
-@media (max-width: 920px) {
+@media (max-width: 1180px) {
   .nav-toggle {
     align-items: center;
     border: 1px solid var(--border);
@@ -99,6 +99,9 @@
     flex-direction: column;
     gap: 4px;
     min-width: 240px;
+    max-height: calc(100vh - 90px);
+    overflow-y: auto;
+    max-width: calc(100vw - 32px);
     padding: 8px;
     position: absolute;
     right: 16px;

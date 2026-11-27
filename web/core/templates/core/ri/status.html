@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Datenstatus und Jobs – Ratsbereich{% endblock %}
+{% block content %}
+{% include "core/ri/header.html" %}
+{% include "core/partials/messages.html" with errors=errors only %}
+{% include "core/ri/data_status.html" with status_page=True %}
+<section class="panel service-status"><h2>Letzte RI-Aufträge</h2>
+{% if jobs %}<div class="table-wrap"><table class="compact-table"><thead><tr><th>Auftrag</th><th>Status</th><th>Start</th></tr></thead><tbody>
+{% for job in jobs %}<tr><td><a href="{% url 'ri:job' job.job_id %}">{{ job.label }}</a></td><td class="{% include 'core/ri/status_class.html' %}">{{ job.status_label }}</td><td class="datetime-value">{{ job.started_at|default:job.created_at }}</td></tr>{% endfor %}
+</tbody></table></div>{% else %}<p class="empty-state">Noch keine RI-Aufträge vorhanden.</p>{% endif %}</section>
+{% endblock %}

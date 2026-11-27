@@ -4,6 +4,22 @@ from dataclasses import FrozenInstanceError, replace
 
 import pytest
 
+
+def test_library_exception_is_bound_to_exact_models_and_passage_collection():
+    from dataclasses import replace
+    from src.config.index_compatibility import _ACCEPTED_PASSAGE_CONTRACTS, index_contracts_compatible
+    old, new = tuple(_ACCEPTED_PASSAGE_CONTRACTS)
+    assert index_contracts_compatible(old, new, "ratsi_passages")
+    assert index_contracts_compatible(new, old, "ratsi_passages")
+    for collection in ("ratsi_documents", "landkreis_publications"):
+        assert not index_contracts_compatible(old, new, collection)
+        assert index_contracts_compatible(old, old, collection)
+    assert not index_contracts_compatible(None, new, "ratsi_passages")
+    for field, value in (("dense_revision", "a"*40), ("sparse_revision", "b"*40),
+                         ("tokenizer_revision", "c"*40), ("pipeline_version", "passages-2"),
+                         ("vector_dimension", 512), ("manifest_sha256", "e"*64)):
+        assert not index_contracts_compatible(old, replace(new, **{field: value}), "ratsi_passages")
+
 from src.config.embedding_model_status import (
     EmbeddingModelReadiness,
     EmbeddingModelStatus,

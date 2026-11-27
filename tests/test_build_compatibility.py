@@ -48,6 +48,43 @@ def _store(tmp_path, collection, compatibility=None):
 
 
 @pytest.mark.integration
+def test_approved_windows_library_pair_supports_mixed_build_and_search(tmp_path, compatibility, monkeypatch):
+    from dataclasses import replace
+    from qdrant_client.models import PointStruct, SparseVector
+    from src.config.index_compatibility import index_contracts_compatible
+
+    old = replace(compatibility, manifest_sha256="478077ff73fbf75e6e4e1660de2c9c6d8cbbbab6d9864c7ffe06ee87d34314c9")
+    new = replace(compatibility, manifest_sha256="b126904ecc150d7c7a72490a8cb0fcee969ad925db0d21f75d8b6bd67261176d")
+    store = _store(tmp_path, "ratsi_passages", old)
+    client = store._get_client()
+    try:
+        store.connection.write_readiness(client, {"ready": True}, compatibility=old, validate_vectors=False)
+        monkeypatch.setattr("src.config.index_compatibility.current_index_compatibility", lambda: new)
+        # Search works before a build too; no rewriting of the old marker needed.
+        store.connection.require_search_compatibility("ratsi_passages", client)
+        store.begin_build(new, validate_vectors=False)
+        client.upsert("ratsi_passages", [PointStruct(
+            id=2, vector={"harrier": [1.0] + [0.0]*1023,
+                          "bm25": SparseVector(indices=[1], values=[1.0])},
+            payload={"index_compatibility": new.as_dict()})])
+        store.finish_build(new)
+        store.connection.require_search_compatibility("ratsi_passages", client)
+        records = client.retrieve("ratsi_passages", ids=[1, 2], with_payload=True)
+        by_id = {r.id: r.payload["index_compatibility"] for r in records}
+        assert by_id == {1: old.as_dict(), 2: new.as_dict()}
+        assert store.connection.collection_contents_match(client, "ratsi_passages", new)
+        # A second normal incremental build can read the mixed release.
+        store.begin_build(new, validate_vectors=False)
+        store.finish_build(new)
+        unknown = replace(new, manifest_sha256="d"*64)
+        assert not index_contracts_compatible(old, unknown, "ratsi_passages")
+        client.set_payload("ratsi_passages", payload={"index_compatibility": unknown.as_dict()}, points=[1])
+        assert not store.connection.collection_contents_match(client, "ratsi_passages", new)
+    finally:
+        store.close()
+
+
+@pytest.mark.integration
 def test_missing_only_build_reads_headers_without_numeric_vectors(tmp_path, monkeypatch, compatibility):
     collection = "ratsi_passages"
     store = _store(tmp_path, collection, compatibility)
@@ -590,7 +627,7 @@ def test_stale_marker_does_not_authorize_recreated_collection_schema(
 def test_build_cli_reports_incompatible_continuation_without_traceback_or_writes(
     tmp_path, monkeypatch, capsys, compatibility, builder, collection, marker_state,
 ):
-    from scripts import build_landkreis_vector_index, build_vector_index
+    from scripts import build_landkreis_vector_index, build_bi_vector_index
     from src.indexing import passage_builder
     from src.qdrant_connection import QdrantConnection
 
@@ -614,7 +651,7 @@ def test_build_cli_reports_incompatible_continuation_without_traceback_or_writes
         module = build_landkreis_vector_index
         monkeypatch.setattr(module, "_validate_runtime_dependencies", lambda: (object, DocumentVectorStore))
     else:
-        module = build_vector_index
+        module = build_bi_vector_index
         if builder == "legacy":
             args.append("--legacy-document-index")
             monkeypatch.setattr(module, "_validate_runtime_dependencies", lambda: (object, DocumentVectorStore))

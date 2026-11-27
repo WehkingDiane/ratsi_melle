@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ title }} – Ratsbereich{% endblock %}
+{% block content %}
+{% include "core/ri/header.html" %}
+{% if already_running %}<section class="notice status-warning" role="status">Es wurde kein weiterer Auftrag gestartet. Hier ist der aktuelle Status des bereits vorhandenen Auftrags.</section>{% endif %}
+{% url 'ri:job_status' job.job_id as job_status_url %}
+{% url 'ri:job' job.job_id as job_refresh_url %}
+{% include "core/partials/job_panel.html" with ri_job=True job_label=title %}
+<script src="{% static 'core/js/service_job_detail.js' %}"></script>
+{% endblock %}

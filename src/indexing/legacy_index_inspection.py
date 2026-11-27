@@ -220,7 +220,7 @@ class _TextResolver:
     def _load_rows(self, collection: str) -> dict[int, dict]:
         if collection not in self._rows:
             if collection == "ratsi_documents":
-                from scripts.build_vector_index import _load_documents
+                from scripts.build_bi_vector_index import _load_documents
                 try:
                     rows = _load_documents(self.ratsinfo_db, read_only=True)
                 except (OSError, RuntimeError, sqlite3.Error) as error:
@@ -259,7 +259,7 @@ class _TextResolver:
         if row is None or str(payload.get("url") or "") != str(row.get("url") or ""):
             raise LegacyInspectionError("source_missing", "Urspruengliche Quellzeile ist nicht eindeutig rekonstruierbar.")
         if collection == "ratsi_documents":
-            from scripts.build_vector_index import _get_document_text
+            from scripts.build_bi_vector_index import _get_document_text
             from src.indexing.payload_builder import build_document_payload
             text = _get_document_text(row)
             expected_snippet = build_document_payload(row, search_text=text)["snippet"]

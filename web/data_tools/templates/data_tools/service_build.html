@@ -4,7 +4,7 @@
 
 {% block content %}
 <section class="page-heading">
-  <p class="eyebrow">Daten</p>
+  <p class="eyebrow">{{ area_label }}</p>
   <h1>Build</h1>
   <p>Lokale und online gelesene SQLite-Indexe aufbauen.</p>
 </section>
@@ -12,42 +12,8 @@
 {% include "core/partials/service_result.html" %}
 
 <section class="grid two-columns">
-  <article class="panel">
-    <h2>Lokalen Index bauen</h2>
-    <form method="post" class="form-stack">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="build_local_index">
-      <label class="checkbox-inline"><input type="checkbox" name="refresh_existing" value="1"> Bestehende Sitzungen aktualisieren</label>
-      <label class="checkbox-inline"><input type="checkbox" name="only_refresh" value="1"> Nur bestehende Sitzungen aktualisieren</label>
-      <button class="button primary" type="submit">Lokalen Index bauen</button>
-    </form>
-  </article>
-
-  <article class="panel">
-    <h2>Online-Index bauen</h2>
-    <form method="post" class="form-stack">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="build_online_index">
-      <label>Jahr <input type="number" name="year" value="{{ current_year }}" min="2000" max="2100"></label>
-      <label>Monate <input type="text" name="months" placeholder="z. B. 1 2 3 oder leer für alle"></label>
-      <label class="checkbox-inline"><input type="checkbox" name="refresh_existing" value="1"> Bestehende Sitzungen aktualisieren</label>
-      <label class="checkbox-inline"><input type="checkbox" name="only_refresh" value="1"> Nur bestehende Sitzungen aktualisieren</label>
-      <button class="button primary" type="submit">Online-Index bauen</button>
-    </form>
-  </article>
-
-  <article class="panel">
-    <h2>Landkreis-Datenbank bauen</h2>
-    <form method="post" class="form-stack">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="build_landkreis_publications_db">
-      <label>Datenwurzel <input type="text" name="data_dir" placeholder="Optional, z. B. /mnt/d/landkreis_osnabrueck"></label>
-      <label>Maximale Textzeichen <input type="number" name="max_text_chars" min="1" placeholder="Standard: 200000"></label>
-      <button class="button primary" type="submit">Landkreis-Datenbank bauen</button>
-    </form>
-  </article>
-
+  {% for item in forms %}{% include "core/partials/script_form.html" with item=item %}{% endfor %}
 </section>
 
-{% include "core/partials/service_status.html" %}
+{% if scoped_source != "landkreis" %}{% include "core/partials/service_status.html" %}{% endif %}
 {% endblock %}

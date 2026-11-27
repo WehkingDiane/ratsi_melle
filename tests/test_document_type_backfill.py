@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts import build_local_index
+from scripts import build_bi_local_index
 
 pytestmark = pytest.mark.integration
 
@@ -93,7 +93,7 @@ def test_build_local_index_backfills_document_type_for_existing_rows(tmp_path: P
         )
         conn.commit()
 
-    build_local_index.build_index(
+    build_bi_local_index.build_index(
         data_root=tmp_path / "data" / "raw",
         output_path=db_path,
         refresh_existing=False,

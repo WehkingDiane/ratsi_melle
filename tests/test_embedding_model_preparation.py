@@ -829,6 +829,16 @@ def test_logging_setup_failure_is_reported_without_starting_download(tmp_path, f
 def test_invalid_log_directory_expansion_reports_json_error(tmp_path, fake_hub, monkeypatch, capsys):
     monkeypatch.setenv("RATSI_MODELS_DIR", str(tmp_path))
     monkeypatch.setenv("RATSI_LOG_DIR", "~missing-user/logs")
+    original_expanduser = Path.expanduser
+
+    def fail_for_missing_user(path):
+        if str(path).startswith("~missing-user"):
+            raise RuntimeError("Could not determine home directory for missing-user")
+        return original_expanduser(path)
+
+    # Windows can resolve ~user relative to the current user's home. Inject
+    # the expansion failure so this test exercises the same error everywhere.
+    monkeypatch.setattr(Path, "expanduser", fail_for_missing_user)
 
     assert cli.main(["--download", "--json"]) == 1
     output = capsys.readouterr()

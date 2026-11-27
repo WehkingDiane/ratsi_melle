@@ -263,7 +263,7 @@ def test_nested_pages_use_absolute_static_urls(client) -> None:
     content = response.content.decode("utf-8")
 
     assert 'href="/static/core/css/base.css?v=' in content
-    assert 'src="/static/core/js/service_status.js"' in content
+    assert 'src="/static/core/js/service_status.js?v=ri-status"' in content
     assert 'src="/static/core/js/navigation.js"' in content
     assert 'href="static/' not in content
     assert 'src="static/' not in content
@@ -282,10 +282,24 @@ def test_templates_are_kept_in_their_feature_apps() -> None:
         "base.html",
         "core/dashboard.html",
         "core/partials/dashboard_sessions.html",
+        "core/partials/data_status_panel.html",
+        "core/partials/form_field.html",
+        "core/partials/job_panel.html",
+        "core/partials/job_status_class.html",
         "core/partials/messages.html",
+        "core/partials/navigation.html",
         "core/partials/panel_header.html",
+        "core/partials/script_form.html",
         "core/partials/service_result.html",
         "core/partials/service_status.html",
+        "core/ri/catalogue_error.html",
+        "core/ri/data_status.html",
+        "core/ri/header.html",
+        "core/ri/job.html",
+        "core/ri/scripts.html",
+        "core/ri/status.html",
+        "core/ri/status_class.html",
+        "core/ri_placeholder.html",
     }
     assert {
         "analysis_start.html",
@@ -328,24 +342,10 @@ def test_main_navigation_is_in_shared_layout(client) -> None:
     assert "Ratsi Melle" in content
     assert "Lokale Arbeitsoberfläche" in content
     assert "Dashboard" in content
-    assert "Dashboard öffnen" in content
-    assert "Analyse" in content
-    assert "Analyse-Übersicht" in content
-    assert "Prompt-Vorlagen" in content
-    assert "KI-Analyse starten" in content
-    assert "Antworten lesen" in content
-    assert "Sitzungen" in content
-    assert "Analysejobs" in content
-    assert "Daten" in content
-    assert "Fetch: Daten holen" in content
-    assert "Build: Datenbank-Tools" in content
-    assert "Build: Vektorindex" in content
-    assert "Veröffentlichung" in content
-    assert "Veröffentlichung öffnen" in content
-    assert "Suche" in content
-    assert "Suche öffnen" in content
-    assert "Einstellungen" in content
-    assert "Einstellungen öffnen" in content
+    for label in ("Übersicht", "Bürgerinformation", "Ratsbereich", "Landkreis", "Erweiterungen", "Einstellungen"):
+        assert label in content
+    nav = BeautifulSoup(content, "html.parser").select_one(".main-nav")
+    assert "Veröffentlichung" not in nav.get_text()
     assert "Lokale Entwicklungsoberfläche" in content
     assert 'class="skip-link" href="#main-content"' in content
     assert 'class="nav-toggle" type="button"' in content
@@ -363,21 +363,11 @@ def test_navigation_dropdowns_have_expected_links(client) -> None:
         for menu in soup.select(".main-nav .nav-menu")
     }
 
-    assert labels == {
-        "Dashboard": ["Dashboard öffnen"],
-        "Analyse": [
-            "Analyse-Übersicht",
-            "Prompt-Vorlagen",
-            "KI-Analyse starten",
-            "Antworten lesen",
-            "Sitzungen",
-            "Analysejobs",
-        ],
-        "Daten": ["Fetch: Daten holen", "Build: Datenbank-Tools", "Build: Vektorindex", "Datenstatus nach Jahr"],
-        "Veröffentlichung": ["Veröffentlichung öffnen"],
-        "Suche": ["Suche öffnen"],
-        "Service": ["Service-Übersicht", "Wartung", "Einstellungen öffnen"],
-    }
+    assert list(labels) == ["Übersicht", "Bürgerinformation", "Ratsbereich", "Landkreis", "Erweiterungen", "Einstellungen"]
+    assert "Sitzungen" in labels["Bürgerinformation"]
+    assert "Zugang" in labels["Ratsbereich"]
+    assert "Analysejobs" in labels["Erweiterungen"]
+    assert "Wartungsjobs" in labels["Einstellungen"]
     assert all(
         menu.select_one(".nav-menu-label").get("aria-haspopup") == "true"
         for menu in soup.select(".main-nav .nav-menu")
@@ -414,7 +404,10 @@ def test_build_and_maintenance_posts_stay_in_their_own_area(client, monkeypatch,
     monkeypatch.setattr(views.service_jobs, "start_service_job", lambda *args, **kwargs: pytest.fail("Wrong-area job started"))
     response = client.post(path, {"action": action})
     assert response.status_code == 200
-    assert "Service" in response.content.decode()
+    soup = BeautifulSoup(response.content, "html.parser")
+    expected_area = "Einstellungen" if path.startswith("/service/") else "Bürgerinformation"
+    assert soup.select_one(".nav-menu-label.active").get_text(strip=True) == expected_area
+    assert "Einstellungen" in soup.select_one("main").get_text()
 
 
 @pytest.mark.parametrize("path", ["/daten/jobs/maintenance-test/", "/service/jobs/maintenance-test/"])
@@ -425,7 +418,7 @@ def test_existing_maintenance_job_links_open_in_service_area(client, monkeypatch
     monkeypatch.setattr(views.service_jobs, "get_service_job", lambda job_id: job)
     soup = BeautifulSoup(client.get(path).content, "html.parser")
     assert soup.select_one("h1").get_text(strip=True) == "Wartungsjob"
-    assert soup.select_one(".nav-menu-label.active").get_text(strip=True) == "Service"
+    assert soup.select_one(".nav-menu-label.active").get_text(strip=True) == "Einstellungen"
     assert soup.select_one('main a[href="/service/wartung/"]')
 
 
@@ -454,15 +447,15 @@ def test_active_job_indicator_metadata_uses_matching_workspace(client, monkeypat
 @pytest.mark.parametrize(
     ("path", "active_label"),
     [
-        ("/", "Dashboard"),
-        ("/analyse/", "Analyse"),
-        ("/daten/", "Daten"),
-        ("/veroeffentlichung/", "Veröffentlichung"),
-        ("/suche/", "Suche"),
-        ("/einstellungen/", "Service"),
-        ("/service/", "Service"),
-        ("/service/wartung/", "Service"),
-        ("/service/einstellungen/", "Service"),
+        ("/", "Übersicht"),
+        ("/analyse/", "Erweiterungen"),
+        ("/daten/", "Bürgerinformation"),
+        ("/veroeffentlichung/", "Erweiterungen"),
+        ("/suche/", "Bürgerinformation"),
+        ("/einstellungen/", "Einstellungen"),
+        ("/service/", "Einstellungen"),
+        ("/service/wartung/", "Einstellungen"),
+        ("/service/einstellungen/", "Einstellungen"),
     ],
 )
 def test_active_navigation_matches_section(path: str, active_label: str, client) -> None:
@@ -1196,7 +1189,7 @@ def test_service_post_starts_background_job(client, monkeypatch) -> None:
     monkeypatch.setattr(
         views.services,
         "build_service_command",
-        lambda _action, _data: (["python", "scripts/build_local_index.py"], []),
+        lambda _action, _data: (["python", "scripts/build_bi_local_index.py"], []),
     )
     monkeypatch.setattr(
         views.service_jobs,
@@ -1341,7 +1334,7 @@ def test_service_vector_page_renders_vector_status(client, monkeypatch) -> None:
     assert "Ratsinfo-Vektorstatus" in content
     assert "Fehlende Dokumente indexieren" in content
     assert "Vollständig indexierte Dokumente" in content
-    assert "Service → Wartung" in content
+    assert "Einstellungen → Wartung" in content
     assert 'id="embedding-model-status"' not in content
     assert 'id="model-job-history"' not in content
     assert 'id="legacy-inspection"' not in content
@@ -1365,7 +1358,7 @@ def test_build_vector_index_form_starts_existing_service_job(client, monkeypatch
     def fake_build_service_command(action, data):
         captured["action"] = action
         captured["limit"] = data.get("limit")
-        return (["python", "scripts/build_vector_index.py", "--limit", "25"], [])
+        return (["python", "scripts/build_bi_vector_index.py", "--limit", "25"], [])
 
     def fake_start_service_job(action, command, cwd):
         captured["job_action"] = action
@@ -1386,7 +1379,7 @@ def test_build_vector_index_form_starts_existing_service_job(client, monkeypatch
     assert captured["action"] == "build_vector_index"
     assert captured["limit"] == "25"
     assert captured["job_action"] == "build_vector_index"
-    assert captured["command"] == ["python", "scripts/build_vector_index.py", "--limit", "25"]
+    assert captured["command"] == ["python", "scripts/build_bi_vector_index.py", "--limit", "25"]
 
 
 def test_landkreis_vector_index_form_starts_service_job(client, monkeypatch) -> None:
@@ -1461,7 +1454,7 @@ def test_service_post_requires_csrf_when_enforced(monkeypatch) -> None:
     monkeypatch.setattr(
         views.services,
         "build_service_command",
-        lambda _action, _data: (["python", "scripts/build_local_index.py"], []),
+        lambda _action, _data: (["python", "scripts/build_bi_local_index.py"], []),
     )
 
     response = Client(enforce_csrf_checks=True).post(
@@ -1510,7 +1503,7 @@ def test_service_job_detail_exposes_live_update_hooks(client, monkeypatch) -> No
         exit_code = None
         started_at = "01.01.2026 10:00:00"
         finished_at = ""
-        command_text = "python scripts/build_local_index.py"
+        command_text = "python scripts/build_bi_local_index.py"
         output = "Zeile 1"
         status_label = "läuft"
 
@@ -1782,3 +1775,66 @@ def test_answer_reader_only_lists_jobs_with_readable_answers(client, monkeypatch
     assert "Leere Providerantwort" not in soup.get_text()
     assert "Providerfehler" not in soup.get_text()
     assert soup.select_one('.answer-document a[href="/analyse/jobs/1/"]') is not None
+
+
+@pytest.mark.parametrize("suffix", ["suche/", "daten/vektor/"])
+def test_ri_placeholders_are_informational_only(client, monkeypatch, suffix):
+    from core import service_jobs
+    def unexpected(*args, **kwargs):
+        pytest.fail("Placeholder must not start jobs")
+    monkeypatch.setattr(service_jobs, "start_service_job", unexpected)
+    response = client.get("/ratsbereich/" + suffix)
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.content, "html.parser")
+    assert "Funktion noch nicht verfügbar" in soup.get_text()
+    assert soup.select_one(".nav-menu-label.active").get_text() == "Ratsbereich"
+    assert not soup.select("form")
+    assert client.post("/ratsbereich/" + suffix, {"action": "fetch_sessions"}).status_code == 405
+
+
+def test_ri_unknown_session_has_no_fabricated_detail(client, monkeypatch, tmp_path):
+    from core.services import ri_sessions
+    monkeypatch.setattr(ri_sessions, "RI_LOCAL_INDEX_DB", tmp_path / "missing-ri.sqlite")
+    assert client.get("/ratsbereich/sitzungen/123/").status_code == 404
+
+
+@pytest.mark.parametrize("prefix,own,foreign", [("buergerinformation", "fetch_sessions", "fetch_landkreis_publications"), ("landkreis", "fetch_landkreis_publications", "fetch_sessions")])
+def test_public_source_forms_and_actions_are_separated(client, monkeypatch, prefix, own, foreign):
+    from core import service_jobs
+    monkeypatch.setattr(service_jobs, "start_service_job", lambda *a, **k: pytest.fail("Unexpected job"))
+    response = client.get(f"/{prefix}/daten/fetch/")
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.content, "html.parser")
+    actions = [item["value"] for item in soup.select('input[name="action"]')]
+    assert own in actions and foreign not in actions
+    assert client.post(f"/{prefix}/daten/fetch/", {"action": foreign}).status_code == 400
+
+
+@pytest.mark.parametrize("prefix,source", [("buergerinformation", "ratsinfo"), ("landkreis", "landkreis")])
+def test_source_search_cannot_switch_source_via_query(client, monkeypatch, prefix, source):
+    from search import services
+    captured = []
+    def search(query, **kwargs):
+        captured.append(kwargs["source"])
+        return {"results": [], "error": None, "warning": None}
+    monkeypatch.setattr(services, "search_semantic_documents", search)
+    response = client.get(f"/{prefix}/suche/", {"source": "landkreis" if source == "ratsinfo" else "ratsinfo", "q": "Rat"})
+    assert response.status_code == 200
+    assert captured == [source]
+    assert not BeautifulSoup(response.content, "html.parser").select('select[name="source"]')
+
+
+@pytest.mark.parametrize("selected", ["Ortsrat Melle-Mitte", "Ortsrat Melle Mitte", "Ortsrat Melle–Mitte"])
+def test_session_committee_spelling_variants_share_filter(client, monkeypatch, selected):
+    from analysis import views
+    sessions = [{"session_id": str(index), "date": "2026-03-11", "committee": name,
+                 "meeting_name": f"Termin {index}"}
+                for index, name in enumerate(["Ortsrat Melle-Mitte", "Ortsrat Melle Mitte", "Rat"])]
+    monkeypatch.setattr(views.services, "list_sessions", lambda: sessions)
+    response = client.get("/analyse/sitzungen/", {"committee": selected})
+    soup = BeautifulSoup(response.content, "html.parser")
+    options = soup.select('select[name="committee"] option')
+    assert [option.get("value") for option in options if option.get("value")] == ["Ortsrat Melle-Mitte", "Rat"]
+    assert "2 Sitzungen gefunden" in soup.get_text()
+    assert soup.select_one('select[name="committee"] option[selected]')["value"] == "Ortsrat Melle-Mitte"
+    assert sessions[1]["committee"] == "Ortsrat Melle Mitte"

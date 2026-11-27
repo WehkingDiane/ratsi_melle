@@ -29,7 +29,7 @@ def test_harrier_embedder_uses_prepared_local_model(monkeypatch) -> None:
     with patch.dict("sys.modules", {"sentence_transformers": fake_module}):
         embeddings.HarrierEmbedder()._get_model()
 
-    assert captured["args"] == ("/models/harrier",)
+    assert captured["args"] == (str(Path("/models/harrier")),)
     assert captured["kwargs"]["model_kwargs"] == {"dtype": "auto"}
     assert captured["kwargs"]["local_files_only"] is True
     assert "token" not in captured["kwargs"]
@@ -48,7 +48,7 @@ def test_bm25_uses_prepared_local_snapshot(monkeypatch):
 
     assert captured == {
         "model_name": BM25_MODEL.model_id,
-        "specific_model_path": "/models/bm25",
+        "specific_model_path": str(Path("/models/bm25")),
         "local_files_only": True,
     }
 

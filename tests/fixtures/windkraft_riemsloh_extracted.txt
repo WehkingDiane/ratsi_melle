@@ -1,3 +1,5 @@
+Hinweis: Testfixture; personenbezogene Kontaktangaben wurden durch Platzhalter ersetzt.
+
 **Windpotenzialflächen in Melle**
 
 Vorabinformation für den Ortsrat Riemsloh am 08.12.2025
@@ -65,9 +67,9 @@ Die Energiewende wird regional umgesetzt – am Anfang steht die Erzeugung von �
 
 **Vielen Dank für Ihre Aufmerksamkeit!**
 
-Reiner Borgmeyer Geschäftsführer Bornweg 28, 49152 Bad Essen. T +49 5472 94 99 44. borgmeyer@energy-farming.de
+[Kontaktperson A], Geschäftsführung. [Geschäftsanschrift entfernt]. [Telefonnummer entfernt]. kontakt-a@example.invalid
 
 Ihr Ansprechpartner:
-Johannes Beckering Geschäftsführer Wellingstr. 66, 49328 Melle. T +49 5226 5932 – 146. j.beckering@bioconstruct.de
+[Kontaktperson B], Geschäftsführung. [Geschäftsanschrift entfernt]. [Telefonnummer entfernt]. kontakt-b@example.invalid
 
-Birkenstr. 7, 49328 Melle. T +49 541 68 53 05 69. be.melle@nwerk-eg.de
+[Geschäftsanschrift entfernt]. [Telefonnummer entfernt]. kontakt-c@example.invalid

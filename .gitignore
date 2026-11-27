@@ -9,9 +9,12 @@ __pycache__/
 pytest_tmp*/
 tests/_runtime_tmp/
 logs/
+*.log
+*.log.*
 
 # Runtime data
 data/raw/
+data/ri/
 data/processed/
 data/private/**
 !data/private/.gitkeep
@@ -49,3 +52,5 @@ data/models/*
 
 tmp/
 archive/
+# Local RI token and other personal environment files
+.env/

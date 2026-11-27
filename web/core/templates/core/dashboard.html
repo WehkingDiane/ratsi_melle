@@ -25,10 +25,12 @@
   <dl>
     <div><dt>Terminquelle</dt><dd>{% if online_available %}Online-Index des Ratsinfo-Kalenders{% else %}Lokaler Bestand{% endif %}</dd></div>
     <div><dt>Bekannte Online-Termine</dt><dd>{{ online_session_count|default_if_none:"Nicht verfügbar" }}</dd></div>
-    <div><dt>Lokal erfasste Sitzungen</dt><dd>{{ overview.session_count|default:"0" }}</dd></div>
+    <div><dt>Lokale BI-Sitzungen</dt><dd>{{ overview.session_count|default:"0" }}</dd></div>
+    <div><dt>Lokale RI-Sitzungen</dt><dd>{{ ri_session_count|default_if_none:"Nicht verfügbar" }}</dd></div>
     <div><dt>Gespeicherte Analysen</dt><dd>{{ overview.analysis_count|default:"0" }}</dd></div>
   </dl>
+  {% if ri_notice %}<p class="status-warning">{{ ri_notice }}</p>{% endif %}
   {% if upcoming_notice %}<p class="status-warning">{{ upcoming_notice }}</p>{% endif %}
-  <p class="muted">Beide Listen verwenden die bekannten Kalendertermine, unabhängig von lokal verfügbaren Unterlagen. Terminänderungen werden nach einer Aktualisierung des Online-Index unter <a href="{% url 'data_tools:service_build' %}">Daten → Build</a> sichtbar; zum Abgleich bestehender Termine „Bestehende Sitzungen aktualisieren“ auswählen.</p>
+  <p class="muted">Beide Listen verwenden die bekannten BI-Kalendertermine und lokalen BI-/RI-Sitzungen. „BI öffnen“ und „RI öffnen“ führen direkt in den jeweiligen lokalen Bestand. Terminänderungen werden nach einer Aktualisierung des Online-Index unter <a href="{% url 'data_tools:service_build' %}">Daten → Build</a> sichtbar; zum Abgleich bestehender Termine „Bestehende Sitzungen aktualisieren“ auswählen.</p>
 </section>
 {% endblock %}

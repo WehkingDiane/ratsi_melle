@@ -19,11 +19,11 @@ from src.observability import (
 )
 from scripts import (
     build_landkreis_publications_db,
-    build_local_index,
-    build_online_index_db,
+    build_bi_local_index,
+    build_bi_online_index_db,
     fetch_landkreis_publications,
-    fetch_session_from_index,
-    fetch_sessions,
+    fetch_bi_session_from_index,
+    fetch_bi_sessions,
 )
 from scripts._logging_utils import configure_file_logging
 
@@ -150,10 +150,10 @@ def test_cli_log_level_supports_both_argument_forms() -> None:
 @pytest.mark.parametrize(
     ("parse_args", "arguments"),
     [
-        (fetch_sessions.parse_args, ["fetch_sessions.py", "2026"]),
-        (fetch_session_from_index.parse_args, ["fetch_session_from_index.py"]),
-        (build_local_index.parse_args, ["build_local_index.py"]),
-        (build_online_index_db.parse_args, ["build_online_index_db.py", "2026"]),
+        (fetch_bi_sessions.parse_args, ["fetch_bi_sessions.py", "2026"]),
+        (fetch_bi_session_from_index.parse_args, ["fetch_bi_session_from_index.py"]),
+        (build_bi_local_index.parse_args, ["build_bi_local_index.py"]),
+        (build_bi_online_index_db.parse_args, ["build_bi_online_index_db.py", "2026"]),
         (
             fetch_landkreis_publications.parse_args,
             ["fetch_landkreis_publications.py"],

@@ -117,13 +117,14 @@ class SessionNetClient:
 
         return self._find_agenda_table(BeautifulSoup(html, "html.parser")) is not None
 
-    def download_documents(self, detail: SessionDetail, *, force_download: bool = False) -> None:
-        """Fetch missing documents, reusing completed-session files unless forced."""
+    def download_documents(self, detail: SessionDetail, *, force_download: bool = False) -> List[DocumentReference]:
+        """Fetch/reuse documents and return references whose payload download failed."""
 
         target_dir = self._build_session_directory(detail.reference)
         target_dir.mkdir(parents=True, exist_ok=True)
         existing_manifest = self._load_manifest(target_dir)
         manifest_entries = []
+        failed_documents: List[DocumentReference] = []
         sequence = count(1)
         download_times: dict[str, str] = {}
         now = datetime.now(UTC)
@@ -199,11 +200,13 @@ class SessionNetClient:
             try:
                 content, headers = self._fetch_document_payload(document)
             except FetchingError:
+                failed_documents.append(document)
                 LOGGER.exception("Failed to download document %s", document.url)
                 if existing_entry is not None:
                     manifest_entries.append({
                         **existing_entry, "title": document.title, "category": document.category,
                         "agenda_item": document.on_agenda_item, "url": document.url,
+                        "document_id": self._extract_document_id(document.url),
                     })
                 return
 
@@ -246,6 +249,7 @@ class SessionNetClient:
             target_dir, detail, manifest_entries, completion_detected_at=completion_detected_at,
         )
         self.write_agenda_summary(target_dir, detail)
+        return failed_documents
 
     @staticmethod
     def _has_published_results(detail: SessionDetail) -> bool:
@@ -524,7 +528,7 @@ class SessionNetClient:
             LOGGER.debug("Reusing cached document %s", document.url)
             return cached
 
-        LOGGER.info("Downloading document %s", document.url)
+        LOGGER.info("Downloading document %s", self._extract_document_id(document.url) or "unbekannt")
         backoff = 1.0
         last_error: requests.RequestException | None = None
         for attempt in range(1, self.max_retries + 1):
@@ -726,6 +730,21 @@ class SessionNetClient:
 
         return False
 
+    @staticmethod
+    def _extract_document_id(url: str) -> str | None:
+        """Return the unique numeric ID from a SessionNet document link."""
+        try:
+            parsed = urlparse(url)
+            values = parse_qs(parsed.query, keep_blank_values=True).get("id", [])
+        except ValueError:
+            return None
+        if (
+            not parsed.path.lower().endswith("/getfile.asp")
+            or len(values) != 1 or not values[0].isascii() or not values[0].isdigit()
+        ):
+            return None
+        return values[0]
+
     def _build_manifest_entry(
         self,
         *,
@@ -745,6 +764,7 @@ class SessionNetClient:
             "category": document.category,
             "agenda_item": document.on_agenda_item,
             "url": document.url,
+            "document_id": self._extract_document_id(document.url),
             "path": resolved_path.relative_to(resolved_target_dir).as_posix(),
             "sha1": sha1,
             "content_type": headers.get("Content-Type"),
@@ -1001,6 +1021,7 @@ class SessionNetClient:
                         "category": document.category,
                         "agenda_item": document.on_agenda_item,
                         "url": document.url,
+                        "document_id": self._extract_document_id(document.url),
                         "path": None,
                         "sha1": None,
                         "content_type": None,

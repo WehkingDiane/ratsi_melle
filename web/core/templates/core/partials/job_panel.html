@@ -1,0 +1,27 @@
+<section class="panel" data-job-detail data-status-url="{{ job_status_url }}" data-job-label="{{ job_label }}" data-job-area="{% if ri_job %}ri{% else %}bi{% endif %}" data-legacy-job="{% if job.action == 'inspect_legacy_index' or job.action == 'apply_legacy_index' %}true{% else %}false{% endif %}" data-service-job-running="{% if job.status == 'running' or job.status == 'queued' %}true{% else %}false{% endif %}"{% if not ri_job %} data-service-job-id="{{ job_id }}"{% endif %}>
+  <div class="panel-header">
+    <h2>{% if ri_job %}Auftragsstatus{% else %}{{ job.action }}{% endif %}</h2>
+    {% if job_refresh_url %}<a class="button utility small" href="{{ job_refresh_url }}">Status aktualisieren</a>{% endif %}
+  </div>
+  <dl class="facts inline">
+    <div><dt>Status</dt><dd id="job-status" class="{% include 'core/partials/job_status_class.html' %}" role="status" aria-live="polite">{{ job.status_label|default:job.status }}</dd></div>
+    <div><dt>Exit-Code</dt><dd id="job-exit-code">{{ job.exit_code|default_if_none:"–" }}</dd></div>
+    <div><dt>Start</dt><dd id="job-started-at" class="datetime-value">{{ job.started_at|default:"–" }}</dd></div>
+    <div><dt>Ende</dt><dd id="job-finished-at" class="datetime-value">{{ job.finished_at|default:"–" }}</dd></div>
+  </dl>
+  <div class="running-banner" id="job-running-banner" role="status"{% if job.status != 'running' and job.status != 'queued' %} hidden{% endif %}>
+    <span class="job-spinner" aria-hidden="true"></span>
+    <span>Script wird ausgeführt. Die Logausgabe wird automatisch aktualisiert.</span>
+  </div>
+  <p id="job-completion-message" class="{% include 'core/partials/job_status_class.html' %}" aria-live="polite"{% if job.status == 'running' or job.status == 'queued' %} hidden{% endif %}>
+    {% if job.status == 'ok' %}{{ job_label }} wurde erfolgreich abgeschlossen.{% elif job.status == 'partial' %}{{ job_label }} wurde mit Hinweisen abgeschlossen.{% elif job.status != 'running' and job.status != 'queued' %}{{ job_label }} ist fehlgeschlagen.{% endif %}
+  </p>
+  {% if job.command_text %}<pre class="text-block compact">{{ job.command_text }}</pre>{% endif %}
+  {% if not ri_job %}
+  <p id="job-progress-text" aria-live="polite">{{ job.progress.message }}</p>
+  <progress id="job-progress" aria-label="Ausführung läuft, Prozentfortschritt unbekannt"{% if job.status != 'running' %} hidden{% endif %}></progress>
+  {% endif %}
+  <p id="job-feedback" class="status-error" role="status" hidden></p>
+  <h3>Ausgabe</h3>
+  <pre class="text-block" id="job-output">{{ job.output|default:"Noch keine Ausgabe." }}</pre>
+</section>

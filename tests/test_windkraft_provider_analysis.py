@@ -1,8 +1,9 @@
-"""Provider-Tests mit echtem Dokumenttext aus dem Windkraft-PDF.
+"""Provider-Tests mit anonymisiertem Dokumenttext aus dem Windkraft-PDF.
 
 Fixture: tests/fixtures/windkraft_riemsloh_extracted.txt
   Quelle: Windpotenzialflaechen-Melle-Ortsrat-Riemsloh, Sitzung 2025-12-08
   Extrahiert via GPT-4o (Texterkennung aus originalem PDF)
+  Namen und Kontaktangaben durch Platzhalter ersetzt.
 
 Jeder Provider-Test laeuft nur, wenn ein API-Key verfuegbar ist.
 Ollama laeuft nur, wenn ein lokaler Server erreichbar ist.

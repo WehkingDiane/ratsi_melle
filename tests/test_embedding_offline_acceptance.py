@@ -56,7 +56,7 @@ from src.config.embedding_model_status import load_and_validate_model_inventory
 from src.config.index_compatibility import current_index_compatibility
 from src.qdrant_connection import QdrantConnection
 from scripts.prepare_embedding_models import main as prepare
-from scripts.build_vector_index import main as build
+from scripts.build_bi_vector_index import main as build
 from search import services
 
 models = Path(os.environ['RATSI_MODELS_DIR'])
@@ -90,7 +90,7 @@ benchmark = {'queries': [{'id': 'offline-acceptance',
              'relevant': [{'url': 'https://example.invalid/budget_tables.pdf',
                            'page': 2, 'evidence': 'Gesamtfinanzhaushalt'}]}]}
 (root / 'benchmark.json').write_text(json.dumps(benchmark), encoding='utf-8')
-from scripts.evaluate_search import main as evaluate
+from scripts.evaluate_bi_search import main as evaluate
 evaluate(['--benchmark', str(root / 'benchmark.json'), '--db', str(root / 'source.sqlite'),
           '--qdrant-dir', str(root / 'qdrant'), '--collection', 'ratsi_passages',
           '--k', '5', '--output', str(root / 'evaluation.json')])

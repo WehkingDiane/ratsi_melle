@@ -230,3 +230,20 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Main work areas follow the dashboard's vertical reading order. */
+.page-stack > .grid,
+.page-stack > .split-content,
+.page-stack > .answer-reader {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Long local paths and revision hashes must not widen cards or forms. */
+.panel {
+  overflow-wrap: anywhere;
+}
+
+.grid > *,
+.form-stack > * {
+  min-width: 0;
+}

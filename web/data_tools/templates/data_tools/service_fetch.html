@@ -4,7 +4,7 @@
 
 {% block content %}
 <section class="page-heading">
-  <p class="eyebrow">Daten</p>
+  <p class="eyebrow">{{ area_label }}</p>
   <h1>Fetch</h1>
   <p>Sitzungen und Dokumente laden. Diese Aktionen können je nach Zeitraum länger laufen.</p>
 </section>
@@ -12,51 +12,8 @@
 {% include "core/partials/service_result.html" %}
 
 <section class="grid two-columns">
-  <article class="panel">
-    <h2>Monate laden</h2>
-    <form method="post" class="form-stack">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="fetch_sessions">
-      <label>Jahr <input type="number" name="year" value="{{ current_year }}" min="2000" max="2100"></label>
-      <label>Monate <input type="text" name="months" placeholder="z. B. 1 2 3 oder leer für alle"></label>
-      <button class="button primary" type="submit">Sitzungen laden</button>
-    </form>
-  </article>
-
-  <article class="panel">
-    <h2>Einzelsitzung aus Online-Index laden</h2>
-    <form method="post" class="form-stack">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="fetch_session_from_index">
-      <label>Session-ID <input type="text" name="session_id" placeholder="z. B. 7128"></label>
-      <button class="button primary" type="submit">Einzelsitzung laden</button>
-    </form>
-  </article>
-
-  <article class="panel">
-    <h2>Landkreis-Veröffentlichungen laden</h2>
-    <form method="post" class="form-stack">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="fetch_landkreis_publications">
-      <label>
-        Quelle
-        <select name="source">
-          <option value="all">Alle</option>
-          <option value="bekanntmachungen">Bekanntmachungen</option>
-          <option value="amtsblaetter">Amtsblätter</option>
-        </select>
-      </label>
-      <label>Datenwurzel <input type="text" name="data_dir" placeholder="Optional, z. B. /mnt/d/landkreis_osnabrueck"></label>
-      <label>Suchbegriff <input type="text" name="query" placeholder="Optional, z. B. Melle"></label>
-      <label>Von <input type="date" name="from_date"></label>
-      <label>Bis <input type="date" name="to_date"></label>
-      <label>Limit <input type="number" name="limit" min="1" placeholder="Optional"></label>
-      <label class="checkbox-inline"><input type="checkbox" name="dry_run" value="1"> Nur Treffer prüfen</label>
-      <label class="checkbox-inline"><input type="checkbox" name="refresh_existing" value="1"> Bestehende Detailseiten aktualisieren</label>
-      <button class="button primary" type="submit">Landkreis laden</button>
-    </form>
-  </article>
+  {% for item in forms %}{% include "core/partials/script_form.html" with item=item %}{% endfor %}
 </section>
 
-{% include "core/partials/service_status.html" %}
+{% if scoped_source != "landkreis" %}{% include "core/partials/service_status.html" %}{% endif %}
 {% endblock %}
