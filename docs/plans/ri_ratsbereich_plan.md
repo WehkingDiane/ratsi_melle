@@ -20,6 +20,7 @@ Teilpakete sind im [Changelog](../../CHANGELOG.md) dokumentiert.
 - [x] Lokalen Indexnachlauf für 8176 ausgeführt und 14/14 verfügbare Dokumente verifiziert (27.11.2026).
 - [x] Kalenderstatus und geänderte Termine in Parser, Indizes und UI umgesetzt (0.10.0).
 - [x] RI-Webdownload mit optionalem, zunächst aktiviertem lokalem Indexnachlauf und getrennten Phasenergebnissen umgesetzt (0.10.0).
+- [x] Fehlende Uhrzeit und fehlenden Ort bei verschobenen/abgesagten Terminen im Dashboard als „–“ anzeigen; vorhandene Angaben erhalten (0.10.0).
 - [ ] Export-/Betriebsabnahme abschließen.
 
 RI-Volltext-/Vektorindexierung und RI-Suche bleiben für die erste Ausbaustufe
@@ -43,7 +44,7 @@ sind nicht Teil dieser Ausbaustufe.
 Die Aufbewahrungsentscheidung vom 27.11.2026 ist abgeschlossen. Weitere
 Fristenbewertung, automatische Bereinigung und zeitgesteuerte Dateilöschung
 gehören nicht zum Vorhaben. Die fachliche Erkennung verschobener/abgesagter
-Termine und ein verlässlicher Indexnachlauf bleiben unabhängig davon erforderlich.
+Termine und der optionale Indexnachlauf sind seit 0.10.0 umgesetzt.
 
 Offen bleibt die Betriebsabnahme für Dateirechte, Sicherung/Wiederherstellung
 und erweiterten Betrieb. Eine neue Volltext- oder Vektorsuche wäre gesondert
@@ -134,8 +135,6 @@ manuelle Dateilöschung werden davon nicht geändert.
 
 ### 1. Verschobene und abgesagte Termine
 
-Die umgesetzte Kalenderstatus-Verarbeitung umfasst:
-
 Die gemeinsame Implementierung liegt in `src/fetching/calendar_status.py` und
 `src/indexing/calendar_metadata.py`. Der verbindliche Datenvertrag steht unter
 [Kalenderstatus](../ri/datenablauf.md#kalenderstatus), die Anzeige in der
@@ -147,16 +146,19 @@ und unveränderten regulären Terminen. Teilabsagen und verneinte Hinweise werde
 nicht als bestätigte Gesamtabsage behandelt. Fremde Ersatzlinks und Weiterleitungen
 auf andere Sitzungs-IDs werden nicht übernommen. Statusänderungen erhalten
 vorhandene Dokumente; neue Kalenderfelder ergänzen alte Datenbanken additiv.
+Im Dashboard erscheinen fehlende Uhrzeit und fehlender Ort bei verschobenen oder
+abgesagten Terminen als „–“. Bei regulären und unklaren Terminen bleibt „Noch offen“;
+vorhandene Angaben bleiben sichtbar. Acht Darstellungsfälle wurden geprüft.
 
 ### 2. Download mit lokalem Indexnachlauf
 
 Der RI-Webauftrag führt zwei feste Phasen unter demselben Auftragsschutz aus:
 
-1. Das Downloadformular erhält „Lokalen Index anschließend aktualisieren“, standardmäßig aktiviert. Das Abschalten erhält den bisherigen reinen Download; der manuelle lokale Build bleibt verfügbar.
+1. Das Downloadformular bietet „Lokalen Index anschließend aktualisieren“, standardmäßig aktiviert. Das Abschalten erhält den bisherigen reinen Download; der manuelle lokale Build bleibt verfügbar.
 2. Ein Auftrag reserviert den bestehenden RI-Slot bis zum Ende beider Phasen. Zuerst läuft das vorhandene Downloadskript, danach der vorhandene lokale Builder. Keine neue Online-Anmeldung für den lokalen Schritt und keine Vermischung mit BI-Jobs.
-3. Nach Download-Exitcode 0 oder 2 startet der inkrementelle lokale Builder. Er erkennt neue/geänderte Metadaten und Dateien bereits über `source_state`; ein pauschales Neuerstellen aller unveränderten Sitzungen ist nicht nötig. Nach einem harten Download-Abbruch keinen automatischen Erfolg melden; den nicht ausgeführten Indexnachlauf explizit anzeigen.
+3. Nach Download-Exitcode 0 oder 2 startet der inkrementelle lokale Builder. Er erkennt neue/geänderte Metadaten und Dateien bereits über `source_state`; ein pauschales Neuerstellen aller unveränderten Sitzungen ist nicht nötig. Nach einem harten Download-Abbruch wird der Indexnachlauf nicht ausgeführt und entsprechend gekennzeichnet.
 4. Phase, getrennte Exitcodes und phasenbezogene Ausgabe werden gespeichert und angezeigt. Download 0 + Index 0 ergibt Erfolg; Download 2 + Index 0 bleibt ein Warnabschluss; ein fehlgeschlagener Index ergibt einen Fehler mit dem Hinweis, dass heruntergeladene Dateien erhalten sind. Ein erfolgreicher Indexlauf hebt Download-/Abmeldewarnungen nicht auf.
-5. Bei einem Indexfehler den lokalen Aufbau separat wiederholen können, ohne erneut herunterzuladen. Nach Abschluss Sitzungsansicht und Datenstatus aus der aktuellen lokalen Datenbank lesen.
+5. Bei einem Indexfehler kann der lokale Aufbau separat wiederholt werden, ohne erneut herunterzuladen. Nach Abschluss lesen Sitzungsansicht und Datenstatus die aktuelle lokale Datenbank.
 
 Die Verkettung gehört in den Serverauftrag. Ein automatischer zweiter Browser-POST
 wäre von der geöffneten Seite abhängig und könnte zwischen den Phasen mit einem
@@ -166,6 +168,11 @@ würde dagegen einen versteckten Schreibvorgang in einer Leseansicht erzeugen.
 Gezielt geprüft sind: Download 0/2/1, Indexfehler und separat möglicher Wiederholungslauf,
 Erhalt von Warnungen, Auftragsslot über beide Phasen und ein Fall wie 8176 mit neu
 vorhandenen Dateien. Die manuellen Löschregeln bleiben unverändert.
+
+Die Erweiterungen von 0.10.0 wurden mit gezielten Tests und synthetischen Daten im
+Browser einschließlich mobiler Ansicht geprüft. Dies ist keine erneute reale
+Portalabnahme; die reale UI-Stichprobe vom 22.11.2026 bleibt separat dokumentiert.
+Der vollständige PR-Testlauf wurde vom Agenten nicht ausgeführt.
 
 ## Nächste Schritte und Abnahme
 

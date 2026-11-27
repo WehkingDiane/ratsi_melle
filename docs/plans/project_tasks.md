@@ -20,7 +20,12 @@ die Ergebnisse. Der lokale Indexnachlauf für 8176 wurde danach am selben Tag
 ausgeführt und mit 14 vorhandenen Dokumenten verifiziert. Seit 0.10.0 werden
 Kalenderstatus und geänderte Termine durchgehend verarbeitet und angezeigt. Der
 RI-Webdownload bietet einen zunächst aktivierten lokalen Indexnachlauf im selben
-Auftrag; Downloadwarnungen bleiben dabei erhalten.
+Auftrag; Downloadwarnungen bleiben dabei erhalten. Bei verschobenen oder
+abgesagten Terminen erscheinen fehlende Uhrzeit und fehlender Ort im Dashboard
+als „–“. Kalenderstatus, Indexnachlauf und diese Anzeigeanpassung sind umgesetzt;
+sie sind keine offenen UI-Aufgaben mehr. Gezielte Tests und Browserprüfungen mit
+synthetischen Daten sind abgeschlossen; für diese Erweiterungen gab es keinen
+erneuten Live-Abruf. Der vollständige PR-Testlauf bleibt beim Nutzer.
 
 RI bleibt ein lokaler Arbeitsbestand zur Sitzungsvorbereitung ohne Volltext-/Vektorindex.
 Der Nutzer hat am 27.11.2026 entschieden, Aufbewahrung und Dokumentlöschung selbst

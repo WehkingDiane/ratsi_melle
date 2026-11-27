@@ -1,13 +1,18 @@
 # Plan: RI-Skripte in die Oberfläche einbinden
 
-Stand: 17.11.2026. Status: erster funktionsfähiger Prototyp, offline und im Browser mit synthetischen Daten geprüft. Arbeitsbranch: `codex/feature/ri-ui-scripts`.
+Stand: 27.11.2026. Status: Web-Skriptsteuerung umgesetzt (seit 0.8.0), gemeinsame
+UI-Bausteine seit 0.9.3 und optionaler Indexnachlauf seit 0.10.0 ergänzt. Dieser
+Teilplan dokumentiert die abgeschlossene Umsetzung; offene Aufgaben stehen in der
+[Aufgabenliste](project_tasks.md).
 
 ## Umfang und Entscheidungen
 
 Die vorhandenen CLI-Skripte werden über die RI-Datenpflege bedient: Zugang prüfen,
 Dokumente abrufen, Onlineindex aktualisieren und lokalen Index aktualisieren.
-Sitzungsansichten, Dateiauslieferung, Suche und Bestandsbereinigung bleiben eigene
-Arbeitspakete des [RI-Hauptplans](ri_ratsbereich_plan.md).
+Sitzungsansichten und lokale PDF-Auslieferung sind seit 0.9.0 umgesetzt. RI-Suche
+bleibt zurückgestellt; Aufbewahrung und Dokumentlöschung verwaltet der Nutzer
+manuell. Eine automatische Bestandsbereinigung ist kein Arbeitspaket. Die
+Abgrenzung steht im [RI-Hauptplan](ri_ratsbereich_plan.md).
 
 Auf Nutzerwunsch sind die RI-Funktionen im lokalen Einzelplatzbetrieb ohne Web-Anmeldung zugänglich. Ein lokales Benutzerkonto ist nicht erforderlich. Der Portalzugang über `.env/ri_token.txt` wird weiterhin ausschließlich von den Skripten verwendet. Öffentliche Datenpflege und Suche bleiben im bisherigen Ablauf nutzbar.
 
@@ -29,8 +34,11 @@ Exitcode 2 wird als abgeschlossener Auftrag mit Hinweisen angezeigt.
 - [x] Gezielte Tests für Direktzugriff ohne Anmeldung, alte Login-Links, CSRF, Befehlsparameter, Datenisolation und Jobzustände ergänzen; betroffene bisherige Platzhaltertests aktualisieren.
 - [x] Neue RI-Seiten mit synthetischen Daten im Browser prüfen, ohne reale Downloads oder Portalprüfungen zu starten.
 - [x] Zugangseinrichtung, Bedienung, Ist-Stand und offene Aufgaben nachführen; Version und Changelog gemeinsam aktualisieren.
+- [x] Gemeinsame BI-/RI-Formularrenderer, Statuspanels und Jobausgaben verwenden (0.9.3).
+- [x] RI-Download mit standardmäßig aktiviertem, abschaltbarem lokalem Indexnachlauf im selben Job verbinden; Phasen und Ergebnisse getrennt anzeigen (0.10.0).
 
-Die anschließende Prüfung und Wiederverwendung gemeinsamer BI-/RI-Teile in Frontend und Backend wird in der [Aufgabenliste](project_tasks.md) geführt.
+Die UI-Vereinheitlichung ist abgeschlossen. Weitere Prüfung und Wiederverwendung
+im Backend wird in der [Aufgabenliste](project_tasks.md) geführt.
 
 ## Abnahme
 
@@ -38,5 +46,9 @@ Die vier Skriptaktionen sowie Jobdaten sind auf dem lokalen Rechner direkt ohne 
 und Ausgabe bleiben auf den Ratsbereich beschränkt. Parallele RI-Aufträge werden
 abgewiesen; ein unterbrochener Auftrag und Exitcode 2 sind eindeutig erkennbar.
 Ein Seitenaufruf führt weder Portalzugriff noch Skriptausführung aus.
+Die reale UI-Kette für 8178/8179 wurde am 22.11.2026 geprüft. Die Erweiterungen
+von 0.10.0 wurden gezielt mit Tests und synthetischen Browserdaten geprüft;
+ein erneuter Live-Abruf fand dafür nicht statt. Einzelheiten und Grenzen stehen in
+der [UI-Dokumentation](../ri/oberflaeche.md).
 Der vollständige PR-Testlauf bleibt gemäß [Testregeln](../entwicklung/tests.md)
 beim Nutzer.
