@@ -62,6 +62,10 @@ und Dashboard-Gruppierung verwenden ausschließlich temporäre Daten oder Mocks.
 Wiederholte Download-/Lokalsync-Läufe prüfen bestätigte Absagen/Verschiebungen,
 nicht auswertbare Detailseiten und die spätere Rückkehr regulärer Details. Dabei
 werden unveränderte und neu gespeicherte Monatsübersichten berücksichtigt.
+Der BI-Onlinebuilder wird außerdem auf die Rückkehr abgesagter/verschobener
+Termine zu geplanten Sitzungen geprüft: Details werden ohne expliziten Refresh
+nachgeladen, auch nach vorübergehend fehlendem Link. Bestehende Unterlagen bleiben
+erhalten, wiederholte Builds erzeugen keine doppelten TOPs oder Dokumente.
 Die regulären Monatsparser- und Schemaparitätsprüfungen bleiben ergänzend relevant.
 
 ## RI-Web-Datenpflege und Sitzungsbereich

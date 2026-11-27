@@ -3,7 +3,7 @@
 [Dokumentation](../README.md)
 
 - SessionNet `/bi/` liefert öffentliche Sitzungen, Tagesordnungspunkte und Dokumente. `scripts/fetch_bi_sessions.py` lädt nach Jahr und Monaten; `scripts/fetch_bi_session_from_index.py` lädt einzelne Sitzungen anhand des gespeicherten Online-Index. Beide nutzen `src/fetching/sessionnet_client.py`.
-- `scripts/build_bi_online_index_db.py` baut den Kalender- und Metadatenindex in `data/db/online_session_index.sqlite`. Angekündigte Termine ohne Detailseite werden über die Kalender-ID erfasst.
+- `scripts/build_bi_online_index_db.py` baut den Kalender- und Metadatenindex in `data/db/online_session_index.sqlite`. Angekündigte Termine ohne Detailseite werden über die Kalender-ID erfasst. Bei abgesagten oder verschobenen Terminen werden zunächst nur Kalenderdaten übernommen. Werden sie später wieder als geplant geführt, lädt ein normaler Build die verfügbaren Details nach; `--refresh-existing` ist dafür nicht erforderlich. Fehlt zunächst noch der Detaillink, bleibt der Eintrag für dessen spätere Veröffentlichung aktualisierbar. Vorhandene TOPs und Dokumentmetadaten bleiben bis zum erfolgreichen Detailabruf erhalten.
 - SessionNet-Rohdaten liegen unter `data/raw/YYYY/MM/`. Gespeicherte HTML-Seiten und Dokumente bleiben beim Indexaufbau unverändert. Ein Sitzungsmanifest und eine Tagesordnungsübersicht halten Metadaten zum Download fest.
 
 ## Ablauf

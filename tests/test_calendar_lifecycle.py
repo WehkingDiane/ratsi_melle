@@ -252,3 +252,67 @@ def test_repeated_download_retains_confirmed_status_until_details_return(monkeyp
             assert requests == [status, "unavailable", "available"]
     finally:
         client.session.close()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("status", ["cancelled", "postponed"])
+@pytest.mark.parametrize("intermediate_without_url", [False, True])
+@pytest.mark.parametrize("has_existing_details", [False, True])
+def test_bi_online_build_loads_details_when_changed_meeting_is_scheduled_again(
+    status, intermediate_without_url, has_existing_details
+):
+    from dataclasses import replace
+    from datetime import datetime, timezone
+    from scripts import build_bi_online_index_db as builder
+    from src.fetching.models import SessionReference, SessionDetail, AgendaItem, DocumentReference
+
+    class Client:
+        def __init__(self):
+            self.reference = SessionReference(
+                "Testgremium", "Testsitzung", "8181", date(2026, 12, 9), "19:00",
+                "https://session.melle.info/bi/si0057.asp?__ksinr=8181"
+            )
+            self.calls = 0
+
+        def fetch_month(self, **kwargs):
+            return [replace(self.reference)]
+
+        def fetch_session(self, reference):
+            self.calls += 1
+            return SessionDetail(
+                reference, [AgendaItem("Ö 1", "Test", documents=[
+                    DocumentReference("Testdokument", "https://session.melle.info/bi/getfile.asp?id=1&type=do")
+                ])], datetime.now(timezone.utc), "<synthetic>"
+            )
+
+    client = Client()
+    with sqlite3.connect(":memory:") as db:
+        builder._create_tables(db)
+
+        def build():
+            builder._populate(db, client, 2026, [12], False, False)
+
+        if has_existing_details:
+            build()
+        client.reference.calendar_status = status
+        build()
+        build()
+        assert client.calls == int(has_existing_details)
+        assert db.execute("SELECT calendar_status FROM sessions").fetchone() == (status,)
+        assert db.execute("SELECT count(*) FROM documents").fetchone()[0] == int(has_existing_details)
+
+        client.reference.calendar_status = "scheduled"
+        url = client.reference.detail_url
+        if intermediate_without_url:
+            client.reference.detail_url = ""
+            build()
+            assert client.calls == int(has_existing_details)
+            assert db.execute("SELECT count(*) FROM documents").fetchone()[0] == int(has_existing_details)
+            client.reference.detail_url = url
+
+        build()
+        build()
+        assert client.calls == int(has_existing_details) + 1
+        assert db.execute("SELECT calendar_status FROM sessions").fetchone() == ("scheduled",)
+        assert db.execute("SELECT count(*) FROM agenda_items").fetchone()[0] == 1
+        assert db.execute("SELECT count(*) FROM documents").fetchone()[0] == 1

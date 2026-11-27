@@ -155,8 +155,8 @@ def _populate(
     doc_count = 0
     seen_sessions: set[str] = set()
     existing = {
-        row[0]: row[1]
-        for row in conn.execute("SELECT session_id, detail_url FROM sessions").fetchall()
+        row[0]: (row[1], row[2] or "scheduled")
+        for row in conn.execute("SELECT session_id, detail_url, calendar_status FROM sessions").fetchall()
         if row and row[0]
     }
 
@@ -170,10 +170,15 @@ def _populate(
         for reference_index, reference in enumerate(references, start=1):
             if reference.session_id in seen_sessions:
                 continue
+            previous = existing.get(reference.session_id)
+            # A detail URL alone does not mean details were indexed: changed
+            # calendar entries skip that fetch until they become scheduled again.
             refresh_session = refresh_existing or (
-                reference.session_id in existing
-                and not existing[reference.session_id]
-                and bool(reference.detail_url)
+                previous is not None
+                and (
+                    (not previous[0] and bool(reference.detail_url))
+                    or (previous[1] != "scheduled" and reference.calendar_status == "scheduled")
+                )
             )
             if reference.session_id in existing and not refresh_session:
                 conn.execute("UPDATE sessions SET date=?, year=?, month=?, start_time=?, location=? WHERE session_id=?",
