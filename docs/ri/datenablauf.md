@@ -192,7 +192,10 @@ Datei enthält Kalenderinformationen, keine Zugangsdaten oder Dokumentdateien.
 Der Download liest zuvor bestätigte Absagen/Verschiebungen vor dem erneuten
 Monatsabruf ein. Widerspricht die neue Übersicht, bleiben diese Bestätigungen im
 neuen Snapshot erhalten, bis eine erfolgreiche Detailprüfung sie aufhebt.
-Eine ungeprüfte Detailansicht löscht sie nicht. Der Snapshot wird atomar an die
+Eine ungeprüfte Detailansicht löscht sie nicht. Auch wenn ein Termin seinen
+Detaillink verliert und deshalb nicht mehr zur Downloadauswahl gehört, bleibt
+sein bestätigter Status im Snapshot erhalten. Der lokale Kalenderabgleich kann
+Kalendertermine ohne Detaillink weiterhin anhand ihrer Kalender-ID zuordnen. Der Snapshot wird atomar an die
 neu gespeicherte Monatsübersicht gebunden; die Detailprüfung bleibt möglich.
 Die Rückkehr zum regulären Termin hängt nicht vom Erfolg einzelner PDF-Downloads ab.
 

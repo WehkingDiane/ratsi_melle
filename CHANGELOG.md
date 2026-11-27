@@ -4,6 +4,7 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 
 ## 0.10.0 – 27.11.2026
 
+- RI-Download: Bestätigte Absagen/Verschiebungen auch dann im Kalendersnapshot behalten, wenn der Detaillink entfällt und der Termin nicht mehr zur Downloadauswahl gehört.
 - BI-Onlineindex: Nach Rückkehr abgesagter/verschobener Termine zum geplanten Status die zuvor übersprungenen Details beim normalen Build nachladen, auch wenn zwischenzeitlich kein Detaillink verfügbar ist.
 - RI-Download: Bestätigte Absagen/Verschiebungen im Kalendersnapshot über erneute Abrufe hinweg erhalten; erst nach erfolgreicher Detailprüfung aufheben und den Snapshot an die aktuelle Monatsübersicht binden.
 - RI-Onlineindex: Bei Widerspruch zwischen geplantem Kalendertermin und gespeichertem Änderungsstatus die Detailseite erneut prüfen; bestätigte Absagen/Verschiebungen und vorhandene Unterlagen bei ungeprüfter Detailansicht erhalten.

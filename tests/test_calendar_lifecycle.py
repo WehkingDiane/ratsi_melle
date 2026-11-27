@@ -184,7 +184,8 @@ def test_rescheduled_date_uses_explicit_target_not_original_date():
 @pytest.mark.integration
 @pytest.mark.parametrize("status", ["cancelled", "postponed"])
 @pytest.mark.parametrize("change_overview", [False, True])
-def test_repeated_download_retains_confirmed_status_until_details_return(monkeypatch, tmp_path, status, change_overview):
+@pytest.mark.parametrize("detail_result", ["unavailable", "missing_link"])
+def test_repeated_download_retains_confirmed_status_until_details_return(monkeypatch, tmp_path, status, change_overview, detail_result):
     from datetime import datetime, timezone
     from hashlib import sha256
     from scripts import fetch_ri_sessions as fetch, build_ri_local_index as builder
@@ -206,8 +207,14 @@ def test_repeated_download_retains_confirmed_status_until_details_return(monkeyp
 
     def fetch_month(**kwargs):
         suffix = mode if change_overview else ""
-        overview.write_text(html + "<!--" + suffix + "-->", encoding="utf-8")
-        refs = client._parse_overview(html, 2026, 12)
+        current_html = html
+        if mode == "missing_link":
+            current_html = html.replace('href="si0057.asp?__ksinr=8181"', "")
+            current_html = current_html.replace(
+                "</tr>", '<td class="sitermin"><a href="yvcs.asp?key=8181">Kalender</a></td></tr>'
+            )
+        overview.write_text(current_html + "<!--" + suffix + "-->", encoding="utf-8")
+        refs = client._parse_overview(current_html, 2026, 12, include_planned=kwargs.get("include_planned", False))
         for ref in refs:
             ref.calendar_observed_at = "2026-11-27T14:00:00+00:00"
         return refs
@@ -234,9 +241,9 @@ def test_repeated_download_retains_confirmed_status_until_details_return(monkeyp
             stored = db.execute("SELECT calendar_status,calendar_note,rescheduled_date,calendar_observed_at FROM sessions WHERE session_id='8181'").fetchone()
             assert stored[0] == status
 
-            mode = "unavailable"
+            mode = detail_result
             result = fetch.fetch_months(client, 2026, [12])
-            assert result.skipped_sessions == ["8181"]
+            assert result.skipped_sessions == (["8181"] if detail_result == "unavailable" else [])
             payload = json.loads((month / "calendar_changes.json").read_text())
             assert payload["source_sha256"] == sha256(overview.read_bytes()).hexdigest()
             assert payload["sessions"]["8181"]["calendar_status"] == status
@@ -249,7 +256,7 @@ def test_repeated_download_retains_confirmed_status_until_details_return(monkeyp
             sync_saved_calendars(db, raw, client)
             assert db.execute("SELECT calendar_status,calendar_note,rescheduled_date FROM sessions WHERE session_id='8181'").fetchone() == ("scheduled", None, None)
             assert downloads == ["8181"]
-            assert requests == [status, "unavailable", "available"]
+            assert requests == ([status, "unavailable", "available"] if detail_result == "unavailable" else [status, "available"])
     finally:
         client.session.close()
 

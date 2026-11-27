@@ -192,7 +192,13 @@ def fetch_months(client, year, months, *, force_download=False):
         previous = _load_calendar_changes(client, year, month)
         references = client.fetch_month(year=year, month=month)
         logging.info('Found %d sessions for %04d-%02d', len(references), year, month)
-        changes = {}
+        # Entries without detail links are absent from the download selection.
+        # Keep their confirmed changes until a successful detail fetch clears them.
+        changes = {
+            session_id: calendar_metadata(metadata)
+            for session_id, metadata in previous.items()
+            if metadata.get('calendar_status') in {'postponed', 'cancelled'}
+        }
         for reference in references:
             current = calendar_metadata(reference)
             prior = previous.get(reference.session_id, {})
