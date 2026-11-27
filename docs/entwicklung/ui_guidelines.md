@@ -4,7 +4,9 @@ Die Django-Oberfläche verwendet ein gemeinsames Desktop-Layout. Die Regeln
 gelten für Übersicht, Bürgerinformation, Ratsbereich, Landkreis, Analyse und
 Einstellungen. Die fachliche Reihenfolge bleibt: Überschrift, Hauptaufgabe,
 Ergebnisse und ergänzende Informationen. Das Dashboard bleibt eine durchgehende
-Spalte mit kommenden Sitzungen, vergangenen Sitzungen und anschließendem Status.
+Spalte mit kommenden Sitzungen, vergangenen Sitzungen, gegebenenfalls geänderten
+Terminen und anschließendem Datenstatus. Die Statusanzeige ist in der
+[Sitzungsübersicht](../oberflaeche/sitzungen.md#geänderte-termine) beschrieben.
 
 ## Arbeitsbereiche
 
@@ -144,6 +146,7 @@ mit seinen gebundenen, strikt validierten Formularen. Der RI-Formularschutz gege
 Doppelabsenden und parallele Aufträge ergänzt den gemeinsamen Renderer.
 BI-Statuspanels aktualisieren ihre API-Felder, RI-Statuspanels laden weiterhin die
 Seite neu und zeigen zusätzlich TOP-Zahlen. Beide verwenden denselben Rahmen.
+Kombinierte RI-Aufträge zeigen zusätzlich die Phase und getrennte Download-/Index-Exitcodes.
 Auftragspanels beziehen ihre Status-URL aus dem jeweiligen Seitenkontext statt
 aus einer fest eingebauten Bereichsadresse. Verbindungsfehler überschreiben den
 letzten Auftragsstatus nicht; der gemeinsame Poller versucht es erneut.

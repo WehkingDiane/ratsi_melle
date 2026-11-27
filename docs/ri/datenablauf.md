@@ -61,8 +61,8 @@ Onlineindex und Download schließen frühere Sitzungsmonate vor der Anmeldung au
 Ohne `--months` werden alle zugänglichen Monate des Jahres gewählt; für 2026 sind
 das November und Dezember. Ohne verbleibenden Monat oder bei ungültiger
 Konfiguration bricht der Aufruf ab. Die Grenze betrifft Sitzungsmonate, nicht das
-Erstellungsdatum einzelner Unterlagen. Regeln für Nachlauf und automatische Löschung
-sind noch nicht implementiert.
+Erstellungsdatum einzelner Unterlagen. Die manuelle Verwaltung des Bestands ist
+unter [Aufbewahrung und manuelles Löschen](#aufbewahrung-und-manuelles-löschen) festgelegt.
 
 ## Dokument-ID und Öffentlichkeitskennzeichnung
 
@@ -121,9 +121,11 @@ Alle drei Datenskripte unterstützen `--log-level`.
 
 ## Fehler und Grenzen
 
-Nicht unterstützte Sitzungsdetailansichten, etwa bei verschobenen Terminen, werden
-als ungeprüft protokolliert und übersprungen. Die übrigen Sitzungen werden weiter
-verarbeitet. Login-/Berechtigungsfehler führen zum Abbruch. Die 90-Sekunden-Frist für die
+Bekannte verschobene/abgesagte Termine werden als Kalenderstatus erfasst und ohne
+Dokumentabruf verarbeitet. Eine eng geprüfte `si0050.asp`-Terminansicht mit explizitem
+Änderungshinweis wird ebenfalls als Status erfasst. Nicht unterstützte oder unklare
+Detailansichten bleiben ungeprüft und werden übersprungen; die übrigen Sitzungen
+werden weiter verarbeitet. Login-/Berechtigungsfehler führen zum Abbruch. Die 90-Sekunden-Frist für die
 RI-Anmeldung beginnt erst, wenn die Zugangsdaten aus Proton vorliegen. Ein HTML-Loginformular
 wird nicht als Sitzung oder Dokument gespeichert. Dokumentziele sind auf HTTPS
 und `/ri/getfile.asp` auf `session.melle.info` begrenzt; unbekannte Ziele werden
@@ -149,12 +151,73 @@ und `1` bei Abbruch; fehlende oder unzulässige Dateien werden mit Warnung
 übersprungen. Teilstände können mit demselben Aufruf erneut verarbeitet werden.
 Die bekannte unbestätigte entfernte Proton-Abmeldung bleibt ein eigener Warnstatus.
 
-Die [lokale Web-Datenpflege](oberflaeche.md) steuert diese Skripte seit 0.8.0. Sitzungs- und Dateiansichten,
-Aufbewahrung und Bestandsbereinigung sowie ein Bedarfstest des Verwaltungsausschusses
-bleiben Teil des [RI-Plans](../plans/ri_ratsbereich_plan.md). Eine RI-Volltext- oder
-Vektorindexierung ist nicht vorgesehen. Lokale Dateien und Sicherungen bleiben
+Die [lokale Web-Datenpflege](oberflaeche.md) steuert diese Skripte seit 0.8.0;
+Sitzungs- und Dateiansichten sind ebenfalls angebunden. Die begrenzte reale
+[UI-Abnahme](oberflaeche.md#reale-ui-abnahme-vom-22112026) umfasst auch den Verwaltungsausschuss.
+Weitere Aufgaben stehen im [aktuellen RI-Aufgaben](../plans/project_tasks.md). Eine RI-Volltext-
+oder Vektorindexierung ist nicht vorgesehen. Lokale Dateien und Sicherungen bleiben
 unter der Verantwortung des Benutzerkontos; eine getrennte Ablage allein ersetzt
 keine Betriebssystem-Zugriffsrechte.
+
+## Kalenderstatus
+
+Seit 0.10.0 trennen BI und RI den Kalenderstatus von Uhrzeit und Ort. Die
+Sitzungs-ID und das ursprüngliche Datum bleiben erhalten. Die Felder
+`calendar_status`, `calendar_note`, `rescheduled_date`, `replacement_session_id`
+und `calendar_observed_at` werden in Manifest-/Kalenderdaten und den jeweiligen
+Sitzungsindizes gespeichert. Bestehende Tabellen erhalten zusätzliche Spalten;
+bestehende Dokumente und TOPs werden durch reine Statusänderungen nicht entfernt.
+Statuswerte sind `scheduled`, `postponed`, `cancelled` und `unknown`.
+
+Zeigt die RI-Monatsübersicht einen zuvor geänderten Termin wieder als geplant,
+prüft der Onlinebuilder die Detailseite auch ohne `--refresh-existing` erneut.
+Ein dort bestätigter Änderungsstatus bleibt erhalten, solange keine reguläre
+Detailansicht die Rückkehr bestätigt. Fehlt die Detail-URL oder ist die Seite nicht
+auswertbar, bleiben Status und vorhandene Unterlagen erhalten. Sobald reguläre
+Details verfügbar sind, werden sie beim normalen Build übernommen.
+
+Eine Ersatz-ID wird nur aus einem expliziten Verweis übernommen; übereinstimmende
+Gremiennamen und Datumsangaben erzeugen keine automatische Verbindung. Bekannte
+Varianten wie „abgesagt“, „findet nicht statt“ und „verschoben auf den …“ werden
+verstanden. Bei unklaren Hinweisen bleibt der Originaltext sichtbar. Ein
+Ersatzdatum ohne neue ID ermöglicht noch keinen direkten Link zur neuen Sitzung.
+
+Der lokale Builder übernimmt Änderungen auch aus gespeicherten Monatskalendern.
+Er kann geänderte Kalendereinträge ohne Sitzungsordner als Metadaten aufnehmen;
+vorhandene Dokumenteinträge bleiben erhalten. `--only-refresh` fügt auch dabei
+keine neuen Sitzungen hinzu. Statusseiten-Ergebnisse eines RI-Downloads werden
+in `calendar_changes.json` neben dem betreffenden Monatskalender abgelegt und
+nur übernommen, wenn dessen SHA-256 noch zur gespeicherten Quelle passt. Diese
+Datei enthält Kalenderinformationen, keine Zugangsdaten oder Dokumentdateien.
+Der Download liest zuvor bestätigte Absagen/Verschiebungen vor dem erneuten
+Monatsabruf ein. Widerspricht die neue Übersicht, bleiben diese Bestätigungen im
+neuen Snapshot erhalten, bis eine erfolgreiche Detailprüfung sie aufhebt.
+Eine ungeprüfte Detailansicht löscht sie nicht. Auch wenn ein Termin seinen
+Detaillink verliert und deshalb nicht mehr zur Downloadauswahl gehört, bleibt
+sein bestätigter Status im Snapshot erhalten. Der lokale Kalenderabgleich kann
+Kalendertermine ohne Detaillink weiterhin anhand ihrer Kalender-ID zuordnen. Der Snapshot wird atomar an die
+neu gespeicherte Monatsübersicht gebunden; die Detailprüfung bleibt möglich.
+Die Rückkehr zum regulären Termin hängt nicht vom Erfolg einzelner PDF-Downloads ab.
+
+Die [Sitzungsübersicht](../oberflaeche/sitzungen.md) beschreibt die Anzeige.
+Öffentliche Suche und Exporte bleiben auf ihren eigenen Bestand begrenzt;
+der RI-Kalender wird nur für den lokalen gemeinsamen Überblick verwendet.
+
+## Aufbewahrung und manuelles Löschen
+
+Festlegung des Nutzers vom 27.11.2026: Die bisherige RI-Datenhaltung bleibt bestehen.
+Der Nutzer entscheidet selbst über die Aufbewahrung und löscht Dokumente manuell.
+Eine automatische Bereinigung, automatische altersabhängige Löschung oder weitere
+Bewertung von Aufbewahrungs-/Löschfristen ist nicht vorgesehen. Diese Punkte sind
+keine offenen Ausbau- oder Abnahmekriterien. Die bestehende Abrufuntergrenze
+`earliest_month` wird dadurch nicht geändert.
+
+Dateilöschung und lokale Indexaktualisierung bleiben getrennte Vorgänge. Der
+vorhandene lokale Builder berücksichtigt fehlende Dateien in noch vorhandenen
+Sitzungsordnern beim nächsten Aufbau. Vollständig entfernte Sitzungsordner werden
+aktuell nicht automatisch aus der Datenbank entfernt. PDF-Links prüfen zusätzlich,
+ob die Datei noch vorhanden ist. Das beschreibt den bestehenden Stand; es wird
+keine neue Lösch- oder Bereinigungsfunktion eingeführt.
 
 ## Übernahme des bisherigen Testbestands
 

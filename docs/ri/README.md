@@ -4,12 +4,12 @@
 
 Seit 0.7.0 steht der im lokalen Testbereich erprobte RI-Datenablauf als reguläres
 CLI-Paket bereit. Der Bestand liegt getrennt unter `data/ri/` und wird nicht von
-öffentlichen Datenjobs eingelesen. Seit 0.8.0 lassen sich die Skripte außerdem über die lokale RI-Datenpflege starten. Seit 0.9.0 sind Sitzungsübersicht, TOPs und lokale PDFs im Ratsbereich verfügbar.
+öffentlichen Datenjobs eingelesen. Seit 0.8.0 lassen sich die Skripte außerdem über die lokale RI-Datenpflege starten. Seit 0.9.0 sind Sitzungsübersicht, TOPs und lokale PDFs im Ratsbereich verfügbar. Seit 0.10.0 kommen Kalenderstatus und ein optionaler automatischer lokaler Indexnachlauf nach Web-Downloads hinzu.
 
 - [Zugang einrichten und prüfen](zugang.md)
 - [Onlineindex, Dokumentabruf und lokalen Index bedienen](datenablauf.md)
 - [Ratsbereich über die Oberfläche bedienen](oberflaeche.md)
-- [Weiterer Ausbau und offene Entscheidungen](../plans/ri_ratsbereich_plan.md)
+- [Verbleibende Aufgaben und offene Entscheidungen](../plans/project_tasks.md)
 
 Der RI-Webbereich ist ein erster funktionsfähiger Prototyp für den lokalen Betrieb.
 Formulare, Status und Jobausgaben nutzen seit 0.8.1 die BI-Gestaltungselemente und seit 0.9.3 gemeinsame UI-Bausteine.
@@ -51,6 +51,7 @@ Betrieb sind nicht abgenommen. Web-Skriptsteuerung sowie Sitzungs- und Dateiansi
 sind offline und seit 22.11.2026 zusätzlich mit einem echten Dezember-Download,
 lokalem Build und PDF-Prüfung für 8178/8179 geprüft. Ergebnisse und verbleibende
 Abruf-/Altbestandshinweise stehen in der [UI-Abnahme](oberflaeche.md#reale-ui-abnahme-vom-22112026).
-Bestandsbereinigung und die weitere Betriebsabnahme bleiben offen. RI-Volltext- und
+Dokumente werden nach [Nutzerfestlegung manuell verwaltet](datenablauf.md#aufbewahrung-und-manuelles-löschen);
+die weitere Betriebsabnahme bleibt offen. RI-Volltext- und
 Vektorindexierung sind nicht Teil dieser Ausbaustufe. Historische Änderungen stehen
 im [Changelog](../../CHANGELOG.md).

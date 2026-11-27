@@ -7,6 +7,6 @@
 
 Rohdaten bleiben unverändert; SQLite- und Vektorindizes werden daraus abgeleitet. Nach neuen Downloads den [Indexaufbau](../suche/indizes.md) ausführen. Analyseartefakte beschreibt der [Ausgabevertrag](../analyse/ausgabeformat.md).
 
-RI-Daten und Datenbanken liegen getrennt unter `data/ri/`; ihre Protokolle liegen unter `logs/ri/`. Der [RI-Datenablauf](../ri/datenablauf.md) beschreibt Aufbau und Aktualisierung. Auch öffentlich gekennzeichnete RI-Dateien bleiben dort. Eine automatische RI-Bereinigung ist noch nicht implementiert.
+RI-Daten und Datenbanken liegen getrennt unter `data/ri/`; ihre Protokolle liegen unter `logs/ri/`. Der [RI-Datenablauf](../ri/datenablauf.md) beschreibt Aufbau und Aktualisierung. Auch öffentlich gekennzeichnete RI-Dateien bleiben dort. RI-Dokumente werden nach der [festgelegten manuellen Verwaltung](../ri/datenablauf.md#aufbewahrung-und-manuelles-löschen) vom Nutzer selbst gelöscht.
 
 Die kanonische Version steht in `VERSION`. Skriptumbenennungen sind im [Changelog](../../CHANGELOG.md) dokumentiert.

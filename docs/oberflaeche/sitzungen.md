@@ -16,6 +16,24 @@ Die RI-Sitzungsübersicht verwendet dieselben Filter und Darstellungsbausteine m
 eigenem lokalem Bestand. TOP-Kennzeichnung und PDF-Bedienung beschreibt die
 [RI-Oberflächenanleitung](../ri/oberflaeche.md#sitzungen-und-dokumente).
 
+## Geänderte Termine
+
+Seit 0.10.0 zeigt das Dashboard verschobene, abgesagte und unklare Termine im
+eigenen Abschnitt **Geänderte Termine** (bis zu 20 Einträge). Sie zählen nicht zu
+den nächsten fünf regulären Sitzungen. Originaldatum und Originalhinweis bleiben
+sichtbar, ein bekanntes Ersatzdatum wird ergänzt. Eine explizit belegte Ersatz-ID
+wird angezeigt; Direktlinks erscheinen, wenn deren lokaler BI-/RI-Eintrag vorhanden ist.
+Auch Listen und Sitzungsdetails kennzeichnen den Status. Terminänderungen stehen
+nicht mehr im Uhrzeitfeld. Fehlen bei verschobenen oder abgesagten Terminen
+Uhrzeit oder Ort, zeigt das Dashboard „–“ statt „Noch offen“.
+
+Das Dashboard berücksichtigt zusätzlich den separaten RI-Onlinekalender. Bei
+unterschiedlichen Statusständen wird die jüngste bekannte Beobachtung verwendet.
+Alte Indizes, die einen Änderungsvermerk noch im Uhrzeitfeld enthalten, können ihn
+bereits anzeigen; für vollständig gespeicherte neue Statusfelder die betroffenen
+Kalender-/lokalen Indizes aktualisieren. Die Datenverträge stehen unter
+[Kalenderstatus](../ri/datenablauf.md#kalenderstatus).
+
 ## Gremienfilter
 
 Die Sitzungsübersicht fasst Gremiennamen zusammen, die sich nur durch Bindestriche,

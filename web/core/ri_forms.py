@@ -46,6 +46,7 @@ class RiMonthForm(RiActionForm):
 
 
 class RiFetchForm(RiMonthForm):
+    update_local_index = forms.BooleanField(label="Lokalen Index anschließend aktualisieren", required=False, initial=True)
     force_download = forms.BooleanField(label="Vorhandene Dokumente erneut herunterladen", required=False)
 
 

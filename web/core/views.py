@@ -21,7 +21,12 @@ def dashboard(request):
     except ri_sessions.RiCatalogueError:
         ri_catalogue = None
         ri_notice = 'RI-Index nicht lesbar; RI-Termine und RI-Links sind derzeit nicht verfügbar.'
-    meetings = dashboard_session_groups(analysis_services.list_sessions(), today, ri_sessions=ri_catalogue)
+    try:
+        ri_calendar = ri_sessions.list_calendar_sessions()
+    except ri_sessions.RiCatalogueError:
+        ri_calendar = []
+        ri_notice = (ri_notice + ' ' if ri_notice else '') + 'RI-Onlinekalender nicht lesbar; angezeigt werden die übrigen bekannten Termine.'
+    meetings = dashboard_session_groups(analysis_services.list_sessions(), today, ri_sessions=ri_catalogue, ri_online_sessions=ri_calendar)
     return render(
         request,
         "core/dashboard.html",

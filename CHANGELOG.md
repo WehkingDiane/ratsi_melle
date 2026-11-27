@@ -2,6 +2,18 @@
 
 Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Historie und vorhandener Dokumentation zusammengefasst; sie bilden keine vollständige Liste aller Commits. Versionsdaten bezeichnen das Datum des zugehörigen Versionscommits, nicht einen gesondert belegten Veröffentlichungstermin. Commit-Kürzel ermöglichen die Prüfung mit `git show <kürzel>`. Der aktuelle Funktionsumfang steht im [Ist-Stand](docs/ist_stand.md).
 
+## 0.10.0 – 27.11.2026
+
+- RI-Download: Bestätigte Absagen/Verschiebungen auch dann im Kalendersnapshot behalten, wenn der Detaillink entfällt und der Termin nicht mehr zur Downloadauswahl gehört.
+- BI-Onlineindex: Nach Rückkehr abgesagter/verschobener Termine zum geplanten Status die zuvor übersprungenen Details beim normalen Build nachladen, auch wenn zwischenzeitlich kein Detaillink verfügbar ist.
+- RI-Download: Bestätigte Absagen/Verschiebungen im Kalendersnapshot über erneute Abrufe hinweg erhalten; erst nach erfolgreicher Detailprüfung aufheben und den Snapshot an die aktuelle Monatsübersicht binden.
+- RI-Onlineindex: Bei Widerspruch zwischen geplantem Kalendertermin und gespeichertem Änderungsstatus die Detailseite erneut prüfen; bestätigte Absagen/Verschiebungen und vorhandene Unterlagen bei ungeprüfter Detailansicht erhalten.
+- Verschobene, abgesagte und unklare Kalendertermine getrennt von Uhrzeit und Ort erfassen; Originaldatum, Hinweis, Ersatzdatum und explizit belegte Ersatz-ID in BI-/RI-Indizes erhalten. Bestehende SQLite-Tabellen additiv erweitern.
+- Fehlende Uhrzeit und fehlenden Ort bei verschobenen oder abgesagten Terminen im Dashboard als „–“ anzeigen.
+- Geänderte Termine im Dashboard separat anzeigen und nicht auf die nächsten fünf regulären Termine anrechnen; RI-Onlinekalender einbeziehen und widersprüchliche Metadaten nach Beobachtungszeit zusammenführen.
+- RI-Terminansichten `si0050.asp` eng begrenzt als Statusseiten behandeln; bekannte Terminänderungen ohne Dokumentabruf verarbeiten. Lokale Kalenderübernahme erhält bestehende Unterlagen und benötigt keine Portal-Anmeldung.
+- RI-Webdownload mit zunächst aktiviertem lokalem Indexnachlauf unter demselben Auftragsschutz verketten; Phase und beide Exitcodes anzeigen, Downloadwarnungen erhalten und lokale Wiederholung ohne erneuten Download ermöglichen. Bestehende Jobtabellen additiv erweitern.
+
 ## 0.9.6 – 23.11.2026
 
 - RI-Dokumentabruf: Nach einem Verbindungsfehler bei HEAD direkt herunterladen. Scheitert die Downloadverbindung, die übrigen Dokumente und Sitzungen weiter verarbeiten.
@@ -15,6 +27,14 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 - RI-Dokumentabruf: gewöhnliche HTTP-Fehler wie 404 und 503 als unvollständige Downloads behandeln; weitere Dokumente und Sitzungen verarbeiten und das Manifest schreiben. Zugriffsfehler bleiben Abbruchgründe.
 
 ## Unveröffentlicht
+
+### Dokumentation – 27.11.2026
+
+- Manuelle RI-Aufbewahrung und Dokumentlöschung als Nutzerentscheidung festgehalten; automatische Bereinigung und weitere Fristenbewertung aus dem Vorhaben entfernt. Konkrete, noch nicht implementierte Lösungen für Kalenderstatus und verketteten Download-/Indexaufbau beschrieben.
+
+- Lokalen RI-Indexnachlauf für 8176 mit 14/14 verfügbaren Dokumenten abgeschlossen; fehlende Statusbehandlung für verschobene und abgesagte Kalendertermine anhand echter Hinweise und einer isolierten Gruppierungsprobe bestätigt.
+
+- RI-Hinweise zu 9516/8181 als verschobene Termine mit Weiterleitung auf `si0050.asp` eingegrenzt; für 8176 vollständigen Dateibestand und veralteten lokalen Index nachgewiesen. Aufgaben auf Statusbehandlung und Indexaktualisierung konkretisiert.
 
 ### Testdaten – 10.11.2026
 

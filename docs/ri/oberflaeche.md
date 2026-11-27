@@ -51,8 +51,21 @@ Der Download bietet die Option zum erneuten Herunterladen vorhandener Dokumente;
 die Builder bieten Aktualisierung bekannter Sitzungen beziehungsweise ausschließlich
 bekannter Sitzungen. Die genaue CLI-Semantik steht in der Datenablaufanleitung.
 
-Erst das Absenden eines Formulars startet einen Auftrag. Die Oberfläche öffnet
-danach dessen Detailseite und aktualisiert dort Status und Ausgabe automatisch.
+Erst das Absenden eines Formulars startet einen Auftrag. Seit 0.10.0 ist beim
+Download „Lokalen Index anschließend aktualisieren“ zunächst aktiviert. Der
+serverseitige Auftrag lädt dann zuerst die Unterlagen und baut anschließend ohne
+weitere Portal-Anmeldung den lokalen RI-Index auf. Wird die Option abgewählt,
+bleibt es beim bisherigen reinen Download.
+
+Die Oberfläche öffnet die Auftragsdetailseite und aktualisiert Status und Ausgabe
+automatisch. Bei einem kombinierten Auftrag zeigt sie zusätzlich Phase, Download-
+und Index-Exitcode. Beide Phasen belegen denselben RI-Auftragsslot; Seitenwechsel
+unterbrechen die Verkettung nicht. Nach Download-Exitcode 0 oder 2 folgt der lokale
+Build. Ein harter Download-Abbruch startet keinen Indexnachlauf; die Anzeige nennt
+„Nicht ausgeführt“. Ein Download mit Hinweisen bleibt auch nach erfolgreichem
+Indexaufbau ein Warnabschluss. Ein fehlgeschlagener Index ergibt einen Fehler;
+vorhandene Dateien bleiben erhalten. Über „Lokalen Index separat aktualisieren“
+lässt sich der lokale Aufbau ohne erneuten Download wiederholen.
 Alternativ kann der Status manuell aktualisiert werden. Das Schließen der Seite
 beendet den Hintergrundauftrag nicht. Der Webserver muss dafür weiterlaufen.
 Formulare behalten CSRF-Schutz und strikte Parameterprüfung.
@@ -64,12 +77,16 @@ den lokalen RI-Bestand im gleichen Listen- und Detailaufbau wie BI. Seit 0.9.1
 führt auch „RI öffnen“ auf der Startseite direkt zur Sitzung; die gemeinsamen
 Dashboard-Regeln stehen in der [Sitzungsübersicht](../oberflaeche/sitzungen.md). Voraussetzung
 ist ein aufgebauter lokaler RI-Index unter `data/ri/db/local_index.sqlite`;
-der Onlineindex allein genügt nicht. Nach einem Download unter **Datenbank
-aktualisieren** den lokalen Index aktualisieren, damit neue Dateien und TOPs erscheinen.
+der Onlineindex allein genügt nicht. Der zunächst aktivierte Indexnachlauf hält
+neue Dateien und TOPs nach einem Web-Download aktuell. Wurde er abgewählt oder ist
+er fehlgeschlagen, unter **Datenbank aktualisieren** den lokalen Index separat starten.
 
 Die Liste bietet Suche nach Sitzung, ID, Gremium oder Ort, Filter nach Gremium
 und Jahr sowie 20 Sitzungen pro Seite. Ein Klick auf die Sitzung öffnet Datum,
 Ort, Quellenstatus, Tagesordnung und die vollständige Dokumentliste.
+
+Geänderte Kalendertermine sind seit 0.10.0 gesondert gekennzeichnet; die gemeinsamen
+[Darstellungsregeln](../oberflaeche/sitzungen.md#geänderte-termine) gelten auch für RI.
 
 Die TOP-Nummer stammt aus dem Portal: `Ö` bedeutet öffentlich, `N` nicht öffentlich.
 Fehlt das Präfix, erscheint „nicht gekennzeichnet“. Diese Angabe betrifft den TOP.
@@ -140,8 +157,8 @@ Webauftrags keine zusätzlichen RI-Skripte manuell per CLI starten.
 ## Grenzen und Prüfung
 
 Die Webanbindung umfasst Skriptsteuerung, Datenbankstatus, Jobausgaben sowie
-Sitzungslisten, Sitzungsdetails und lokale PDF-Auslieferung. Bestandsbereinigung
-ist noch nicht angebunden. RI-Suche und Vektorindex sind für diese Ausbaustufe nicht vorgesehen;
+Sitzungslisten, Sitzungsdetails und lokale PDF-Auslieferung. RI-Dokumente werden
+[manuell verwaltet und gelöscht](datenablauf.md#aufbewahrung-und-manuelles-löschen). RI-Suche und Vektorindex sind für diese Ausbaustufe nicht vorgesehen;
 die entsprechenden alten Platzhalter starten keine Aufträge.
 
 ## Reale UI-Abnahme vom 22.11.2026
@@ -183,6 +200,63 @@ Die geöffneten RI-PDFs tragen private No-Store-Header. Die geprüfte RI-PDF-Ken
 und der RI-Downloadauftrag liefern über die entsprechenden BI-Endpunkte HTTP 404.
 Die Abnahme gilt für diese begrenzte UI-Stichprobe; Exportfunktionen,
 unbeaufsichtigter Betrieb und allgemeine Parser-Vollständigkeit sind damit nicht abgenommen.
+
+## Nachprüfung der Hinweise vom 27.11.2026
+
+Die gespeicherte Dezember-Kalenderseite nennt für 9516 (Feuerwehr und Ordnung)
+„verschoben auf den 12.01.2027“, für 8181 (Finanzen und Beteiligungen)
+„verschoben auf den 07.12.2026“. Der neue Dezembertermin ist als 9514 eingetragen.
+Eine neue Januar-Sitzungs-ID wurde bei dieser Prüfung nicht nachgewiesen.
+
+Ein gezielter authentifizierter Abruf der HTML-Metadaten bestätigt: 9516 und 8181
+antworten jeweils mit HTTP 302 auf `/ri/si0050.asp` mit derselben Sitzungs-ID.
+`checked_metadata_url()` erlaubt derzeit nur Kalender und `si0057.asp`-Details;
+daher wird diese alternative Terminansicht als `RiPageUnavailable` ausgelassen.
+9514 antwortet dagegen mit HTTP 200, datierter Überschrift und erkannter Tagesordnung.
+Die Warnungen sind bei diesen beiden alten Terminen somit durch Verschiebung und
+die nicht unterstützte Terminansicht erklärbar, nicht durch einen lokalen Indexfehler.
+Kalenderhinweise werden bisher noch nicht als eigener Verschiebungsstatus erfasst;
+der gemeinsame Kalenderparser ordnet den ersten Hinweistext dem Uhrzeitfeld zu.
+
+Bei 8176 enthält das am 27.11.2026 erneuerte Manifest 14 vorhandene, nicht leere
+Dateien mit korrekten SHA-1-Prüfsummen. Auch die langen Pfade lassen sich unter
+Windows normal öffnen; ein aktuelles Pfadlängenproblem wurde nicht reproduziert.
+Der reguläre RI-Index enthält weiterhin 11 Dokumente. Darin fehlen die inzwischen
+vorhandenen Dokument-IDs 146339, 146340 und 146087. Alle elf indexierten Pfade sind
+vorhanden. Ein Probeimport mit den unveränderten Builderfunktionen in eine reine
+Arbeitsspeicher-Datenbank übernimmt alle 14 Einträge ohne Warnung.
+
+Für 8176 ist deshalb aktuell ein erneuter **lokaler Indexaufbau** erforderlich,
+kein weiterer Dokumentdownload. Die genaue damalige Ursache der drei Warnungen
+vom 22.11. lässt sich aus deren allgemeinen Logmeldungen nicht mehr eindeutig
+rekonstruieren; die heutigen Befunde ersetzen keinen historischen Dateischnappschuss.
+Bei der Nachprüfung wurden keine regulären Indizes oder Rohdateien verändert und
+keine PDFs heruntergeladen. Diagnoseergebnisse liegen lokal unter `data/ri/diagnostics/`.
+
+## Indexnachlauf und Kalenderstatusprüfung vom 27.11.2026
+
+Nach ausdrücklichem Nutzerauftrag wurde der reguläre lokale RI-Index für **8176**
+aktualisiert. Vorher wurde die Datenbank lokal gesichert. Die bestehenden
+Builderfunktionen wurden auf diese einzelne Sitzung begrenzt ausgeführt; danach
+wurden die Tabellenzeilen aller anderen Sitzungen und die Rohmetadaten mit dem
+vorherigen Stand verglichen und als unverändert bestätigt. Ergebnis: 12 TOP-Einträge,
+**14 Dokumente im Index, 14 Dateien verfügbar, 0 fehlend**. Die drei Dokument-IDs
+146339, 146340 und 146087 sind jetzt enthalten. Auch der RI-Sitzungsservice meldet
+diesen vollständigen Quellenstatus. Ein zusätzlicher Download war nicht nötig.
+Sicherung und Ergebnis liegen lokal unter `data/ri/diagnostics/`.
+
+Anschließend wurde die Kalender-Statusbehandlung anhand der gespeicherten echten
+November-/Dezemberkalender geprüft. Zusätzlich zu 9516/8181 enthalten diese die
+Absagen 7168 („findet nicht statt“) und 7169 („abgesagt“). Der Parser schreibt die
+Hinweise in `start_time` und behält das ursprüngliche Datum. Sitzungsmodell und
+RI-Indizes besitzen dafür keine eigenen Status-/Ersatzterminfelder. Ein isolierter
+Probelauf mit den tatsächlich geparsten Einträgen bestätigt: Die Dashboard-Gruppierung
+sortiert sie allein nach Datum weiter als normale Termine ein; das Template würde
+den Hinweis in der Uhrzeitspalte ausgeben. Die betroffenen IDs waren im regulären
+Dashboard-Datenbestand dieser Prüfung nicht enthalten; die Gruppierungsprobe
+ist daher ausdrücklich keine Behauptung über aktuell sichtbare Zeilen.
+Zum Zeitpunkt dieser Prüfung war die Kalender-Statusbehandlung noch nicht umgesetzt.
+Sie ist seit 0.10.0 verfügbar; die damalige Prüfung selbst änderte keine Anwendungslogik.
 
 Gezielte Offline-Tests stehen in der [Testdokumentation](../entwicklung/tests.md).
 Sie prüfen den lokalen Zugriff ohne Anmeldung, die Formulare und simulierte

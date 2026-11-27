@@ -41,6 +41,11 @@ class SessionReference:
     agenda_url: Optional[str] = None
     documents_url: Optional[str] = None
     location: Optional[str] = None
+    calendar_observed_at: Optional[str] = None
+    calendar_status: str = "scheduled"
+    calendar_note: Optional[str] = None
+    rescheduled_date: Optional[date] = None
+    replacement_session_id: Optional[str] = None
 
 
 @dataclass(slots=True)

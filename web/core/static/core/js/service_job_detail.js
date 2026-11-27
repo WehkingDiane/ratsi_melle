@@ -31,6 +31,9 @@
       setText('job-exit-code', job.exit_code ?? '–');
       setText('job-started-at', job.started_at || '–');
       setText('job-finished-at', job.finished_at || '–');
+      setText('job-phase', job.phase_label || 'Auftrag');
+      setText('job-download-exit', job.download_exit_code ?? '–');
+      setText('job-index-exit', job.index_result_label || '–');
       setText('job-output', job.output || 'Noch keine Ausgabe.');
       if (node('job-running-banner')) node('job-running-banner').hidden = !running;
       const completion = node('job-completion-message');

@@ -32,6 +32,7 @@ def _database(path, sessions, documents=()):
 def inventory_workspace(tmp_path, monkeypatch):
     from core.services import ri_sessions
     monkeypatch.setattr(ri_sessions, "list_sessions", lambda: [])
+    monkeypatch.setattr(ri_sessions, "list_calendar_sessions", lambda: [])
     from data_tools import services as data_services
     from analysis import services as analysis_services
     raw = tmp_path / 'raw'
@@ -346,3 +347,22 @@ def test_dashboard_keeps_bi_usable_when_ri_index_is_unreadable(inventory_workspa
     assert 'RI-Index nicht lesbar' in soup.text
     assert soup.select_one('.dashboard-session-table a')['href'] == '/analyse/sitzungen/1/'
     assert not soup.select('.dashboard-session-table a[href^="/ratsbereich/"]')
+
+
+def test_dashboard_shows_ri_calendar_changes_separately(inventory_workspace,monkeypatch):
+    from core import views
+    from core.services import ri_sessions
+    monkeypatch.setattr(views.timezone,'localdate',lambda:date(2026,11,27))
+    monkeypatch.setattr(views.analysis_services,'source_overview',lambda:{})
+    monkeypatch.setattr(views.analysis_services,'list_sessions',lambda:[])
+    monkeypatch.setattr(ri_sessions,'list_calendar_sessions',lambda:[
+        {'session_id':'9516','date':'2026-12-03','meeting_name':'Testtermin','start_time':'verschoben auf den 12.01.2027'},
+        {'session_id':'new','date':'2026-12-07','meeting_name':'Normaler Testtermin','start_time':'19:00 Uhr'}])
+    response=_client().get('/')
+    assert response.status_code==200
+    soup=BeautifulSoup(response.content,'html.parser')
+    changed=soup.select_one('[aria-labelledby=changed-heading]')
+    assert 'Verschoben' in changed.text
+    assert changed.select_one('tbody tr td:nth-of-type(3)').text.strip()=='–'
+    upcoming=soup.select_one('[aria-labelledby=upcoming-heading]')
+    assert 'Normaler Testtermin' in upcoming.text and 'Verschoben' not in upcoming.text

@@ -571,3 +571,113 @@ def test_shared_script_forms_keep_action_scope_and_accessible_unique_ids(client,
             assert action.startswith('ri_') == (area == 'ratsbereich')
             for label in form.select('label[for]'):
                 assert soup.find(id=label['for']) is not None
+
+
+@pytest.mark.parametrize('download_code,index_code,expected',[(0,0,'ok'),(2,0,'partial'),(1,None,'error'),(0,1,'error'),(2,1,'error')])
+def test_ri_download_index_pipeline_preserves_results_and_slot(ri_env,monkeypatch,download_code,index_code,expected):
+    calls=[]
+    class Thread:
+        def __init__(self,**kwargs):pass
+        def start(self):pass
+    monkeypatch.setattr(ri_env.threading,'Thread',Thread)
+    payload={'action':'ri_fetch','year':'2026','months':'12','update_local_index':'on'}
+    job_id=ri_env.start_job('ri_fetch',payload)
+    codes=[download_code]+([] if index_code is None else [index_code])
+    class Process:
+        pid=os.getpid()
+        def __init__(self,code):self.code=code;self.stdout=io.StringIO('test output\n')
+        def wait(self):return self.code
+        def poll(self):return self.code
+    def process(command,**kwargs):
+        calls.append(command)
+        if len(calls)==2:
+            assert ri_env.get_job(job_id)['phase']=='index'
+            with pytest.raises(ri_env.RiJobBusyError):ri_env.start_job('ri_local',{'action':'ri_local'})
+        return Process(codes[len(calls)-1])
+    monkeypatch.setattr(ri_env.subprocess,'Popen',process)
+    ri_env._run_job(job_id,[sys.executable,'scripts/fetch_ri_sessions.py','2026','--months','12'],True)
+    job=ri_env.get_job(job_id)
+    assert job['status']==expected
+    assert job['download_exit_code']==download_code
+    assert job['index_exit_code']==index_code
+    assert len(calls)==(1 if download_code==1 else 2)
+    if len(calls)==2:assert calls[1]==[sys.executable,'scripts/build_ri_local_index.py']
+    if download_code==1:
+        assert job['phase']=='download'
+        assert job['index_result_label']=='Nicht ausgeführt'
+
+
+def test_ri_index_option_defaults_on_and_can_be_unchecked(client,ri_env,monkeypatch):
+    from bs4 import BeautifulSoup
+    soup=BeautifulSoup(client.get('/ratsbereich/daten/fetch/').content,'html.parser')
+    assert soup.select_one('input[name=update_local_index]').has_attr('checked')
+    calls=[]
+    class Thread:
+        def __init__(self,**kwargs):calls.append(kwargs)
+        def start(self):pass
+    monkeypatch.setattr(ri_env.threading,'Thread',Thread)
+    client.post('/ratsbereich/daten/fetch/',{'action':'ri_fetch','year':'2026','months':'12'})
+    assert calls[0]['args'][2] is False
+
+
+def test_ri_pipeline_real_local_builder_closes_download_index_gap(ri_env,monkeypatch,tmp_path):
+    import json
+    import sqlite3
+    from scripts import build_ri_local_index as builder
+    root=tmp_path/'pipeline-ri';raw=root/'raw';folder=raw/'2026/11/2026-11-25-Testgremium-8176'
+    folder.mkdir(parents=True);output=root/'db/local_index.sqlite'
+    monkeypatch.setattr(builder,'RI_ROOT',root)
+    def seed(count):
+        documents=[]
+        for index in range(count):
+            (folder/f'{index}.pdf').write_bytes(b'%PDF-synthetic')
+            documents.append({'url':f'https://session.melle.info/ri/getfile.asp?id={index+1}&type=do','path':f'{index}.pdf','title':'Test','document_id':str(index+1)})
+        (folder/'manifest.json').write_text(json.dumps({'session':{'id':'8176','committee':'Testgremium'},'documents':documents}))
+        (folder/'agenda_summary.json').write_text(json.dumps({'agenda_items':[{'number':'Ö 1','title':'Test'}]}))
+    seed(11);builder.build_index(raw,output,False,False)
+    class Thread:
+        def __init__(self,**kwargs):pass
+        def start(self):pass
+    monkeypatch.setattr(ri_env.threading,'Thread',Thread)
+    job_id=ri_env.start_job('ri_fetch',{'action':'ri_fetch','year':'2026','months':'11','update_local_index':'on'})
+    class Process:
+        pid=os.getpid()
+        def __init__(self,command):
+            if command[1]=='scripts/fetch_ri_sessions.py':seed(14)
+            else:builder.build_index(raw,output,False,False)
+            self.stdout=io.StringIO('Synthetic phase complete\n')
+        def wait(self):return 0
+        def poll(self):return 0
+    monkeypatch.setattr(ri_env.subprocess,'Popen',lambda command,**kw:Process(command))
+    ri_env._run_job(job_id,[sys.executable,'scripts/fetch_ri_sessions.py','2026','--months','11'],True)
+    assert ri_env.get_job(job_id)['status']=='ok'
+    with sqlite3.connect(output) as db:
+        assert db.execute("SELECT COUNT(*) FROM documents WHERE session_id='8176'").fetchone()[0]==14
+
+
+def test_old_ri_job_database_upgrades_without_losing_history(ri_env,monkeypatch):
+    import sqlite3
+    ri_env.JOBS_DB.parent.mkdir(parents=True)
+    with sqlite3.connect(ri_env.JOBS_DB) as db:
+        db.execute('CREATE TABLE ri_jobs (job_id TEXT PRIMARY KEY, action TEXT NOT NULL,status TEXT NOT NULL,exit_code INTEGER,output TEXT NOT NULL DEFAULT \'\',created_at TEXT NOT NULL,started_at TEXT NOT NULL DEFAULT \'\',finished_at TEXT NOT NULL DEFAULT \'\',owner_pid INTEGER NOT NULL,child_pid INTEGER NOT NULL DEFAULT 0)')
+        db.execute("INSERT INTO ri_jobs (job_id,action,status,created_at,owner_pid) VALUES ('old','ri_local','ok','2026-11-01',?)",(os.getpid(),))
+    class Thread:
+        def __init__(self,**kwargs):pass
+        def start(self):pass
+    monkeypatch.setattr(ri_env.threading,'Thread',Thread)
+    ri_env.start_job('ri_local',{'action':'ri_local'})
+    assert ri_env.get_job('old')['status']=='ok'
+    assert not ri_env.get_job('old')['index_requested']
+
+
+def test_changed_ri_session_renders_calendar_notice(client,ri_catalogue):
+    import sqlite3
+    from src.indexing.calendar_metadata import ensure_calendar_columns
+    db,_=ri_catalogue
+    with sqlite3.connect(db) as connection:
+        ensure_calendar_columns(connection)
+        connection.execute("UPDATE sessions SET calendar_status='postponed',calendar_note='verschoben auf den 12.01.2027',rescheduled_date='2027-01-12'")
+    response=client.get('/ratsbereich/sitzungen/8179/')
+    assert response.status_code==200
+    assert 'Verschoben' in response.content.decode()
+    assert 'Ersatzdatum: 12.01.2027' in response.content.decode()

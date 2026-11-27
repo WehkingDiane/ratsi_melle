@@ -10,6 +10,7 @@ from typing import Any
 
 from src.fetching.storage_layout import resolve_local_file_path
 
+from src.fetching.calendar_status import display_calendar_metadata
 from . import paths
 from .db import first_row
 from .db import rows
@@ -23,13 +24,7 @@ def list_sessions() -> list[dict[str, Any]]:
         paths.LOCAL_INDEX_DB,
         """
         SELECT
-            s.session_id,
-            s.date,
-            s.committee,
-            s.meeting_name,
-            s.start_time,
-            s.location,
-            s.session_path,
+            s.*,
             COUNT(DISTINCT ai.id) AS agenda_count,
             COUNT(DISTINCT d.id) AS document_count
         FROM sessions s
@@ -48,7 +43,7 @@ def get_session(session_id: str) -> dict[str, Any] | None:
     session = first_row(
         paths.LOCAL_INDEX_DB,
         """
-        SELECT session_id, date, committee, meeting_name, start_time, location, detail_url, session_path
+        SELECT *
         FROM sessions
         WHERE session_id = ?
         """,
@@ -153,7 +148,7 @@ def _is_pdf_document(document: dict[str, Any], resolved: Path | None) -> bool:
 
 
 def _with_session_display_fields(session: dict[str, Any]) -> dict[str, Any]:
-    enriched = dict(session)
+    enriched = display_calendar_metadata(session)
     enriched["display_date"] = _format_german_date(str(enriched.get("date") or ""))
     raw_committee = str(enriched.get("committee") or "")
     meeting_name = str(enriched.get("meeting_name") or "").strip()

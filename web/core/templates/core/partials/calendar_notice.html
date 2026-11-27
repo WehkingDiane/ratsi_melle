@@ -1,0 +1,9 @@
+{% if session.calendar_changed %}
+<p class="status-warning"><strong>{{ session.calendar_status_label }}</strong>{% if session.calendar_note %}: {{ session.calendar_note }}{% endif %}</p>
+{% if session.rescheduled_display_date %}<p class="muted">Ersatzdatum: {{ session.rescheduled_display_date }}</p>{% endif %}
+{% endif %}
+{% if session.replacement_session_id %}
+<p class="muted">Neuer Termin: Sitzung {{ session.replacement_session_id }}
+{% if session.replacement_ri_available %}<a href="{% url 'ri:session_detail' session.replacement_session_id %}">RI öffnen</a>{% endif %}
+{% if session.replacement_bi_available %}<a href="{% url 'analysis:session_detail' session.replacement_session_id %}">BI öffnen</a>{% endif %}</p>
+{% endif %}

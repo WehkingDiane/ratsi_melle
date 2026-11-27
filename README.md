@@ -27,4 +27,4 @@ Der [Dokumentationswegweiser](docs/README.md) erschließt alle Fachbereiche.
 - [RI-Dokumente abrufen und lokal indexieren](docs/ri/datenablauf.md)
 - [Tests gezielt ausführen](docs/entwicklung/tests.md)
 
-[Ist-Stand](docs/ist_stand.md), [RI-Plan](docs/plans/ri_ratsbereich_plan.md), [aktuelle Aufgaben](docs/plans/project_tasks.md) und [Changelog](CHANGELOG.md) beschreiben Umfang und Entwicklung. Verbindliche Arbeitsregeln stehen in [AGENTS.md](AGENTS.md).
+[Ist-Stand](docs/ist_stand.md), [aktuelle Aufgaben](docs/plans/project_tasks.md) und [Changelog](CHANGELOG.md) beschreiben Umfang und Entwicklung. Verbindliche Arbeitsregeln stehen in [AGENTS.md](AGENTS.md).

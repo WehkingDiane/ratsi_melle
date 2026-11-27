@@ -16,6 +16,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:  # pragma: no branch - defensive
     sys.path.insert(0, str(REPO_ROOT))
 
+from src.indexing.calendar_metadata import ensure_calendar_columns, store_calendar_metadata
 from src.fetching import SessionNetClient  # noqa: E402  (import after sys.path manipulation)
 from src.data_layout import migrate_legacy_database_layout  # noqa: E402
 from src.paths import LOCAL_INDEX_DB, ONLINE_INDEX_DB  # noqa: E402
@@ -134,6 +135,7 @@ def _create_tables(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_docs_session ON documents(session_id);
         """
     )
+    ensure_calendar_columns(conn)
     _ensure_documents_columns(conn)
     _migrate_legacy_document_types(conn)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_docs_type ON documents(document_type);")
@@ -153,8 +155,8 @@ def _populate(
     doc_count = 0
     seen_sessions: set[str] = set()
     existing = {
-        row[0]: row[1]
-        for row in conn.execute("SELECT session_id, detail_url FROM sessions").fetchall()
+        row[0]: (row[1], row[2] or "scheduled")
+        for row in conn.execute("SELECT session_id, detail_url, calendar_status FROM sessions").fetchall()
         if row and row[0]
     }
 
@@ -168,18 +170,27 @@ def _populate(
         for reference_index, reference in enumerate(references, start=1):
             if reference.session_id in seen_sessions:
                 continue
+            previous = existing.get(reference.session_id)
+            # A detail URL alone does not mean details were indexed: changed
+            # calendar entries skip that fetch until they become scheduled again.
             refresh_session = refresh_existing or (
-                reference.session_id in existing
-                and not existing[reference.session_id]
-                and bool(reference.detail_url)
+                previous is not None
+                and (
+                    (not previous[0] and bool(reference.detail_url))
+                    or (previous[1] != "scheduled" and reference.calendar_status == "scheduled")
+                )
             )
             if reference.session_id in existing and not refresh_session:
+                conn.execute("UPDATE sessions SET date=?, year=?, month=?, start_time=?, location=? WHERE session_id=?",
+                             (reference.date.isoformat(), reference.date.year, reference.date.month,
+                              reference.start_time, reference.location, reference.session_id))
+                store_calendar_metadata(conn, reference.session_id, reference)
                 continue
             if reference.session_id not in existing and only_refresh:
                 continue
             seen_sessions.add(reference.session_id)
             logging.info("Build progress: %d/%d sessions in %04d-%02d; indexing %s", reference_index, len(references), year, month, reference.session_id)
-            detail = client.fetch_session(reference) if reference.detail_url else None
+            detail = client.fetch_session(reference) if reference.detail_url and reference.calendar_status == "scheduled" else None
 
             if reference.session_id in existing and refresh_session and detail is not None:
                 conn.execute("DELETE FROM agenda_items WHERE session_id = ?", (reference.session_id,))
@@ -204,6 +215,7 @@ def _populate(
                     None,
                 ),
             )
+            store_calendar_metadata(conn, reference.session_id, reference)
             session_count += 1
 
             if detail is not None:

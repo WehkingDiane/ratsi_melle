@@ -52,6 +52,24 @@ Fortsetzung mit nachfolgenden Sitzungen und erfolgreichem Wiederholungslauf. Int
 verwenden ausschließlich pytest-Temporärverzeichnisse. Der [RI-Datenablauf](../ri/datenablauf.md)
 ist der verbindliche Ort für Bedienung und Dateiverträge.
 
+## Kalenderstatus
+
+`tests/test_calendar_lifecycle.py` prüft anhand einer synthetischen Kalenderfixture
+Verschiebungen einschließlich Jahreswechsel, Absagen, explizite Ersatz-IDs,
+Alt-Daten, additive Statusspalten und die Erhaltung vorhandener Dokumente.
+Statusseiten ohne eindeutigen Änderungshinweis bleiben Fehler. Kalenderübernahme
+und Dashboard-Gruppierung verwenden ausschließlich temporäre Daten oder Mocks.
+Wiederholte Download-/Lokalsync-Läufe prüfen bestätigte Absagen/Verschiebungen,
+nicht auswertbare Detailseiten und die spätere Rückkehr regulärer Details. Dabei
+werden unveränderte und neu gespeicherte Monatsübersichten berücksichtigt.
+Ein verschwindender Detaillink mit weiterhin vorhandener Kalender-ID darf den
+bestätigten Status beim anschließenden lokalen Indexabgleich ebenfalls nicht löschen.
+Der BI-Onlinebuilder wird außerdem auf die Rückkehr abgesagter/verschobener
+Termine zu geplanten Sitzungen geprüft: Details werden ohne expliziten Refresh
+nachgeladen, auch nach vorübergehend fehlendem Link. Bestehende Unterlagen bleiben
+erhalten, wiederholte Builds erzeugen keine doppelten TOPs oder Dokumente.
+Die regulären Monatsparser- und Schemaparitätsprüfungen bleiben ergänzend relevant.
+
 ## RI-Web-Datenpflege und Sitzungsbereich
 
 Gezielte Prüfung des lokalen Direktzugriffs ohne Benutzerkonto mit temporären
@@ -65,6 +83,10 @@ Geprüft werden direkter Zugriff ohne Anmeldung, Weiterleitung alter Login-Links
 Formularparameter, erlaubte Skripte, eindeutige Formular-IDs, RI-eigene Jobablage,
 Parallelitätsschutz, Weiterleitung wiederholter Starts zum bestehenden Job,
 Freigabe nach einem Teilabschluss, bereichsgebundene Jobanzeige und Prozessstartfehler.
+Der kombinierte RI-Auftrag wird mit simulierten Prozessen für Download-Exitcode
+0/2/1, Indexfehler, durchgehenden Auftragsschutz und die Migration alter Jobtabellen
+geprüft. Ein Integrationstest ergänzt synthetische Dateien von 11 auf 14 und führt
+den echten lokalen Builder aus. Ein Indexnachlauf verwendet keine neue Anmeldung.
 Der Sitzungsbereich wird mit synthetischen Katalogen geprüft: Filter/Seitennavigation,
 getrennte TOP-/Dokumentkennzeichnung, Quellenstatus, lokale PDF-Auslieferung,
 falsche Sitzungszuordnung, Pfadausbruch einschließlich Symlinks und BI-Trennung.

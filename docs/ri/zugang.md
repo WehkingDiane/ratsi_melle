@@ -1,6 +1,6 @@
 # RI-Zugang einrichten und prüfen
 
-Unter Windows und Linux/WSL gilt derselbe Ablauf: Token in einer lokalen Textdatei hinterlegen und die Check-Skripte starten. Eine Speicherpasswort-Abfrage oder separate Eintragsbindung gibt es für diesen Ablauf nicht. Die Schritte laden keine RI-Unterlagen herunter. Die regulären Datenjobs beschreibt die [RI-CLI-Anleitung](datenablauf.md); weitere Arbeiten stehen im [RI-Plan](../plans/ri_ratsbereich_plan.md).
+Unter Windows und Linux/WSL gilt derselbe Ablauf: Token in einer lokalen Textdatei hinterlegen und die Check-Skripte starten. Eine Speicherpasswort-Abfrage oder separate Eintragsbindung gibt es für diesen Ablauf nicht. Die Schritte laden keine RI-Unterlagen herunter. Die regulären Datenjobs beschreibt die [RI-CLI-Anleitung](datenablauf.md); weitere Arbeiten stehen im [aktuellen RI-Aufgaben](../plans/project_tasks.md).
 
 ## Voraussetzungen
 

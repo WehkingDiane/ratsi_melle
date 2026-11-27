@@ -167,3 +167,67 @@ def test_login_logs_out_after_builder_failure(monkeypatch, capsys, credential_de
         with auth.login(): raise RuntimeError('Synthetic builder error')
     assert calls == ['post','ri_logout','proton_logout']
     assert 'private-' not in repr(capsys.readouterr())
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("status", ["cancelled", "postponed"])
+@pytest.mark.parametrize("has_existing_details", [False, True])
+def test_status_page_is_rechecked_until_details_become_available(db_paths, status, has_existing_details):
+    """A stale scheduled overview must not erase a confirmed detail-page change."""
+    from dataclasses import replace
+
+    output, _ = db_paths
+    client = FakeClient()
+    original = client.references[0]
+    # Real calendar fetches return fresh references; detail parsing mutates only that build.
+    client.fetch_month = lambda **kwargs: [replace(original)]
+    fetch_details = client.fetch_session
+    if has_existing_details:
+        builder.build_session_db(client, 2026, [11], output, False, False)
+
+    mode = status
+    requests = []
+
+    def detail_page(reference):
+        requests.append(mode)
+        if mode == "unavailable":
+            raise auth.RiPageUnavailable("Synthetic unavailable view")
+        if mode == "available":
+            return fetch_details(reference)
+        reference.calendar_status = status
+        reference.calendar_note = "abgesagt" if status == "cancelled" else "verschoben auf den 01.12.2026"
+        reference.rescheduled_date = date(2026, 12, 1) if status == "postponed" else None
+        raise auth.RiCalendarChanged({"calendar_status": status})
+
+    client.fetch_session = detail_page
+    for refresh in (has_existing_details, False):
+        builder.build_session_db(client, 2026, [11], output, refresh, False)
+        with sqlite3.connect(output) as db:
+            stored = db.execute("SELECT calendar_status, calendar_note, rescheduled_date FROM sessions").fetchone()
+            assert stored[0] == status
+            assert db.execute("SELECT count(*) FROM documents").fetchone()[0] == int(has_existing_details)
+    assert requests == [status, status]
+
+    mode = "unavailable"
+    builder.build_session_db(client, 2026, [11], output, False, False)
+    with sqlite3.connect(output) as db:
+        assert db.execute("SELECT calendar_status, calendar_note, rescheduled_date FROM sessions").fetchone() == stored
+        assert db.execute("SELECT count(*) FROM documents").fetchone()[0] == int(has_existing_details)
+
+    # Even an explicit refresh cannot confirm a change without a detail URL.
+    client.fetch_month = lambda **kwargs: [replace(original, detail_url="")]
+    for refresh in (False, True):
+        builder.build_session_db(client, 2026, [11], output, refresh, False)
+        with sqlite3.connect(output) as db:
+            assert db.execute("SELECT calendar_status, calendar_note, rescheduled_date FROM sessions").fetchone() == stored
+            assert db.execute("SELECT count(*) FROM documents").fetchone()[0] == int(has_existing_details)
+    client.fetch_month = lambda **kwargs: [replace(original)]
+
+    mode = "available"
+    for _ in range(2):
+        builder.build_session_db(client, 2026, [11], output, False, False)
+    assert requests == [status, status, "unavailable", "available"]
+    with sqlite3.connect(output) as db:
+        assert db.execute("SELECT calendar_status, calendar_note, rescheduled_date FROM sessions").fetchone() == ("scheduled", None, None)
+        assert db.execute("SELECT count(*) FROM agenda_items").fetchone()[0] == 1
+        assert db.execute("SELECT count(*) FROM documents").fetchone()[0] == 1
