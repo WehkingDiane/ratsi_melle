@@ -175,8 +175,8 @@ def _populate(
     doc_count = 0
     seen_sessions: set[str] = set()
     existing = {
-        row[0]: row[1]
-        for row in conn.execute("SELECT session_id, detail_url FROM sessions").fetchall()
+        row[0]: (row[1], row[2] or "scheduled")
+        for row in conn.execute("SELECT session_id, detail_url, calendar_status FROM sessions").fetchall()
         if row and row[0]
     }
 
@@ -190,9 +190,19 @@ def _populate(
         for reference_index, reference in enumerate(references, start=1):
             if reference.session_id in seen_sessions:
                 continue
+            previous = existing.get(reference.session_id)
+            # A scheduled overview cannot confirm that a detail-page cancellation
+            # has been lifted. Recheck that page even without --refresh-existing.
+            status_conflict = (
+                previous is not None
+                and previous[1] != "scheduled"
+                and reference.calendar_status == "scheduled"
+            )
+            if status_conflict and not reference.detail_url:
+                continue  # No detail page is available to confirm the status change.
             refresh_session = refresh_existing or (
-                reference.session_id in existing
-                and not existing[reference.session_id]
+                previous is not None
+                and (not previous[0] or status_conflict)
                 and bool(reference.detail_url)
             )
             if reference.session_id in existing and not refresh_session:
@@ -213,8 +223,9 @@ def _populate(
                 logging.warning("Sitzung %s: Detailansicht ungeprüft; nur Kalenderdaten übernehmen.", reference.session_id)
                 client.unavailable_details += 1
                 if reference.session_id in existing:
-                    store_calendar_metadata(conn, reference.session_id, reference)
-                    continue  # Keep a previously indexed detail unchanged.
+                    if not status_conflict:
+                        store_calendar_metadata(conn, reference.session_id, reference)
+                    continue  # Keep confirmed status and previously indexed details.
                 reference = replace(reference, detail_url="")
                 detail = None
 

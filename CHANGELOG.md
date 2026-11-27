@@ -4,6 +4,7 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 
 ## 0.10.0 – 27.11.2026
 
+- RI-Onlineindex: Bei Widerspruch zwischen geplantem Kalendertermin und gespeichertem Änderungsstatus die Detailseite erneut prüfen; bestätigte Absagen/Verschiebungen und vorhandene Unterlagen bei ungeprüfter Detailansicht erhalten.
 - Verschobene, abgesagte und unklare Kalendertermine getrennt von Uhrzeit und Ort erfassen; Originaldatum, Hinweis, Ersatzdatum und explizit belegte Ersatz-ID in BI-/RI-Indizes erhalten. Bestehende SQLite-Tabellen additiv erweitern.
 - Fehlende Uhrzeit und fehlenden Ort bei verschobenen oder abgesagten Terminen im Dashboard als „–“ anzeigen.
 - Geänderte Termine im Dashboard separat anzeigen und nicht auf die nächsten fünf regulären Termine anrechnen; RI-Onlinekalender einbeziehen und widersprüchliche Metadaten nach Beobachtungszeit zusammenführen.

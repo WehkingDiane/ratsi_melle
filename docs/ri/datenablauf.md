@@ -169,6 +169,13 @@ Sitzungsindizes gespeichert. Bestehende Tabellen erhalten zusätzliche Spalten;
 bestehende Dokumente und TOPs werden durch reine Statusänderungen nicht entfernt.
 Statuswerte sind `scheduled`, `postponed`, `cancelled` und `unknown`.
 
+Zeigt die RI-Monatsübersicht einen zuvor geänderten Termin wieder als geplant,
+prüft der Onlinebuilder die Detailseite auch ohne `--refresh-existing` erneut.
+Ein dort bestätigter Änderungsstatus bleibt erhalten, solange keine reguläre
+Detailansicht die Rückkehr bestätigt. Fehlt die Detail-URL oder ist die Seite nicht
+auswertbar, bleiben Status und vorhandene Unterlagen erhalten. Sobald reguläre
+Details verfügbar sind, werden sie beim normalen Build übernommen.
+
 Eine Ersatz-ID wird nur aus einem expliziten Verweis übernommen; übereinstimmende
 Gremiennamen und Datumsangaben erzeugen keine automatische Verbindung. Bekannte
 Varianten wie „abgesagt“, „findet nicht statt“ und „verschoben auf den …“ werden
