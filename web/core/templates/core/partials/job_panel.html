@@ -9,6 +9,14 @@
     <div><dt>Start</dt><dd id="job-started-at" class="datetime-value">{{ job.started_at|default:"–" }}</dd></div>
     <div><dt>Ende</dt><dd id="job-finished-at" class="datetime-value">{{ job.finished_at|default:"–" }}</dd></div>
   </dl>
+  {% if ri_job and job.index_requested %}
+  <dl class="facts inline">
+    <div><dt>Phase</dt><dd id="job-phase">{{ job.phase_label }}</dd></div>
+    <div><dt>Download-Exit-Code</dt><dd id="job-download-exit">{{ job.download_exit_code|default_if_none:"–" }}</dd></div>
+    <div><dt>Index-Exit-Code</dt><dd id="job-index-exit">{{ job.index_result_label }}</dd></div>
+  </dl>
+  <p><a href="{% url 'ri:build' %}">Lokalen Index separat aktualisieren</a></p>
+  {% endif %}
   <div class="running-banner" id="job-running-banner" role="status"{% if job.status != 'running' and job.status != 'queued' %} hidden{% endif %}>
     <span class="job-spinner" aria-hidden="true"></span>
     <span>Script wird ausgeführt. Die Logausgabe wird automatisch aktualisiert.</span>

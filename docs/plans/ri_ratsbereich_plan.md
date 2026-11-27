@@ -19,6 +19,7 @@ Teilpakete sind im [Changelog](../../CHANGELOG.md) dokumentiert.
 - [x] Ursachenprüfung für 9516/8181 und den aktuellen Bestand von 8176 abgeschlossen und vom Nutzer als erledigt bestätigt (27.11.2026).
 - [x] Lokalen Indexnachlauf für 8176 ausgeführt und 14/14 verfügbare Dokumente verifiziert (27.11.2026).
 - [x] Kalenderstatus und geänderte Termine in Parser, Indizes und UI umgesetzt (0.10.0).
+- [x] RI-Webdownload mit optionalem, zunächst aktiviertem lokalem Indexnachlauf und getrennten Phasenergebnissen umgesetzt (0.10.0).
 - [ ] Export-/Betriebsabnahme abschließen.
 
 RI-Volltext-/Vektorindexierung und RI-Suche bleiben für die erste Ausbaustufe
@@ -125,40 +126,36 @@ Backend betrifft Befehlsaufbau sowie Abruf-, Build- und Joblogik. Bereichsabhän
 Verhalten bleiben ausdrücklich erhalten. Die konkreten offenen Arbeiten stehen
 verbindlich in der [Aufgabenliste](project_tasks.md).
 
-## Lösungsvorschläge für Kalenderstatus und Indexnachlauf
+## Umgesetzter Kalenderstatus und Indexnachlauf
 
-Die Kalenderstatus-Lösung ist seit 0.10.0 umgesetzt. Die folgende Beschreibung
-hält den Datenvertrag und den vorgesehenen Indexnachlauf fest. Aufbewahrung und
+Kalenderstatus und Indexnachlauf sind seit 0.10.0 umgesetzt. Die folgende
+Beschreibung hält Datenvertrag, Ablauf und gezielte Prüfungen fest. Aufbewahrung und
 manuelle Dateilöschung werden davon nicht geändert.
 
 ### 1. Verschobene und abgesagte Termine
 
 Die umgesetzte Kalenderstatus-Verarbeitung umfasst:
 
-- `SessionReference` ist um Kalenderstatus (`scheduled`, `postponed`, `cancelled`, bei unklaren Hinweisen `unknown`), Originalhinweis und optionales Ersatzdatum ergänzt. Uhrzeit und Ort werden unabhängig aus den Kalenderhinweisen gelesen. Bekannte Varianten sind „verschoben auf den …“, „abgesagt“ und „findet nicht statt“.
-- Das bisherige Datum und die alte Sitzungs-ID erhalten. Ein Verschiebungsdatum wird separat gespeichert; eine neue Sitzungs-ID wird nur bei explizit belegter Verknüpfung übernommen. Gleicher Ausschuss und gleiches Datum allein reichen nicht für eine automatische Zuordnung.
-- Statusfelder durch Kalenderabruf, Rohmetadaten, BI-/RI-Onlineindizes, lokale Sitzungsindizes und die jeweilige Webansicht führen; additive Schemaanpassungen und den Umgang mit bestehenden Datensätzen vorsehen. RI-Kalenderdaten bleiben im RI-Bestand.
-- `si0050.asp` nur mit geprüftem Host, passender Sitzungs-ID und enger Parameterliste als lesende Statusansicht zulassen. Erkennbare Terminänderungen liefern einen Kalenderstatus, keine erfundene leere Tagesordnung. Login-, Berechtigungs- und unerwartete Antwortfehler bleiben Fehler.
-- In der Übersicht abgesagte/verschobene alte Termine kenntlich machen, etwa in einem gesonderten Abschnitt „Geänderte Termine“, und nicht gegen die nächsten fünf regulären Termine zählen. Ein nachgewiesener neuer Termin erscheint unter seiner eigenen ID. Den Originalhinweis anzeigen, wenn noch keine neue ID bekannt ist.
-- Kalenderdaten auch für Änderungen aktualisieren, wenn lokale Unterlagen vorhanden sind. Den RI-Onlinekalender bei der lokalen Übersicht berücksichtigen, ohne RI-Metadaten in öffentliche Suche oder Exporte zu übernehmen.
+Die gemeinsame Implementierung liegt in `src/fetching/calendar_status.py` und
+`src/indexing/calendar_metadata.py`. Der verbindliche Datenvertrag steht unter
+[Kalenderstatus](../ri/datenablauf.md#kalenderstatus), die Anzeige in der
+[Sitzungsübersicht](../oberflaeche/sitzungen.md#geänderte-termine).
 
-Eine reine Textkorrektur im Dashboard wäre nur eine Zwischenlösung: Sie würde weder
-Indexdaten noch den Abruf der alten Statusansichten korrigieren. Ein ersatzloses
-Ausblenden aller geänderten Termine würde die Verbindung zum neuen Termin verlieren.
-
-Gezielt geprüft sind: 9516 über den Jahreswechsel, 8181 mit Ersatzdatum und dem getrennten Datensatz 9514,
-7168/7169 als Absagen, unveränderte normale Termine, unbekannte Hinweise, fehlende
-Ersatz-ID und strikte BI-/RI-Datentrennung. Synthetische Fixtures aus den beobachteten
-Strukturen werden verwendet; geschützte Rohseiten bleiben außerhalb von Git.
+Die Prüfungen verwenden synthetische Kalender mit Jahreswechsel (9516), einem
+expliziten Ersatzverweis (8181/9514), Absagen (7168/7169), unbekannten Hinweisen
+und unveränderten regulären Terminen. Teilabsagen und verneinte Hinweise werden
+nicht als bestätigte Gesamtabsage behandelt. Fremde Ersatzlinks und Weiterleitungen
+auf andere Sitzungs-IDs werden nicht übernommen. Statusänderungen erhalten
+vorhandene Dokumente; neue Kalenderfelder ergänzen alte Datenbanken additiv.
 
 ### 2. Download mit lokalem Indexnachlauf
 
-Empfohlen ist ein serverseitiger RI-Webauftrag mit zwei festen Phasen:
+Der RI-Webauftrag führt zwei feste Phasen unter demselben Auftragsschutz aus:
 
 1. Das Downloadformular erhält „Lokalen Index anschließend aktualisieren“, standardmäßig aktiviert. Das Abschalten erhält den bisherigen reinen Download; der manuelle lokale Build bleibt verfügbar.
 2. Ein Auftrag reserviert den bestehenden RI-Slot bis zum Ende beider Phasen. Zuerst läuft das vorhandene Downloadskript, danach der vorhandene lokale Builder. Keine neue Online-Anmeldung für den lokalen Schritt und keine Vermischung mit BI-Jobs.
-3. Nach Download-Exitcode 0 oder 2 den inkrementellen lokalen Builder starten. Er erkennt neue/geänderte Metadaten und Dateien bereits über `source_state`; ein pauschales Neuerstellen aller unveränderten Sitzungen ist nicht nötig. Nach einem harten Download-Abbruch keinen automatischen Erfolg melden; den nicht ausgeführten Indexnachlauf explizit anzeigen.
-4. Phase, getrennte Exitcodes und phasenbezogene Ausgabe speichern/anzeigen. Download 0 + Index 0 ergibt Erfolg; Download 2 + Index 0 bleibt ein Warnabschluss; ein fehlgeschlagener Index ergibt einen Fehler mit dem Hinweis, dass heruntergeladene Dateien erhalten sind. Ein erfolgreicher Indexlauf hebt Download-/Abmeldewarnungen nicht auf.
+3. Nach Download-Exitcode 0 oder 2 startet der inkrementelle lokale Builder. Er erkennt neue/geänderte Metadaten und Dateien bereits über `source_state`; ein pauschales Neuerstellen aller unveränderten Sitzungen ist nicht nötig. Nach einem harten Download-Abbruch keinen automatischen Erfolg melden; den nicht ausgeführten Indexnachlauf explizit anzeigen.
+4. Phase, getrennte Exitcodes und phasenbezogene Ausgabe werden gespeichert und angezeigt. Download 0 + Index 0 ergibt Erfolg; Download 2 + Index 0 bleibt ein Warnabschluss; ein fehlgeschlagener Index ergibt einen Fehler mit dem Hinweis, dass heruntergeladene Dateien erhalten sind. Ein erfolgreicher Indexlauf hebt Download-/Abmeldewarnungen nicht auf.
 5. Bei einem Indexfehler den lokalen Aufbau separat wiederholen können, ohne erneut herunterzuladen. Nach Abschluss Sitzungsansicht und Datenstatus aus der aktuellen lokalen Datenbank lesen.
 
 Die Verkettung gehört in den Serverauftrag. Ein automatischer zweiter Browser-POST
@@ -166,7 +163,7 @@ wäre von der geöffneten Seite abhängig und könnte zwischen den Phasen mit ei
 anderen Auftrag konkurrieren. Ein Aktualisieren erst beim Öffnen der Sitzungsseite
 würde dagegen einen versteckten Schreibvorgang in einer Leseansicht erzeugen.
 
-Gezielte Prüfungen: Download 0/2/1, Indexfehler und gezielter Wiederholungslauf,
+Gezielt geprüft sind: Download 0/2/1, Indexfehler und separat möglicher Wiederholungslauf,
 Erhalt von Warnungen, Auftragsslot über beide Phasen und ein Fall wie 8176 mit neu
 vorhandenen Dateien. Die manuellen Löschregeln bleiben unverändert.
 

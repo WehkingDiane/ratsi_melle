@@ -173,3 +173,9 @@ def test_status_redirect_cannot_change_requested_session(monkeypatch):
         with pytest.raises(RiPageUnavailable):client._get('https://session.melle.info/ri/si0057.asp?__ksinr=8181')
         assert len(calls)==1
     finally:client.session.close()
+
+
+def test_rescheduled_date_uses_explicit_target_not_original_date():
+    from src.fetching.calendar_status import parse_calendar_notices
+    value=parse_calendar_notices(['Sitzung vom 03.12.2026 verschoben auf den 12.01.2027'])
+    assert value['rescheduled_date']==date(2027,1,12)

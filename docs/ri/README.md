@@ -4,7 +4,7 @@
 
 Seit 0.7.0 steht der im lokalen Testbereich erprobte RI-Datenablauf als reguläres
 CLI-Paket bereit. Der Bestand liegt getrennt unter `data/ri/` und wird nicht von
-öffentlichen Datenjobs eingelesen. Seit 0.8.0 lassen sich die Skripte außerdem über die lokale RI-Datenpflege starten. Seit 0.9.0 sind Sitzungsübersicht, TOPs und lokale PDFs im Ratsbereich verfügbar.
+öffentlichen Datenjobs eingelesen. Seit 0.8.0 lassen sich die Skripte außerdem über die lokale RI-Datenpflege starten. Seit 0.9.0 sind Sitzungsübersicht, TOPs und lokale PDFs im Ratsbereich verfügbar. Seit 0.10.0 kommen Kalenderstatus und ein optionaler automatischer lokaler Indexnachlauf nach Web-Downloads hinzu.
 
 - [Zugang einrichten und prüfen](zugang.md)
 - [Onlineindex, Dokumentabruf und lokalen Index bedienen](datenablauf.md)

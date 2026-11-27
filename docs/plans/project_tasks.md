@@ -18,7 +18,9 @@ am 27.11.2026 vom Nutzer als erledigt bestätigt. Die
 [Nachprüfung](../ri/oberflaeche.md#nachprüfung-der-hinweise-vom-27112026) dokumentiert
 die Ergebnisse. Der lokale Indexnachlauf für 8176 wurde danach am selben Tag
 ausgeführt und mit 14 vorhandenen Dokumenten verifiziert. Seit 0.10.0 werden
-Kalenderstatus und geänderte Termine durchgehend verarbeitet und angezeigt.
+Kalenderstatus und geänderte Termine durchgehend verarbeitet und angezeigt. Der
+RI-Webdownload bietet einen zunächst aktivierten lokalen Indexnachlauf im selben
+Auftrag; Downloadwarnungen bleiben dabei erhalten.
 
 RI bleibt ein lokaler Arbeitsbestand zur Sitzungsvorbereitung ohne Volltext-/Vektorindex.
 Der Nutzer hat am 27.11.2026 entschieden, Aufbewahrung und Dokumentlöschung selbst
@@ -38,5 +40,4 @@ Der Stand der RI-Webanbindung wird als erster funktionsfähiger Prototyp überno
 - [ ] Weitere geeignete Backendteile schrittweise in wiederverwendbare Funktionen, Module oder Skripte überführen und beide Bereiche darauf umstellen. Getrennte Daten-/Jobablagen, RI-Portalzugang und Öffentlichkeitskennzeichnung erhalten und mit gezielten Regressionstests absichern.
 - [ ] Dokumentartauswahl für die weitere Nutzung präzisieren; der aktuelle CLI-Abruf übernimmt verlinkte Sitzungs- und TOP-Dokumente einschließlich Einladungen. Umgang mit Sammelunterlagen, Anlagen und Dubletten entscheiden.
 - [ ] Betriebsmodell und Betriebssystem-Zugriffsrechte einschließlich Sicherung und Wiederherstellung für den regulären RI-Bestand abnehmen; zurückgestellte Neustart-/Ablauf- und Proton-Abmeldeprüfungen bei erweitertem Betrieb nachholen.
-- [ ] Download und lokalen RI-Indexaufbau als gemeinsamen Webauftrag verbinden: optionaler Indexnachlauf standardmäßig aktiviert, derselbe RI-Auftragsslot für beide Phasen, phasenbezogene Ausgabe und getrennte Fehlerbewertung. Bei Download-Exitcode 0 oder 2 lokal indexieren; ein Warnabschluss darf dadurch nicht als vollständig erfolgreich erscheinen. Den Indexaufbau separat erneut startbar lassen.
 - [ ] Verbleibende Export- und Betriebsabnahme durchführen; die RI-Abgrenzung vorhandener öffentlicher Exporte prüfen und bei späteren Exportfunktionen erneut absichern.

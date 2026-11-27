@@ -51,8 +51,21 @@ Der Download bietet die Option zum erneuten Herunterladen vorhandener Dokumente;
 die Builder bieten Aktualisierung bekannter Sitzungen beziehungsweise ausschließlich
 bekannter Sitzungen. Die genaue CLI-Semantik steht in der Datenablaufanleitung.
 
-Erst das Absenden eines Formulars startet einen Auftrag. Die Oberfläche öffnet
-danach dessen Detailseite und aktualisiert dort Status und Ausgabe automatisch.
+Erst das Absenden eines Formulars startet einen Auftrag. Seit 0.10.0 ist beim
+Download „Lokalen Index anschließend aktualisieren“ zunächst aktiviert. Der
+serverseitige Auftrag lädt dann zuerst die Unterlagen und baut anschließend ohne
+weitere Portal-Anmeldung den lokalen RI-Index auf. Wird die Option abgewählt,
+bleibt es beim bisherigen reinen Download.
+
+Die Oberfläche öffnet die Auftragsdetailseite und aktualisiert Status und Ausgabe
+automatisch. Bei einem kombinierten Auftrag zeigt sie zusätzlich Phase, Download-
+und Index-Exitcode. Beide Phasen belegen denselben RI-Auftragsslot; Seitenwechsel
+unterbrechen die Verkettung nicht. Nach Download-Exitcode 0 oder 2 folgt der lokale
+Build. Ein harter Download-Abbruch startet keinen Indexnachlauf; die Anzeige nennt
+„Nicht ausgeführt“. Ein Download mit Hinweisen bleibt auch nach erfolgreichem
+Indexaufbau ein Warnabschluss. Ein fehlgeschlagener Index ergibt einen Fehler;
+vorhandene Dateien bleiben erhalten. Über „Lokalen Index separat aktualisieren“
+lässt sich der lokale Aufbau ohne erneuten Download wiederholen.
 Alternativ kann der Status manuell aktualisiert werden. Das Schließen der Seite
 beendet den Hintergrundauftrag nicht. Der Webserver muss dafür weiterlaufen.
 Formulare behalten CSRF-Schutz und strikte Parameterprüfung.
@@ -64,12 +77,16 @@ den lokalen RI-Bestand im gleichen Listen- und Detailaufbau wie BI. Seit 0.9.1
 führt auch „RI öffnen“ auf der Startseite direkt zur Sitzung; die gemeinsamen
 Dashboard-Regeln stehen in der [Sitzungsübersicht](../oberflaeche/sitzungen.md). Voraussetzung
 ist ein aufgebauter lokaler RI-Index unter `data/ri/db/local_index.sqlite`;
-der Onlineindex allein genügt nicht. Nach einem Download unter **Datenbank
-aktualisieren** den lokalen Index aktualisieren, damit neue Dateien und TOPs erscheinen.
+der Onlineindex allein genügt nicht. Der zunächst aktivierte Indexnachlauf hält
+neue Dateien und TOPs nach einem Web-Download aktuell. Wurde er abgewählt oder ist
+er fehlgeschlagen, unter **Datenbank aktualisieren** den lokalen Index separat starten.
 
 Die Liste bietet Suche nach Sitzung, ID, Gremium oder Ort, Filter nach Gremium
 und Jahr sowie 20 Sitzungen pro Seite. Ein Klick auf die Sitzung öffnet Datum,
 Ort, Quellenstatus, Tagesordnung und die vollständige Dokumentliste.
+
+Geänderte Kalendertermine sind seit 0.10.0 gesondert gekennzeichnet; die gemeinsamen
+[Darstellungsregeln](../oberflaeche/sitzungen.md#geänderte-termine) gelten auch für RI.
 
 Die TOP-Nummer stammt aus dem Portal: `Ö` bedeutet öffentlich, `N` nicht öffentlich.
 Fehlt das Präfix, erscheint „nicht gekennzeichnet“. Diese Angabe betrifft den TOP.
@@ -238,8 +255,8 @@ sortiert sie allein nach Datum weiter als normale Termine ein; das Template wür
 den Hinweis in der Uhrzeitspalte ausgeben. Die betroffenen IDs waren im regulären
 Dashboard-Datenbestand dieser Prüfung nicht enthalten; die Gruppierungsprobe
 ist daher ausdrücklich keine Behauptung über aktuell sichtbare Zeilen.
-Die Erkennung und Anzeige verschobener/abgesagter Termine bleibt umzusetzen.
-Bei dieser Prüfung wurde keine Kalender-/Anwendungslogik geändert.
+Zum Zeitpunkt dieser Prüfung war die Kalender-Statusbehandlung noch nicht umgesetzt.
+Sie ist seit 0.10.0 verfügbar; die damalige Prüfung selbst änderte keine Anwendungslogik.
 
 Gezielte Offline-Tests stehen in der [Testdokumentation](../entwicklung/tests.md).
 Sie prüfen den lokalen Zugriff ohne Anmeldung, die Formulare und simulierte

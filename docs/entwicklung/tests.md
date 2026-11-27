@@ -74,6 +74,10 @@ Geprüft werden direkter Zugriff ohne Anmeldung, Weiterleitung alter Login-Links
 Formularparameter, erlaubte Skripte, eindeutige Formular-IDs, RI-eigene Jobablage,
 Parallelitätsschutz, Weiterleitung wiederholter Starts zum bestehenden Job,
 Freigabe nach einem Teilabschluss, bereichsgebundene Jobanzeige und Prozessstartfehler.
+Der kombinierte RI-Auftrag wird mit simulierten Prozessen für Download-Exitcode
+0/2/1, Indexfehler, durchgehenden Auftragsschutz und die Migration alter Jobtabellen
+geprüft. Ein Integrationstest ergänzt synthetische Dateien von 11 auf 14 und führt
+den echten lokalen Builder aus. Ein Indexnachlauf verwendet keine neue Anmeldung.
 Der Sitzungsbereich wird mit synthetischen Katalogen geprüft: Filter/Seitennavigation,
 getrennte TOP-/Dokumentkennzeichnung, Quellenstatus, lokale PDF-Auslieferung,
 falsche Sitzungszuordnung, Pfadausbruch einschließlich Symlinks und BI-Trennung.

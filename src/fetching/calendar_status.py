@@ -19,7 +19,7 @@ def parse_calendar_notices(details):
             'cancelled' if re.search(r'abgesagt|entfällt|faellt aus|fällt aus|findet nicht statt|ausgefallen', note, re.I) else 'unknown')
         if re.search(r'nicht\s+(?:abgesagt|verschoben|verlegt)|(?:öffentlicher|nichtöffentlicher)\s+Teil', note, re.I):
             status = 'unknown'
-        match = re.search(r'(?<!\d)(\d{1,2})\.(\d{1,2})\.(\d{4})(?!\d)', note)
+        match = re.search(r'\b(?:auf|zum)\s+(?:den\s+)?(\d{1,2})\.(\d{1,2})\.(\d{4})(?!\d)', note, re.I)
         if status == 'postponed' and match:
             try:
                 target = date(int(match[3]), int(match[2]), int(match[1]))
