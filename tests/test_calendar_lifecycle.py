@@ -179,3 +179,76 @@ def test_rescheduled_date_uses_explicit_target_not_original_date():
     from src.fetching.calendar_status import parse_calendar_notices
     value=parse_calendar_notices(['Sitzung vom 03.12.2026 verschoben auf den 12.01.2027'])
     assert value['rescheduled_date']==date(2027,1,12)
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("status", ["cancelled", "postponed"])
+@pytest.mark.parametrize("change_overview", [False, True])
+def test_repeated_download_retains_confirmed_status_until_details_return(monkeypatch, tmp_path, status, change_overview):
+    from datetime import datetime, timezone
+    from hashlib import sha256
+    from scripts import fetch_ri_sessions as fetch, build_ri_local_index as builder
+    from src.fetching.models import SessionDetail
+
+    raw = tmp_path / "raw"
+    month = raw / "2026/12"
+    month.mkdir(parents=True)
+    overview = month / "2026-12_overview.html"
+    html = """<table id="smc_page_si0040_contenttable1"><tr>
+        <td><span class="weekday">9</span></td>
+        <td class="silink"><div class="smc-el-h"><a class="smc-link-normal"
+        href="si0057.asp?__ksinr=8181">Testgremium</a></div>
+        <ul><li>19:00 Uhr</li><li>Testsaal</li></ul></td></tr></table>"""
+    client = fetch.RiFetchClient(storage_root=raw, persist_raw=True)
+    mode = status
+    requests = []
+    downloads = []
+
+    def fetch_month(**kwargs):
+        suffix = mode if change_overview else ""
+        overview.write_text(html + "<!--" + suffix + "-->", encoding="utf-8")
+        refs = client._parse_overview(html, 2026, 12)
+        for ref in refs:
+            ref.calendar_observed_at = "2026-11-27T14:00:00+00:00"
+        return refs
+
+    def fetch_detail(ref):
+        requests.append(mode)
+        if mode == "unavailable":
+            raise RiPageUnavailable("Synthetic unavailable view")
+        if mode == "available":
+            return SessionDetail(ref, [], datetime.now(timezone.utc), "<synthetic>")
+        ref.calendar_status = status
+        ref.calendar_note = "abgesagt" if status == "cancelled" else "verschoben auf den 12.01.2027"
+        ref.rescheduled_date = date(2027, 1, 12) if status == "postponed" else None
+        raise RiCalendarChanged({"calendar_status": status})
+
+    monkeypatch.setattr(client, "fetch_month", fetch_month)
+    monkeypatch.setattr(client, "fetch_session", fetch_detail)
+    monkeypatch.setattr(client, "download_documents", lambda detail, **kwargs: downloads.append(detail.reference.session_id))
+    try:
+        with sqlite3.connect(":memory:") as db:
+            builder._create_tables(db)
+            fetch.fetch_months(client, 2026, [12])
+            sync_saved_calendars(db, raw, client)
+            stored = db.execute("SELECT calendar_status,calendar_note,rescheduled_date,calendar_observed_at FROM sessions WHERE session_id='8181'").fetchone()
+            assert stored[0] == status
+
+            mode = "unavailable"
+            result = fetch.fetch_months(client, 2026, [12])
+            assert result.skipped_sessions == ["8181"]
+            payload = json.loads((month / "calendar_changes.json").read_text())
+            assert payload["source_sha256"] == sha256(overview.read_bytes()).hexdigest()
+            assert payload["sessions"]["8181"]["calendar_status"] == status
+            sync_saved_calendars(db, raw, client)
+            assert db.execute("SELECT calendar_status,calendar_note,rescheduled_date,calendar_observed_at FROM sessions WHERE session_id='8181'").fetchone() == stored
+            assert not downloads
+
+            mode = "available"
+            fetch.fetch_months(client, 2026, [12])
+            sync_saved_calendars(db, raw, client)
+            assert db.execute("SELECT calendar_status,calendar_note,rescheduled_date FROM sessions WHERE session_id='8181'").fetchone() == ("scheduled", None, None)
+            assert downloads == ["8181"]
+            assert requests == [status, "unavailable", "available"]
+    finally:
+        client.session.close()

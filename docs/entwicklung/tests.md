@@ -59,6 +59,9 @@ Verschiebungen einschließlich Jahreswechsel, Absagen, explizite Ersatz-IDs,
 Alt-Daten, additive Statusspalten und die Erhaltung vorhandener Dokumente.
 Statusseiten ohne eindeutigen Änderungshinweis bleiben Fehler. Kalenderübernahme
 und Dashboard-Gruppierung verwenden ausschließlich temporäre Daten oder Mocks.
+Wiederholte Download-/Lokalsync-Läufe prüfen bestätigte Absagen/Verschiebungen,
+nicht auswertbare Detailseiten und die spätere Rückkehr regulärer Details. Dabei
+werden unveränderte und neu gespeicherte Monatsübersichten berücksichtigt.
 Die regulären Monatsparser- und Schemaparitätsprüfungen bleiben ergänzend relevant.
 
 ## RI-Web-Datenpflege und Sitzungsbereich

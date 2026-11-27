@@ -189,6 +189,12 @@ keine neuen Sitzungen hinzu. Statusseiten-Ergebnisse eines RI-Downloads werden
 in `calendar_changes.json` neben dem betreffenden Monatskalender abgelegt und
 nur übernommen, wenn dessen SHA-256 noch zur gespeicherten Quelle passt. Diese
 Datei enthält Kalenderinformationen, keine Zugangsdaten oder Dokumentdateien.
+Der Download liest zuvor bestätigte Absagen/Verschiebungen vor dem erneuten
+Monatsabruf ein. Widerspricht die neue Übersicht, bleiben diese Bestätigungen im
+neuen Snapshot erhalten, bis eine erfolgreiche Detailprüfung sie aufhebt.
+Eine ungeprüfte Detailansicht löscht sie nicht. Der Snapshot wird atomar an die
+neu gespeicherte Monatsübersicht gebunden; die Detailprüfung bleibt möglich.
+Die Rückkehr zum regulären Termin hängt nicht vom Erfolg einzelner PDF-Downloads ab.
 
 Die [Sitzungsübersicht](../oberflaeche/sitzungen.md) beschreibt die Anzeige.
 Öffentliche Suche und Exporte bleiben auf ihren eigenen Bestand begrenzt;

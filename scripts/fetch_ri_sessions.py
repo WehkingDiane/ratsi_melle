@@ -150,7 +150,24 @@ class FetchResult:
     failed_documents: list[tuple[str, str]] = field(default_factory=list)
 
 
-def _save_calendar_changes(client, year, month, references):
+def _load_calendar_changes(client, year, month):
+    """Read prior confirmations before fetching overwrites the saved overview."""
+    root = getattr(client, 'storage_root', None)
+    if not getattr(client, 'persist_raw', False) or root is None:
+        return {}
+    folder = Path(root) / str(year) / f'{month:02d}'
+    overview = folder / f'{year}-{month:02d}_overview.html'
+    saved = folder / 'calendar_changes.json'
+    if not overview.is_file() or not saved.is_file():
+        return {}
+    payload = json.loads(saved.read_text(encoding='utf-8'))
+    if payload.get('source_sha256') != sha256(overview.read_bytes()).hexdigest():
+        return {}
+    return payload.get('sessions', {})
+
+
+def _save_calendar_changes(client, year, month, changes):
+    """Atomically bind the current status snapshot to the saved overview."""
     root = getattr(client, 'storage_root', None)
     if not getattr(client, 'persist_raw', False) or root is None:
         return
@@ -158,7 +175,7 @@ def _save_calendar_changes(client, year, month, references):
     overview = folder / f'{year}-{month:02d}_overview.html'
     if overview.is_file():
         payload = {'source_sha256': sha256(overview.read_bytes()).hexdigest(),
-                   'sessions': {r.session_id: calendar_metadata(r) for r in references}}
+                   'sessions': changes}
         target = folder / 'calendar_changes.json'
         temporary = target.with_suffix('.json.tmp')
         temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
@@ -172,9 +189,20 @@ def fetch_months(client, year, months, *, force_download=False):
     completed = 0
     for month_index, month in enumerate(months, start=1):
         logging.info('Fetching %04d month %02d (%d/%d)', year, month, month_index, len(months))
+        previous = _load_calendar_changes(client, year, month)
         references = client.fetch_month(year=year, month=month)
         logging.info('Found %d sessions for %04d-%02d', len(references), year, month)
-        _save_calendar_changes(client, year, month, references)
+        changes = {}
+        for reference in references:
+            current = calendar_metadata(reference)
+            prior = previous.get(reference.session_id, {})
+            if (prior.get('calendar_status') in {'postponed', 'cancelled'}
+                    and current['calendar_status'] not in {'postponed', 'cancelled'}):
+                current = calendar_metadata(prior)
+            changes[reference.session_id] = current
+        # Keep confirmations in the snapshot, not in the live references:
+        # an apparently scheduled entry must still reach its detail page.
+        _save_calendar_changes(client, year, month, changes)
         for session_index, reference in enumerate(references, start=1):
             logging.info('Fetching session %s (%d/%d in month)',
                          reference.session_id, session_index, len(references))
@@ -184,7 +212,8 @@ def fetch_months(client, year, months, *, force_download=False):
             try:
                 detail = client.fetch_session(reference)
             except RiCalendarChanged:
-                _save_calendar_changes(client, year, month, references)
+                changes[reference.session_id] = calendar_metadata(reference)
+                _save_calendar_changes(client, year, month, changes)
                 logging.info('Sitzung %s: bestätigte Terminänderung; keine Dokumente laden.', reference.session_id)
                 continue
             except RiPageUnavailable:
@@ -192,6 +221,10 @@ def fetch_months(client, year, months, *, force_download=False):
                 logging.warning('Sitzung %s: Detailansicht ungeprüft; übersprungen, keine Dokumente geladen.',
                                 reference.session_id)
                 continue
+            # A successful detail fetch confirms that the previous change is gone,
+            # regardless of whether the subsequent document downloads succeed.
+            changes[reference.session_id] = calendar_metadata(reference)
+            _save_calendar_changes(client, year, month, changes)
             failures = client.download_documents(detail, force_download=force_download) or []
             if failures:
                 identifiers = dict.fromkeys(document_id(doc.url) or 'unbekannt' for doc in failures)
