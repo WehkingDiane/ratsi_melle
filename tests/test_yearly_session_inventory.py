@@ -363,6 +363,6 @@ def test_dashboard_shows_ri_calendar_changes_separately(inventory_workspace,monk
     soup=BeautifulSoup(response.content,'html.parser')
     changed=soup.select_one('[aria-labelledby=changed-heading]')
     assert 'Verschoben' in changed.text
-    assert changed.select_one('tbody tr td:nth-of-type(3)').text.strip()=='Noch offen'
+    assert changed.select_one('tbody tr td:nth-of-type(3)').text.strip()=='–'
     upcoming=soup.select_one('[aria-labelledby=upcoming-heading]')
     assert 'Normaler Testtermin' in upcoming.text and 'Verschoben' not in upcoming.text
