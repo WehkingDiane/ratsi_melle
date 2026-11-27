@@ -17,7 +17,8 @@ Teilpakete sind im [Changelog](../../CHANGELOG.md) dokumentiert.
 - [x] Lokale Webformulare ohne Anmeldung für RI-Skripte, separate Jobablage und Jobausgaben umgesetzt (0.8.0).
 - [x] Lokale RI-Sitzungs-/Dateiansichten mit Pfadprüfung und Offline-Negativtests ergänzt (0.9.0).
 - [x] Echte UI-Kette für 8178/8179 einschließlich PDF und BI-Endpunkttrennung geprüft; Hinweise dokumentiert.
-- [ ] Export-/Betriebsabnahme, Behandlung verschobener Termine und lokalen Indexnachlauf abschließen; die Ursachenprüfung für 9516/8181 und den aktuellen Bestand von 8176 ist dokumentiert.
+- [x] Ursachenprüfung für 9516/8181 und den aktuellen Bestand von 8176 abgeschlossen und vom Nutzer als erledigt bestätigt (27.11.2026).
+- [ ] Export-/Betriebsabnahme, Behandlung verschobener Termine und lokalen Indexnachlauf abschließen.
 
 RI-Volltext-/Vektorindexierung und RI-Suche bleiben für die erste Ausbaustufe
 zurückgestellt. Der komplette Vorhaben-Branch ist mit dem CLI-Paket noch nicht fertig.
