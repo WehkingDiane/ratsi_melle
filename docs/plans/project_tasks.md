@@ -16,7 +16,9 @@ ergibt `nicht öffentlich`. Seit 0.8.0 steuert die [lokale Web-Datenpflege](../r
 Die Untersuchung der Hinweise zu 9516/8181 und 8176 ist abgeschlossen und wurde
 am 27.11.2026 vom Nutzer als erledigt bestätigt. Die
 [Nachprüfung](../ri/oberflaeche.md#nachprüfung-der-hinweise-vom-27112026) dokumentiert
-die Ergebnisse; Statusbehandlung und lokaler Indexnachlauf bleiben eigene Folgeaufgaben.
+die Ergebnisse. Der lokale Indexnachlauf für 8176 wurde danach am selben Tag
+ausgeführt und mit 14 vorhandenen Dokumenten verifiziert. Die Kalender-Statusbehandlung
+bleibt eine eigene Folgeaufgabe.
 
 Die weitere Richtung ist ein temporärer Arbeitsbestand zur Sitzungsvorbereitung
 ohne RI-Volltext-/Vektorindex. Ein Zeitfilter für heutige/künftige Sitzungen,
@@ -36,5 +38,4 @@ Der Stand der RI-Webanbindung wird als erster funktionsfähiger Prototyp überno
 - [ ] Kontrollierte RI-Bereinigung mit Vorschau und konsistentem Datenbankabgleich umsetzen; entfernte Sitzungen und Nebenartefakte berücksichtigen, BI-Dateien ausschließen.
 - [ ] Betriebsmodell und Betriebssystem-Zugriffsrechte einschließlich Sicherung und Wiederherstellung für den regulären RI-Bestand abnehmen; zurückgestellte Neustart-/Ablauf- und Proton-Abmeldeprüfungen bei erweitertem Betrieb nachholen.
 - [ ] Verschobene/abgesagte Termine als Kalenderstatus erfassen statt als Uhrzeittext; die alternative Terminansicht `si0050.asp` für 9516/8181 gezielt behandeln und alte/neue Terminzuordnung einschließlich Jahreswechsel prüfen. Den Ersatztermin für 9516 im Januar später erneut abgleichen.
-- [ ] Den lokalen RI-Index nach dem inzwischen vollständigen Download von 8176 aktualisieren und 14 indexierte Dokumente verifizieren; aktuell fehlen im Index noch 146339, 146340 und 146087, ein weiterer Dateidownload ist nach der Nachprüfung nicht erforderlich.
 - [ ] Verbleibende Export- und Betriebsabnahme durchführen; die RI-Abgrenzung vorhandener öffentlicher Exporte prüfen und bei späteren Exportfunktionen erneut absichern.

@@ -216,6 +216,31 @@ rekonstruieren; die heutigen Befunde ersetzen keinen historischen Dateischnappsc
 Bei der Nachprüfung wurden keine regulären Indizes oder Rohdateien verändert und
 keine PDFs heruntergeladen. Diagnoseergebnisse liegen lokal unter `data/ri/diagnostics/`.
 
+## Indexnachlauf und Kalenderstatusprüfung vom 27.11.2026
+
+Nach ausdrücklichem Nutzerauftrag wurde der reguläre lokale RI-Index für **8176**
+aktualisiert. Vorher wurde die Datenbank lokal gesichert. Die bestehenden
+Builderfunktionen wurden auf diese einzelne Sitzung begrenzt ausgeführt; danach
+wurden die Tabellenzeilen aller anderen Sitzungen und die Rohmetadaten mit dem
+vorherigen Stand verglichen und als unverändert bestätigt. Ergebnis: 12 TOP-Einträge,
+**14 Dokumente im Index, 14 Dateien verfügbar, 0 fehlend**. Die drei Dokument-IDs
+146339, 146340 und 146087 sind jetzt enthalten. Auch der RI-Sitzungsservice meldet
+diesen vollständigen Quellenstatus. Ein zusätzlicher Download war nicht nötig.
+Sicherung und Ergebnis liegen lokal unter `data/ri/diagnostics/`.
+
+Anschließend wurde die Kalender-Statusbehandlung anhand der gespeicherten echten
+November-/Dezemberkalender geprüft. Zusätzlich zu 9516/8181 enthalten diese die
+Absagen 7168 („findet nicht statt“) und 7169 („abgesagt“). Der Parser schreibt die
+Hinweise in `start_time` und behält das ursprüngliche Datum. Sitzungsmodell und
+RI-Indizes besitzen dafür keine eigenen Status-/Ersatzterminfelder. Ein isolierter
+Probelauf mit den tatsächlich geparsten Einträgen bestätigt: Die Dashboard-Gruppierung
+sortiert sie allein nach Datum weiter als normale Termine ein; das Template würde
+den Hinweis in der Uhrzeitspalte ausgeben. Die betroffenen IDs waren im regulären
+Dashboard-Datenbestand dieser Prüfung nicht enthalten; die Gruppierungsprobe
+ist daher ausdrücklich keine Behauptung über aktuell sichtbare Zeilen.
+Die Erkennung und Anzeige verschobener/abgesagter Termine bleibt umzusetzen.
+Bei dieser Prüfung wurde keine Kalender-/Anwendungslogik geändert.
+
 Gezielte Offline-Tests stehen in der [Testdokumentation](../entwicklung/tests.md).
 Sie prüfen den lokalen Zugriff ohne Anmeldung, die Formulare und simulierte
 Auftragsabläufe. Reale Portalprüfungen oder Downloads werden dabei nicht gestartet.

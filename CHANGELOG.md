@@ -18,6 +18,8 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 
 ### Dokumentation – 27.11.2026
 
+- Lokalen RI-Indexnachlauf für 8176 mit 14/14 verfügbaren Dokumenten abgeschlossen; fehlende Statusbehandlung für verschobene und abgesagte Kalendertermine anhand echter Hinweise und einer isolierten Gruppierungsprobe bestätigt.
+
 - RI-Hinweise zu 9516/8181 als verschobene Termine mit Weiterleitung auf `si0050.asp` eingegrenzt; für 8176 vollständigen Dateibestand und veralteten lokalen Index nachgewiesen. Aufgaben auf Statusbehandlung und Indexaktualisierung konkretisiert.
 
 ### Testdaten – 10.11.2026
