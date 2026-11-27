@@ -4,7 +4,9 @@ Die Django-Oberfläche verwendet ein gemeinsames Desktop-Layout. Die Regeln
 gelten für Übersicht, Bürgerinformation, Ratsbereich, Landkreis, Analyse und
 Einstellungen. Die fachliche Reihenfolge bleibt: Überschrift, Hauptaufgabe,
 Ergebnisse und ergänzende Informationen. Das Dashboard bleibt eine durchgehende
-Spalte mit kommenden Sitzungen, vergangenen Sitzungen und anschließendem Status.
+Spalte mit kommenden Sitzungen, vergangenen Sitzungen, gegebenenfalls geänderten
+Terminen und anschließendem Datenstatus. Die Statusanzeige ist in der
+[Sitzungsübersicht](../oberflaeche/sitzungen.md#geänderte-termine) beschrieben.
 
 ## Arbeitsbereiche
 

@@ -56,6 +56,9 @@ def fetch_months(client: SessionNetClient, year: int, months: Iterable[int], *, 
         logging.info("Found %d sessions for %04d-%02d", len(references), year, month)
         for session_index, reference in enumerate(references, start=1):
             logging.info("Fetching session %s (%d/%d in month)", reference.session_id, session_index, len(references))
+            if getattr(reference, 'calendar_status', 'scheduled') in {'postponed', 'cancelled'}:
+                logging.info('Sitzung %s: Kalenderstatus %s; keine Dokumente abrufen.', reference.session_id, reference.calendar_status)
+                continue
             detail = client.fetch_session(reference)
             client.download_documents(detail, force_download=force_download)
             total_sessions += 1

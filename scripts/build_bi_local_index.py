@@ -21,6 +21,7 @@ if str(REPO_ROOT) not in sys.path:  # pragma: no branch - defensive
 
 from src.paths import LOCAL_INDEX_DB
 from src.data_layout import migrate_legacy_database_layout
+from src.indexing.calendar_metadata import ensure_calendar_columns, store_calendar_metadata, sync_saved_calendars
 from src.fetching.models import SessionDetail, SessionReference
 from src.fetching.sessionnet_client import SessionNetClient
 from scripts._logging_utils import configure_file_logging
@@ -166,6 +167,7 @@ def _create_tables(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_docs_session ON documents(session_id);
         """
     )
+    ensure_calendar_columns(conn)
     _ensure_documents_columns(conn)
     _migrate_legacy_document_types(conn)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_docs_type ON documents(document_type);")
@@ -263,6 +265,7 @@ def _populate(
                 str(session.path),
             ),
         )
+        store_calendar_metadata(conn, session.session_id, session_info)
         session_count += 1
 
         if agenda_items is not None:
@@ -271,6 +274,7 @@ def _populate(
         if documents is not None:
             doc_count += _insert_documents(conn, session.session_id, documents, retrieved_at)
 
+    sync_saved_calendars(conn, data_root, agenda_client, only_refresh=only_refresh)
     conn.commit()
     logging.info("Build complete: indexed_sessions=%d agenda_items=%d documents=%d", session_count, agenda_count, doc_count)
     print(

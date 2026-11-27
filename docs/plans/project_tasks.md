@@ -17,8 +17,8 @@ Die Untersuchung der Hinweise zu 9516/8181 und 8176 ist abgeschlossen und wurde
 am 27.11.2026 vom Nutzer als erledigt bestätigt. Die
 [Nachprüfung](../ri/oberflaeche.md#nachprüfung-der-hinweise-vom-27112026) dokumentiert
 die Ergebnisse. Der lokale Indexnachlauf für 8176 wurde danach am selben Tag
-ausgeführt und mit 14 vorhandenen Dokumenten verifiziert. Die Kalender-Statusbehandlung
-bleibt eine eigene Folgeaufgabe.
+ausgeführt und mit 14 vorhandenen Dokumenten verifiziert. Seit 0.10.0 werden
+Kalenderstatus und geänderte Termine durchgehend verarbeitet und angezeigt.
 
 RI bleibt ein lokaler Arbeitsbestand zur Sitzungsvorbereitung ohne Volltext-/Vektorindex.
 Der Nutzer hat am 27.11.2026 entschieden, Aufbewahrung und Dokumentlöschung selbst
@@ -38,6 +38,5 @@ Der Stand der RI-Webanbindung wird als erster funktionsfähiger Prototyp überno
 - [ ] Weitere geeignete Backendteile schrittweise in wiederverwendbare Funktionen, Module oder Skripte überführen und beide Bereiche darauf umstellen. Getrennte Daten-/Jobablagen, RI-Portalzugang und Öffentlichkeitskennzeichnung erhalten und mit gezielten Regressionstests absichern.
 - [ ] Dokumentartauswahl für die weitere Nutzung präzisieren; der aktuelle CLI-Abruf übernimmt verlinkte Sitzungs- und TOP-Dokumente einschließlich Einladungen. Umgang mit Sammelunterlagen, Anlagen und Dubletten entscheiden.
 - [ ] Betriebsmodell und Betriebssystem-Zugriffsrechte einschließlich Sicherung und Wiederherstellung für den regulären RI-Bestand abnehmen; zurückgestellte Neustart-/Ablauf- und Proton-Abmeldeprüfungen bei erweitertem Betrieb nachholen.
-- [ ] Kalenderstatus, Originalhinweis und gegebenenfalls Ersatzdatum durch Parser, BI-/RI-Indizes und UI führen; die erlaubte Terminansicht `si0050.asp` eng begrenzt als Statusansicht behandeln. Verschobene/abgesagte Einträge in der Übersicht kennzeichnen und von regulären nächsten Terminen trennen; Zuordnung zu Ersatz-IDs nur bei belegter Verbindung übernehmen. Den Ersatztermin für 9516 im Januar später erneut abgleichen.
 - [ ] Download und lokalen RI-Indexaufbau als gemeinsamen Webauftrag verbinden: optionaler Indexnachlauf standardmäßig aktiviert, derselbe RI-Auftragsslot für beide Phasen, phasenbezogene Ausgabe und getrennte Fehlerbewertung. Bei Download-Exitcode 0 oder 2 lokal indexieren; ein Warnabschluss darf dadurch nicht als vollständig erfolgreich erscheinen. Den Indexaufbau separat erneut startbar lassen.
 - [ ] Verbleibende Export- und Betriebsabnahme durchführen; die RI-Abgrenzung vorhandener öffentlicher Exporte prüfen und bei späteren Exportfunktionen erneut absichern.

@@ -52,6 +52,15 @@ Fortsetzung mit nachfolgenden Sitzungen und erfolgreichem Wiederholungslauf. Int
 verwenden ausschließlich pytest-Temporärverzeichnisse. Der [RI-Datenablauf](../ri/datenablauf.md)
 ist der verbindliche Ort für Bedienung und Dateiverträge.
 
+## Kalenderstatus
+
+`tests/test_calendar_lifecycle.py` prüft anhand einer synthetischen Kalenderfixture
+Verschiebungen einschließlich Jahreswechsel, Absagen, explizite Ersatz-IDs,
+Alt-Daten, additive Statusspalten und die Erhaltung vorhandener Dokumente.
+Statusseiten ohne eindeutigen Änderungshinweis bleiben Fehler. Kalenderübernahme
+und Dashboard-Gruppierung verwenden ausschließlich temporäre Daten oder Mocks.
+Die regulären Monatsparser- und Schemaparitätsprüfungen bleiben ergänzend relevant.
+
 ## RI-Web-Datenpflege und Sitzungsbereich
 
 Gezielte Prüfung des lokalen Direktzugriffs ohne Benutzerkonto mit temporären

@@ -11,7 +11,7 @@
           <time datetime="{{ session.calendar_date|date:'Y-m-d' }}">{{ session.calendar_date|date:"D, d.m.Y" }}</time>
           <span class="dashboard-relative{% if session.is_today %} dashboard-relative-today{% endif %}">{{ session.relative_date }}</span>
         </td>
-        <td class="dashboard-meeting">{{ session.meeting_name }}</td>
+        <td class="dashboard-meeting">{{ session.meeting_name }}{% include "core/partials/calendar_notice.html" %}</td>
         <td>{{ session.start_time|default:"Noch offen" }}</td>
         <td>{{ session.location|default:"Noch offen" }}</td>
         <td>

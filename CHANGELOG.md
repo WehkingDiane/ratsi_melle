@@ -2,6 +2,12 @@
 
 Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Historie und vorhandener Dokumentation zusammengefasst; sie bilden keine vollständige Liste aller Commits. Versionsdaten bezeichnen das Datum des zugehörigen Versionscommits, nicht einen gesondert belegten Veröffentlichungstermin. Commit-Kürzel ermöglichen die Prüfung mit `git show <kürzel>`. Der aktuelle Funktionsumfang steht im [Ist-Stand](docs/ist_stand.md).
 
+## 0.10.0 – 27.11.2026
+
+- Verschobene, abgesagte und unklare Kalendertermine getrennt von Uhrzeit und Ort erfassen; Originaldatum, Hinweis, Ersatzdatum und explizit belegte Ersatz-ID in BI-/RI-Indizes erhalten. Bestehende SQLite-Tabellen additiv erweitern.
+- Geänderte Termine im Dashboard separat anzeigen und nicht auf die nächsten fünf regulären Termine anrechnen; RI-Onlinekalender einbeziehen und widersprüchliche Metadaten nach Beobachtungszeit zusammenführen.
+- RI-Terminansichten `si0050.asp` eng begrenzt als Statusseiten behandeln; bekannte Terminänderungen ohne Dokumentabruf verarbeiten. Lokale Kalenderübernahme erhält bestehende Unterlagen und benötigt keine Portal-Anmeldung.
+
 ## 0.9.6 – 23.11.2026
 
 - RI-Dokumentabruf: Nach einem Verbindungsfehler bei HEAD direkt herunterladen. Scheitert die Downloadverbindung, die übrigen Dokumente und Sitzungen weiter verarbeiten.

@@ -20,6 +20,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:  # pragma: no branch - defensive
     sys.path.insert(0, str(REPO_ROOT))
 
+from src.indexing.calendar_metadata import ensure_calendar_columns, store_calendar_metadata, sync_saved_calendars
 from src.fetching.models import SessionDetail, SessionReference
 from src.fetching.sessionnet_client import SessionNetClient
 from src.fetching.ri_session import BASE_URL, RI_ROOT
@@ -175,6 +176,7 @@ def _create_tables(conn: sqlite3.Connection) -> None:
     )
     if "source_state" not in {row[1] for row in conn.execute("PRAGMA table_info(sessions)")}:
         conn.execute("ALTER TABLE sessions ADD COLUMN source_state TEXT")
+    ensure_calendar_columns(conn)
     _ensure_documents_columns(conn)
     _migrate_legacy_document_types(conn)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_docs_type ON documents(document_type);")
@@ -282,6 +284,7 @@ def _populate(
         )
         conn.execute("UPDATE sessions SET source_state = ? WHERE session_id = ?",
                      (source_state, session.session_id))
+        store_calendar_metadata(conn, session.session_id, session_info)
         session_count += 1
 
         if agenda_items is not None:
@@ -290,6 +293,7 @@ def _populate(
         if documents is not None:
             doc_count += _insert_documents(conn, session.session_id, documents, retrieved_at, session.path)
 
+    sync_saved_calendars(conn, data_root, agenda_client, only_refresh=only_refresh)
     conn.commit()
     logging.info("Build complete: indexed_sessions=%d agenda_items=%d documents=%d", session_count, agenda_count, doc_count)
     print(

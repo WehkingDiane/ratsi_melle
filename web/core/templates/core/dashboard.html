@@ -19,6 +19,12 @@
   {% include "core/partials/dashboard_sessions.html" with sessions=recent_sessions empty_message="Keine vergangenen Termine im bekannten Sitzungskalender." %}
 </section>
 
+{% if changed_sessions %}
+<section class="panel dashboard-section" aria-labelledby="changed-heading">
+  {% include "core/partials/panel_header.html" with heading="Geänderte Termine" heading_id="changed-heading" only %}
+  {% include "core/partials/dashboard_sessions.html" with sessions=changed_sessions %}
+</section>
+{% endif %}
 <section class="panel dashboard-section dashboard-summary" aria-labelledby="status-heading">
   {% url 'data_tools:service_status_detail' as status_url %}
   {% include "core/partials/panel_header.html" with heading="Datenstatus" heading_id="status-heading" link_url=status_url link_label="Bestand und Details ansehen" only %}

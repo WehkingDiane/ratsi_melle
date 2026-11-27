@@ -8,6 +8,7 @@ import re
 import sqlite3
 from urllib.parse import urlsplit
 
+from src.fetching.calendar_status import display_calendar_metadata, merge_calendar_rows
 from . import paths
 from .status import SESSION_DIR_MARKERS, SESSION_FILE_MARKERS
 
@@ -167,7 +168,7 @@ def yearly_session_inventory() -> dict:
 
 
 def dashboard_session_groups(local_sessions: list[dict], today: date, limit: int = 5,
-                             *, ri_sessions: list[dict] | None = None) -> dict:
+                             *, ri_sessions: list[dict] | None = None, ri_online_sessions: list[dict] | None = None) -> dict:
     """Split known calendar dates at today, preferring online dates over local copies."""
     warnings: list[str] = []
     online = _read_index(paths.ONLINE_INDEX_DB, "Online-Index", warnings)
@@ -178,15 +179,16 @@ def dashboard_session_groups(local_sessions: list[dict], today: date, limit: int
               for s in ri_sessions or []}
     for session in local_sessions:
         sid = str(session['session_id'])
-        merged[sid] = {**merged.get(sid, {}), **session}
+        merged[sid] = merge_calendar_rows(merged.get(sid, {}), session)
+    for session in ri_online_sessions or []:
+        sid = str(session['session_id'])
+        merged[sid] = merge_calendar_rows(merged.get(sid, {}), {k:v for k,v in session.items() if k != 'detail_url'})
     for session in online or []:
         sid = str(session['session_id'])
-        merged[sid] = {
-            **merged.get(sid, {}),
-            **{key: value for key, value in session.items() if value is not None and value != ''},
-        }
-    upcoming, recent = [], []
-    for session in merged.values():
+        merged[sid] = merge_calendar_rows(merged.get(sid, {}), session)
+    upcoming, recent, changed = [], [], []
+    for stored in merged.values():
+        session = display_calendar_metadata(stored)
         parsed = _session_date(session)
         if parsed is None:
             continue
@@ -195,6 +197,8 @@ def dashboard_session_groups(local_sessions: list[dict], today: date, limit: int
         session['display_date'] = parsed.strftime('%d.%m.%Y')
         session['local_present'] = str(session['session_id']) in local_ids
         session['ri_present'] = str(session['session_id']) in ri_ids
+        session['replacement_ri_available'] = str(session.get('replacement_session_id')) in ri_ids
+        session['replacement_bi_available'] = str(session.get('replacement_session_id')) in local_ids
         days = (parsed - today).days
         session['is_today'] = days == 0
         session['relative_date'] = (
@@ -207,10 +211,14 @@ def dashboard_session_groups(local_sessions: list[dict], today: date, limit: int
             session['public_url'] = url if parsed_url.scheme in {'http', 'https'} and parsed_url.netloc else ''
         except ValueError:
             session['public_url'] = ''
-        (upcoming if days >= 0 else recent).append(session)
+        if session['calendar_changed']:
+            changed.append(session)
+        else:
+            (upcoming if days >= 0 else recent).append(session)
     upcoming.sort(key=_dashboard_sort_key)
     recent.sort(key=_dashboard_sort_key, reverse=True)
-    return {'upcoming_sessions': upcoming[:limit], 'recent_sessions': recent[:limit],
+    changed.sort(key=_dashboard_sort_key, reverse=True)
+    return {'changed_sessions': changed[:20], 'upcoming_sessions': upcoming[:limit], 'recent_sessions': recent[:limit],
             'online_available': online is not None,
             'online_session_count': len(online) if online is not None else None,
             'upcoming_notice': 'Online-Index nicht verfügbar; angezeigt werden lokal bekannte Termine.' if online is None else ''}

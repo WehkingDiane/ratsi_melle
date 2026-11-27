@@ -17,8 +17,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:  # pragma: no branch - defensive
     sys.path.insert(0, str(REPO_ROOT))
 
+from src.indexing.calendar_metadata import ensure_calendar_columns, store_calendar_metadata
 from src.fetching import SessionNetClient  # noqa: E402  (import after sys.path manipulation)
-from src.fetching.ri_session import login, BASE_URL, RI_ROOT, RiPageUnavailable  # noqa: E402
+from src.fetching.ri_session import login, BASE_URL, RI_ROOT, RiCalendarChanged, RiPageUnavailable  # noqa: E402
 from src.config.ri_proton import RiAccessError  # noqa: E402
 
 ONLINE_INDEX_DB = RI_ROOT / "db" / "online_session_index.sqlite"
@@ -154,6 +155,7 @@ def _create_tables(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_docs_session ON documents(session_id);
         """
     )
+    ensure_calendar_columns(conn)
     _ensure_documents_columns(conn)
     _migrate_legacy_document_types(conn)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_docs_type ON documents(document_type);")
@@ -194,17 +196,24 @@ def _populate(
                 and bool(reference.detail_url)
             )
             if reference.session_id in existing and not refresh_session:
+                conn.execute("UPDATE sessions SET date=?, year=?, month=?, start_time=?, location=? WHERE session_id=?",
+                             (reference.date.isoformat(), reference.date.year, reference.date.month,
+                              reference.start_time, reference.location, reference.session_id))
+                store_calendar_metadata(conn, reference.session_id, reference)
                 continue
             if reference.session_id not in existing and only_refresh:
                 continue
             seen_sessions.add(reference.session_id)
             logging.info("Build progress: %d/%d sessions in %04d-%02d; indexing %s", reference_index, len(references), year, month, reference.session_id)
             try:
-                detail = client.fetch_session(reference) if reference.detail_url else None
+                detail = client.fetch_session(reference) if reference.detail_url and reference.calendar_status == "scheduled" else None
+            except RiCalendarChanged:
+                detail = None
             except RiPageUnavailable:
                 logging.warning("Sitzung %s: Detailansicht ungeprüft; nur Kalenderdaten übernehmen.", reference.session_id)
                 client.unavailable_details += 1
                 if reference.session_id in existing:
+                    store_calendar_metadata(conn, reference.session_id, reference)
                     continue  # Keep a previously indexed detail unchanged.
                 reference = replace(reference, detail_url="")
                 detail = None
@@ -232,6 +241,7 @@ def _populate(
                     None,
                 ),
             )
+            store_calendar_metadata(conn, reference.session_id, reference)
             session_count += 1
 
             if detail is not None:

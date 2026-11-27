@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass, field, replace
+from hashlib import sha256
+import json
 from datetime import datetime, timezone
 import logging
 from pathlib import Path
@@ -15,7 +17,9 @@ from requests import RequestException
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from src.fetching.ri_session import BASE_URL, RI_ROOT, RiOnlineClient, RiPageUnavailable, login
+from src.fetching.calendar_status import calendar_metadata
+
+from src.fetching.ri_session import BASE_URL, RI_ROOT, RiOnlineClient, RiCalendarChanged, RiPageUnavailable, login
 from src.config.ri import configure_file_logging
 from src.config.ri_proton import RiAccessError
 from src.fetching import FetchingError, SessionNetClient
@@ -146,6 +150,21 @@ class FetchResult:
     failed_documents: list[tuple[str, str]] = field(default_factory=list)
 
 
+def _save_calendar_changes(client, year, month, references):
+    root = getattr(client, 'storage_root', None)
+    if not getattr(client, 'persist_raw', False) or root is None:
+        return
+    folder = Path(root) / str(year) / f'{month:02d}'
+    overview = folder / f'{year}-{month:02d}_overview.html'
+    if overview.is_file():
+        payload = {'source_sha256': sha256(overview.read_bytes()).hexdigest(),
+                   'sessions': {r.session_id: calendar_metadata(r) for r in references}}
+        target = folder / 'calendar_changes.json'
+        temporary = target.with_suffix('.json.tmp')
+        temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
+        temporary.replace(target)
+
+
 def fetch_months(client, year, months, *, force_download=False):
     """Download available details and report unsupported views without losing progress."""
     months = tuple(months)
@@ -155,11 +174,19 @@ def fetch_months(client, year, months, *, force_download=False):
         logging.info('Fetching %04d month %02d (%d/%d)', year, month, month_index, len(months))
         references = client.fetch_month(year=year, month=month)
         logging.info('Found %d sessions for %04d-%02d', len(references), year, month)
+        _save_calendar_changes(client, year, month, references)
         for session_index, reference in enumerate(references, start=1):
             logging.info('Fetching session %s (%d/%d in month)',
                          reference.session_id, session_index, len(references))
+            if getattr(reference, 'calendar_status', 'scheduled') in {'postponed', 'cancelled'}:
+                logging.info('Sitzung %s: Kalenderstatus %s; keine Dokumente abrufen.', reference.session_id, reference.calendar_status)
+                continue
             try:
                 detail = client.fetch_session(reference)
+            except RiCalendarChanged:
+                _save_calendar_changes(client, year, month, references)
+                logging.info('Sitzung %s: bestätigte Terminänderung; keine Dokumente laden.', reference.session_id)
+                continue
             except RiPageUnavailable:
                 result.skipped_sessions.append(reference.session_id)
                 logging.warning('Sitzung %s: Detailansicht ungeprüft; übersprungen, keine Dokumente geladen.',

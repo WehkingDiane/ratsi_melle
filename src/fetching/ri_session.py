@@ -15,10 +15,18 @@ from src.fetching import SessionNetClient
 from src.fetching.ri_login import RiLoginProbe, LOGIN, PROTECTED, login_payload
 
 from src.config.ri import BASE_URL, RI_ROOT
+from src.fetching.calendar_status import parse_calendar_notices
 
 
 class RiPageUnavailable(RiAccessError):
     """A detail view is unavailable; it must not be indexed as an empty detail."""
+
+
+class RiCalendarChanged(RiPageUnavailable):
+    """A validated status page describes a changed calendar entry."""
+    def __init__(self, metadata):
+        super().__init__('Kalendertermin wurde geändert.')
+        self.metadata = metadata
 
 
 def checked_metadata_url(url):
@@ -33,7 +41,7 @@ def checked_metadata_url(url):
     keys = [k for k, _ in values]
     if len(keys) != len(set(keys)):
         raise RiAccessError('Mehrdeutige RI-URL abgewiesen.')
-    if p.path == '/ri/si0057.asp' and set(keys) == {'__ksinr'} and dict(values)['__ksinr'].isdecimal():
+    if p.path in {'/ri/si0057.asp', '/ri/si0050.asp'} and set(keys) == {'__ksinr'} and dict(values)['__ksinr'].isdecimal():
         return url
     calendar_keys = {'month', 'year', '__cjahr', '__cmonat', '__cmandant', '__canz', '__cselect'}
     if p.path == '/ri/si0040.asp' and set(keys) == calendar_keys and all(v.isdecimal() for _, v in values):
@@ -43,6 +51,15 @@ def checked_metadata_url(url):
 
 class RiOnlineClient(SessionNetClient):
     """Use the unchanged SessionNet parser with a logged-in, bounded HTML transport."""
+
+    def fetch_session(self, reference):
+        """Keep validated calendar changes separate from document-bearing details."""
+        try:
+            return super().fetch_session(reference)
+        except RiCalendarChanged as error:
+            for key, value in error.metadata.items():
+                setattr(reference, key, value)
+            raise
 
     def _request(self, method, path, params=None, *, stream=False):
         if method.upper() != 'GET' or stream:
@@ -87,6 +104,14 @@ class RiOnlineClient(SessionNetClient):
             if match:
                 url = checked_metadata_url(urljoin(url, match.group(1).strip().strip('\"\'')))
                 continue
+            if urlsplit(url).path == '/ri/si0050.asp':
+                texts = sorted({tag.get_text(' ', strip=True) for tag in soup.select('td,li,p,h1,h2,h3,div')}, key=len)
+                for text in texts:
+                    metadata = parse_calendar_notices([text])
+                    if metadata['calendar_status'] in {'postponed', 'cancelled'}:
+                        metadata['calendar_note'] = metadata['calendar_note'][:500]
+                        raise RiCalendarChanged(metadata)
+                raise RiPageUnavailable('Terminansicht ohne eindeutigen Änderungsstatus.')
             if expected_id:
                 if not any(re.search(r'\b\d{2}\.\d{2}\.\d{4}\b', h.get_text()) for h in soup.select('h1,h2,h3')):
                     raise RiPageUnavailable('Keine erkannte RI-Sitzungsansicht; nicht als leere Sitzung speichern.')

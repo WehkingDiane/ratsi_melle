@@ -18,7 +18,8 @@ Teilpakete sind im [Changelog](../../CHANGELOG.md) dokumentiert.
 - [x] Echte UI-Kette für 8178/8179 einschließlich PDF und BI-Endpunkttrennung geprüft; Hinweise dokumentiert.
 - [x] Ursachenprüfung für 9516/8181 und den aktuellen Bestand von 8176 abgeschlossen und vom Nutzer als erledigt bestätigt (27.11.2026).
 - [x] Lokalen Indexnachlauf für 8176 ausgeführt und 14/14 verfügbare Dokumente verifiziert (27.11.2026).
-- [ ] Export-/Betriebsabnahme und Behandlung verschobener/abgesagter Termine abschließen.
+- [x] Kalenderstatus und geänderte Termine in Parser, Indizes und UI umgesetzt (0.10.0).
+- [ ] Export-/Betriebsabnahme abschließen.
 
 RI-Volltext-/Vektorindexierung und RI-Suche bleiben für die erste Ausbaustufe
 zurückgestellt. Der komplette Vorhaben-Branch ist mit dem CLI-Paket noch nicht fertig.
@@ -126,15 +127,15 @@ verbindlich in der [Aufgabenliste](project_tasks.md).
 
 ## Lösungsvorschläge für Kalenderstatus und Indexnachlauf
 
-Die folgenden Lösungen sind am 27.11.2026 anhand des aktuellen Codes ausgearbeitet;
-sie sind noch nicht implementiert. Aufbewahrung und manuelle Dateilöschung werden
-davon nicht geändert.
+Die Kalenderstatus-Lösung ist seit 0.10.0 umgesetzt. Die folgende Beschreibung
+hält den Datenvertrag und den vorgesehenen Indexnachlauf fest. Aufbewahrung und
+manuelle Dateilöschung werden davon nicht geändert.
 
 ### 1. Verschobene und abgesagte Termine
 
-Empfohlen ist eine durchgehende Statusinformation statt einer Korrektur nur im Template:
+Die umgesetzte Kalenderstatus-Verarbeitung umfasst:
 
-- `SessionReference` um Kalenderstatus (`scheduled`, `postponed`, `cancelled`, bei unklaren Hinweisen `unknown`), Originalhinweis und optionales Ersatzdatum ergänzen. Uhrzeit und Ort unabhängig aus den Kalenderhinweisen lesen. Bekannte Varianten sind „verschoben auf den …“, „abgesagt“ und „findet nicht statt“.
+- `SessionReference` ist um Kalenderstatus (`scheduled`, `postponed`, `cancelled`, bei unklaren Hinweisen `unknown`), Originalhinweis und optionales Ersatzdatum ergänzt. Uhrzeit und Ort werden unabhängig aus den Kalenderhinweisen gelesen. Bekannte Varianten sind „verschoben auf den …“, „abgesagt“ und „findet nicht statt“.
 - Das bisherige Datum und die alte Sitzungs-ID erhalten. Ein Verschiebungsdatum wird separat gespeichert; eine neue Sitzungs-ID wird nur bei explizit belegter Verknüpfung übernommen. Gleicher Ausschuss und gleiches Datum allein reichen nicht für eine automatische Zuordnung.
 - Statusfelder durch Kalenderabruf, Rohmetadaten, BI-/RI-Onlineindizes, lokale Sitzungsindizes und die jeweilige Webansicht führen; additive Schemaanpassungen und den Umgang mit bestehenden Datensätzen vorsehen. RI-Kalenderdaten bleiben im RI-Bestand.
 - `si0050.asp` nur mit geprüftem Host, passender Sitzungs-ID und enger Parameterliste als lesende Statusansicht zulassen. Erkennbare Terminänderungen liefern einen Kalenderstatus, keine erfundene leere Tagesordnung. Login-, Berechtigungs- und unerwartete Antwortfehler bleiben Fehler.
@@ -145,10 +146,10 @@ Eine reine Textkorrektur im Dashboard wäre nur eine Zwischenlösung: Sie würde
 Indexdaten noch den Abruf der alten Statusansichten korrigieren. Ein ersatzloses
 Ausblenden aller geänderten Termine würde die Verbindung zum neuen Termin verlieren.
 
-Gezielte Prüfungen: 9516 über den Jahreswechsel, 8181 mit Ersatzdatum und dem getrennten Datensatz 9514,
+Gezielt geprüft sind: 9516 über den Jahreswechsel, 8181 mit Ersatzdatum und dem getrennten Datensatz 9514,
 7168/7169 als Absagen, unveränderte normale Termine, unbekannte Hinweise, fehlende
 Ersatz-ID und strikte BI-/RI-Datentrennung. Synthetische Fixtures aus den beobachteten
-Strukturen verwenden; geschützte Rohseiten bleiben außerhalb von Git.
+Strukturen werden verwendet; geschützte Rohseiten bleiben außerhalb von Git.
 
 ### 2. Download mit lokalem Indexnachlauf
 

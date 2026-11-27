@@ -121,9 +121,11 @@ Alle drei Datenskripte unterstützen `--log-level`.
 
 ## Fehler und Grenzen
 
-Nicht unterstützte Sitzungsdetailansichten, etwa bei verschobenen Terminen, werden
-als ungeprüft protokolliert und übersprungen. Die übrigen Sitzungen werden weiter
-verarbeitet. Login-/Berechtigungsfehler führen zum Abbruch. Die 90-Sekunden-Frist für die
+Bekannte verschobene/abgesagte Termine werden als Kalenderstatus erfasst und ohne
+Dokumentabruf verarbeitet. Eine eng geprüfte `si0050.asp`-Terminansicht mit explizitem
+Änderungshinweis wird ebenfalls als Status erfasst. Nicht unterstützte oder unklare
+Detailansichten bleiben ungeprüft und werden übersprungen; die übrigen Sitzungen
+werden weiter verarbeitet. Login-/Berechtigungsfehler führen zum Abbruch. Die 90-Sekunden-Frist für die
 RI-Anmeldung beginnt erst, wenn die Zugangsdaten aus Proton vorliegen. Ein HTML-Loginformular
 wird nicht als Sitzung oder Dokument gespeichert. Dokumentziele sind auf HTTPS
 und `/ri/getfile.asp` auf `session.melle.info` begrenzt; unbekannte Ziele werden
@@ -156,6 +158,34 @@ Weitere Aufgaben stehen im [RI-Plan](../plans/ri_ratsbereich_plan.md). Eine RI-V
 oder Vektorindexierung ist nicht vorgesehen. Lokale Dateien und Sicherungen bleiben
 unter der Verantwortung des Benutzerkontos; eine getrennte Ablage allein ersetzt
 keine Betriebssystem-Zugriffsrechte.
+
+## Kalenderstatus
+
+Seit 0.10.0 trennen BI und RI den Kalenderstatus von Uhrzeit und Ort. Die
+Sitzungs-ID und das ursprüngliche Datum bleiben erhalten. Die Felder
+`calendar_status`, `calendar_note`, `rescheduled_date`, `replacement_session_id`
+und `calendar_observed_at` werden in Manifest-/Kalenderdaten und den jeweiligen
+Sitzungsindizes gespeichert. Bestehende Tabellen erhalten zusätzliche Spalten;
+bestehende Dokumente und TOPs werden durch reine Statusänderungen nicht entfernt.
+Statuswerte sind `scheduled`, `postponed`, `cancelled` und `unknown`.
+
+Eine Ersatz-ID wird nur aus einem expliziten Verweis übernommen; übereinstimmende
+Gremiennamen und Datumsangaben erzeugen keine automatische Verbindung. Bekannte
+Varianten wie „abgesagt“, „findet nicht statt“ und „verschoben auf den …“ werden
+verstanden. Bei unklaren Hinweisen bleibt der Originaltext sichtbar. Ein
+Ersatzdatum ohne neue ID ermöglicht noch keinen direkten Link zur neuen Sitzung.
+
+Der lokale Builder übernimmt Änderungen auch aus gespeicherten Monatskalendern.
+Er kann geänderte Kalendereinträge ohne Sitzungsordner als Metadaten aufnehmen;
+vorhandene Dokumenteinträge bleiben erhalten. `--only-refresh` fügt auch dabei
+keine neuen Sitzungen hinzu. Statusseiten-Ergebnisse eines RI-Downloads werden
+in `calendar_changes.json` neben dem betreffenden Monatskalender abgelegt und
+nur übernommen, wenn dessen SHA-256 noch zur gespeicherten Quelle passt. Diese
+Datei enthält Kalenderinformationen, keine Zugangsdaten oder Dokumentdateien.
+
+Die [Sitzungsübersicht](../oberflaeche/sitzungen.md) beschreibt die Anzeige.
+Öffentliche Suche und Exporte bleiben auf ihren eigenen Bestand begrenzt;
+der RI-Kalender wird nur für den lokalen gemeinsamen Überblick verwendet.
 
 ## Aufbewahrung und manuelles Löschen
 

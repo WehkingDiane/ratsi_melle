@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 import sqlite3
 
-from src.paths import REPO_ROOT, RI_LOCAL_INDEX_DB, RI_RAW_DATA_DIR
+from src.paths import REPO_ROOT, RI_LOCAL_INDEX_DB, RI_RAW_DATA_DIR, RI_ONLINE_INDEX_DB
 from .sessions import _with_session_display_fields
 
 
@@ -14,8 +14,8 @@ class RiCatalogueError(Exception):
     """The existing RI catalogue could not be read."""
 
 
-def _rows(query, params=()):
-    path = Path(RI_LOCAL_INDEX_DB)
+def _rows(query, params=(), *, db_path=None):
+    path = Path(db_path if db_path is not None else RI_LOCAL_INDEX_DB)
     if not path.is_file():
         return []
     try:
@@ -24,6 +24,11 @@ def _rows(query, params=()):
             return [dict(row) for row in connection.execute(query, params)]
     except (OSError, sqlite3.Error) as error:
         raise RiCatalogueError('RI-Index nicht lesbar. Bitte die lokale RI-Datenbank aktualisieren.') from error
+
+
+def list_calendar_sessions():
+    """Read the separate RI online calendar without accessing BI data."""
+    return _rows("SELECT * FROM sessions ORDER BY date DESC", db_path=RI_ONLINE_INDEX_DB)
 
 
 def list_sessions():

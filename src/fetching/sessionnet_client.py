@@ -22,6 +22,7 @@ from hashlib import sha1
 from bs4 import BeautifulSoup
 import requests
 
+from .calendar_status import parse_calendar_notices, calendar_metadata
 from .models import AgendaItem, DocumentReference, SessionDetail, SessionReference
 
 
@@ -82,6 +83,8 @@ class SessionNetClient:
             filename = self._build_month_filename(year, month)
             self._write_raw(filename, content)
         sessions = self._parse_overview(content, year, month, include_planned=include_planned)
+        for reference in sessions:
+            reference.calendar_observed_at = datetime.now(UTC).isoformat()
         LOGGER.info("Parsed %d session references", len(sessions))
         return sessions
 
@@ -340,8 +343,17 @@ class SessionNetClient:
                 continue
 
             details = [li.get_text(strip=True) for li in cell.select("ul li")]
-            start_time = details[0] if details else None
-            location = details[1] if len(details) > 1 else None
+            lifecycle = parse_calendar_notices(details)
+            if lifecycle['calendar_status'] == 'postponed':
+                for replacement in cell.select('ul li a[href]'):
+                    target = urlparse(self._absolute_url(replacement['href']))
+                    identifiers = parse_qs(target.query).get('__ksinr', [])
+                    if (target.hostname == urlparse(self.base_url).hostname and target.scheme == 'https'
+                            and target.path == urlparse(detail_url or '').path and len(identifiers) == 1
+                            and identifiers[0].isascii() and identifiers[0].isdigit()
+                            and identifiers[0] != session_id):
+                        lifecycle['replacement_session_id'] = identifiers[0]
+                        break
 
             sessions.append(
                 SessionReference(
@@ -349,11 +361,12 @@ class SessionNetClient:
                     meeting_name=title,
                     session_id=session_id,
                     date=session_date,
-                    start_time=start_time,
+                    start_time=lifecycle.pop("start_time"),
                     detail_url=detail_url,
                     agenda_url=None,
                     documents_url=None,
-                    location=location,
+                    location=lifecycle.pop("location"),
+                    **lifecycle,
                 )
             )
 
@@ -943,6 +956,7 @@ class SessionNetClient:
         manifest = {
             "session": {
                 "id": detail.reference.session_id,
+                **calendar_metadata(detail.reference),
                 "committee": detail.reference.committee,
                 "meeting_name": detail.reference.meeting_name,
                 "date": detail.reference.date.isoformat(),
@@ -964,6 +978,7 @@ class SessionNetClient:
         summary = {
             "session": {
                 "id": detail.reference.session_id,
+                **calendar_metadata(detail.reference),
                 "committee": detail.reference.committee,
                 "meeting_name": detail.reference.meeting_name,
                 "date": detail.reference.date.isoformat(),
