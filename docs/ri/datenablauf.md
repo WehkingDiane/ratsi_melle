@@ -61,8 +61,8 @@ Onlineindex und Download schließen frühere Sitzungsmonate vor der Anmeldung au
 Ohne `--months` werden alle zugänglichen Monate des Jahres gewählt; für 2026 sind
 das November und Dezember. Ohne verbleibenden Monat oder bei ungültiger
 Konfiguration bricht der Aufruf ab. Die Grenze betrifft Sitzungsmonate, nicht das
-Erstellungsdatum einzelner Unterlagen. Regeln für Nachlauf und automatische Löschung
-sind noch nicht implementiert.
+Erstellungsdatum einzelner Unterlagen. Die manuelle Verwaltung des Bestands ist
+unter [Aufbewahrung und manuelles Löschen](#aufbewahrung-und-manuelles-löschen) festgelegt.
 
 ## Dokument-ID und Öffentlichkeitskennzeichnung
 
@@ -149,12 +149,29 @@ und `1` bei Abbruch; fehlende oder unzulässige Dateien werden mit Warnung
 übersprungen. Teilstände können mit demselben Aufruf erneut verarbeitet werden.
 Die bekannte unbestätigte entfernte Proton-Abmeldung bleibt ein eigener Warnstatus.
 
-Die [lokale Web-Datenpflege](oberflaeche.md) steuert diese Skripte seit 0.8.0. Sitzungs- und Dateiansichten,
-Aufbewahrung und Bestandsbereinigung sowie ein Bedarfstest des Verwaltungsausschusses
-bleiben Teil des [RI-Plans](../plans/ri_ratsbereich_plan.md). Eine RI-Volltext- oder
-Vektorindexierung ist nicht vorgesehen. Lokale Dateien und Sicherungen bleiben
+Die [lokale Web-Datenpflege](oberflaeche.md) steuert diese Skripte seit 0.8.0;
+Sitzungs- und Dateiansichten sind ebenfalls angebunden. Die begrenzte reale
+[UI-Abnahme](oberflaeche.md#reale-ui-abnahme-vom-22112026) umfasst auch den Verwaltungsausschuss.
+Weitere Aufgaben stehen im [RI-Plan](../plans/ri_ratsbereich_plan.md). Eine RI-Volltext-
+oder Vektorindexierung ist nicht vorgesehen. Lokale Dateien und Sicherungen bleiben
 unter der Verantwortung des Benutzerkontos; eine getrennte Ablage allein ersetzt
 keine Betriebssystem-Zugriffsrechte.
+
+## Aufbewahrung und manuelles Löschen
+
+Festlegung des Nutzers vom 27.11.2026: Die bisherige RI-Datenhaltung bleibt bestehen.
+Der Nutzer entscheidet selbst über die Aufbewahrung und löscht Dokumente manuell.
+Eine automatische Bereinigung, automatische altersabhängige Löschung oder weitere
+Bewertung von Aufbewahrungs-/Löschfristen ist nicht vorgesehen. Diese Punkte sind
+keine offenen Ausbau- oder Abnahmekriterien. Die bestehende Abrufuntergrenze
+`earliest_month` wird dadurch nicht geändert.
+
+Dateilöschung und lokale Indexaktualisierung bleiben getrennte Vorgänge. Der
+vorhandene lokale Builder berücksichtigt fehlende Dateien in noch vorhandenen
+Sitzungsordnern beim nächsten Aufbau. Vollständig entfernte Sitzungsordner werden
+aktuell nicht automatisch aus der Datenbank entfernt. PDF-Links prüfen zusätzlich,
+ob die Datei noch vorhanden ist. Das beschreibt den bestehenden Stand; es wird
+keine neue Lösch- oder Bereinigungsfunktion eingeführt.
 
 ## Übernahme des bisherigen Testbestands
 

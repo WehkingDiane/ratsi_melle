@@ -140,8 +140,8 @@ Webauftrags keine zusätzlichen RI-Skripte manuell per CLI starten.
 ## Grenzen und Prüfung
 
 Die Webanbindung umfasst Skriptsteuerung, Datenbankstatus, Jobausgaben sowie
-Sitzungslisten, Sitzungsdetails und lokale PDF-Auslieferung. Bestandsbereinigung
-ist noch nicht angebunden. RI-Suche und Vektorindex sind für diese Ausbaustufe nicht vorgesehen;
+Sitzungslisten, Sitzungsdetails und lokale PDF-Auslieferung. RI-Dokumente werden
+[manuell verwaltet und gelöscht](datenablauf.md#aufbewahrung-und-manuelles-löschen). RI-Suche und Vektorindex sind für diese Ausbaustufe nicht vorgesehen;
 die entsprechenden alten Platzhalter starten keine Aufträge.
 
 ## Reale UI-Abnahme vom 22.11.2026

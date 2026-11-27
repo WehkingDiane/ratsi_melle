@@ -20,10 +20,13 @@ die Ergebnisse. Der lokale Indexnachlauf für 8176 wurde danach am selben Tag
 ausgeführt und mit 14 vorhandenen Dokumenten verifiziert. Die Kalender-Statusbehandlung
 bleibt eine eigene Folgeaufgabe.
 
-Die weitere Richtung ist ein temporärer Arbeitsbestand zur Sitzungsvorbereitung
-ohne RI-Volltext-/Vektorindex. Ein Zeitfilter für heutige/künftige Sitzungen,
-Nachlauf und Löschfristen sind noch offen. Die einzelne entfernte
-Proton-Abmeldewarnung bleibt sichtbar; unbeaufsichtigter Betrieb ist nicht abgenommen.
+RI bleibt ein lokaler Arbeitsbestand zur Sitzungsvorbereitung ohne Volltext-/Vektorindex.
+Der Nutzer hat am 27.11.2026 entschieden, Aufbewahrung und Dokumentlöschung selbst
+manuell zu verwalten. Eine automatische Bereinigung oder weitere Fristenbewertung
+ist nicht vorgesehen; die verbindliche Regel steht im
+[Datenablauf](../ri/datenablauf.md#aufbewahrung-und-manuelles-löschen).
+Die einzelne entfernte Proton-Abmeldewarnung bleibt sichtbar; unbeaufsichtigter
+Betrieb ist nicht abgenommen.
 
 Der Stand der RI-Webanbindung wird als erster funktionsfähiger Prototyp übernommen. Formularraster, Statuspanels und Jobausgabe sind gestalterisch an BI angeglichen. Seit 0.9.3 werden auch Formular-/Feldrenderer, Statuspanelrahmen sowie Auftragspanel und Live-Aktualisierung gemeinsam verwendet. Die verbleibende Vereinheitlichung betrifft das Backend. Die reguläre UI-Kette wurde am 22.11.2026 mit Verwaltungsausschuss 8178 und Betriebsausschuss 8179 real geprüft; Ergebnis und verbleibende Hinweise stehen in der [UI-Abnahme](../ri/oberflaeche.md#reale-ui-abnahme-vom-22112026).
 
@@ -34,8 +37,7 @@ Der Stand der RI-Webanbindung wird als erster funktionsfähiger Prototyp überno
 - [ ] BI und RI im Backend auf weitere fachlich identische Teile prüfen: Skripte, Befehlsaufbau, Abruf-/Build-Logik und Jobverwaltung. Gemeinsamkeiten und notwendige Bereichsunterschiede festhalten.
 - [ ] Weitere geeignete Backendteile schrittweise in wiederverwendbare Funktionen, Module oder Skripte überführen und beide Bereiche darauf umstellen. Getrennte Daten-/Jobablagen, RI-Portalzugang und Öffentlichkeitskennzeichnung erhalten und mit gezielten Regressionstests absichern.
 - [ ] Dokumentartauswahl für die weitere Nutzung präzisieren; der aktuelle CLI-Abruf übernimmt verlinkte Sitzungs- und TOP-Dokumente einschließlich Einladungen. Umgang mit Sammelunterlagen, Anlagen und Dubletten entscheiden.
-- [ ] Zeitgrenze für heutige/laufende, abgesagte und verschobene Sitzungen sowie Nachlauf, Aufbewahrung und Löschfristen verbindlich festlegen.
-- [ ] Kontrollierte RI-Bereinigung mit Vorschau und konsistentem Datenbankabgleich umsetzen; entfernte Sitzungen und Nebenartefakte berücksichtigen, BI-Dateien ausschließen.
 - [ ] Betriebsmodell und Betriebssystem-Zugriffsrechte einschließlich Sicherung und Wiederherstellung für den regulären RI-Bestand abnehmen; zurückgestellte Neustart-/Ablauf- und Proton-Abmeldeprüfungen bei erweitertem Betrieb nachholen.
-- [ ] Verschobene/abgesagte Termine als Kalenderstatus erfassen statt als Uhrzeittext; die alternative Terminansicht `si0050.asp` für 9516/8181 gezielt behandeln und alte/neue Terminzuordnung einschließlich Jahreswechsel prüfen. Den Ersatztermin für 9516 im Januar später erneut abgleichen.
+- [ ] Kalenderstatus, Originalhinweis und gegebenenfalls Ersatzdatum durch Parser, BI-/RI-Indizes und UI führen; die erlaubte Terminansicht `si0050.asp` eng begrenzt als Statusansicht behandeln. Verschobene/abgesagte Einträge in der Übersicht kennzeichnen und von regulären nächsten Terminen trennen; Zuordnung zu Ersatz-IDs nur bei belegter Verbindung übernehmen. Den Ersatztermin für 9516 im Januar später erneut abgleichen.
+- [ ] Download und lokalen RI-Indexaufbau als gemeinsamen Webauftrag verbinden: optionaler Indexnachlauf standardmäßig aktiviert, derselbe RI-Auftragsslot für beide Phasen, phasenbezogene Ausgabe und getrennte Fehlerbewertung. Bei Download-Exitcode 0 oder 2 lokal indexieren; ein Warnabschluss darf dadurch nicht als vollständig erfolgreich erscheinen. Den Indexaufbau separat erneut startbar lassen.
 - [ ] Verbleibende Export- und Betriebsabnahme durchführen; die RI-Abgrenzung vorhandener öffentlicher Exporte prüfen und bei späteren Exportfunktionen erneut absichern.

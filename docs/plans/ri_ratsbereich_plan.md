@@ -13,7 +13,6 @@ Teilpakete sind im [Changelog](../../CHANGELOG.md) dokumentiert.
 - [x] Getrennte RI-Datenwurzel `data/ri/`, Dokument-ID und Öffentlichkeitskennzeichnung sowie gezielte Offline-Tests umgesetzt.
 - [x] Verwaltungsausschuss 8178 anhand echter HTML-/Dokumentmetadaten und der UI-Kette geprüft (22.11.2026).
 - [ ] Feinere Dokumentartauswahl und weitere Betriebsverträge abnehmen.
-- [ ] Regeln für Sitzungszeitraum, Nachlauf und Aufbewahrung entscheiden; kontrollierte Bestandsbereinigung umsetzen.
 - [x] Lokale Webformulare ohne Anmeldung für RI-Skripte, separate Jobablage und Jobausgaben umgesetzt (0.8.0).
 - [x] Lokale RI-Sitzungs-/Dateiansichten mit Pfadprüfung und Offline-Negativtests ergänzt (0.9.0).
 - [x] Echte UI-Kette für 8178/8179 einschließlich PDF und BI-Endpunkttrennung geprüft; Hinweise dokumentiert.
@@ -27,27 +26,26 @@ zurückgestellt. Der komplette Vorhaben-Branch ist mit dem CLI-Paket noch nicht 
 ## Ziel und Grenzen
 
 BI bleibt der öffentliche Bestand. RI dient als separater lokaler Arbeitsbestand
-zur Sitzungsvorbereitung. Eine spätere automatische Beschränkung auf heutige und
-künftige Sitzungen ist noch keine implementierte Regel. Aktuell begrenzt die
-Konfiguration den frühesten Sitzungsmonat auf November 2026.
+zur Sitzungsvorbereitung. Aufbewahrung und Dokumentlöschung verwaltet der Nutzer
+manuell; automatische Altersgrenzen oder Bereinigung sind nicht vorgesehen.
+Verbindlich ist die [Festlegung zur manuellen Verwaltung](../ri/datenablauf.md#aufbewahrung-und-manuelles-löschen).
+Die bestehende Abrufkonfiguration begrenzt den frühesten Sitzungsmonat auf November 2026.
 
 RI-Dateien bleiben unabhängig von ihrer Öffentlichkeitskennzeichnung unter der
 RI-Wurzel. Weder Sitzungsschluss noch ein erfolgreicher BI-Abgleich verschieben
 Dateien oder Metadaten automatisch in öffentliche Indizes. Die Analysefunktionen
 sind nicht Teil dieser Ausbaustufe.
 
-### Bewertung und offene Regeln des temporären Arbeitsbestands
+### Festgelegter Umfang und Betrieb
 
-Vor regelmäßigem oder unbeaufsichtigtem Betrieb entscheiden:
+Die Aufbewahrungsentscheidung vom 27.11.2026 ist abgeschlossen. Weitere
+Fristenbewertung, automatische Bereinigung und zeitgesteuerte Dateilöschung
+gehören nicht zum Vorhaben. Die fachliche Erkennung verschobener/abgesagter
+Termine und ein verlässlicher Indexnachlauf bleiben unabhängig davon erforderlich.
 
-- **Sitzungszeitraum:** Heutige/laufende Sitzungen, Zeitzone `Europe/Berlin`, fehlende Uhrzeiten sowie abgesagte und verschobene Termine berücksichtigen.
-- **Nachlieferungen:** Nachlauf für spät veröffentlichte Anlagen oder Ergänzungen bestimmen; wiederholte Aktualisierung jüngerer Sitzungen berücksichtigen.
-- **Aufbewahrung:** Löschfristen einschließlich Dokumenten, Datenbanken, Vorschaudaten, Exporten und Sicherungen festlegen. Vor Bereinigung den Umfang als Vorschau anzeigen.
-- **RI-Zusätze:** Nicht davon ausgehen, dass alle RI-Dateien später im BI nachgeliefert werden. Bedarf und Aufbewahrung ausschließlich intern verfügbarer Unterlagen prüfen.
-- **Betrieb:** Einzelbenutzer-/Mehrbenutzerbetrieb, Dateirechte, Sicherung und Wiederherstellung abnehmen. Getrennte Ordner allein ersetzen keine Zugriffssperre.
-
-Nach einigen Monaten Nutzung kann längerfristige Aufbewahrung neu bewertet werden.
-Eine neue Volltext- oder Vektorsuche wäre gesondert zu entscheiden.
+Offen bleibt die Betriebsabnahme für Dateirechte, Sicherung/Wiederherstellung
+und erweiterten Betrieb. Eine neue Volltext- oder Vektorsuche wäre gesondert
+zu entscheiden. RI-Dateien werden weiterhin nicht automatisch nach BI übernommen.
 
 ## 1. Navigation und Skriptnamen
 
@@ -82,11 +80,10 @@ Die separate Onlinedatenbank enthält Portalmetadaten und ist kein Nachweis loka
 vorhandener Dateien. Der lokale Index beschreibt vorhandene, nicht leere Dateien.
 Pfade, Dateiverträge und Aktualisierung stehen in der [CLI-Anleitung](../ri/datenablauf.md).
 
-Für die spätere Bereinigung muss der Datenbankabgleich auch vollständig entfernte
-Sitzungsordner berücksichtigen; der jetzige lokale Build behandelt geänderte Metadaten
-und fehlende Dokumente innerhalb noch vorhandener Sitzungsordner. Eine automatische
-Bereinigung wird damit nicht vorweggenommen. Kennzeichnungen sind Metadaten und
-keine Erlaubnis zum Verschieben in BI.
+Der lokale Build behandelt geänderte Metadaten und fehlende Dokumente innerhalb
+noch vorhandener Sitzungsordner. Grenzen nach manuellen Löschungen stehen im
+[Datenablauf](../ri/datenablauf.md#aufbewahrung-und-manuelles-löschen).
+Kennzeichnungen sind Metadaten und keine Erlaubnis zum Verschieben in BI.
 
 ## 4. RI-Fetcher mit Anmeldung
 
@@ -127,13 +124,59 @@ Backend betrifft Befehlsaufbau sowie Abruf-, Build- und Joblogik. Bereichsabhän
 Verhalten bleiben ausdrücklich erhalten. Die konkreten offenen Arbeiten stehen
 verbindlich in der [Aufgabenliste](project_tasks.md).
 
+## Lösungsvorschläge für Kalenderstatus und Indexnachlauf
+
+Die folgenden Lösungen sind am 27.11.2026 anhand des aktuellen Codes ausgearbeitet;
+sie sind noch nicht implementiert. Aufbewahrung und manuelle Dateilöschung werden
+davon nicht geändert.
+
+### 1. Verschobene und abgesagte Termine
+
+Empfohlen ist eine durchgehende Statusinformation statt einer Korrektur nur im Template:
+
+- `SessionReference` um Kalenderstatus (`scheduled`, `postponed`, `cancelled`, bei unklaren Hinweisen `unknown`), Originalhinweis und optionales Ersatzdatum ergänzen. Uhrzeit und Ort unabhängig aus den Kalenderhinweisen lesen. Bekannte Varianten sind „verschoben auf den …“, „abgesagt“ und „findet nicht statt“.
+- Das bisherige Datum und die alte Sitzungs-ID erhalten. Ein Verschiebungsdatum wird separat gespeichert; eine neue Sitzungs-ID wird nur bei explizit belegter Verknüpfung übernommen. Gleicher Ausschuss und gleiches Datum allein reichen nicht für eine automatische Zuordnung.
+- Statusfelder durch Kalenderabruf, Rohmetadaten, BI-/RI-Onlineindizes, lokale Sitzungsindizes und die jeweilige Webansicht führen; additive Schemaanpassungen und den Umgang mit bestehenden Datensätzen vorsehen. RI-Kalenderdaten bleiben im RI-Bestand.
+- `si0050.asp` nur mit geprüftem Host, passender Sitzungs-ID und enger Parameterliste als lesende Statusansicht zulassen. Erkennbare Terminänderungen liefern einen Kalenderstatus, keine erfundene leere Tagesordnung. Login-, Berechtigungs- und unerwartete Antwortfehler bleiben Fehler.
+- In der Übersicht abgesagte/verschobene alte Termine kenntlich machen, etwa in einem gesonderten Abschnitt „Geänderte Termine“, und nicht gegen die nächsten fünf regulären Termine zählen. Ein nachgewiesener neuer Termin erscheint unter seiner eigenen ID. Den Originalhinweis anzeigen, wenn noch keine neue ID bekannt ist.
+- Kalenderdaten auch für Änderungen aktualisieren, wenn lokale Unterlagen vorhanden sind. Den RI-Onlinekalender bei der lokalen Übersicht berücksichtigen, ohne RI-Metadaten in öffentliche Suche oder Exporte zu übernehmen.
+
+Eine reine Textkorrektur im Dashboard wäre nur eine Zwischenlösung: Sie würde weder
+Indexdaten noch den Abruf der alten Statusansichten korrigieren. Ein ersatzloses
+Ausblenden aller geänderten Termine würde die Verbindung zum neuen Termin verlieren.
+
+Gezielte Prüfungen: 9516 über den Jahreswechsel, 8181 mit Ersatzdatum und dem getrennten Datensatz 9514,
+7168/7169 als Absagen, unveränderte normale Termine, unbekannte Hinweise, fehlende
+Ersatz-ID und strikte BI-/RI-Datentrennung. Synthetische Fixtures aus den beobachteten
+Strukturen verwenden; geschützte Rohseiten bleiben außerhalb von Git.
+
+### 2. Download mit lokalem Indexnachlauf
+
+Empfohlen ist ein serverseitiger RI-Webauftrag mit zwei festen Phasen:
+
+1. Das Downloadformular erhält „Lokalen Index anschließend aktualisieren“, standardmäßig aktiviert. Das Abschalten erhält den bisherigen reinen Download; der manuelle lokale Build bleibt verfügbar.
+2. Ein Auftrag reserviert den bestehenden RI-Slot bis zum Ende beider Phasen. Zuerst läuft das vorhandene Downloadskript, danach der vorhandene lokale Builder. Keine neue Online-Anmeldung für den lokalen Schritt und keine Vermischung mit BI-Jobs.
+3. Nach Download-Exitcode 0 oder 2 den inkrementellen lokalen Builder starten. Er erkennt neue/geänderte Metadaten und Dateien bereits über `source_state`; ein pauschales Neuerstellen aller unveränderten Sitzungen ist nicht nötig. Nach einem harten Download-Abbruch keinen automatischen Erfolg melden; den nicht ausgeführten Indexnachlauf explizit anzeigen.
+4. Phase, getrennte Exitcodes und phasenbezogene Ausgabe speichern/anzeigen. Download 0 + Index 0 ergibt Erfolg; Download 2 + Index 0 bleibt ein Warnabschluss; ein fehlgeschlagener Index ergibt einen Fehler mit dem Hinweis, dass heruntergeladene Dateien erhalten sind. Ein erfolgreicher Indexlauf hebt Download-/Abmeldewarnungen nicht auf.
+5. Bei einem Indexfehler den lokalen Aufbau separat wiederholen können, ohne erneut herunterzuladen. Nach Abschluss Sitzungsansicht und Datenstatus aus der aktuellen lokalen Datenbank lesen.
+
+Die Verkettung gehört in den Serverauftrag. Ein automatischer zweiter Browser-POST
+wäre von der geöffneten Seite abhängig und könnte zwischen den Phasen mit einem
+anderen Auftrag konkurrieren. Ein Aktualisieren erst beim Öffnen der Sitzungsseite
+würde dagegen einen versteckten Schreibvorgang in einer Leseansicht erzeugen.
+
+Gezielte Prüfungen: Download 0/2/1, Indexfehler und gezielter Wiederholungslauf,
+Erhalt von Warnungen, Auftragsslot über beide Phasen und ein Fall wie 8176 mit neu
+vorhandenen Dateien. Die manuellen Löschregeln bleiben unverändert.
+
 ## Nächste Schritte und Abnahme
 
 Die [Aufgabenliste](project_tasks.md) enthält ausschließlich die offenen Arbeitspakete.
-Der Vorhaben-Branch ist abgeschlossen, wenn gezielter Abruf, lokaler Dokumentbestand
-und freigegebene Bereinigung im geschützten Ratsbereich funktionieren, Trennungs-
-und Berechtigungstests bestehen und der Betrieb einschließlich Sicherung und
-Wiederherstellung dokumentiert und abgenommen ist.
+Das Vorhaben ist abgeschlossen, wenn gezielter Abruf, Kalenderstatus, aktueller
+lokaler Dokumentbestand und Dateiansichten im Ratsbereich funktionieren,
+Trennungs- und Berechtigungstests bestehen und der Betrieb einschließlich Sicherung
+und Wiederherstellung dokumentiert und abgenommen ist. Eine automatische Bereinigung
+ist ausdrücklich kein Abschlusskriterium.
 
 Agenten führen nur gezielte schnelle Tests aus. Den vollständigen PR-Testlauf
 übernimmt der Nutzer gemäß [Testdokumentation](../entwicklung/tests.md).
