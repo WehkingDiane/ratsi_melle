@@ -24,7 +24,8 @@ den nächsten fünf regulären Sitzungen. Originaldatum und Originalhinweis blei
 sichtbar, ein bekanntes Ersatzdatum wird ergänzt. Eine explizit belegte Ersatz-ID
 wird angezeigt; Direktlinks erscheinen, wenn deren lokaler BI-/RI-Eintrag vorhanden ist.
 Auch Listen und Sitzungsdetails kennzeichnen den Status. Terminänderungen stehen
-nicht mehr im Uhrzeitfeld.
+nicht mehr im Uhrzeitfeld. Fehlen bei verschobenen oder abgesagten Terminen
+Uhrzeit oder Ort, zeigt das Dashboard „–“ statt „Noch offen“.
 
 Das Dashboard berücksichtigt zusätzlich den separaten RI-Onlinekalender. Bei
 unterschiedlichen Statusständen wird die jüngste bekannte Beobachtung verwendet.

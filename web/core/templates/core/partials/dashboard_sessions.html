@@ -12,8 +12,8 @@
           <span class="dashboard-relative{% if session.is_today %} dashboard-relative-today{% endif %}">{{ session.relative_date }}</span>
         </td>
         <td class="dashboard-meeting">{{ session.meeting_name }}{% include "core/partials/calendar_notice.html" %}</td>
-        <td>{{ session.start_time|default:"Noch offen" }}</td>
-        <td>{{ session.location|default:"Noch offen" }}</td>
+        <td>{% if not session.start_time and session.calendar_status == "postponed" or not session.start_time and session.calendar_status == "cancelled" %}–{% else %}{{ session.start_time|default:"Noch offen" }}{% endif %}</td>
+        <td>{% if not session.location and session.calendar_status == "postponed" or not session.location and session.calendar_status == "cancelled" %}–{% else %}{{ session.location|default:"Noch offen" }}{% endif %}</td>
         <td>
           <div class="actions">
             {% if session.local_present %}<a href="{% url 'analysis:session_detail' session.session_id %}">BI öffnen</a>{% endif %}

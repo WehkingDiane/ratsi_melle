@@ -5,6 +5,7 @@ Die neuesten Änderungen stehen oben. Einträge sind rückwirkend aus Git-Histor
 ## 0.10.0 – 27.11.2026
 
 - Verschobene, abgesagte und unklare Kalendertermine getrennt von Uhrzeit und Ort erfassen; Originaldatum, Hinweis, Ersatzdatum und explizit belegte Ersatz-ID in BI-/RI-Indizes erhalten. Bestehende SQLite-Tabellen additiv erweitern.
+- Fehlende Uhrzeit und fehlenden Ort bei verschobenen oder abgesagten Terminen im Dashboard als „–“ anzeigen.
 - Geänderte Termine im Dashboard separat anzeigen und nicht auf die nächsten fünf regulären Termine anrechnen; RI-Onlinekalender einbeziehen und widersprüchliche Metadaten nach Beobachtungszeit zusammenführen.
 - RI-Terminansichten `si0050.asp` eng begrenzt als Statusseiten behandeln; bekannte Terminänderungen ohne Dokumentabruf verarbeiten. Lokale Kalenderübernahme erhält bestehende Unterlagen und benötigt keine Portal-Anmeldung.
 - RI-Webdownload mit zunächst aktiviertem lokalem Indexnachlauf unter demselben Auftragsschutz verketten; Phase und beide Exitcodes anzeigen, Downloadwarnungen erhalten und lokale Wiederholung ohne erneuten Download ermöglichen. Bestehende Jobtabellen additiv erweitern.
