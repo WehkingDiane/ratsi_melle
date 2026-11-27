@@ -1,6 +1,6 @@
 # Repository-Grundlagen
 
-Stand: 27.10.2026. Die verbindlichen Agenten- und Branchregeln stehen in [AGENTS.md](../../AGENTS.md). Der [Ist-Stand](../ist_stand.md) fasst den aktuellen Funktionsumfang zusammen; der [RI-Plan](../plans/ri_ratsbereich_plan.md) ist das einzige aktuelle Ausbauvorhaben.
+Stand: 27.10.2026. Die verbindlichen Agenten- und Branchregeln stehen in [AGENTS.md](../../AGENTS.md). Der [Ist-Stand](../ist_stand.md) fasst den aktuellen Funktionsumfang zusammen; die [aktuellen RI-Aufgaben](../plans/project_tasks.md) führen die verbleibenden Arbeiten am Ausbauvorhaben.
 
 ## Struktur und Ablage
 
@@ -21,7 +21,7 @@ Stand: 27.10.2026. Die verbindlichen Agenten- und Branchregeln stehen in [AGENTS
 ## Laufzeitgrenzen
 
 - Der öffentliche SessionNet-Client begrenzt Anfragerate, Wiederholungen und Downloads. Dokumente über 100 MiB werden abgebrochen; ab 25 MiB wird gewarnt. Landkreis-Downloads brechen über 25 MiB ab.
-- Öffentliche und interne RI-Daten müssen über den gesamten Weg getrennt bleiben: Download, Rohdaten, SQLite, Suchindex, Dateiauslieferung und Jobs. Der [RI-Datenablauf](../ri/datenablauf.md) beschreibt die vorhandenen CLI-Funktionen; der [RI-Plan](../plans/ri_ratsbereich_plan.md) führt die offenen Arbeiten für Oberfläche und Bereinigung.
+- Öffentliche und interne RI-Daten müssen über den gesamten Weg getrennt bleiben: Download, Rohdaten, SQLite, Suchindex, Dateiauslieferung und Jobs. Der [RI-Datenablauf](../ri/datenablauf.md) beschreibt die vorhandenen CLI-Funktionen; die [Aufgabenliste](../plans/project_tasks.md) führt die verbleibenden Arbeiten. Aufbewahrung und Dokumentlöschung erfolgen manuell; automatische Bereinigung ist nicht vorgesehen.
 
 ## Dokumentationsstruktur
 

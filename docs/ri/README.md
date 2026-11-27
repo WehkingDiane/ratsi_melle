@@ -9,7 +9,7 @@ CLI-Paket bereit. Der Bestand liegt getrennt unter `data/ri/` und wird nicht von
 - [Zugang einrichten und prüfen](zugang.md)
 - [Onlineindex, Dokumentabruf und lokalen Index bedienen](datenablauf.md)
 - [Ratsbereich über die Oberfläche bedienen](oberflaeche.md)
-- [Weiterer Ausbau und offene Entscheidungen](../plans/ri_ratsbereich_plan.md)
+- [Verbleibende Aufgaben und offene Entscheidungen](../plans/project_tasks.md)
 
 Der RI-Webbereich ist ein erster funktionsfähiger Prototyp für den lokalen Betrieb.
 Formulare, Status und Jobausgaben nutzen seit 0.8.1 die BI-Gestaltungselemente und seit 0.9.3 gemeinsame UI-Bausteine.

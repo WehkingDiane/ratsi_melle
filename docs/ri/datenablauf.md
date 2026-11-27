@@ -154,7 +154,7 @@ Die bekannte unbestätigte entfernte Proton-Abmeldung bleibt ein eigener Warnsta
 Die [lokale Web-Datenpflege](oberflaeche.md) steuert diese Skripte seit 0.8.0;
 Sitzungs- und Dateiansichten sind ebenfalls angebunden. Die begrenzte reale
 [UI-Abnahme](oberflaeche.md#reale-ui-abnahme-vom-22112026) umfasst auch den Verwaltungsausschuss.
-Weitere Aufgaben stehen im [RI-Plan](../plans/ri_ratsbereich_plan.md). Eine RI-Volltext-
+Weitere Aufgaben stehen im [aktuellen RI-Aufgaben](../plans/project_tasks.md). Eine RI-Volltext-
 oder Vektorindexierung ist nicht vorgesehen. Lokale Dateien und Sicherungen bleiben
 unter der Verantwortung des Benutzerkontos; eine getrennte Ablage allein ersetzt
 keine Betriebssystem-Zugriffsrechte.

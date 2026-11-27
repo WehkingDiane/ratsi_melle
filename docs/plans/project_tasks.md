@@ -1,10 +1,16 @@
 # Aktuelle Projektaufgabe
 
 Stand: 27.11.2026. Aktuelles Vorhaben ist der geschützte Ratsbereich für SessionNet
-`/ri/`. Der [Hauptplan](ri_ratsbereich_plan.md) führt Schutzgrenzen und offene
-Entscheidungen; die [RI-Übersicht](../ri/README.md) beschreibt den vorhandenen Umfang.
+`/ri/`. Diese Liste führt die verbleibenden Aufgaben und offenen Entscheidungen;
+die [RI-Übersicht](../ri/README.md) beschreibt den vorhandenen Umfang. Schutzgrenzen
+und Datenverträge stehen im [Datenablauf](../ri/datenablauf.md).
 
 ## Kontext
+
+Die weitgehend erledigten Pläne zur RI-Skriptanbindung und zum Ratsbereich wurden
+am 27.11.2026 aus der aktiven Dokumentation archiviert. Bytegleiche lokale Kopien
+liegen unter `archive/docs/plans/`; frühere Fassungen bleiben in Git erhalten.
+Die noch offenen Arbeitspakete stehen ausschließlich unter „Konkrete Aufgaben“.
 
 Anmeldung, Onlineindex, Dokumentabruf und lokaler Dokumentindex wurden im
 Testbereich praktisch erprobt und mit 0.7.0 ins Projekt übernommen. Der reguläre
